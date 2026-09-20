@@ -1,0 +1,45 @@
+{
+  "name": "@otrarondamas/otrarondamas",
+  "version": "1.0.0",
+  "description": "Aplicación web SaaS para gestionar la operación comercial de Otra Roonda Más (ventas, pedidos, pagos, caja, clientes, inventario, compras, entregas, reportes y auditoría).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "echo 'Run dev for specific app: npm run dev --workspace=@otrarondamas/api'",
+    "build": "echo 'Run build for specific app: npm run build --workspace=@otrarondamas/api'",
+    "lint": "echo 'Run lint for specific app: npm run lint --workspace=@otrarondamas/api'",
+    "test": "echo 'Run test for specific app: npm run test --workspace=@otrarondamas/api'",
+    "db:migrate": "echo 'Run db:migrate for api: npm run db:migrate --workspace=@otrarondamas/api'",
+    "db:seed": "echo 'Run db:seed for api: npm run db:seed --workspace=@otrarondamas/api'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fmonfasani/otrarondamas.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fmonfasani/otrarondamas/issues"
+  },
+  "homepage": "https://github.com/fmonfasani/otrarondamas#readme",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "acorn-jsx": "^5.3.2",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.9.8",
+    "prisma": "^5.22.0"
+  }
+}

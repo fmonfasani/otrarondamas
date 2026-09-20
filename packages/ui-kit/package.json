@@ -1,0 +1,21 @@
+{
+  "name": "@otrarondamas/ui-kit",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts{,x} --fix"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "eslint": "^8.42.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@types/react": "^18.2.14",
+    "@types/react-dom": "^18.2.6"
+  }
+}

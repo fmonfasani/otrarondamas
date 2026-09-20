@@ -1,0 +1,587 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoPedido {
+  RECIBIDO
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  ASIGNADO
+  EN_CAMINO
+  ENTREGADO
+  PARCIALMENTE_ENTREGADO
+  ENTREGA_FALLIDA
+  CANCELADO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  EN_PROCESO
+  APROBADO
+  RECHAZADO
+  CANCELADO
+  REEMBOLSADO_PARCIAL
+  REEMBOLSADO_TOTAL
+}
+
+enum EstadoCompra {
+  BORRADOR
+  EMITIDA
+  RECEPCION_PARCIAL
+  RECIBIDA
+}
+
+enum EstadoCaja {
+  CERRADA
+  ABIERTA
+  EN_ARQUEO
+}
+
+enum UnidadBase {
+  UNIDAD
+  KILOGRAMO
+  LITRO
+  METRO
+  PACK
+  CAJA
+}
+
+model Empresa {
+  id            String   @id @default(uuid())
+  nombre        String   @unique
+  configuracion Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  usuarios          Usuario[]
+  categorias        Categoria[]
+  productos         Producto[]
+  clientes          Cliente[]
+  cajas             Caja[]
+  proveedores       Proveedor[]
+  ventas            Venta[]
+  pedidos           Pedido[]
+  compras           Compra[]
+  movimientosStock  MovimientoStock[]
+  audits            AuditLog[]
+  autorizaciones    Autorizacion[]    @relation("EmpresaAutorizaciones")
+  presentaciones    Presentacion[]    @relation("EmpresaPresentaciones")
+  lotes             Lote[]            @relation("EmpresaLotes")
+  cuentasCorriente  CuentaCorriente[] @relation("EmpresaCuentasCorriente")
+  deudas            Deuda[]           @relation("EmpresaDeudas")
+  pagos             Pago[]            @relation("EmpresaPagos")
+  recepcionesCompra RecepcionCompra[] @relation("EmpresaRecepcionesCompra")
+  entregas          Entrega[]         @relation("EmpresaEntregas")
+  notificaciones    Notificacion[]    @relation("EmpresaNotificaciones")
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  empresaId    String
+  empresa      Empresa  @relation(fields: [empresaId], references: [id])
+  nombre       String
+  email        String   @unique
+  passwordHash String
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  usuarioPermisos    UsuarioPermiso[]
+  ventas             Venta[]
+  pedidos            Pedido[]
+  movimientosCaja    MovimientoCaja[]
+  audits             AuditLog[]
+  aperturasCaja      AperturaCaja[]
+  cierresCaja        CierreCaja[]
+  arqueosCaja        ArqueoCaja[]
+  entregasPreparadas Entrega[]         @relation("PreparadorEntrega")
+  entregasRepartidas Entrega[]         @relation("RepartidorEntrega")
+  pagos              Pago[]            @relation("UsuarioPagos")
+  compras            Compra[]          @relation("UsuarioCompras")
+  recepcionesCompra  RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
+  movimientosStock   MovimientoStock[] @relation("UsuarioMovimientosStock")
+  autorizaciones     Autorizacion[]    @relation("UsuarioAutorizaciones")
+}
+
+model Permiso {
+  id          String   @id @default(uuid())
+  nombre      String   @unique // e.g., 'caja.gastos', 'inventario.ajustes'
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  usuarioPermisos UsuarioPermiso[]
+}
+
+model UsuarioPermiso {
+  id        String   @id @default(uuid())
+  usuarioId String
+  permisoId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  permiso   Permiso  @relation(fields: [permisoId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, permisoId])
+}
+
+model Categoria {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productos Producto[]
+
+  @@unique([empresaId, nombre])
+}
+
+model Producto {
+  id              String     @id @default(uuid())
+  empresaId       String
+  empresa         Empresa    @relation(fields: [empresaId], references: [id])
+  nombre          String
+  codigoInterno   String     @unique // RF-03
+  codigoBarras    String?
+  marca           String?
+  categoriaId     String
+  categoria       Categoria  @relation(fields: [categoriaId], references: [id])
+  unidadBase      UnidadBase
+  costo           Decimal
+  precioMinorista Decimal
+  precioMayorista Decimal? // D-01: nullable until rule is defined
+  activo          Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  lotes            Lote[]
+  presentaciones   Presentacion[]    @relation("ProductoPresentaciones")
+  ventaItems       VentaItem[]
+  movimientosStock MovimientoStock[]
+  compraItems      CompraItem[]      @relation("ProductoCompraItems")
+}
+
+model Presentacion {
+  id               String   @id @default(uuid())
+  empresaId        String
+  empresa          Empresa  @relation("EmpresaPresentaciones", fields: [empresaId], references: [id])
+  productoId       String
+  producto         Producto @relation("ProductoPresentaciones", fields: [productoId], references: [id])
+  nombre           String // Ej: "Pack x6", "Caja x12"
+  factorConversion Decimal // Cuántas unidades base contiene esta presentación
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([productoId, nombre])
+}
+
+model Lote {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation("EmpresaLotes", fields: [empresaId], references: [id])
+  productoId  String
+  producto    Producto @relation(fields: [productoId], references: [id])
+  numeroLote  String
+  vencimiento DateTime
+  cantidad    Decimal // Stock en este lote
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movimientosStock MovimientoStock[] @relation("LoteMovimientosStock")
+
+  @@unique([productoId, numeroLote, empresaId])
+}
+
+model Cliente {
+  id            String   @id @default(uuid())
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id])
+  nombre        String
+  email         String?
+  telefono      String?
+  direccion     String?
+  limiteCredito Decimal? // RF-10
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ventas           Venta[]
+  cuentasCorriente CuentaCorriente[] @relation("ClienteCuentasCorriente")
+  deudas           Deuda[]           @relation("ClienteDeudas")
+  pedidos          Pedido[]          @relation("ClientePedidos")
+
+  @@unique([empresaId, email]) // Assuming email is unique per company for clients
+}
+
+model CuentaCorriente {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation("EmpresaCuentasCorriente", fields: [empresaId], references: [id])
+  clienteId String
+  cliente   Cliente  @relation("ClienteCuentasCorriente", fields: [clienteId], references: [id])
+  saldo     Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deudas Deuda[] @relation("CuentaCorrienteDeudas")
+  pagos  Pago[]  @relation("CuentaCorrientePagos")
+
+  @@unique([empresaId, clienteId])
+}
+
+model Deuda {
+  id               String    @id @default(uuid())
+  empresaId        String
+  empresa          Empresa   @relation("EmpresaDeudas", fields: [empresaId], references: [id])
+  clienteId        String
+  cliente          Cliente   @relation("ClienteDeudas", fields: [clienteId], references: [id])
+  ventaId          String?
+  venta            Venta?    @relation(fields: [ventaId], references: [id])
+  montoTotal       Decimal
+  montoPendiente   Decimal
+  fechaVencimiento DateTime? // D-16: Placeholder
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  aplicacionesPago  AplicacionPago[]
+  cuentaCorrienteId String?
+  cuentaCorriente   CuentaCorriente? @relation("CuentaCorrienteDeudas", fields: [cuentaCorrienteId], references: [id])
+}
+
+model Venta {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+  estado    String   @default("CONFIRMADA") // INV-02: No se borra físicamente
+  canal     String // presencial/mayorista/online
+  total     Decimal
+  descuento Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventaItems VentaItem[]
+  pagos      Pago[]
+  deuda      Deuda[]
+  audits     AuditLog[]  @relation("VentaAudits")
+}
+
+model VentaItem {
+  id             String   @id @default(uuid())
+  ventaId        String
+  venta          Venta    @relation(fields: [ventaId], references: [id])
+  productoId     String
+  producto       Producto @relation(fields: [productoId], references: [id])
+  cantidad       Decimal
+  precioUnitario Decimal
+  descuentoItem  Decimal  @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Pedido {
+  id          String       @id @default(uuid())
+  empresaId   String
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  clienteId   String?
+  cliente     Cliente?     @relation("ClientePedidos", fields: [clienteId], references: [id])
+  usuarioId   String
+  usuario     Usuario      @relation(fields: [usuarioId], references: [id]) // Responsable de la carga/gestión del pedido
+  estado      EstadoPedido @default(RECIBIDO)
+  canalOrigen String // WhatsApp, redes, web, presencial
+  total       Decimal
+  descuento   Decimal      @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  pagos          Pago[]         @relation("PedidoPagos")
+  entrega        Entrega? // One-to-one or one-to-many relationship, depends on business logic if a pedido can have multiple deliveries
+  notificaciones Notificacion[]
+}
+
+model Pago {
+  id        String           @id @default(uuid())
+  empresaId String
+  empresa   Empresa          @relation("EmpresaPagos", fields: [empresaId], references: [id])
+  usuarioId String?
+  usuario   Usuario?         @relation("UsuarioPagos", fields: [usuarioId], references: [id]) // Quién registró el pago, si aplica
+  ventaId   String?
+  venta     Venta?           @relation(fields: [ventaId], references: [id])
+  deudaId   String?
+  deuda     CuentaCorriente? @relation("CuentaCorrientePagos", fields: [deudaId], references: [id]) // Reference to CuentaCorriente for overall debt, or specific Deuda entity
+  monto     Decimal
+  medio     String // efectivo, transferencia, QR, Mercado Pago
+  estado    EstadoPago       @default(PENDIENTE)
+  comision  Decimal          @default(0) // RF-08
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  aplicacionesPago AplicacionPago[]
+  pedidoId         String?
+  pedido           Pedido?          @relation("PedidoPagos", fields: [pedidoId], references: [id])
+}
+
+model AplicacionPago {
+  id            String   @id @default(uuid())
+  pagoId        String
+  pago          Pago     @relation(fields: [pagoId], references: [id])
+  deudaId       String // ID de la deuda concreta a la que se aplica el pago
+  deuda         Deuda    @relation(fields: [deudaId], references: [id])
+  montoAplicado Decimal
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([pagoId, deudaId])
+}
+
+model Caja {
+  id        String     @id @default(uuid())
+  empresaId String
+  empresa   Empresa    @relation(fields: [empresaId], references: [id])
+  nombre    String     @default("Caja Principal")
+  fondoFijo Decimal
+  estado    EstadoCaja @default(CERRADA)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  aperturas   AperturaCaja[]
+  movimientos MovimientoCaja[]
+  arqueos     ArqueoCaja[]
+
+  @@unique([empresaId])
+}
+
+model AperturaCaja {
+  id            String    @id @default(uuid())
+  cajaId        String
+  caja          Caja      @relation(fields: [cajaId], references: [id])
+  usuarioId     String
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id])
+  montoInicial  Decimal
+  fechaApertura DateTime  @default(now())
+  fechaCierre   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  movimientos MovimientoCaja[]
+  arqueos     ArqueoCaja[]
+  cierreCaja  CierreCaja?      @relation("AperturaCajaCierre") // One-to-one, an opening can only have one closing
+}
+
+model MovimientoCaja {
+  id             String        @id @default(uuid())
+  cajaId         String
+  caja           Caja          @relation(fields: [cajaId], references: [id])
+  aperturaCajaId String?
+  aperturaCaja   AperturaCaja? @relation(fields: [aperturaCajaId], references: [id])
+  usuarioId      String
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id])
+  tipo           String // Ingreso, Egreso, Venta, DeudaCobro, Gasto, Retiro
+  monto          Decimal
+  descripcion    String?
+  referenciaId   String? // e.g., VentaId, DeudaId, GastoId
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model ArqueoCaja {
+  id                       String        @id @default(uuid())
+  cajaId                   String
+  caja                     Caja          @relation(fields: [cajaId], references: [id])
+  aperturaCajaId           String
+  aperturaCaja             AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
+  usuarioId                String
+  usuario                  Usuario       @relation(fields: [usuarioId], references: [id])
+  fondoFijoContado         Decimal
+  efectivoVentasContado    Decimal
+  efectivoDeudasContado    Decimal
+  gastosRetirosRegistrados Decimal
+  efectivoEsperado         Decimal
+  efectivoContado          Decimal
+  diferencia               Decimal
+  autorizacionId           String? // INV-08: Authorization needed if difference > threshold
+  autorizacion             Autorizacion? @relation(fields: [autorizacionId], references: [id])
+  fechaArqueo              DateTime      @default(now())
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+}
+
+model CierreCaja {
+  id             String       @id @default(uuid())
+  aperturaCajaId String       @unique
+  aperturaCaja   AperturaCaja @relation("AperturaCajaCierre", fields: [aperturaCajaId], references: [id])
+  usuarioId      String
+  usuario        Usuario      @relation(fields: [usuarioId], references: [id])
+  fechaCierre    DateTime     @default(now())
+  montoFinal     Decimal
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Proveedor {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  nombre    String
+  email     String?
+  telefono  String?
+  direccion String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  compras Compra[]
+
+  @@unique([empresaId, nombre])
+}
+
+model Compra {
+  id                     String       @id @default(uuid())
+  empresaId              String
+  empresa                Empresa      @relation(fields: [empresaId], references: [id])
+  proveedorId            String
+  proveedor              Proveedor    @relation(fields: [proveedorId], references: [id])
+  usuarioId              String
+  usuario                Usuario      @relation("UsuarioCompras", fields: [usuarioId], references: [id]) // Quién generó la orden de compra
+  estado                 EstadoCompra @default(BORRADOR)
+  total                  Decimal
+  fechaOrden             DateTime     @default(now())
+  fechaRecepcionEsperada DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  recepciones RecepcionCompra[]
+  items       CompraItem[]
+}
+
+model CompraItem {
+  id               String   @id @default(uuid())
+  compraId         String
+  compra           Compra   @relation(fields: [compraId], references: [id])
+  productoId       String
+  producto         Producto @relation("ProductoCompraItems", fields: [productoId], references: [id])
+  cantidadPedida   Decimal
+  cantidadRecibida Decimal  @default(0)
+  costoUnitario    Decimal
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model RecepcionCompra {
+  id             String   @id @default(uuid())
+  empresaId      String
+  empresa        Empresa  @relation("EmpresaRecepcionesCompra", fields: [empresaId], references: [id])
+  compraId       String
+  compra         Compra   @relation(fields: [compraId], references: [id])
+  usuarioId      String
+  usuario        Usuario  @relation("UsuarioRecepcionesCompra", fields: [usuarioId], references: [id]) // Quién recibe
+  fechaRecepcion DateTime @default(now())
+  observaciones  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  movimientosStock MovimientoStock[]
+}
+
+model MovimientoStock {
+  id                String           @id @default(uuid())
+  empresaId         String
+  empresa           Empresa          @relation(fields: [empresaId], references: [id])
+  productoId        String
+  producto          Producto         @relation(fields: [productoId], references: [id])
+  loteId            String?
+  lote              Lote?            @relation("LoteMovimientosStock", fields: [loteId], references: [id])
+  tipoMovimiento    String // Entrada, Salida, Ajuste
+  cantidad          Decimal
+  motivo            String // Venta, Compra, AjusteManual, Devolucion
+  referenciaId      String? // ID de la venta, compra, etc.
+  usuarioId         String?
+  usuario           Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
+  recepcionCompraId String?
+  recepcionCompra   RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model Entrega {
+  id           String    @id @default(uuid())
+  empresaId    String
+  empresa      Empresa   @relation("EmpresaEntregas", fields: [empresaId], references: [id])
+  pedidoId     String    @unique // One-to-one with Pedido
+  pedido       Pedido    @relation(fields: [pedidoId], references: [id])
+  preparadorId String?
+  preparador   Usuario?  @relation("PreparadorEntrega", fields: [preparadorId], references: [id])
+  repartidorId String?
+  repartidor   Usuario?  @relation("RepartidorEntrega", fields: [repartidorId], references: [id])
+  resultado    String? // Entregado, Fallida, Cancelada
+  medioCobro   String? // Si se cobra al entregar
+  fechaEntrega DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Notificacion {
+  id           String   @id @default(uuid())
+  empresaId    String
+  empresa      Empresa  @relation("EmpresaNotificaciones", fields: [empresaId], references: [id])
+  pedidoId     String?
+  pedido       Pedido?  @relation(fields: [pedidoId], references: [id])
+  evento       String // e.g., PedidoRecibido, PagoAprobado
+  canal        String // WhatsApp, Email
+  destinatario String
+  estadoEnvio  String // Pendiente, Enviado, Fallido
+  mensaje      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AuditLog {
+  id                 String        @id @default(uuid())
+  empresaId          String
+  empresa            Empresa       @relation(fields: [empresaId], references: [id])
+  usuarioId          String?
+  usuario            Usuario?      @relation(fields: [usuarioId], references: [id])
+  fechaHora          DateTime      @default(now())
+  accion             String
+  entidadAfectada    String // Nombre de la tabla o entidad
+  entidadId          String? // ID de la entidad afectada
+  valoresAnteriores  Json?
+  valoresPosteriores Json?
+  motivo             String?
+  autorizacionId     String?
+  autorizacion       Autorizacion? @relation(fields: [autorizacionId], references: [id])
+  ventaId            String?
+  venta              Venta?        @relation("VentaAudits", fields: [ventaId], references: [id])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model Autorizacion {
+  id                String   @id @default(uuid())
+  empresaId         String
+  empresa           Empresa  @relation("EmpresaAutorizaciones", fields: [empresaId], references: [id])
+  autorizadorId     String
+  autorizador       Usuario  @relation("UsuarioAutorizaciones", fields: [autorizadorId], references: [id]) // Quién autorizó (dueño/admin)
+  operacion         String // e.g., 'caja.retiro', 'venta.descuentoEspecial'
+  entidadAfectada   String? // Opcional: tabla/entidad del registro afectado
+  entidadId         String? // Opcional: ID del registro afectado
+  motivo            String?
+  fechaAutorizacion DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  arqueoDeCaja ArqueoCaja[]
+  audits       AuditLog[]
+}
