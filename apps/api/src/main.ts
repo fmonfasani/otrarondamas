@@ -7,10 +7,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Desarrollo local: los frontends corren en otro puerto (Vite: 5173/5174).
-  // TODO: restringir a los orígenes reales de producción antes de desplegar.
+  // CORS_ORIGINS es una lista separada por comas de orígenes permitidos
+  // (ej. "https://otrarondamas.wapsell.com"). Sin configurar, cae a los
+  // puertos de Vite en desarrollo local.
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+    : ['http://localhost:5173', 'http://localhost:5174'];
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: corsOrigins,
     credentials: true,
   });
 

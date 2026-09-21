@@ -1,48 +1,37 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { AuthProvider, useAuth } from './features/auth/AuthContext';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './features/auth/AuthContext';
 import { LoginPage } from './features/auth/LoginPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
+import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-
-function Nav() {
-  const { user } = useAuth();
-  return (
-    <nav>
-      <ul>
-        <li>
-          <Link to="/">Panel</Link>
-        </li>
-        {!user && (
-          <li>
-            <Link to="/login">Login</Link>
-          </li>
-        )}
-      </ul>
-    </nav>
-  );
-}
+import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div>
-          <Nav />
-          <h1>POS/Admin — Otra Roonda Más</h1>
-          {/* TODO: diseño visual pendiente */}
-
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/login" element={<LoginPage />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Routes>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
+                    <Route path="/orders" element={<div className="text-center py-12">Pedidos - En desarrollo</div>} />
+                    <Route path="/inventory" element={<div className="text-center py-12">Inventario - En desarrollo</div>} />
+                    <Route path="/customers" element={<div className="text-center py-12">Clientes - En desarrollo</div>} />
+                    <Route path="/cash" element={<div className="text-center py-12">Caja - En desarrollo</div>} />
+                    <Route path="/reports" element={<div className="text-center py-12">Reportes - En desarrollo</div>} />
+                    <Route path="/settings" element={<div className="text-center py-12">Configuración - En desarrollo</div>} />
+                  </Routes>
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </Router>
     </AuthProvider>
   );

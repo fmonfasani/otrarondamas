@@ -43,11 +43,38 @@ export class CatalogoController {
   constructor(private readonly prismaFactory: EmpresaScopedPrismaService) {}
 
   @Get()
-  async listProductos(@CurrentUser() user: AuthenticatedUser, @Query('activo') activo?: string) {
+  async listProductos(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('activo') activo?: string,
+    @Query('search') search?: string,
+  ) {
     const db = this.prismaFactory.forEmpresa(user.empresaId);
+    const where: Prisma.ProductoWhereInput = {
+      ...(activo === undefined ? {} : { activo: activo === 'true' }),
+      // Búsqueda simple por nombre o código interno, case-insensitive.
+      // Con `search` se limita a 50 resultados: sin este límite, un
+      // listado completo del catálogo real (4.342 productos, ver
+      // docs/scaffolding-notas.md sección 10) es impracticable de
+      // renderizar en un selector de venta. Sin `search`, se mantiene
+      // el comportamiento anterior (listado completo, sin límite) para
+      // no romper otros usos existentes del endpoint.
+      /* eslint-disable indent -- falso positivo conocido de la regla
+         `indent` base con un ternario que devuelve un objeto anidado
+         (mismo patrón que en dto/login.dto.ts) */
+      ...(search
+        ? {
+            OR: [
+              { nombre: { contains: search, mode: 'insensitive' } },
+              { codigoInterno: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      /* eslint-enable indent */
+    };
     return db.producto.findMany({
-      where: activo === undefined ? {} : { activo: activo === 'true' },
+      where,
       orderBy: { nombre: 'asc' },
+      ...(search ? { take: 50 } : {}),
     });
   }
 

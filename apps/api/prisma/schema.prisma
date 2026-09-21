@@ -1,5 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" para desarrollo local (Windows/Mac); debian-openssl-3.0.x para
+  // el runtime de producción (node:20-bookworm-slim en el Dockerfile de la
+  // API — Alpine se descartó por incompatibilidad de libssl con el engine
+  // nativo de Prisma, ver comentario en apps/api/Dockerfile).
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -100,6 +105,7 @@ model Usuario {
   aperturasCaja      AperturaCaja[]
   cierresCaja        CierreCaja[]
   arqueosCaja        ArqueoCaja[]
+  arqueosComoEntrante ArqueoCaja[]     @relation("ArqueoUsuarioEntrante")
   entregasPreparadas Entrega[]         @relation("PreparadorEntrega")
   entregasRepartidas Entrega[]         @relation("RepartidorEntrega")
   pagos              Pago[]            @relation("UsuarioPagos")
@@ -403,8 +409,10 @@ model ArqueoCaja {
   caja                     Caja          @relation(fields: [cajaId], references: [id])
   aperturaCajaId           String
   aperturaCaja             AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
-  usuarioId                String
+  usuarioId                String // vendedor saliente: quien registra el arqueo (usuario autenticado de la request)
   usuario                  Usuario       @relation(fields: [usuarioId], references: [id])
+  usuarioEntranteId        String // RF-09: "arqueo confirmado por vendedor saliente y entrante" — segundo usuario, obligatorio, distinto del saliente (validado en caja.service.ts)
+  usuarioEntrante          Usuario       @relation("ArqueoUsuarioEntrante", fields: [usuarioEntranteId], references: [id])
   fondoFijoContado         Decimal
   efectivoVentasContado    Decimal
   efectivoDeudasContado    Decimal

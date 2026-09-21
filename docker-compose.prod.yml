@@ -1,0 +1,57 @@
+# Compose de producción para OtraRondaMas. Pensado para correr en el VPS
+# compartido (89.167.96.239) junto a otros proyectos (catalaxia, wapsell,
+# etc.): todos los puertos publicados solo en 127.0.0.1, el nginx del host
+# es el único que expone 443 al público y hace el reverse proxy hacia acá
+# (ver /etc/nginx/sites-available/otrarondamas.wapsell.com en el VPS).
+#
+# Uso: docker compose -f docker-compose.prod.yml up -d --build
+# Requiere un .env junto a este archivo (ver .env.prod.example).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: otrarondamas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: otrarondamas
+    ports:
+      - "127.0.0.1:5501:5432"
+    volumes:
+      - otrarondamas_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otrarondamas -d otrarondamas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://otrarondamas:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}@db:5432/otrarondamas?schema=public
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
+      PORT: 3000
+      CORS_ORIGINS: ${CORS_ORIGINS:?falta CORS_ORIGINS en .env}
+    ports:
+      - "127.0.0.1:8600:3000"
+
+  pos-admin:
+    build:
+      context: .
+      dockerfile: apps/pos-admin/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?falta VITE_API_URL en .env}
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3030:80"
+
+volumes:
+  otrarondamas_db_data:

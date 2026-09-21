@@ -164,6 +164,8 @@ El sistema debe conservar los datos históricos de las ventas aunque cambien los
 
 Pendiente: catálogo concreto, presentaciones y equivalencias reales.
 
+**Spec detallada propuesta:** `docs/spec-catalogo-productos.md` (borrador, sin aprobar) desarrolla este requisito con un modelo conceptual más granular — separa Producto/Variante/Presentación/SKU interno/Código de origen/Código de barras, define un flujo de importación y conciliación de catálogos de proveedores (DIPA MAX, catálogo minorista, Coca-Cola), listas de precios con historial, y el contrato de integración con el ingreso de mercadería a inventario. No reemplaza ni cierra este RF-03: es una propuesta de mayor detalle para ese mismo requisito, con sus propias decisiones pendientes (sección 14 de ese documento) que siguen abiertas. Antes de implementar sobre esa base hay que resolver los puntos de fricción con lo ya construido en el código (ver `docs/scaffolding-notas.md`, sección 8): el `schema.prisma` actual modela `Producto`/`Presentacion`/`Lote` de forma más simple que lo que ese spec propone (sin `Variante` ni SKU separado del id interno, sin entidades de importación/conciliación/proveedor-producto ni de listas de precios con historial).
+
 ### RF-04. Precios y descuentos
 
 - El sistema debe permitir manejar precios minoristas y mayoristas diferenciados.
@@ -499,29 +501,41 @@ El piloto no debe considerarse listo para producción hasta verificar:
 
 ## 10. Decisiones pendientes que bloquean el cierre definitivo
 
-Estas decisiones deben resolverse antes de congelar el alcance funcional:
+Estas decisiones deben resolverse antes de congelar el alcance funcional. El dueño aportó, para cada una, una **propuesta de dirección de diseño** (documentada en `docs/criterios-diseno-dueno-D01-D19.md`, 20/09/2026). Esa dirección no cierra la decisión: el dato comercial concreto (montos, porcentajes, zonas, plazos, presentaciones reales, mecanismo final) sigue pendiente y debe permanecer configurable, no asumido. La columna "Criterio de diseño aprobado" resume esa dirección; el detalle completo, con matices y ejemplos, está en el documento consolidado.
 
-| ID | Decisión pendiente |
-|---|---|
-| D-01 | Regla de precios mayoristas y asignación de clientes/listas |
-| D-02 | Porcentaje y condiciones de descuentos automáticos |
-| D-03 | Modalidad de integración de Mercado Pago |
-| D-04 | Alcance de integración de cobros presenciales |
-| D-05 | Confirmación del umbral de caja: condición estricta y manejo de diferencias menores |
-| D-06 | Mecanismo de autorización del dueño |
-| D-07 | Método de carga del catálogo y responsable operativo |
-| D-08 | Presentaciones, unidades y conversiones reales |
-| D-09 | Reglas de lotes, vencimientos y bloqueo de productos |
-| D-10 | Responsable y reglas de aprobación de diferencias de recepción |
-| D-11 | Zonas y costo de entrega |
-| D-12 | Preparación, asignación y contingencias de entrega |
-| D-13 | Canales, eventos y proveedor de notificaciones |
-| D-14 | Modelo y conexión de impresora; lector de códigos |
-| D-15 | Presupuesto total de infraestructura y servicios externos |
-| D-16 | Política de pagos parciales, vencimientos y aplicación de cobros |
-| D-17 | Política de cambios, devoluciones y reembolsos |
-| D-18 | Método de costos para calcular ganancias estimadas |
-| D-19 | Capacidad real disponible en el VPS Hetzner compartido (`89.167.96.239`) antes de sumar la carga del ERP — *agregado tras inspección del repo de Wapsell (19/09/2026), ver sección 7.3* |
+| ID | Decisión pendiente | Criterio de diseño aprobado (dirección, no dato cerrado) |
+|---|---|---|
+| D-01 | Regla de precios mayoristas y asignación de clientes/listas | Precio minorista y mayorista configurables por producto; aplicación automática mediante reglas configurables (p. ej. tipo de cliente o cantidad mínima); si no hay regla aplicable, usar el precio minorista. Cantidades mínimas reales y qué clientes son mayoristas: **pendiente**. |
+| D-02 | Porcentaje y condiciones de descuentos automáticos | Descuentos configurables por producto, cantidad o cliente; el sistema calcula automáticamente los descuentos habilitados; una excepción manual fuera de regla requiere autorización del dueño. Porcentajes y condiciones concretas: **pendiente**. |
+| D-03 | Modalidad de integración de Mercado Pago | Módulo de pagos diseñado desacoplado del proveedor: identificadores externos, estados de pago, soporte de notificaciones/webhooks e idempotencia cuando corresponda. La modalidad concreta (Checkout Pro, Checkout API u otra) se selecciona durante el diseño de la integración; no bloquea el modelo general de pagos. |
+| D-04 | Alcance de integración de cobros presenciales | Registrar siempre cobros manuales (medio, importe, fecha, operador); contemplar integraciones automáticas mediante adaptadores. La conciliación automática solo se habilita para medios/dispositivos efectivamente integrados. Qué medios concretos: **pendiente**. |
+| D-05 | Confirmación del umbral de caja: condición estricta y manejo de diferencias menores | Umbral mantenido como parámetro configurable; autorización del dueño exigida cuando la diferencia lo supere. El valor de referencia ($5.000) y la condición exacta de comparación permanecen **pendientes de confirmación**; no se asume tratamiento alguno para diferencias menores al umbral hasta que se defina la regla. |
+| D-06 | Mecanismo de autorización del dueño | Mecanismo centralizado de autorización para operaciones restringidas, con registro de quién autorizó, cuándo, para qué operación y con qué resultado. Restricciones explícitas: no almacenar PIN en texto plano; ningún agente o proceso automático puede autorizarse a sí mismo. El mecanismo concreto (PIN, aprobación desde la cuenta del dueño, o ambos) se define en el diseño de seguridad. |
+| D-07 | Método de carga del catálogo y responsable operativo | Admitir carga individual y preparar el sistema para importación masiva si resulta necesaria; validar datos obligatorios, detectar posibles duplicados y mostrar errores antes de confirmar la importación. Responsable operativo: **pendiente**. |
+| D-08 | Presentaciones, unidades y conversiones reales | Soportar productos con múltiples presentaciones y conversiones configurables (p. ej. unidad, pack, caja). Las conversiones deben ser explícitas y verificables; si no existe una equivalencia configurada, el sistema no debe calcularla por suposición. Presentaciones y equivalencias reales del catálogo: **pendiente**. |
+| D-09 | Reglas de lotes, vencimientos y bloqueo de productos | Registrar lotes, fechas de vencimiento y cantidades; generar alertas configurables; evitar la venta de productos vencidos. El bloqueo se aplica al lote vencido específico, sin bloquear innecesariamente otros lotes vigentes del mismo producto. La anticipación de 7 días se mantiene como propuesta inicial, **pendiente de confirmación**. |
+| D-10 | Responsable y reglas de aprobación de diferencias de recepción | Registrar automáticamente las diferencias entre cantidades esperadas y recibidas; la recepción con diferencias queda identificada y requiere revisión o autorización según una política configurable. Márgenes de tolerancia y responsables específicos: **pendiente** (no se inventan). |
+| D-11 | Zonas y costo de entrega | Permitir configurar zonas de entrega y sus tarifas; el costo se calcula automáticamente solo cuando exista una zona y tarifa válidas. Si la dirección no puede asociarse a una zona configurada, se solicita intervención antes de confirmar el costo. Zonas y tarifas reales: **pendiente**. |
+| D-12 | Preparación, asignación y contingencias de entrega | Registrar responsables, estados y resultado de cada entrega; automatizar los cambios de estado que se desprendan de eventos verificables. Las entregas fallidas quedan registradas y permiten reprogramación. Exigencia de evidencia (foto, firma u otra): **pendiente de definición operativa**. |
+| D-13 | Canales, eventos y proveedor de notificaciones | Notificaciones configurables por evento, canal y destinatario, con estado de envío y registro de errores; evitar duplicados. Los eventos candidatos del SDD pueden prepararse como catálogo configurable, pero no se habilitan envíos reales hasta definir canales, proveedor y credenciales. |
+| D-14 | Modelo y conexión de impresora; lector de códigos | Integración de periféricos desacoplada del backend; el POS trabaja con códigos de barras. Compatibilidad concreta, modelo, protocolo y disponibilidad de hardware: **pendiente**, dependen de los dispositivos que se elijan. |
+| D-15 | Presupuesto total de infraestructura y servicios externos | Priorizar arquitectura modular y costos operativos controlables, sin contratar servicios externos innecesarios para el MVP. Antes de contratar servicios o ampliar infraestructura, se presentan costos estimados y se solicita aprobación. Presupuesto máximo: **no se asume ninguno** hasta que se confirme. |
+| D-16 | Política de pagos parciales, vencimientos y aplicación de cobros | Permitir pagos parciales; registrar explícitamente la aplicación de cada cobro a una o más deudas; los saldos se calculan a partir de movimientos e imputaciones registradas. La aplicación automática de un cobro a una deuda solo ocurre si existe una regla definida; si no, el sistema solicita la selección al dueño. Mínimo de pago, vencimientos y fórmula exacta de saldo disponible: **pendiente**. |
+| D-17 | Política de cambios, devoluciones y reembolsos | Registrar devoluciones vinculadas a la venta original, conservando productos y cantidades involucrados, y generando los movimientos de stock correspondientes. Los reembolsos se registran como operaciones separadas y trazables. Excepciones requieren autorización del dueño. Plazos, condiciones y modalidad de reembolso: **pendiente**. |
+| D-18 | Método de costos para calcular ganancias estimadas | Conservar el historial de compras y costos por producto para permitir implementar un método de costeo verificable. No se presentan ganancias estimadas como definitivas hasta seleccionar el método. El método concreto (costo promedio, FIFO, último costo u otro) queda **pendiente**; no se elige ninguno por defecto sin validación. |
+| D-19 | Capacidad real disponible en el VPS Hetzner compartido (`89.167.96.239`) antes de sumar la carga del ERP — *agregado tras inspección del repo de Wapsell (19/09/2026), ver sección 7.3* | Realizar una medición técnica de CPU, RAM, disco, carga y servicios existentes antes de decidir el despliegue, documentada con evidencia. No desplegar ni modificar servicios existentes sin autorización explícita. Resultado de la medición: **pendiente de ejecución**. |
+
+### 10.1 Restricciones de diseño nuevas, derivadas de las respuestas del dueño
+
+Al responder D-01 a D-19, el dueño formuló siete restricciones de diseño explícitas que no tenían formulación propia en la v0.1 original de este documento. Se registran aquí como criterio de diseño aprobado; ninguna se numera como invariante nueva en la sección 5, porque esa promoción requeriría confirmación adicional del dueño sobre su alcance exacto (ver detalle en `docs/criterios-diseno-dueno-D01-D19.md`, sección "Restricciones nuevas explícitas").
+
+1. No almacenar PIN en texto plano (D-06).
+2. Ningún agente o proceso automático puede autorizarse a sí mismo (D-06) — candidato a invariante formal en una revisión futura, sujeto a confirmación explícita del dueño.
+3. El bloqueo por vencimiento se evalúa por lote, no por producto agregado (D-09).
+4. Si no hay conversión de presentación configurada, el sistema no la calcula por suposición (D-08).
+5. Si una dirección no coincide con ninguna zona de entrega configurada, se solicita intervención antes de confirmar el costo (D-11).
+6. La aplicación automática de un cobro a una deuda solo ocurre si existe una regla definida; en caso contrario, el sistema solicita la selección al dueño (D-16).
+7. Antes de contratar o ampliar infraestructura, se presentan costos estimados y se solicita aprobación (D-15).
 
 ## 11. Plan de implementación
 
@@ -555,6 +569,7 @@ Se mantendrán los cuadernos en paralelo hasta que el dueño autorice dejar de u
 | Implementación | No verificada |
 | Pruebas | No ejecutadas |
 | Infraestructura | Parcialmente definida — patrón de despliegue confirmado (Docker + nginx host + VPS compartido); capacidad real pendiente de verificar (D-19) |
-| Aprobación del dueño | Pendiente |
+| Decisiones D-01 a D-19 | **Criterio de diseño aprobado por el dueño para las 19** (ver sección 10 y `docs/criterios-diseno-dueno-D01-D19.md`, 20/09/2026); los datos comerciales concretos de cada una (montos, porcentajes, zonas, plazos, presentaciones reales, mecanismo final de autorización, modalidad de Mercado Pago, método de costeo) siguen **pendientes**, no cerrados |
+| Aprobación del dueño | Pendiente en cuanto a la especificación funcional en su conjunto; el criterio de dirección de diseño para D-01 a D-19 sí fue aportado por el dueño (ver arriba) |
 
-Conclusión: el descubrimiento permite iniciar el diseño técnico, pero no equivale a una especificación aprobada ni demuestra que el sistema esté implementado. La inspección del repositorio de Wapsell confirmó la viabilidad de la arquitectura de módulo independiente (sección 7), pero quedan pendientes el diseño técnico propio de Otra Roonda Más y el resto de las decisiones bloqueantes (sección 10). El siguiente paso es validar este SDD, cerrar las decisiones bloqueantes y luego iniciar el diseño técnico y los prompts de implementación.
+Conclusión: el descubrimiento permite iniciar el diseño técnico, pero no equivale a una especificación aprobada ni demuestra que el sistema esté implementado. La inspección del repositorio de Wapsell confirmó la viabilidad de la arquitectura de módulo independiente (sección 7), y el dueño aportó criterio de dirección de diseño para las 19 decisiones pendientes (sección 10), lo que habilita avanzar con partes del diseño estructural sin esperar los datos comerciales concretos. Esos datos comerciales, el resto de las precisiones operativas y la aprobación final de la especificación siguen pendientes. El siguiente paso es incorporar este criterio al diseño técnico (modelo de datos, prompt de scaffolding) y continuar cerrando los datos comerciales que aún faltan.
