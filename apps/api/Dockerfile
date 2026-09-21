@@ -47,5 +47,10 @@ COPY --from=builder /repo/apps/api/prisma apps/api/prisma
 COPY --from=builder /repo/node_modules/.prisma node_modules/.prisma
 COPY --from=builder /repo/packages/shared-types packages/shared-types
 
+# nest build no copia assets no-TS a dist/ (no hay "assets" configurado en
+# nest-cli.json). seed.ts busca este JSON con __dirname, que en el
+# compilado apunta a dist/prisma/, no a prisma/ — copiarlo ahí también.
+RUN cp apps/api/prisma/seed-data-minorista.json apps/api/dist/prisma/seed-data-minorista.json
+
 EXPOSE 3000
 CMD ["node", "apps/api/dist/src/main.js"]

@@ -39,3 +39,9 @@ Thumbs.db
 # Test / coverage
 coverage/
 .pytest_cache/
+
+# Fuentes de catálogo sin procesar: son binarios pesados de proveedores,
+# no código. El derivado procesado que el seed sí necesita en build
+# (apps/api/prisma/seed-data-minorista.json) no se ignora — ver
+# docs/scaffolding-notas.md sección 10.
+docs/Catalogos raw/
