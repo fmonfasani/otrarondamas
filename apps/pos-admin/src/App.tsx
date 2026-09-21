@@ -8,6 +8,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
 import { CajaPage } from './features/caja/CajaPage';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { InventarioPage } from './features/inventario/InventarioPage';
 
 function App() {
   return (
@@ -28,10 +29,7 @@ function App() {
                       path="/orders"
                       element={<div className="text-center py-12">Pedidos - En desarrollo</div>}
                     />
-                    <Route
-                      path="/inventory"
-                      element={<div className="text-center py-12">Inventario - En desarrollo</div>}
-                    />
+                    <Route path="/inventory" element={<InventarioPage />} />
                     <Route
                       path="/customers"
                       element={<div className="text-center py-12">Clientes - En desarrollo</div>}

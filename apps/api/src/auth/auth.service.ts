@@ -43,7 +43,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.emitirSesion(usuario, usuario.usuarioPermisos.map((up) => up.permiso.nombre));
+    return this.emitirSesion(
+      usuario,
+      usuario.usuarioPermisos.map((up) => up.permiso.nombre),
+    );
   }
 
   /**

@@ -9,6 +9,7 @@ import { VentasModule } from './ventas/ventas.module';
 import { PagosModule } from './pagos/pagos.module';
 import { CajaModule } from './caja/caja.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { InventarioModule } from './inventario/inventario.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
@@ -21,6 +22,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     PagosModule,
     CajaModule,
     UsuariosModule,
+    InventarioModule,
   ],
   controllers: [AppController],
   providers: [

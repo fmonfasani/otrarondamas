@@ -219,3 +219,49 @@ export interface UsuarioResumen {
   nombre: string;
   email: string;
 }
+
+// --- Inventario (apps/api/src/inventario) — Fase 1: solo lectura ---
+// Ver docs sección 16.x del roadmap (INV-CONS-*). No implementa un
+// segundo mecanismo de descuento de stock: VentasService sigue siendo el
+// único que descuenta (ver auth.google.service.ts para el mismo
+// principio aplicado a auth).
+
+export interface StockConsolidado {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  categoriaId: string;
+  unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
+  stockTotal: number;
+  // Producto.stockMinimo no existe todavía en el schema (Fase 4 del
+  // roadmap) — stockMinimo siempre null y stockBajo siempre false hasta
+  // esa migración, campos presentes desde ya para no romper el shape.
+  stockMinimo: number | null;
+  stockBajo: boolean;
+}
+
+export interface Lote {
+  id: string;
+  empresaId: string;
+  productoId: string;
+  numeroLote: string;
+  vencimiento: string;
+  cantidad: string; // Decimal de Prisma serializa como string en JSON
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MovimientoStock {
+  id: string;
+  empresaId: string;
+  productoId: string;
+  loteId: string | null;
+  tipoMovimiento: string; // 'Entrada' | 'Salida' | 'Ajuste'
+  cantidad: string;
+  motivo: string; // 'Venta' | 'Compra' | 'AjusteManual' | 'Devolucion'
+  referenciaId: string | null;
+  usuarioId: string | null;
+  recepcionCompraId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

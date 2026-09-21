@@ -16,6 +16,9 @@ import type {
   ArquearCajaResponse,
   CierreCaja,
   UsuarioResumen,
+  StockConsolidado,
+  Lote,
+  MovimientoStock,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -91,4 +94,14 @@ export const api = {
   cerrarCaja: () => request<CierreCaja>('/caja/cierre', { method: 'POST' }),
 
   listarUsuarios: () => request<UsuarioResumen[]>('/usuarios'),
+
+  // Inventario — Fase 1 (solo lectura, ver docs/scaffolding-notas.md).
+  stockConsolidado: (search?: string) =>
+    request<StockConsolidado[]>(
+      `/inventario/stock${search ? `?search=${encodeURIComponent(search)}` : ''}`,
+    ),
+  lotesDeProducto: (productoId: string) =>
+    request<Lote[]>(`/inventario/productos/${productoId}/lotes`),
+  movimientosDeProducto: (productoId: string) =>
+    request<MovimientoStock[]>(`/inventario/productos/${productoId}/movimientos`),
 };
