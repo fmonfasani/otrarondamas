@@ -19,6 +19,7 @@ import type {
   StockConsolidado,
   Lote,
   MovimientoStock,
+  RegistrarAjusteRequest,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -104,4 +105,7 @@ export const api = {
     request<Lote[]>(`/inventario/productos/${productoId}/lotes`),
   movimientosDeProducto: (productoId: string) =>
     request<MovimientoStock[]>(`/inventario/productos/${productoId}/movimientos`),
+  // Fase 2 — requiere el permiso inventario.ajustes.
+  registrarAjuste: (dto: RegistrarAjusteRequest) =>
+    request<MovimientoStock>('/inventario/ajustes', { method: 'POST', body: JSON.stringify(dto) }),
 };

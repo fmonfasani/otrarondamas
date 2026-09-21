@@ -1,13 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Package } from 'lucide-react';
+import { ChevronDown, ChevronRight, Package, SlidersHorizontal } from 'lucide-react';
 import type { StockConsolidado, Lote, MovimientoStock } from '@otrarondamas/shared-types';
-import { Card, CardHeader, CardBody, Input } from '../../components';
+import { Card, CardHeader, CardBody, Input, Button } from '../../components';
 import { api, ApiError } from '../../lib/api';
 
 /**
- * Fase 1 del roadmap de inventario (INV-CONS-01/02/03/04): solo lectura.
- * Sin ajustes ni alta de lotes todavía — eso es Fase 2/3, sobre esta
- * misma pantalla.
+ * Fase 1 (INV-CONS-01/02/03/04): consulta de stock, solo lectura.
+ * Fase 2 (INV-AJ-01/02/03/04): ajuste manual por lote. Sin alta de
+ * lotes todavía — eso es Fase 3, sobre esta misma pantalla.
+ *
+ * El formulario de ajuste se muestra siempre (mismo criterio que
+ * CajaPage con caja.gastos: el frontend no oculta controles según
+ * permisos, el backend rechaza con 403 si corresponde y ese error se
+ * muestra tal cual) — no introduce un patrón nuevo de ocultamiento por
+ * permiso en esta fase.
  */
 export function InventarioPage() {
   const [stock, setStock] = useState<StockConsolidado[]>([]);
@@ -20,6 +26,11 @@ export function InventarioPage() {
     Record<string, MovimientoStock[]>
   >({});
   const [cargandoDetalle, setCargandoDetalle] = useState<string | null>(null);
+  const [loteEnAjuste, setLoteEnAjuste] = useState<string | null>(null);
+  const [cantidadAjuste, setCantidadAjuste] = useState('');
+  const [motivoAjuste, setMotivoAjuste] = useState('');
+  const [enviandoAjuste, setEnviandoAjuste] = useState(false);
+  const [errorAjuste, setErrorAjuste] = useState<string | null>(null);
 
   const cargarStock = useCallback(async (terminoBusqueda: string) => {
     setCargando(true);
@@ -44,15 +55,7 @@ export function InventarioPage() {
     return () => clearTimeout(timeout);
   }, [search, cargarStock]);
 
-  async function expandirProducto(productoId: string) {
-    if (expandido === productoId) {
-      setExpandido(null);
-      return;
-    }
-    setExpandido(productoId);
-    if (lotesPorProducto[productoId] && movimientosPorProducto[productoId]) {
-      return; // ya cargado, no repetir el fetch
-    }
+  const cargarDetalleProducto = useCallback(async (productoId: string) => {
     setCargandoDetalle(productoId);
     try {
       const [lotes, movimientos] = await Promise.all([
@@ -65,6 +68,53 @@ export function InventarioPage() {
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar el detalle');
     } finally {
       setCargandoDetalle(null);
+    }
+  }, []);
+
+  async function expandirProducto(productoId: string) {
+    if (expandido === productoId) {
+      setExpandido(null);
+      return;
+    }
+    setExpandido(productoId);
+    if (lotesPorProducto[productoId] && movimientosPorProducto[productoId]) {
+      return; // ya cargado, no repetir el fetch
+    }
+    await cargarDetalleProducto(productoId);
+  }
+
+  function abrirFormularioAjuste(loteId: string) {
+    setLoteEnAjuste(loteId);
+    setCantidadAjuste('');
+    setMotivoAjuste('');
+    setErrorAjuste(null);
+  }
+
+  async function enviarAjuste(productoId: string) {
+    const cantidad = Number(cantidadAjuste);
+    if (!Number.isInteger(cantidad) || cantidad === 0) {
+      setErrorAjuste('La cantidad debe ser un número entero distinto de 0.');
+      return;
+    }
+    if (!motivoAjuste.trim()) {
+      setErrorAjuste('El motivo es obligatorio.');
+      return;
+    }
+    if (!loteEnAjuste) return;
+
+    setEnviandoAjuste(true);
+    setErrorAjuste(null);
+    try {
+      await api.registrarAjuste({ loteId: loteEnAjuste, cantidad, motivo: motivoAjuste.trim() });
+      setLoteEnAjuste(null);
+      // Refresca el detalle del producto (nuevo stock del lote + el
+      // movimiento recién creado) y el consolidado de la tabla — un
+      // ajuste cambia ambos.
+      await Promise.all([cargarDetalleProducto(productoId), cargarStock(search)]);
+    } catch (err) {
+      setErrorAjuste(err instanceof ApiError ? err.message : 'No se pudo registrar el ajuste');
+    } finally {
+      setEnviandoAjuste(false);
     }
   }
 
@@ -137,19 +187,76 @@ export function InventarioPage() {
                                   {(lotesPorProducto[item.productoId] ?? []).length === 0 ? (
                                     <p className="text-gray-400 text-xs">Sin lotes registrados.</p>
                                   ) : (
-                                    <ul className="space-y-1 text-xs">
+                                    <ul className="space-y-2 text-xs">
                                       {(lotesPorProducto[item.productoId] ?? []).map((lote) => (
-                                        <li key={lote.id} className="flex justify-between gap-2">
-                                          <span className="font-mono text-gray-600">
-                                            {lote.numeroLote}
-                                          </span>
-                                          <span className="text-gray-500">
-                                            vence{' '}
-                                            {new Date(lote.vencimiento).toLocaleDateString('es-AR')}
-                                          </span>
-                                          <span className="font-mono font-semibold">
-                                            {lote.cantidad}
-                                          </span>
+                                        <li key={lote.id}>
+                                          <div className="flex justify-between items-center gap-2">
+                                            <span className="font-mono text-gray-600">
+                                              {lote.numeroLote}
+                                            </span>
+                                            <span className="text-gray-500">
+                                              vence{' '}
+                                              {new Date(lote.vencimiento).toLocaleDateString(
+                                                'es-AR',
+                                              )}
+                                            </span>
+                                            <span className="font-mono font-semibold">
+                                              {lote.cantidad}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => abrirFormularioAjuste(lote.id)}
+                                              className="text-gray-400 hover:text-brand-yellow"
+                                              aria-label={`Ajustar stock del lote ${lote.numeroLote}`}
+                                            >
+                                              <SlidersHorizontal className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                          {loteEnAjuste === lote.id && (
+                                            <div className="mt-2 p-3 bg-white border border-gray-200 rounded-md space-y-2">
+                                              <div className="flex gap-2">
+                                                <input
+                                                  type="number"
+                                                  step="1"
+                                                  placeholder="Cantidad (+/-)"
+                                                  value={cantidadAjuste}
+                                                  onChange={(e) =>
+                                                    setCantidadAjuste(e.target.value)
+                                                  }
+                                                  className="w-28 px-2 py-1 border border-gray-300 rounded text-xs"
+                                                />
+                                                <input
+                                                  type="text"
+                                                  placeholder="Motivo"
+                                                  value={motivoAjuste}
+                                                  onChange={(e) => setMotivoAjuste(e.target.value)}
+                                                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+                                                />
+                                              </div>
+                                              {errorAjuste && (
+                                                <p className="text-brand-error text-xs">
+                                                  {errorAjuste}
+                                                </p>
+                                              )}
+                                              <div className="flex gap-2 justify-end">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setLoteEnAjuste(null)}
+                                                  className="text-gray-500 text-xs px-2 py-1"
+                                                >
+                                                  Cancelar
+                                                </button>
+                                                <Button
+                                                  variant="primary"
+                                                  size="sm"
+                                                  disabled={enviandoAjuste}
+                                                  onClick={() => void enviarAjuste(item.productoId)}
+                                                >
+                                                  {enviandoAjuste ? 'Guardando...' : 'Confirmar'}
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          )}
                                         </li>
                                       ))}
                                     </ul>

@@ -1,15 +1,27 @@
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { InventarioService } from './inventario.service';
+import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto';
 
 /**
- * Fase 1 del roadmap de inventario (RF-11 / INV-CONS-*): solo lectura.
- * No hay POST/PATCH acá todavía — eso es la Fase 2 (ajustes) y Fase 3
- * (alta de lotes), sobre inventario.module.ts ya armado para sumarlos
- * sin reestructurar nada.
+ * Fase 1 del roadmap de inventario (RF-11 / INV-CONS-*): consulta, solo
+ * lectura. Fase 2 (INV-AJ-*): ajustes manuales. Fase 3 (alta de lotes)
+ * todavía no implementada, sobre inventario.module.ts ya armado para
+ * sumarla sin reestructurar nada.
  */
 @ApiTags('inventario')
 @ApiBearerAuth()
@@ -70,5 +82,15 @@ export class InventarioController {
       orderBy: { createdAt: 'desc' },
       take: 100, // evita traer un historial ilimitado en un solo request
     });
+  }
+
+  // INV-AJ-01/02/03/04: ajuste manual sobre un lote concreto. Protegido
+  // con el permiso inventario.ajustes, que ya existía en el seed antes
+  // de esta fase (ver docs/scaffolding-notas.md sección 16).
+  @RequierePermiso('inventario.ajustes')
+  @Post('ajustes')
+  @HttpCode(HttpStatus.CREATED)
+  async registrarAjuste(@Body() dto: RegistrarAjusteDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.inventarioService.registrarAjuste(user.empresaId, dto, user.id);
   }
 }

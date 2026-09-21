@@ -265,3 +265,12 @@ export interface MovimientoStock {
   createdAt: string;
   updatedAt: string;
 }
+
+// Fase 2 (INV-AJ-*): ajustes manuales de stock. cantidad es la
+// variación (positiva suma, negativa resta), no el total resultante —
+// ver apps/api/src/inventario/dto/registrar-ajuste.dto.ts.
+export interface RegistrarAjusteRequest {
+  loteId: string;
+  cantidad: number;
+  motivo: string;
+}
