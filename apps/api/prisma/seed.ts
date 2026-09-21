@@ -40,6 +40,17 @@ async function main() {
   console.log({ empresaAislamiento });
 
   // Permisos (simplified for initial seed)
+  //
+  // GAP CONOCIDO (ver docs/scaffolding-notas.md): si agregás un permiso
+  // acá y volvés a correr este seed sobre una base que ya tenía a
+  // owner@otrarondamas.com / owner@demo-aislamiento.com creados, el
+  // permiso nuevo queda en la tabla Permiso pero NO se le asigna a esos
+  // usuarios — usuario.upsert() más abajo solo asigna usuarioPermisos en
+  // la rama `create`, y `update: {}` no los toca (a propósito: pisar
+  // permisos en cada re-seed rompería ediciones manuales hechas desde el
+  // panel en producción). Después de agregar un permiso acá, correr
+  // también `npm run prisma:sync-permisos` (prisma/sync-permisos-owner.ts)
+  // para ponerlo al día en los usuarios dueño existentes.
   const permissions = [
     'caja.gastos',
     'inventario.ajustes',
@@ -217,7 +228,9 @@ async function main() {
     console.log(`Catálogo Minorista: ${minoristaData.length} filas a importar.`);
 
     // 1) Categorías: una por rubro distinto, únicas por empresa.
-    const rubros = Array.from(new Set(minoristaData.map((r) => r.rubro).filter((r): r is string => !!r)));
+    const rubros = Array.from(
+      new Set(minoristaData.map((r) => r.rubro).filter((r): r is string => !!r)),
+    );
     await prisma.categoria.createMany({
       data: rubros.map((nombre) => ({ nombre, empresaId: empresa.id })),
       skipDuplicates: true,
@@ -226,7 +239,9 @@ async function main() {
       where: { empresaId: empresa.id, nombre: { in: rubros } },
     });
     const categoriaIdPorNombre = new Map(categoriasCatalogo.map((c) => [c.nombre, c.id]));
-    console.log(`Categorías del catálogo Minorista creadas/existentes: ${categoriasCatalogo.length}`);
+    console.log(
+      `Categorías del catálogo Minorista creadas/existentes: ${categoriasCatalogo.length}`,
+    );
 
     // 2) Productos ya existentes (por codigoInterno) — se evita reintentar
     // productos que ya están cargados en una corrida anterior del seed,
