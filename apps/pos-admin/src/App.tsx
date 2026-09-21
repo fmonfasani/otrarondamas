@@ -21,12 +21,29 @@ function App() {
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
-                    <Route path="/orders" element={<div className="text-center py-12">Pedidos - En desarrollo</div>} />
-                    <Route path="/inventory" element={<div className="text-center py-12">Inventario - En desarrollo</div>} />
-                    <Route path="/customers" element={<div className="text-center py-12">Clientes - En desarrollo</div>} />
+                    <Route
+                      path="/orders"
+                      element={<div className="text-center py-12">Pedidos - En desarrollo</div>}
+                    />
+                    <Route
+                      path="/inventory"
+                      element={<div className="text-center py-12">Inventario - En desarrollo</div>}
+                    />
+                    <Route
+                      path="/customers"
+                      element={<div className="text-center py-12">Clientes - En desarrollo</div>}
+                    />
                     <Route path="/cash" element={<CajaPage />} />
-                    <Route path="/reports" element={<div className="text-center py-12">Reportes - En desarrollo</div>} />
-                    <Route path="/settings" element={<div className="text-center py-12">Configuración - En desarrollo</div>} />
+                    <Route
+                      path="/reports"
+                      element={<div className="text-center py-12">Reportes - En desarrollo</div>}
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <div className="text-center py-12">Configuración - En desarrollo</div>
+                      }
+                    />
                   </Routes>
                 </MainLayout>
               </ProtectedRoute>

@@ -13,8 +13,9 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'font-label rounded-md font-semibold transition-all duration-200 cursor-pointer';
-  
+  const baseStyles =
+    'font-label rounded-md font-semibold transition-all duration-200 cursor-pointer';
+
   const variants = {
     primary: 'bg-brand-yellow text-brand-dark hover:bg-amber-500 active:bg-amber-600',
     secondary: 'bg-brand-gray text-white hover:bg-slate-700 active:bg-slate-800',
@@ -28,10 +29,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      {...props}
-    >
+    <button className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
       {children}
     </button>
   );

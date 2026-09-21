@@ -1,5 +1,14 @@
 import React from 'react';
-import { BarChart3, ShoppingCart, Package, Users, DollarSign, FileText, Settings, LogOut } from 'lucide-react';
+import {
+  BarChart3,
+  ShoppingCart,
+  Package,
+  Users,
+  DollarSign,
+  FileText,
+  Settings,
+  LogOut,
+} from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
 
