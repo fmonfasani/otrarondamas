@@ -38,6 +38,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
       PORT: 3000
       CORS_ORIGINS: ${CORS_ORIGINS:?falta CORS_ORIGINS en .env}
+      # Login con Google (apps/api/src/auth/google.strategy.ts) — el
+      # backend falla en el arranque si falta alguna de estas tres.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?falta GOOGLE_CLIENT_ID en .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?falta GOOGLE_CLIENT_SECRET en .env}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?falta GOOGLE_CALLBACK_URL en .env}
+      FRONTEND_URL: ${FRONTEND_URL:?falta FRONTEND_URL en .env}
+      GOOGLE_SIGNUP_EMPRESA_ID: ${GOOGLE_SIGNUP_EMPRESA_ID:?falta GOOGLE_SIGNUP_EMPRESA_ID en .env}
     ports:
       - "127.0.0.1:8600:3000"
 
