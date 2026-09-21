@@ -5,11 +5,18 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, className = '', ...props }) => {
+export const Input: React.FC<InputProps> = ({
+  label,
+  error,
+  className = '',
+  ...props
+}) => {
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-label font-semibold text-brand-dark mb-2">{label}</label>
+        <label className="block text-label font-semibold text-brand-dark mb-2">
+          {label}
+        </label>
       )}
       <input
         className={`w-full px-4 py-2 border rounded-md font-body text-base transition-all ${

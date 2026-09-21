@@ -1,4 +1,4 @@
-import { Card, CardBody, CardHeader } from '../components';
+import { Card, CardBody, CardHeader } from '../../components';
 import { BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
 
 export const DashboardPage = () => {
