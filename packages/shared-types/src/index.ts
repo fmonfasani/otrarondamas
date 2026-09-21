@@ -87,6 +87,13 @@ export interface Venta {
   createdAt: string;
   updatedAt: string;
   ventaItems: VentaItem[];
+  // Fase 5 de Inventario (D-09): productoId de cada item que se descontó
+  // de al menos un lote ya vencido al momento de la venta. La venta NO
+  // se bloquea (decisión explícita, ver docs/scaffolding-notas.md) — es
+  // solo una advertencia puntual de esta respuesta; el registro
+  // permanente queda en MovimientoStock.loteVencidoAlMomento. Solo
+  // presente en la respuesta de POST /ventas, no en GET.
+  advertenciasStockVencido?: string[];
 }
 
 // --- Pagos (apps/api/src/pagos) ---
@@ -294,6 +301,11 @@ export interface MovimientoStock {
   referenciaId: string | null;
   usuarioId: string | null;
   recepcionCompraId: string | null;
+  // Fase 5 de Inventario (D-09): true si el Lote ya estaba vencido al
+  // momento de generarse este movimiento. Solo se calcula al vender
+  // (motivo 'Venta') — no bloquea la operación, es auditoría. false en
+  // todo movimiento que no pasó por ese chequeo (Compra, AjusteManual).
+  loteVencidoAlMomento: boolean;
   createdAt: string;
   updatedAt: string;
 }

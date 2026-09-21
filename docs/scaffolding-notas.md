@@ -684,3 +684,24 @@ Cierra el TODO de la sección 14.6. Antes de tocar código, se releyó el RF-09 
 Frontend (`CajaPage.tsx`): sin cambios — ya seguía el criterio de no ocultar controles según permisos (mismo patrón que Inventario/Compras), el backend rechaza con 403 si corresponde y ese error ya se mostraba tal cual.
 
 Verificado contra la DB real: `seller` (sin `caja.gastos`) puede abrir caja (201), ver estado (200), ver movimientos (200) y arquear con diferencia $0 (201, sin requerir autorización) — pero al intentar cerrar recibe 403 explícito ("Requiere el permiso 'caja.gastos'"). `owner` (con el permiso) cierra sin problema (201).
+
+## 23. Módulo de Inventario, Fase 5 — advertencia de lote vencido en ventas (21/09/2026)
+
+D-09 se resolvió con alcance más chico que el que planteaba el roadmap original. Decisión explícita del dueño, confirmada antes de tocar código:
+
+- **Días de alerta de vencimiento**: sin cambios, se mantienen los 7 días ya usados en la Fase 4 (`INVENTARIO_ALERTA_VENCIMIENTO_DIAS`).
+- **Venta de un lote ya vencido**: **no se bloquea**. `descontarStock()` sigue eligiendo lotes en el mismo orden FIFO por vencimiento de siempre — no se excluyen los vencidos de la selección. Lo único que cambia es que queda **advertido y auditado**, nunca impedido en silencio ni en el momento.
+- **Stock insuficiente**: sin cambios. Sigue rechazándose con 400 como ya funcionaba, sin ninguna vía de excepción/autorización conectada.
+- **Consecuencia directa**: D-06 (mecanismo de autorización del dueño, ya construido y conectado a Caja) **no se terminó usando acá** — ya no hay ningún bloqueo en Inventario que necesite autorizarse. Queda disponible para el día que aparezca un caso real que sí la necesite, pero Fase 5 no lo requirió.
+
+**Implementación:**
+
+- Campo nuevo `MovimientoStock.loteVencidoAlMomento` (`Boolean @default(false)`, migración `20260921230941_inventario_fase5_lote_vencido_al_momento`). Se calcula una sola vez, en el momento de generar el movimiento (`lote.vencimiento <= new Date()`), no se deriva después comparando contra `Lote.vencimiento` — ese campo puede seguir existiendo o cambiar de sentido con el tiempo respecto a cuándo ocurrió la venta real.
+- `VentasService.descontarStock()` (antes con un `TODO(D-09)` explícito sin filtrar nada) ahora marca cada `MovimientoStock` de tipo `Salida`/`Venta` con ese flag, y devuelve `true` si algún lote afectado estaba vencido.
+- `VentasService.create()` acumula los `productoId` con algún lote vencido en un `Set` durante el loop de items, y los devuelve en la respuesta de `POST /ventas` como `advertenciasStockVencido: string[]` — campo nuevo, solo en esa respuesta puntual (no en `GET /ventas`), pensado para uso inmediato del POS, no como fuente de verdad (esa es `MovimientoStock.loteVencidoAlMomento`, permanente).
+- `shared-types`: `Venta.advertenciasStockVencido?: string[]` y `MovimientoStock.loteVencidoAlMomento: boolean` agregados.
+- `NuevaVentaPage.tsx`: resuelve los `productoId` advertidos contra los ítems del carrito (antes de vaciarlo) para mostrar el **nombre** del producto, no el id crudo — banner `role="alert"` no bloqueante, visible junto a la confirmación de la venta.
+
+**Nota sobre el bloqueador de infraestructura durante este incremento** (no relacionado con la lógica en sí, documentado por si se repite): `npx prisma generate` falló con `EPERM` al reescribir `query_engine-windows.dll.node` porque un proceso de la API (`nest start --watch` + el `dist/src/main` que arrancó) tenía el binario cargado — mismo problema ya conocido en Windows (ver sección de zombies de sesiones anteriores). Se resolvió cerrando esos PIDs puntuales tras confirmar con el dueño (autorización explícita, ya que el modo automático de la sesión de Claude Code bloquea `Stop-Process -Force` por default como "interferir con workloads en curso").
+
+Verificado contra la DB real (no solo build): producto de prueba con un `Lote` insertado a mano con `vencimiento = now() - 5 días` → venderlo devuelve `advertenciasStockVencido: ["<productoId>"]` y la venta se confirma igual (sin 4xx); el `MovimientoStock` generado quedó con `loteVencidoAlMomento = true`. Una venta de un producto con stock vigente (catálogo real, lotes demo a +10 años) devuelve `advertenciasStockVencido: []`. Datos de prueba eliminados después de validar.

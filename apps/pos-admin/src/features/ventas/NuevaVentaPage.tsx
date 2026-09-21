@@ -19,6 +19,11 @@ export function NuevaVentaPage() {
   const [creandoVenta, setCreandoVenta] = useState(false);
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
   const [venta, setVenta] = useState<Venta | null>(null);
+  // Fase 5 de Inventario (D-09): nombres de producto con lote vencido en
+  // esta venta, resueltos contra el carrito ANTES de vaciarlo — la
+  // respuesta de POST /ventas solo trae productoId (advertenciasStockVencido).
+  // No bloquea nada, es solo para mostrarle la advertencia al vendedor.
+  const [productosConLoteVencido, setProductosConLoteVencido] = useState<string[]>([]);
 
   const [medioPago, setMedioPago] = useState<MedioPago>('efectivo');
   const [montoPago, setMontoPago] = useState('');
@@ -30,10 +35,15 @@ export function NuevaVentaPage() {
     setErrorVenta(null);
     setCreandoVenta(true);
     try {
+      const idsAdvertidos = new Set(carrito.items.map((i) => i.producto.id));
       const nuevaVenta = await api.crearVenta({
         canal,
         items: carrito.items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
       });
+      const nombresConLoteVencido = (nuevaVenta.advertenciasStockVencido ?? [])
+        .filter((id) => idsAdvertidos.has(id))
+        .map((id) => carrito.items.find((i) => i.producto.id === id)?.producto.nombre ?? id);
+      setProductosConLoteVencido(nombresConLoteVencido);
       setVenta(nuevaVenta);
       carrito.vaciar();
     } catch (err) {
@@ -68,6 +78,7 @@ export function NuevaVentaPage() {
     setPagosRegistrados([]);
     setErrorVenta(null);
     setErrorPago(null);
+    setProductosConLoteVencido([]);
   }
 
   const totalPagado = pagosRegistrados.reduce((acc, p) => acc + Number(p.monto), 0);
@@ -144,6 +155,15 @@ export function NuevaVentaPage() {
           <p>
             Venta <code>{venta.id}</code> — Total: <strong>${venta.total}</strong>
           </p>
+
+          {productosConLoteVencido.length > 0 && (
+            // No bloquea nada (D-09) — el lote vencido ya se vendió y
+            // quedó auditado en MovimientoStock.loteVencidoAlMomento.
+            // Esto es solo un aviso para el vendedor/dueño.
+            <p role="alert">
+              ⚠ Se vendió stock de un lote ya vencido para: {productosConLoteVencido.join(', ')}
+            </p>
+          )}
 
           <h4>Registrar cobro</h4>
           <div>

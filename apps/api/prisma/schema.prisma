@@ -533,6 +533,13 @@ model MovimientoStock {
   usuario           Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
   recepcionCompraId String?
   recepcionCompra   RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
+  // D-09 (Fase 5 de Inventario): no se bloquea la venta de un lote
+  // vencido, solo se advierte/audita. true si, al momento de generar
+  // ESTE movimiento, Lote.vencimiento ya era <= a la fecha de la
+  // operación — calculado una sola vez acá, no derivado después
+  // comparando contra Lote.vencimiento (que puede cambiar de sentido
+  // con el correr del tiempo respecto a cuándo se hizo la venta).
+  loteVencidoAlMomento Boolean       @default(false)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 }

@@ -85,8 +85,15 @@ export class VentasService {
         include: { ventaItems: true },
       });
 
+      // D-09 (Fase 5 de Inventario): no se bloquea la venta de un producto
+      // con lotes vencidos, solo se advierte — ver descontarStock(). Se
+      // acumulan los productos afectados de esta venta para devolverlos
+      // en la respuesta (advertenciasStockVencido), además de quedar
+      // auditados por MovimientoStock.loteVencidoAlMomento de forma
+      // permanente sin depender de esta respuesta puntual.
+      const productosConLoteVencido = new Set<string>();
       for (const item of itemsConPrecio) {
-        await this.descontarStock(
+        const tuvoLoteVencido = await this.descontarStock(
           tx,
           empresaId,
           item.productoId,
@@ -94,23 +101,32 @@ export class VentasService {
           venta.id,
           usuarioId,
         );
+        if (tuvoLoteVencido) {
+          productosConLoteVencido.add(item.productoId);
+        }
       }
 
-      return venta;
+      return { ...venta, advertenciasStockVencido: [...productosConLoteVencido] };
     });
   }
 
   /**
    * Descuenta `cantidad` del stock de un producto, tomando de los lotes
    * disponibles en orden FIFO por vencimiento (el lote que vence más
-   * pronto se consume primero) — un lote vencido no debería llegar hasta
-   * acá si D-09 (bloqueo por vencimiento) estuviera implementado; por
-   * ahora esta función no filtra lotes vencidos, es un TODO(D-09)
-   * explícito, no una omisión silenciosa.
+   * pronto se consume primero).
+   *
+   * D-09: no se filtran lotes vencidos de la selección — un lote vencido
+   * puede seguir vendiéndose (decisión explícita del dueño, no bloqueo),
+   * pero cada MovimientoStock que salga de un lote ya vencido al momento
+   * de la venta queda marcado con `loteVencidoAlMomento: true`, para
+   * auditoría permanente. Devuelve `true` si algún lote afectado por esta
+   * venta estaba vencido, para que el caller pueda armar una advertencia.
    *
    * Genera un MovimientoStock tipo "Salida" por cada lote afectado.
    * Rechaza la operación completa (revierte la transacción) si la suma
-   * de cantidad disponible en todos los lotes del producto no alcanza.
+   * de cantidad disponible en todos los lotes del producto no alcanza —
+   * D-09 dejó esto sin cambios: el stock insuficiente se sigue
+   * rechazando siempre, no tiene mecanismo de excepción/autorización.
    */
   private async descontarStock(
     tx: EmpresaScopedTx,
@@ -119,10 +135,10 @@ export class VentasService {
     cantidadRequerida: number,
     ventaId: string,
     usuarioId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const lotes = await tx.lote.findMany({
       where: { empresaId, productoId, cantidad: { gt: 0 } },
-      orderBy: { vencimiento: 'asc' }, // TODO(D-09): excluir lotes vencidos cuando se defina el bloqueo
+      orderBy: { vencimiento: 'asc' },
     });
 
     const stockTotal = lotes.reduce((acc, l) => acc + Number(l.cantidad), 0);
@@ -132,10 +148,16 @@ export class VentasService {
       );
     }
 
+    const ahora = new Date();
     let restante = cantidadRequerida;
+    let huboLoteVencido = false;
     for (const lote of lotes) {
       if (restante <= 0) break;
       const cantidadDeEsteLote = Math.min(restante, Number(lote.cantidad));
+      const loteVencido = lote.vencimiento <= ahora;
+      if (loteVencido) {
+        huboLoteVencido = true;
+      }
 
       await tx.lote.update({
         where: { id: lote.id },
@@ -152,11 +174,14 @@ export class VentasService {
           motivo: 'Venta',
           referenciaId: ventaId,
           usuarioId,
+          loteVencidoAlMomento: loteVencido,
         },
       });
 
       restante -= cantidadDeEsteLote;
     }
+
+    return huboLoteVencido;
   }
 
   async findAll(empresaId: string) {
