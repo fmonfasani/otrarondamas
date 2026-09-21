@@ -15,6 +15,7 @@ import type {
   RegistrarArqueoRequest,
   ArquearCajaResponse,
   CierreCaja,
+  UsuarioResumen,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -81,4 +82,6 @@ export const api = {
   arquearCaja: (dto: RegistrarArqueoRequest) =>
     request<ArquearCajaResponse>('/caja/arqueo', { method: 'POST', body: JSON.stringify(dto) }),
   cerrarCaja: () => request<CierreCaja>('/caja/cierre', { method: 'POST' }),
+
+  listarUsuarios: () => request<UsuarioResumen[]>('/usuarios'),
 };

@@ -199,3 +199,14 @@ export interface CierreCaja {
   createdAt: string;
   updatedAt: string;
 }
+
+// --- Usuarios (apps/api/src/usuarios) ---
+// Listado mínimo de solo lectura, no gestión de usuarios completa — ver
+// usuarios.controller.ts. Usado para elegir el "usuario entrante" del
+// arqueo de caja.
+
+export interface UsuarioResumen {
+  id: string;
+  nombre: string;
+  email: string;
+}

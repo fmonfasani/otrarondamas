@@ -5,6 +5,7 @@ import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
+import { CajaPage } from './features/caja/CajaPage';
 
 function App() {
   return (
@@ -23,7 +24,7 @@ function App() {
                     <Route path="/orders" element={<div className="text-center py-12">Pedidos - En desarrollo</div>} />
                     <Route path="/inventory" element={<div className="text-center py-12">Inventario - En desarrollo</div>} />
                     <Route path="/customers" element={<div className="text-center py-12">Clientes - En desarrollo</div>} />
-                    <Route path="/cash" element={<div className="text-center py-12">Caja - En desarrollo</div>} />
+                    <Route path="/cash" element={<CajaPage />} />
                     <Route path="/reports" element={<div className="text-center py-12">Reportes - En desarrollo</div>} />
                     <Route path="/settings" element={<div className="text-center py-12">Configuración - En desarrollo</div>} />
                   </Routes>
