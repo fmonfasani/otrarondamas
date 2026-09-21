@@ -577,6 +577,8 @@ En la práctica, hoy: cualquier usuario autenticado de la empresa —sin importa
 
 No se corrigió en el mismo cambio que agregó Google login para no mezclar un fix de permisos de un módulo ya existente con una feature nueva — pendiente como incremento aparte. Al resolverlo, decidir explícitamente qué permiso exige cada endpoint (no necesariamente `caja.gastos` para todos — abrir/cerrar caja es una operación distinta de registrar un gasto).
 
+**Resuelto (21/09/2026, ver sección 22)**: releído el RF-09 completo antes de tocar código — el SDD solo restringe explícitamente "gastos y retiros" (ya cubierto). No pide restringir ver estado, abrir turno, ver movimientos ni arquear — quedan sin `@RequierePermiso`, documentado en el controller como decisión explícita, no como omisión. `cerrar()` sí se protegió con `caja.gastos` (decisión del dueño, no del SDD): consolida el turno de forma irreversible, con el mismo peso que gastos/retiros.
+
 ## 15. Login con Google (OAuth 2.0) (21/09/2026)
 
 - `GoogleStrategy` (`apps/api/src/auth/google.strategy.ts`) + `AuthGoogleService` (`auth.google.service.ts`), rutas `GET /auth/google` (redirect a Google) y `GET /auth/google/callback` (Google redirige de vuelta, el backend emite el JWT y redirige al frontend con `?token=`).
@@ -669,3 +671,14 @@ Primera operación restringida real que consulta D-06: cierre de caja con difere
 **Pendiente, explícito**: solo `caja.cierreConDiferencia` está en `OPERACIONES_AUTORIZABLES` hoy. La Fase 5 de Inventario (bloqueo por vencimiento/stock insuficiente, que también dependía de D-06) todavía no está conectada — cuando se retome, agregar su propia entrada al mapeo (ej. `inventario.excepcionVencimiento` → el permiso que corresponda) es el único cambio necesario en este módulo, el mecanismo en sí ya es genérico y no requiere tocarse.
 
 Verificado contra la DB real: ciclo completo abrir caja → arqueo con diferencia de -$15.000 (supera el umbral) → intento de cierre rechazado (400) → owner intenta autorizarse a sí mismo (403, auto-autorización bloqueada) → credenciales inválidas (401) → seller autoriza con sus propias credenciales pero sin `caja.gastos` (403) → seller (sesión bloqueada) pide que owner autorice (200, éxito) → re-autorizar el mismo arqueo (400) → cierre de caja (201, éxito). Registro de `Autorizacion` verificado con trazabilidad completa (autorizador, operación, entidad afectada, motivo, fecha).
+
+## 22. Gap de permisos en `caja.controller.ts` — resuelto (21/09/2026)
+
+Cierra el TODO de la sección 14.6. Antes de tocar código, se releyó el RF-09 completo del SDD: solo restringe explícitamente "gastos y retiros solo por el dueño o usuarios autorizados" — no dice nada de restringir ver estado, abrir turno, ver movimientos del turno propio, ni arquear. Esto confirma que el gap real no era "faltan permisos en todo", sino decidir con criterio cuáles de estos endpoints el SDD de verdad pide restringir.
+
+- `estado`, `abrir`, `listarMovimientos`, `arquear` quedan **sin** `@RequierePermiso`, con un comentario explícito en el controller citando el RF-09 y el mismo criterio ya usado en `usuarios.controller.ts` (operaciones normales de cualquier vendedor logueado durante su turno, sin permiso adicional).
+- `cerrar()` **sí** se protegió con `@RequierePermiso('caja.gastos')` — decisión explícita del dueño, no una lectura literal del SDD: cerrar consolida el turno de forma irreversible (no existe un endpoint de reapertura), tratado con el mismo peso que gastos/retiros.
+
+Frontend (`CajaPage.tsx`): sin cambios — ya seguía el criterio de no ocultar controles según permisos (mismo patrón que Inventario/Compras), el backend rechaza con 403 si corresponde y ese error ya se mostraba tal cual.
+
+Verificado contra la DB real: `seller` (sin `caja.gastos`) puede abrir caja (201), ver estado (200), ver movimientos (200) y arquear con diferencia $0 (201, sin requerir autorización) — pero al intentar cerrar recibe 403 explícito ("Requiere el permiso 'caja.gastos'"). `owner` (con el permiso) cierra sin problema (201).

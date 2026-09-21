@@ -14,6 +14,18 @@ import type { AuthenticatedUser } from '../auth/auth.types';
  * regla (D-05 sin confirmar, doble confirmación de arqueo). D-06
  * (mecanismo de autorización) conectado — ver autorizarArqueo() y
  * autorizaciones.service.ts.
+ *
+ * Permisos (auditoría 21/09/2026, ver docs/scaffolding-notas.md): el
+ * SDD (RF-09) solo restringe explícitamente "gastos y retiros" —
+ * cubierto por @RequierePermiso('caja.gastos') en registrarMovimiento.
+ * No pide restringir ver estado, abrir turno, ver movimientos del
+ * turno propio, ni arquear: son operaciones normales de cualquier
+ * vendedor logueado durante su turno, sin permiso adicional (mismo
+ * criterio que usuarios.controller.ts sobre GET /usuarios). cerrar()
+ * SÍ requiere caja.gastos: consolida el turno de forma irreversible
+ * (sin endpoint de reapertura) — decisión explícita del dueño de
+ * tratarlo con el mismo peso que gastos/retiros, aunque el SDD no lo
+ * pida en esos términos exactos.
  */
 @ApiTags('caja')
 @ApiBearerAuth()
@@ -65,6 +77,10 @@ export class CajaController {
     return this.cajaService.autorizarArqueo(user.empresaId, id, dto, user.id);
   }
 
+  // Cierra el turno de forma irreversible (no hay endpoint de
+  // reapertura) — mismo permiso que gastos/retiros, ver comentario del
+  // controller.
+  @RequierePermiso('caja.gastos')
   @Post('cierre')
   cerrar(@CurrentUser() user: AuthenticatedUser) {
     return this.cajaService.cerrar(user.empresaId, user.id);
