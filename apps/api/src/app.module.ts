@@ -10,6 +10,7 @@ import { PagosModule } from './pagos/pagos.module';
 import { CajaModule } from './caja/caja.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { InventarioModule } from './inventario/inventario.module';
+import { ComprasModule } from './compras/compras.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
@@ -23,6 +24,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     CajaModule,
     UsuariosModule,
     InventarioModule,
+    ComprasModule,
   ],
   controllers: [AppController],
   providers: [

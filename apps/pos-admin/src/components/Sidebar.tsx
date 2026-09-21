@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   User,
+  Truck,
   LogOut,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -24,6 +25,7 @@ const navItems: NavItem[] = [
   { path: '/ventas/nueva', label: 'Nueva venta', icon: <ShoppingCart className="w-5 h-5" /> },
   { path: '/orders', label: 'Pedidos', icon: <Package className="w-5 h-5" /> },
   { path: '/inventory', label: 'Inventario', icon: <Package className="w-5 h-5" /> },
+  { path: '/compras', label: 'Compras', icon: <Truck className="w-5 h-5" /> },
   { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
   { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5" /> },
   { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5" /> },

@@ -49,6 +49,11 @@ async function main() {
     'usuarios.gestionar',
     'clientes.gestionar',
     'productos.gestionar',
+    // RF-12 (compras y proveedores): crear/emitir órdenes de compra y
+    // confirmar recepciones. Permiso nuevo, no se reusó productos.gestionar
+    // (gestionar el catálogo no implica poder comprometer dinero con un
+    // proveedor — son autorizaciones de negocio distintas).
+    'compras.gestionar',
   ];
 
   for (const permName of permissions) {

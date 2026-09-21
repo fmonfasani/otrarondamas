@@ -20,6 +20,13 @@ import type {
   Lote,
   MovimientoStock,
   RegistrarAjusteRequest,
+  Proveedor,
+  CreateProveedorRequest,
+  UpdateProveedorRequest,
+  Compra,
+  CreateCompraRequest,
+  RecibirCompraRequest,
+  RecepcionCompra,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -108,4 +115,23 @@ export const api = {
   // Fase 2 — requiere el permiso inventario.ajustes.
   registrarAjuste: (dto: RegistrarAjusteRequest) =>
     request<MovimientoStock>('/inventario/ajustes', { method: 'POST', body: JSON.stringify(dto) }),
+
+  // Compras y proveedores — RF-12 Fase 1. Las mutaciones requieren el
+  // permiso compras.gestionar.
+  listarProveedores: () => request<Proveedor[]>('/proveedores'),
+  crearProveedor: (dto: CreateProveedorRequest) =>
+    request<Proveedor>('/proveedores', { method: 'POST', body: JSON.stringify(dto) }),
+  actualizarProveedor: (id: string, dto: UpdateProveedorRequest) =>
+    request<Proveedor>(`/proveedores/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
+
+  listarCompras: () => request<Compra[]>('/compras'),
+  getCompra: (id: string) => request<Compra>(`/compras/${id}`),
+  crearCompra: (dto: CreateCompraRequest) =>
+    request<Compra>('/compras', { method: 'POST', body: JSON.stringify(dto) }),
+  emitirCompra: (id: string) => request<Compra>(`/compras/${id}/emitir`, { method: 'POST' }),
+  recibirCompra: (id: string, dto: RecibirCompraRequest) =>
+    request<RecepcionCompra>(`/compras/${id}/recepciones`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
 };

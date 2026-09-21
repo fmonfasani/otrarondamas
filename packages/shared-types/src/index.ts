@@ -274,3 +274,92 @@ export interface RegistrarAjusteRequest {
   cantidad: number;
   motivo: string;
 }
+
+// --- Compras y proveedores (apps/api/src/compras) — RF-12 Fase 1 ---
+// CRUD de Proveedor, orden de compra, recepción (total o parcial).
+// Sin pagos a proveedor, facturas ni devoluciones todavía.
+
+export interface Proveedor {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProveedorRequest {
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+}
+
+export type UpdateProveedorRequest = Partial<CreateProveedorRequest>;
+
+export type EstadoCompra = 'BORRADOR' | 'EMITIDA' | 'RECEPCION_PARCIAL' | 'RECIBIDA';
+
+export interface CompraItem {
+  id: string;
+  compraId: string;
+  productoId: string;
+  cantidadPedida: string; // Decimal de Prisma serializa como string
+  cantidadRecibida: string;
+  costoUnitario: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Compra {
+  id: string;
+  empresaId: string;
+  proveedorId: string;
+  proveedor?: Proveedor;
+  usuarioId: string;
+  estado: EstadoCompra;
+  total: string;
+  fechaOrden: string;
+  fechaRecepcionEsperada: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: CompraItem[];
+  recepciones?: RecepcionCompra[];
+}
+
+export interface RecepcionCompra {
+  id: string;
+  empresaId: string;
+  compraId: string;
+  usuarioId: string;
+  fechaRecepcion: string;
+  observaciones: string | null;
+  createdAt: string;
+  updatedAt: string;
+  movimientosStock?: MovimientoStock[];
+}
+
+export interface CreateCompraItemRequest {
+  productoId: string;
+  cantidadPedida: number;
+  costoUnitario: number;
+}
+
+export interface CreateCompraRequest {
+  proveedorId: string;
+  fechaRecepcionEsperada?: string;
+  items: CreateCompraItemRequest[];
+}
+
+export interface RecibirCompraItemRequest {
+  compraItemId: string;
+  cantidadRecibida: number;
+  vencimiento: string;
+  numeroLote: string;
+}
+
+export interface RecibirCompraRequest {
+  items: RecibirCompraItemRequest[];
+  observaciones?: string;
+}

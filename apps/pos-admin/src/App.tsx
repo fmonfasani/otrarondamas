@@ -9,6 +9,7 @@ import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
 import { CajaPage } from './features/caja/CajaPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { InventarioPage } from './features/inventario/InventarioPage';
+import { ComprasPage } from './features/compras/ComprasPage';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
                       element={<div className="text-center py-12">Pedidos - En desarrollo</div>}
                     />
                     <Route path="/inventory" element={<InventarioPage />} />
+                    <Route path="/compras" element={<ComprasPage />} />
                     <Route
                       path="/customers"
                       element={<div className="text-center py-12">Clientes - En desarrollo</div>}
