@@ -173,6 +173,12 @@ model Producto {
   costo           Decimal
   precioMinorista Decimal
   precioMayorista Decimal? // D-01: nullable until rule is defined
+  // INV-AL-01 (Fase 4 de inventario): umbral de alerta de bajo stock.
+  // Default 0 para los productos existentes — con 0, ningún producto
+  // dispara la alerta hasta que alguien lo configure explícitamente
+  // (decisión del dueño: evitar 4342 alertas falsas el día que se
+  // active la función, ver docs/scaffolding-notas.md).
+  stockMinimo     Decimal    @default(0)
   activo          Boolean    @default(true)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

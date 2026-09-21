@@ -80,28 +80,94 @@ export class InventarioService {
       stockPorProducto.set(lote.productoId, actual + Number(lote.cantidad));
     }
 
-    const resultado = productos.map((producto) => ({
-      productoId: producto.id,
-      nombre: producto.nombre,
-      codigoInterno: producto.codigoInterno,
-      categoriaId: producto.categoriaId,
-      unidadBase: producto.unidadBase,
-      stockTotal: stockPorProducto.get(producto.id) ?? 0,
-      // INV-AL-01: sin Producto.stockMinimo todavía (requiere migración,
-      // ver roadmap Fase 4) — stockBajo siempre false por ahora, campo
-      // presente en la respuesta para que el frontend no tenga que
-      // cambiar de shape cuando se agregue el umbral real.
-      stockMinimo: null as number | null,
-      stockBajo: false,
-    }));
+    const resultado = productos.map((producto) => {
+      const stockTotal = stockPorProducto.get(producto.id) ?? 0;
+      const stockMinimo = Number(producto.stockMinimo);
+      return {
+        productoId: producto.id,
+        nombre: producto.nombre,
+        codigoInterno: producto.codigoInterno,
+        categoriaId: producto.categoriaId,
+        unidadBase: producto.unidadBase,
+        stockTotal,
+        stockMinimo,
+        // INV-AL-01: stockMinimo=0 (default de todo el catálogo
+        // existente, ver migración) nunca dispara la alerta — un
+        // producto sin umbral configurado explícitamente no se
+        // considera "bajo stock", aunque su stockTotal también sea 0.
+        stockBajo: stockMinimo > 0 && stockTotal <= stockMinimo,
+      };
+    });
 
     if (!soloConStockBajo) {
       return resultado;
     }
-    // Hoy stockBajo siempre es false (ver comentario arriba) — el filtro
-    // ya está implementado para no tener que tocar el controller cuando
-    // se agregue stockMinimo real, aunque por ahora siempre devuelve [].
     return resultado.filter((r) => r.stockBajo);
+  }
+
+  /**
+   * INV-AL-01/02/03: productos con stock por debajo de su mínimo
+   * configurado, y lotes que vencen dentro de la ventana de anticipación
+   * (7 días por defecto — D-09 del SDD lo dejaba como "propuesta
+   * inicial, pendiente de confirmación"; se implementa configurable por
+   * INVENTARIO_ALERTA_VENCIMIENTO_DIAS en vez de fijarlo en código, para
+   * no bloquear la fase completa esperando esa confirmación formal).
+   *
+   * No reusa stockConsolidado() con soloConStockBajo=true para la parte
+   * de stock bajo: ese método no tiene un límite de productos sin
+   * `search`, y acá sí interesa explícitamente TODO el catálogo (una
+   * alerta que omite productos por paginación no es una alerta
+   * confiable).
+   */
+  async alertas(empresaId: string) {
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const diasAnticipacion = Number(process.env.INVENTARIO_ALERTA_VENCIMIENTO_DIAS ?? 7);
+
+    const productos = await db.producto.findMany({
+      where: { activo: true, stockMinimo: { gt: 0 } },
+    });
+    const productoIds = productos.map((p) => p.id);
+    const lotes = await db.lote.findMany({
+      where: { productoId: { in: productoIds } },
+      select: { productoId: true, cantidad: true },
+    });
+    const stockPorProducto = new Map<string, number>();
+    for (const lote of lotes) {
+      const actual = stockPorProducto.get(lote.productoId) ?? 0;
+      stockPorProducto.set(lote.productoId, actual + Number(lote.cantidad));
+    }
+
+    const stockBajo = productos
+      .map((producto) => ({
+        productoId: producto.id,
+        nombre: producto.nombre,
+        codigoInterno: producto.codigoInterno,
+        stockTotal: stockPorProducto.get(producto.id) ?? 0,
+        stockMinimo: Number(producto.stockMinimo),
+      }))
+      .filter((p) => p.stockTotal <= p.stockMinimo);
+
+    const limiteVencimiento = new Date();
+    limiteVencimiento.setDate(limiteVencimiento.getDate() + diasAnticipacion);
+    const lotesPorVencer = await db.lote.findMany({
+      where: { vencimiento: { lte: limiteVencimiento }, cantidad: { gt: 0 } },
+      include: { producto: { select: { nombre: true, codigoInterno: true } } },
+      orderBy: { vencimiento: 'asc' },
+    });
+
+    return {
+      diasAnticipacion,
+      stockBajo,
+      lotesPorVencer: lotesPorVencer.map((lote) => ({
+        loteId: lote.id,
+        productoId: lote.productoId,
+        productoNombre: lote.producto.nombre,
+        codigoInterno: lote.producto.codigoInterno,
+        numeroLote: lote.numeroLote,
+        vencimiento: lote.vencimiento,
+        cantidad: lote.cantidad,
+      })),
+    };
   }
 
   /**

@@ -233,11 +233,35 @@ export interface StockConsolidado {
   categoriaId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
   stockTotal: number;
-  // Producto.stockMinimo no existe todavía en el schema (Fase 4 del
-  // roadmap) — stockMinimo siempre null y stockBajo siempre false hasta
-  // esa migración, campos presentes desde ya para no romper el shape.
-  stockMinimo: number | null;
+  // stockMinimo=0 (default de todo el catálogo existente) nunca
+  // dispara stockBajo — ver Fase 4 del roadmap de inventario.
+  stockMinimo: number;
   stockBajo: boolean;
+}
+
+// Fase 4 (INV-AL-*): alertas de bajo stock y vencimiento.
+export interface AlertaStockBajo {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  stockTotal: number;
+  stockMinimo: number;
+}
+
+export interface AlertaLotePorVencer {
+  loteId: string;
+  productoId: string;
+  productoNombre: string;
+  codigoInterno: string;
+  numeroLote: string;
+  vencimiento: string;
+  cantidad: string; // Decimal de Prisma serializa como string
+}
+
+export interface AlertasInventario {
+  diasAnticipacion: number;
+  stockBajo: AlertaStockBajo[];
+  lotesPorVencer: AlertaLotePorVencer[];
 }
 
 export interface Lote {

@@ -1,13 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Package, SlidersHorizontal } from 'lucide-react';
-import type { StockConsolidado, Lote, MovimientoStock } from '@otrarondamas/shared-types';
+import {
+  ChevronDown,
+  ChevronRight,
+  Package,
+  SlidersHorizontal,
+  AlertTriangle,
+  Clock,
+} from 'lucide-react';
+import type {
+  StockConsolidado,
+  Lote,
+  MovimientoStock,
+  AlertasInventario,
+} from '@otrarondamas/shared-types';
 import { Card, CardHeader, CardBody, Input, Button } from '../../components';
 import { api, ApiError } from '../../lib/api';
 
 /**
  * Fase 1 (INV-CONS-01/02/03/04): consulta de stock, solo lectura.
- * Fase 2 (INV-AJ-01/02/03/04): ajuste manual por lote. Sin alta de
- * lotes todavía — eso es Fase 3, sobre esta misma pantalla.
+ * Fase 2 (INV-AJ-01/02/03/04): ajuste manual por lote. Fase 3 (alta de
+ * lotes) redefinida vía Compras (RF-12) — no hay un endpoint aparte
+ * acá. Fase 4 (INV-AL-01/02/03): panel de alertas arriba de la tabla.
  *
  * El formulario de ajuste se muestra siempre (mismo criterio que
  * CajaPage con caja.gastos: el frontend no oculta controles según
@@ -31,6 +44,7 @@ export function InventarioPage() {
   const [motivoAjuste, setMotivoAjuste] = useState('');
   const [enviandoAjuste, setEnviandoAjuste] = useState(false);
   const [errorAjuste, setErrorAjuste] = useState<string | null>(null);
+  const [alertas, setAlertas] = useState<AlertasInventario | null>(null);
 
   const cargarStock = useCallback(async (terminoBusqueda: string) => {
     setCargando(true);
@@ -54,6 +68,22 @@ export function InventarioPage() {
     }, 300);
     return () => clearTimeout(timeout);
   }, [search, cargarStock]);
+
+  // Alertas: independiente del debounce de búsqueda, se carga una sola
+  // vez al montar (no depende de `search`). Promise.resolve() saca el
+  // setState del ciclo síncrono del efecto — mismo patrón que
+  // ComprasPage/GoogleCallbackPage.
+  useEffect(() => {
+    void Promise.resolve().then(() =>
+      api
+        .alertasInventario()
+        .then(setAlertas)
+        .catch(() => {
+          // Silencioso: las alertas son un plus informativo, no bloquean
+          // el uso normal de la pantalla si fallan.
+        }),
+    );
+  }, []);
 
   const cargarDetalleProducto = useCallback(async (productoId: string) => {
     setCargandoDetalle(productoId);
@@ -118,9 +148,68 @@ export function InventarioPage() {
     }
   }
 
+  const hayAlertas = alertas && (alertas.stockBajo.length > 0 || alertas.lotesPorVencer.length > 0);
+
   return (
     <div className="space-y-6">
       <h1 className="text-h1 font-bold">Inventario</h1>
+
+      {hayAlertas && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {alertas!.stockBajo.length > 0 && (
+            <Card className="border-brand-error">
+              <CardHeader className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-brand-error" />
+                <h2 className="text-h3 font-bold">Stock bajo ({alertas!.stockBajo.length})</h2>
+              </CardHeader>
+              <CardBody>
+                <ul className="space-y-1 text-sm">
+                  {alertas!.stockBajo.slice(0, 5).map((item) => (
+                    <li key={item.productoId} className="flex justify-between">
+                      <span>{item.nombre}</span>
+                      <span className="font-mono text-brand-error">
+                        {item.stockTotal} / mín. {item.stockMinimo}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {alertas!.stockBajo.length > 5 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    + {alertas!.stockBajo.length - 5} más
+                  </p>
+                )}
+              </CardBody>
+            </Card>
+          )}
+          {alertas!.lotesPorVencer.length > 0 && (
+            <Card className="border-amber-500">
+              <CardHeader className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <h2 className="text-h3 font-bold">
+                  Vencen en {alertas!.diasAnticipacion} días ({alertas!.lotesPorVencer.length})
+                </h2>
+              </CardHeader>
+              <CardBody>
+                <ul className="space-y-1 text-sm">
+                  {alertas!.lotesPorVencer.slice(0, 5).map((lote) => (
+                    <li key={lote.loteId} className="flex justify-between">
+                      <span>{lote.productoNombre}</span>
+                      <span className="font-mono text-amber-700">
+                        {new Date(lote.vencimiento).toLocaleDateString('es-AR')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {alertas!.lotesPorVencer.length > 5 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    + {alertas!.lotesPorVencer.length - 5} más
+                  </p>
+                )}
+              </CardBody>
+            </Card>
+          )}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

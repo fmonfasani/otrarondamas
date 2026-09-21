@@ -27,6 +27,7 @@ import type {
   CreateCompraRequest,
   RecibirCompraRequest,
   RecepcionCompra,
+  AlertasInventario,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -115,6 +116,8 @@ export const api = {
   // Fase 2 — requiere el permiso inventario.ajustes.
   registrarAjuste: (dto: RegistrarAjusteRequest) =>
     request<MovimientoStock>('/inventario/ajustes', { method: 'POST', body: JSON.stringify(dto) }),
+  // Fase 4 — solo lectura.
+  alertasInventario: () => request<AlertasInventario>('/inventario/alertas'),
 
   // Compras y proveedores — RF-12 Fase 1. Las mutaciones requieren el
   // permiso compras.gestionar.

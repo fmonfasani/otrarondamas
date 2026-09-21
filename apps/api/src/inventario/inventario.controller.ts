@@ -20,8 +20,9 @@ import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto';
 /**
  * Fase 1 del roadmap de inventario (RF-11 / INV-CONS-*): consulta, solo
  * lectura. Fase 2 (INV-AJ-*): ajustes manuales. Fase 3 (alta de lotes)
- * todavía no implementada, sobre inventario.module.ts ya armado para
- * sumarla sin reestructurar nada.
+ * redefinida — la recepción de una compra (apps/api/src/compras) ya
+ * cubre ese caso, no se agregó un endpoint aparte acá. Fase 4
+ * (INV-AL-*): alertas de bajo stock y vencimiento.
  */
 @ApiTags('inventario')
 @ApiBearerAuth()
@@ -92,5 +93,14 @@ export class InventarioController {
   @HttpCode(HttpStatus.CREATED)
   async registrarAjuste(@Body() dto: RegistrarAjusteDto, @CurrentUser() user: AuthenticatedUser) {
     return this.inventarioService.registrarAjuste(user.empresaId, dto, user.id);
+  }
+
+  // INV-AL-01/02/03: productos con stock bajo y lotes por vencer, en un
+  // solo endpoint (ambos alimentan el mismo badge de alertas en el
+  // frontend). Solo lectura, sin permiso adicional — mismo criterio que
+  // GET /inventario/stock.
+  @Get('alertas')
+  async alertas(@CurrentUser() user: AuthenticatedUser) {
+    return this.inventarioService.alertas(user.empresaId);
   }
 }
