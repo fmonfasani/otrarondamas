@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, X, Plus, Minus } from 'lucide-react';
-import { Card, CardBody, CardHeader } from '../../components';
-import { Button } from '../../components';
+import { Card, CardBody, CardHeader } from '../components';
+import { Button } from '../components';
 
 interface Product {
   id: string;
@@ -31,20 +31,20 @@ export const POSPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
 
-  const categories = ['Todos', ...new Set(products.map((p) => p.category))];
+  const categories = ['Todos', ...new Set(products.map(p => p.category))];
 
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+        return prev.map(item =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prev, { ...product, quantity: 1 }];
@@ -53,14 +53,18 @@ export const POSPage: React.FC = () => {
 
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
-      setCart((prev) => prev.filter((item) => item.id !== productId));
+      setCart(prev => prev.filter(item => item.id !== productId));
     } else {
-      setCart((prev) => prev.map((item) => (item.id === productId ? { ...item, quantity } : item)));
+      setCart(prev =>
+        prev.map(item =>
+          item.id === productId ? { ...item, quantity } : item
+        )
+      );
     }
   };
 
   const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== productId));
+    setCart(prev => prev.filter(item => item.id !== productId));
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -82,14 +86,14 @@ export const POSPage: React.FC = () => {
                   type="text"
                   placeholder="Buscar productos..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               {/* Categories */}
               <div className="flex gap-2 flex-wrap">
-                {categories.map((cat) => (
+                {categories.map(cat => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
@@ -106,7 +110,7 @@ export const POSPage: React.FC = () => {
 
               {/* Products Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProducts.map((product) => (
+                {filteredProducts.map(product => (
                   <div
                     key={product.id}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition text-center"
@@ -144,7 +148,7 @@ export const POSPage: React.FC = () => {
               <p className="text-gray-500 text-center py-8">Carrito vacío</p>
             ) : (
               <div className="space-y-4">
-                {cart.map((item) => (
+                {cart.map(item => (
                   <div key={item.id} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
@@ -168,7 +172,7 @@ export const POSPage: React.FC = () => {
                       <input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
+                        onChange={e => updateQuantity(item.id, parseInt(e.target.value) || 0)}
                         className="w-12 text-center border border-gray-300 rounded px-2 py-1 text-sm"
                       />
                       <button

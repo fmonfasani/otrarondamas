@@ -1,39 +1,89 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './features/auth/AuthContext';
-import { LoginPage } from './features/auth/LoginPage';
-import { ProtectedRoute } from './features/auth/ProtectedRoute';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
+import { POSPage } from './features/pos/POSPage';
+import { LoginPage } from './features/login/LoginPage';
 
 function App() {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
+
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+
+        {isLoggedIn ? (
+          <>
+            <Route
+              path="/"
+              element={
                 <MainLayout>
-                  <Routes>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
-                    <Route path="/orders" element={<div className="text-center py-12">Pedidos - En desarrollo</div>} />
-                    <Route path="/inventory" element={<div className="text-center py-12">Inventario - En desarrollo</div>} />
-                    <Route path="/customers" element={<div className="text-center py-12">Clientes - En desarrollo</div>} />
-                    <Route path="/cash" element={<div className="text-center py-12">Caja - En desarrollo</div>} />
-                    <Route path="/reports" element={<div className="text-center py-12">Reportes - En desarrollo</div>} />
-                    <Route path="/settings" element={<div className="text-center py-12">Configuración - En desarrollo</div>} />
-                  </Routes>
+                  <DashboardPage />
                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Router>
-    </AuthProvider>
+              }
+            />
+            <Route
+              path="/pos"
+              element={
+                <MainLayout>
+                  <POSPage />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Pedidos - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Inventario - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Clientes - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/cash"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Caja - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Reportes - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <MainLayout>
+                  <div className="text-center py-12">Configuración - En desarrollo</div>
+                </MainLayout>
+              }
+            />
+          </>
+        ) : (
+          <Route path="*" element={<Navigate to="/login" />} />
+        )}
+      </Routes>
+    </Router>
   );
 }
 

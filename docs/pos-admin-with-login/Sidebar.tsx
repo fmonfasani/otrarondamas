@@ -1,16 +1,6 @@
 import React from 'react';
-import {
-  BarChart3,
-  ShoppingCart,
-  Package,
-  Users,
-  DollarSign,
-  FileText,
-  Settings,
-  LogOut,
-} from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../features/auth/AuthContext';
+import { BarChart3, ShoppingCart, Package, Users, DollarSign, FileText, Settings, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 interface NavItem {
   path: string;
@@ -20,7 +10,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: <BarChart3 className="w-5 h-5" /> },
-  { path: '/ventas/nueva', label: 'Nueva venta', icon: <ShoppingCart className="w-5 h-5" /> },
+  { path: '/pos', label: 'Punto de Venta', icon: <ShoppingCart className="w-5 h-5" /> },
   { path: '/orders', label: 'Pedidos', icon: <Package className="w-5 h-5" /> },
   { path: '/inventory', label: 'Inventario', icon: <Package className="w-5 h-5" /> },
   { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
@@ -31,13 +21,6 @@ const navItems: NavItem[] = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <aside className="w-64 bg-brand-dark text-white flex flex-col h-screen fixed left-0 top-0">
@@ -66,10 +49,7 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="px-4 py-6 border-t border-gray-700">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 text-gray-300 hover:bg-gray-800 rounded-md transition"
-        >
+        <button className="flex items-center gap-3 w-full px-4 py-3 text-gray-300 hover:bg-gray-800 rounded-md transition">
           <LogOut className="w-5 h-5" />
           <span>Salir</span>
         </button>

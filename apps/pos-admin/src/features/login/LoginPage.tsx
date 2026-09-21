@@ -39,7 +39,9 @@ export const LoginPage: React.FC = () => {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-brand-dark mb-2">Email</label>
+              <label className="block text-sm font-semibold text-brand-dark mb-2">
+                Email
+              </label>
               <input
                 type="email"
                 value={email}
@@ -51,7 +53,9 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-brand-dark mb-2">Contraseña</label>
+              <label className="block text-sm font-semibold text-brand-dark mb-2">
+                Contraseña
+              </label>
               <input
                 type="password"
                 value={password}
@@ -71,9 +75,7 @@ export const LoginPage: React.FC = () => {
             <p className="text-xs text-gray-600 font-semibold mb-2">CREDENCIALES DEMO:</p>
             <p className="text-xs text-gray-700">Email: demo@otraronda.com</p>
             <p className="text-xs text-gray-700">Contraseña: demo123</p>
-            <p className="text-xs text-gray-500 mt-2">
-              (Usa cualquier combinación - demo sin validación)
-            </p>
+            <p className="text-xs text-gray-500 mt-2">(Usa cualquier combinación - demo sin validación)</p>
           </div>
         </div>
       </div>
