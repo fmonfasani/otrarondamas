@@ -1,17 +1,19 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CajaService } from './caja.service';
 import { AbrirCajaDto } from './dto/abrir-caja.dto';
 import { RegistrarMovimientoDto } from './dto/registrar-movimiento.dto';
 import { RegistrarArqueoDto } from './dto/registrar-arqueo.dto';
+import { AutorizarArqueoDto } from './dto/autorizar-arqueo.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
  * RF-09 (caja y arqueos). Ver caja.service.ts para el detalle de cada
- * regla (D-05 sin confirmar, D-06 sin implementar, doble confirmación
- * de arqueo).
+ * regla (D-05 sin confirmar, doble confirmación de arqueo). D-06
+ * (mecanismo de autorización) conectado — ver autorizarArqueo() y
+ * autorizaciones.service.ts.
  */
 @ApiTags('caja')
 @ApiBearerAuth()
@@ -49,6 +51,18 @@ export class CajaController {
   @Post('arqueo')
   arquear(@Body() dto: RegistrarArqueoDto, @CurrentUser() user: AuthenticatedUser) {
     return this.cajaService.arquear(dto, user.empresaId, user.id);
+  }
+
+  // D-06: sin @RequierePermiso propio — la restricción real está en
+  // las credenciales del body (quién autoriza), no en quién solicita.
+  // Ver autorizaciones.service.ts.
+  @Patch('arqueo/:id/autorizar')
+  autorizarArqueo(
+    @Param('id') id: string,
+    @Body() dto: AutorizarArqueoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.cajaService.autorizarArqueo(user.empresaId, id, dto, user.id);
   }
 
   @Post('cierre')

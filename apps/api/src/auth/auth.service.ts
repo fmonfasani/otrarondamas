@@ -23,6 +23,21 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
+    const usuario = await this.verificarCredenciales(email, password);
+    return this.emitirSesion(
+      usuario,
+      usuario.usuarioPermisos.map((up) => up.permiso.nombre),
+    );
+  }
+
+  /**
+   * Valida email+password sin emitir un JWT — reusado por login() y por
+   * AutorizacionesService.autorizar() (D-06): confirmar la identidad de
+   * quien autoriza una operación restringida es el mismo problema que
+   * loguearse, no se duplica la lógica de bcrypt/mensajes uniformes en
+   * un segundo lugar.
+   */
+  async verificarCredenciales(email: string, password: string) {
     // Mensaje idéntico para email inexistente y password incorrecta:
     // no revelar cuál de los dos fue el motivo del rechazo.
     const usuario = await this.prisma.usuario.findUnique({
@@ -43,10 +58,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.emitirSesion(
-      usuario,
-      usuario.usuarioPermisos.map((up) => up.permiso.nombre),
-    );
+    return usuario;
   }
 
   /**

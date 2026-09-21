@@ -199,6 +199,14 @@ export interface ArquearCajaResponse {
   requiereAutorizacion: boolean;
 }
 
+// D-06: credenciales de quien AUTORIZA (dueño/usuario con el permiso
+// requerido), no las de la sesión activa que está bloqueada.
+export interface AutorizarArqueoRequest {
+  email: string;
+  password: string;
+  motivo?: string;
+}
+
 export interface CierreCaja {
   id: string;
   aperturaCajaId: string;

@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
+import { AutorizacionesService } from '../autorizaciones/autorizaciones.service';
 import { AbrirCajaDto } from './dto/abrir-caja.dto';
 import { RegistrarMovimientoDto } from './dto/registrar-movimiento.dto';
 import { RegistrarArqueoDto } from './dto/registrar-arqueo.dto';
+import { AutorizarArqueoDto } from './dto/autorizar-arqueo.dto';
 
 // D-05 del SDD: "$5.000 es una referencia inicial. Se debe confirmar la
 // condición exacta (mayor que / mayor o igual que) y el tratamiento de
@@ -26,7 +28,10 @@ const UMBRAL_DIFERENCIA_REFERENCIA = 5000;
  */
 @Injectable()
 export class CajaService {
-  constructor(private readonly prismaFactory: EmpresaScopedPrismaService) {}
+  constructor(
+    private readonly prismaFactory: EmpresaScopedPrismaService,
+    private readonly autorizacionesService: AutorizacionesService,
+  ) {}
 
   private async getCajaDeEmpresa(empresaId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
@@ -187,6 +192,49 @@ export class CajaService {
       });
       await tx.caja.update({ where: { id: caja.id }, data: { estado: 'EN_ARQUEO' } });
       return { arqueo, requiereAutorizacion };
+    });
+  }
+
+  /**
+   * D-06 conectado: el arqueo que quedó bloqueado en arquear() (con
+   * `requiereAutorizacion: true` y `autorizacionId: null`) recibe acá
+   * las credenciales de quien lo autoriza. Delega la validación entera
+   * (identidad, permiso, no-autoautorización) en AutorizacionesService
+   * — este método solo vincula la Autorizacion ya creada y válida al
+   * ArqueoCaja.
+   */
+  async autorizarArqueo(
+    empresaId: string,
+    arqueoId: string,
+    dto: AutorizarArqueoDto,
+    solicitanteId: string,
+  ) {
+    const caja = await this.getCajaDeEmpresa(empresaId);
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const arqueo = await db.arqueoCaja.findFirst({ where: { id: arqueoId, cajaId: caja.id } });
+    if (!arqueo) {
+      throw new NotFoundException('Arqueo no encontrado');
+    }
+    if (arqueo.autorizacionId) {
+      throw new BadRequestException('Este arqueo ya tiene una autorización registrada.');
+    }
+
+    const autorizacion = await this.autorizacionesService.autorizar(
+      empresaId,
+      {
+        operacion: 'caja.cierreConDiferencia',
+        entidadAfectada: 'ArqueoCaja',
+        entidadId: arqueoId,
+        motivo: dto.motivo,
+        email: dto.email,
+        password: dto.password,
+      },
+      solicitanteId,
+    );
+
+    return db.arqueoCaja.update({
+      where: { id: arqueoId },
+      data: { autorizacionId: autorizacion.id },
     });
   }
 

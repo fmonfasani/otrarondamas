@@ -20,6 +20,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGoogleService, JwtStrategy, GoogleStrategy, PermissionsGuard],
-  exports: [JwtModule, PermissionsGuard],
+  // AuthService exportado: AutorizacionesService (D-06) lo inyecta para
+  // reusar verificarCredenciales() sin duplicar la lógica de bcrypt.
+  exports: [JwtModule, PermissionsGuard, AuthService],
 })
 export class AuthModule {}

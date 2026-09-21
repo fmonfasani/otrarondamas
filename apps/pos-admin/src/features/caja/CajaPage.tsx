@@ -16,8 +16,10 @@ const TIPOS_MOVIMIENTO: TipoMovimientoManual[] = ['Ingreso', 'Egreso', 'Gasto', 
  * RF-09: apertura -> movimientos -> arqueo (doble confirmación,
  * saliente + entrante) -> cierre. Refleja fielmente lo que el backend
  * permite: no hay forma de "forzar" un cierre con diferencia sin
- * autorizar (D-06 no implementado, ver caja.service.ts) — si el backend
- * lo rechaza, esta pantalla muestra el error tal cual, no lo oculta.
+ * autorizar. D-06 conectado (ver caja.service.ts /
+ * autorizaciones.service.ts): si el arqueo requiere autorización, se
+ * pide acá mismo el email+password de quien la concede (nunca la
+ * sesión activa) antes de habilitar el cierre.
  */
 export function CajaPage() {
   const { user } = useAuth();
@@ -34,6 +36,10 @@ export function CajaPage() {
   const [usuarioEntranteId, setUsuarioEntranteId] = useState('');
   const [efectivoContado, setEfectivoContado] = useState('');
   const [ultimoArqueo, setUltimoArqueo] = useState<ArquearCajaResponse | null>(null);
+  const [emailAutorizador, setEmailAutorizador] = useState('');
+  const [passwordAutorizador, setPasswordAutorizador] = useState('');
+  const [motivoAutorizacion, setMotivoAutorizacion] = useState('');
+  const [autorizando, setAutorizando] = useState(false);
 
   const cargarTodo = useCallback(async () => {
     try {
@@ -121,6 +127,31 @@ export function CajaPage() {
       await cargarTodo();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo registrar el arqueo');
+    }
+  }
+
+  async function autorizarArqueo() {
+    if (!ultimoArqueo) return;
+    if (!emailAutorizador.trim() || !passwordAutorizador) {
+      setError('Ingresá el email y la contraseña de quien autoriza.');
+      return;
+    }
+    setAutorizando(true);
+    setError(null);
+    try {
+      const arqueoAutorizado = await api.autorizarArqueo(ultimoArqueo.arqueo.id, {
+        email: emailAutorizador.trim(),
+        password: passwordAutorizador,
+        motivo: motivoAutorizacion.trim() || undefined,
+      });
+      setUltimoArqueo({ ...ultimoArqueo, arqueo: arqueoAutorizado });
+      setEmailAutorizador('');
+      setPasswordAutorizador('');
+      setMotivoAutorizacion('');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo autorizar el arqueo');
+    } finally {
+      setAutorizando(false);
     }
   }
 
@@ -328,11 +359,44 @@ export function CajaPage() {
                       ${ultimoArqueo.arqueo.diferencia}
                     </strong>
                   </p>
-                  {ultimoArqueo.requiereAutorizacion && (
-                    <p className="text-brand-error font-semibold">
-                      La diferencia supera el umbral de referencia y requiere autorización del dueño
-                      (mecanismo aún no implementado) — el cierre quedará bloqueado hasta
-                      resolverlo.
+                  {ultimoArqueo.requiereAutorizacion && !ultimoArqueo.arqueo.autorizacionId && (
+                    <div className="mt-3 p-3 bg-white border border-brand-error rounded-md space-y-2">
+                      <p className="text-brand-error font-semibold text-sm">
+                        La diferencia supera el umbral de referencia — el cierre queda bloqueado
+                        hasta que alguien con permiso lo autorice acá (email y contraseña de esa
+                        persona, no los tuyos).
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          type="email"
+                          placeholder="Email de quien autoriza"
+                          value={emailAutorizador}
+                          onChange={(e) => setEmailAutorizador(e.target.value)}
+                          className="flex-1 min-w-[180px] px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                        <input
+                          type="password"
+                          placeholder="Contraseña"
+                          value={passwordAutorizador}
+                          onChange={(e) => setPasswordAutorizador(e.target.value)}
+                          className="w-36 px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Motivo (opcional)"
+                          value={motivoAutorizacion}
+                          onChange={(e) => setMotivoAutorizacion(e.target.value)}
+                          className="flex-1 min-w-[160px] px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                        <Button size="sm" disabled={autorizando} onClick={autorizarArqueo}>
+                          {autorizando ? 'Autorizando...' : 'Autorizar'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {ultimoArqueo.requiereAutorizacion && ultimoArqueo.arqueo.autorizacionId && (
+                    <p className="text-green-700 font-semibold text-sm">
+                      ✓ Autorizado — la caja ya puede cerrarse.
                     </p>
                   )}
                 </div>

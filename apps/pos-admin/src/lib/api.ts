@@ -14,6 +14,8 @@ import type {
   MovimientoCaja,
   RegistrarArqueoRequest,
   ArquearCajaResponse,
+  AutorizarArqueoRequest,
+  ArqueoCaja,
   CierreCaja,
   UsuarioResumen,
   StockConsolidado,
@@ -100,6 +102,12 @@ export const api = {
   listarMovimientosCaja: () => request<MovimientoCaja[]>('/caja/movimientos'),
   arquearCaja: (dto: RegistrarArqueoRequest) =>
     request<ArquearCajaResponse>('/caja/arqueo', { method: 'POST', body: JSON.stringify(dto) }),
+  // D-06: credenciales de quien autoriza, no las de la sesión activa.
+  autorizarArqueo: (arqueoId: string, dto: AutorizarArqueoRequest) =>
+    request<ArqueoCaja>(`/caja/arqueo/${arqueoId}/autorizar`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
   cerrarCaja: () => request<CierreCaja>('/caja/cierre', { method: 'POST' }),
 
   listarUsuarios: () => request<UsuarioResumen[]>('/usuarios'),
