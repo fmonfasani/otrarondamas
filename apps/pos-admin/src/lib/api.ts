@@ -33,7 +33,11 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('accessToken');
+  // El token puede estar en localStorage (login con "Recordarme") o en
+  // sessionStorage (sin "Recordarme", ver AuthContext.tsx) — nunca en
+  // ambos a la vez, pero acá no sabemos cuál eligió el usuario al
+  // loguearse, así que se prueban los dos.
+  const token = localStorage.getItem('accessToken') ?? sessionStorage.getItem('accessToken');
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,

@@ -5,14 +5,19 @@ import { api, ApiError } from '../../lib/api';
 interface AuthContextValue {
   user: AuthenticatedUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// "Recordarme" real (no decorativo): decide en qué storage vive la
+// sesión. localStorage persiste entre cierres de navegador; sessionStorage
+// se pierde al cerrar la pestaña/ventana. lib/api.ts's request() debe leer
+// de los dos storages (ver ese archivo) porque no sabe de antemano en
+// cuál quedó guardado el token de la sesión actual.
 function readStoredUser(): AuthenticatedUser | null {
-  const raw = localStorage.getItem('user');
+  const raw = localStorage.getItem('user') ?? sessionStorage.getItem('user');
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthenticatedUser;
@@ -25,12 +30,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(readStoredUser);
   const [loading, setLoading] = useState(false);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe: boolean) => {
     setLoading(true);
     try {
       const { accessToken, usuario } = await api.login({ email, password });
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('user', JSON.stringify(usuario));
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('accessToken', accessToken);
+      storage.setItem('user', JSON.stringify(usuario));
       setUser(usuario);
     } finally {
       setLoading(false);
@@ -40,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('user');
     setUser(null);
   }, []);
 
