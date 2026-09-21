@@ -1,4 +1,12 @@
-import { Mail, Building2, ShieldCheck, Calendar, Chrome, Lock, User as UserIcon } from 'lucide-react';
+import {
+  Mail,
+  Building2,
+  ShieldCheck,
+  Calendar,
+  Chrome,
+  Lock,
+  User as UserIcon,
+} from 'lucide-react';
 import { Card, CardHeader, CardBody } from '../../components';
 import { useAuth } from '../auth/AuthContext';
 
@@ -104,8 +112,8 @@ export function ProfilePage() {
         <CardBody>
           {user.permisos.length === 0 ? (
             <p className="text-gray-500">
-              Todavía no tenés ningún permiso asignado. Pedile a un administrador que te los
-              asigne para poder operar el sistema.
+              Todavía no tenés ningún permiso asignado. Pedile a un administrador que te los asigne
+              para poder operar el sistema.
             </p>
           ) : (
             <ul className="space-y-2">

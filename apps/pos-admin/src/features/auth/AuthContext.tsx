@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { PerfilUsuario } from '@otrarondamas/shared-types';
 import { api, ApiError } from '../../lib/api';
 
@@ -30,6 +30,32 @@ function readStoredUser(): PerfilUsuario | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PerfilUsuario | null>(readStoredUser);
   const [loading, setLoading] = useState(false);
+
+  // El objeto `user` cacheado en storage puede haber quedado con un
+  // shape viejo (ej. una sesión guardada antes de que /auth/me empezara
+  // a devolver fotoUrl/metodoLogin/createdAt/empresaNombre) — sin esto,
+  // esos campos quedan undefined hasta que alguien haga logout/login a
+  // mano. Se revalida en segundo plano al montar, sin bloquear el
+  // primer render: si el usuario ya estaba viendo la app, sigue
+  // viéndola con los datos cacheados hasta que llegue la respuesta.
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken') ?? sessionStorage.getItem('accessToken');
+    if (!token) return;
+
+    const storage = localStorage.getItem('accessToken') ? localStorage : sessionStorage;
+    api
+      .me()
+      .then((usuario) => {
+        storage.setItem('user', JSON.stringify(usuario));
+        setUser(usuario);
+      })
+      .catch(() => {
+        // Token inválido/expirado: no se fuerza un logout automático acá
+        // (request() de otras pantallas ya maneja el 401 caso a caso);
+        // solo se deja de intentar refrescar el perfil en silencio.
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
+  }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe: boolean) => {
     setLoading(true);

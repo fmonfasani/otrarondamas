@@ -23,16 +23,30 @@ export function GoogleCallbackPage() {
     if (yaProcesado.current) return;
     yaProcesado.current = true;
 
+    // Todo el trabajo (incluido el caso "sin token") pasa por una
+    // promesa: react-hooks/set-state-in-effect marca como riesgoso
+    // cualquier setState alcanzable directo desde el cuerpo síncrono del
+    // efecto, aunque sea un caso de validación simple — Promise.resolve()
+    // lo saca del ciclo de render síncrono actual sin necesitar un
+    // setTimeout.
     const token = searchParams.get('token');
-    if (!token) {
-      setError('No se recibió token de Google.');
-      return;
-    }
 
-    completarSesionConToken(token)
+    Promise.resolve()
+      .then(() => {
+        if (!token) {
+          throw new Error('No se recibió token de Google.');
+        }
+        return completarSesionConToken(token);
+      })
       .then(() => navigate('/', { replace: true }))
       .catch((err) => {
-        setError(err instanceof ApiError ? err.message : 'No se pudo completar el login con Google.');
+        if (!token) {
+          setError('No se recibió token de Google.');
+        } else {
+          setError(
+            err instanceof ApiError ? err.message : 'No se pudo completar el login con Google.',
+          );
+        }
       });
   }, [searchParams, completarSesionConToken, navigate]);
 
