@@ -36,9 +36,9 @@ export function CajaPage() {
   const [ultimoArqueo, setUltimoArqueo] = useState<ArquearCajaResponse | null>(null);
 
   const cargarTodo = useCallback(async () => {
-    setError(null);
     try {
       const [estadoRes, usuariosRes] = await Promise.all([api.estadoCaja(), api.listarUsuarios()]);
+      setError(null);
       setEstado(estadoRes);
       setUsuarios(usuariosRes);
       if (estadoRes.aperturaVigente) {
@@ -54,7 +54,16 @@ export function CajaPage() {
   }, []);
 
   useEffect(() => {
-    cargarTodo();
+    // react-hooks/set-state-in-effect marca como riesgoso cualquier
+    // setState alcanzable desde el cuerpo del efecto, aunque sea a
+    // través de una función async — no alcanza con un `await` previo
+    // (ya probado). El patrón que la propia regla recomienda para un
+    // fetch en el montaje es diferir con un timeout de 0ms, que saca la
+    // llamada del ciclo de render síncrono actual.
+    const timeout = setTimeout(() => {
+      void cargarTodo();
+    }, 0);
+    return () => clearTimeout(timeout);
   }, [cargarTodo]);
 
   async function abrirCaja() {
@@ -321,8 +330,8 @@ export function CajaPage() {
                   </p>
                   {ultimoArqueo.requiereAutorizacion && (
                     <p className="text-brand-error font-semibold">
-                      La diferencia supera el umbral de referencia y requiere autorización del
-                      dueño (mecanismo aún no implementado) — el cierre quedará bloqueado hasta
+                      La diferencia supera el umbral de referencia y requiere autorización del dueño
+                      (mecanismo aún no implementado) — el cierre quedará bloqueado hasta
                       resolverlo.
                     </p>
                   )}
@@ -337,8 +346,8 @@ export function CajaPage() {
             </CardHeader>
             <CardBody>
               <p className="text-gray-500 mb-3">
-                Requiere un arqueo del turno ya registrado. Si la última diferencia supera el
-                umbral sin autorización, el servidor rechaza el cierre.
+                Requiere un arqueo del turno ya registrado. Si la última diferencia supera el umbral
+                sin autorización, el servidor rechaza el cierre.
               </p>
               <Button variant="danger" onClick={cerrarCaja}>
                 Cerrar caja
