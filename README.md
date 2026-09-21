@@ -1,4 +1,4 @@
-# Otra Roonda Más — MVP piloto
+# Otra Roonda Más — Primera Fase
 
 Aplicación web SaaS para gestionar la operación comercial de Otra Roonda Más (ventas, pedidos, pagos, caja, clientes, inventario, compras, entregas, reportes y auditoría).
 
