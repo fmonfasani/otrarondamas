@@ -92,27 +92,35 @@ model Usuario {
   empresa      Empresa  @relation(fields: [empresaId], references: [id])
   nombre       String
   email        String   @unique
-  passwordHash String
+  // Nullable: un usuario que solo entró por Google no tiene contraseña
+  // local. Login por password (auth.service.ts) exige que no sea null
+  // antes de comparar con bcrypt.
+  passwordHash String?
+  // Id estable de la cuenta de Google (el "sub" del token), no el email
+  // (el email podría cambiar de lado de Google en teoría). Null para
+  // usuarios que nunca se logueraon con Google.
+  googleId     String?  @unique
+  fotoUrl      String?
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  usuarioPermisos    UsuarioPermiso[]
-  ventas             Venta[]
-  pedidos            Pedido[]
-  movimientosCaja    MovimientoCaja[]
-  audits             AuditLog[]
-  aperturasCaja      AperturaCaja[]
-  cierresCaja        CierreCaja[]
-  arqueosCaja        ArqueoCaja[]
-  arqueosComoEntrante ArqueoCaja[]     @relation("ArqueoUsuarioEntrante")
-  entregasPreparadas Entrega[]         @relation("PreparadorEntrega")
-  entregasRepartidas Entrega[]         @relation("RepartidorEntrega")
-  pagos              Pago[]            @relation("UsuarioPagos")
-  compras            Compra[]          @relation("UsuarioCompras")
-  recepcionesCompra  RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
-  movimientosStock   MovimientoStock[] @relation("UsuarioMovimientosStock")
-  autorizaciones     Autorizacion[]    @relation("UsuarioAutorizaciones")
+  usuarioPermisos     UsuarioPermiso[]
+  ventas              Venta[]
+  pedidos             Pedido[]
+  movimientosCaja     MovimientoCaja[]
+  audits              AuditLog[]
+  aperturasCaja       AperturaCaja[]
+  cierresCaja         CierreCaja[]
+  arqueosCaja         ArqueoCaja[]
+  arqueosComoEntrante ArqueoCaja[]      @relation("ArqueoUsuarioEntrante")
+  entregasPreparadas  Entrega[]         @relation("PreparadorEntrega")
+  entregasRepartidas  Entrega[]         @relation("RepartidorEntrega")
+  pagos               Pago[]            @relation("UsuarioPagos")
+  compras             Compra[]          @relation("UsuarioCompras")
+  recepcionesCompra   RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
+  movimientosStock    MovimientoStock[] @relation("UsuarioMovimientosStock")
+  autorizaciones      Autorizacion[]    @relation("UsuarioAutorizaciones")
 }
 
 model Permiso {

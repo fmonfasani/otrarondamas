@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './features/auth/AuthContext';
 import { LoginPage } from './features/auth/LoginPage';
+import { GoogleCallbackPage } from './features/auth/GoogleCallbackPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
@@ -13,6 +14,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
           <Route
             path="/*"
             element={

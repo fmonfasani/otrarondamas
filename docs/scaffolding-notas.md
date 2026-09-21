@@ -568,4 +568,21 @@ Sin este cambio, el arqueo no tendría forma de calcular el efectivo esperado si
 - `efectivoDeudasContado` siempre `0` — no hay módulo de cobro de deudas (RF-10).
 - No hay endpoint para crear la `Caja` de una empresa (solo existe la del seed) — si una empresa nueva se diera de alta, no tendría caja hasta cargarla manualmente en la base.
 - Sin frontend: `apps/pos-admin` no tiene pantalla de caja todavía.
+
+### 14.6 ⚠️ TODO de seguridad: `caja.controller.ts` sin `@RequierePermiso` en la mayoría de sus endpoints (21/09/2026)
+
+Detectado en auditoría previa a habilitar el login con Google (ver sección 15): `estado`, `apertura`, `listarMovimientos`, `arqueo` y `cierre` en `caja.controller.ts` **no tienen `@RequierePermiso`**, solo exigen JWT válido (el guard global). Únicamente `registrarMovimiento` (`POST /caja/movimientos`) tiene `@RequierePermiso('caja.gastos')` — así lo confirma la tabla de la sección 14.4 (`403` para seller sin ese permiso en un gasto manual), pero nunca se probó abrir/cerrar caja con un usuario sin permisos.
+
+En la práctica, hoy: cualquier usuario autenticado de la empresa —sin importar qué permisos tenga asignados— puede abrir caja, cerrar caja, y ver el estado/movimientos. Antes de esta sección, el único modo de alta de usuarios era manual (alguien con `usuarios.gestionar` creaba la cuenta), así que este gap quedaba mitigado en la práctica por ese filtro humano. Con el login de Google (sección 15), un usuario nuevo se auto-crea sin intervención humana y sin ningún permiso — sigue sin poder registrar movimientos manuales o vender, pero **sí puede abrir/cerrar la caja real de la empresa** el mismo día que entra por primera vez.
+
+No se corrigió en el mismo cambio que agregó Google login para no mezclar un fix de permisos de un módulo ya existente con una feature nueva — pendiente como incremento aparte. Al resolverlo, decidir explícitamente qué permiso exige cada endpoint (no necesariamente `caja.gastos` para todos — abrir/cerrar caja es una operación distinta de registrar un gasto).
+
+## 15. Login con Google (OAuth 2.0) (21/09/2026)
+
+- `GoogleStrategy` (`apps/api/src/auth/google.strategy.ts`) + `AuthGoogleService` (`auth.google.service.ts`), rutas `GET /auth/google` (redirect a Google) y `GET /auth/google/callback` (Google redirige de vuelta, el backend emite el JWT y redirige al frontend con `?token=`).
+- `Usuario.passwordHash` pasa a nullable — un usuario que solo entró por Google no tiene contraseña local. `Usuario.googleId` (único) y `Usuario.fotoUrl` nuevos.
+- Alta automática: si el `googleId` no existe y tampoco existe un `Usuario` con ese email, se crea uno nuevo **sin ningún permiso asignado** en la empresa fijada por `GOOGLE_SIGNUP_EMPRESA_ID` (sin esa env var, el alta automática falla explícitamente en vez de adivinar una empresa). Si ya existe un `Usuario` con ese email (creado antes por password), se vincula el `googleId` a esa cuenta existente en vez de duplicarla.
+- Perfil de Google disponible vía OAuth estándar (`scope: profile email`): solo `id`, `email`, `nombre`, foto de perfil. No hay teléfono, dirección ni fecha de nacimiento — Google no los expone sin scopes adicionales sujetos a verificación manual de la app.
+- Pendiente explícito, decisión del dueño (no de este incremento): el modelo de "un usuario general, luego permisos por tipo" (cliente/proveedor/repartidor/vendedor) todavía no existe — el alta automática de hoy asume "usuario interno sin permisos", que debería revisarse cuando ese modelo de roles se defina.
+- Ver sección 14.6: el auto-alta agrava un gap de permisos preexistente en `caja.controller.ts`, pendiente de arreglar aparte.
 - `Deuda`/`AplicacionPago` (RF-10, cuenta corriente) siguen sin implementar — el arqueo está preparado para sumarlos (`efectivoDeudasContado`) pero no hay fuente real de esos movimientos.

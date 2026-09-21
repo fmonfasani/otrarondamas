@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, ApiError } from './AuthContext';
+import { API_BASE_URL } from '../../lib/api';
 import { Eye, EyeOff, Truck, Package, Star, Tag, User, Lock } from 'lucide-react';
 import loginBarBg from '../../assets/login-bar-bg.webp';
 import loginLogo from '../../assets/login-logo.webp';
@@ -18,10 +19,12 @@ import loginProducts from '../../assets/login-products.webp';
  * El login sigue siendo el real contra POST /auth/login (ver
  * AuthContext) — nada de esto es mock.
  *
- * "Ingresar con Google" y "¿Olvidaste tu contraseña?" muestran un
- * aviso explícito al click en vez de estar ausentes o fallar en
- * silencio: no hay integración OAuth con Google ni flujo de
- * recuperación de contraseña en el backend todavía.
+ * "Ingresar con Google" navega (no es un fetch) a GET /auth/google, que
+ * redirige a la pantalla de consentimiento de Google; el backend
+ * redirige de vuelta a /auth/google/callback con el token, ver
+ * GoogleCallbackPage. "¿Olvidaste tu contraseña?" sigue mostrando un
+ * aviso explícito al click: no hay flujo de recuperación en el backend
+ * todavía.
  *
  * "Recordarme" es funcional: decide si la sesión se guarda en
  * localStorage (persiste entre cierres) o sessionStorage (se pierde
@@ -30,13 +33,20 @@ import loginProducts from '../../assets/login-products.webp';
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // ?error=google: el callback de Google (auth.controller.ts) redirige
+  // acá si el intercambio OAuth o la resolución del usuario falla del
+  // lado del backend — no hay forma de mostrar un mensaje más específico,
+  // el error real solo existe en los logs del servidor.
+  const [error, setError] = useState<string | null>(
+    searchParams.get('error') === 'google' ? 'No se pudo completar el ingreso con Google.' : null,
+  );
   const [submitting, setSubmitting] = useState(false);
-  const [avisoDeshabilitado, setAvisoDeshabilitado] = useState<string | null>(null);
+  const [avisoDeshabilitado, setAvisoDeshabilitado] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,8 +66,8 @@ export function LoginPage() {
     }
   }
 
-  function avisarNoDisponible(que: string) {
-    setAvisoDeshabilitado(que);
+  function avisarRecuperacionNoDisponible() {
+    setAvisoDeshabilitado(true);
   }
 
   const beneficios = [
@@ -186,11 +196,10 @@ export function LoginPage() {
                       aria-disabled le mentiría a lectores de pantalla
                       sobre si el control reacciona (bug real
                       encontrado con un test de Playwright en un
-                      rediseño anterior que no podía clickear el botón
-                      equivalente de Google). */}
+                      rediseño anterior con un botón equivalente). */}
                   <button
                     type="button"
-                    onClick={() => avisarNoDisponible('recuperación de contraseña')}
+                    onClick={avisarRecuperacionNoDisponible}
                     className="text-yellow-400/70 hover:text-yellow-400 text-sm font-semibold transition-colors"
                   >
                     ¿Olvidaste tu contraseña?
@@ -208,9 +217,8 @@ export function LoginPage() {
                 {avisoDeshabilitado && (
                   <div className="p-3 bg-white/5 border border-white/15 rounded-lg">
                     <p className="text-gray-300 text-sm">
-                      {avisoDeshabilitado === 'Google'
-                        ? 'El ingreso con Google todavía no está disponible.'
-                        : 'La recuperación de contraseña todavía no está disponible — contactá al dueño para restablecerla.'}
+                      La recuperación de contraseña todavía no está disponible — contactá al dueño
+                      para restablecerla.
                     </p>
                   </div>
                 )}
@@ -231,9 +239,13 @@ export function LoginPage() {
                 <div className="flex-1 h-px bg-white/15" />
               </div>
 
-              <button
-                type="button"
-                onClick={() => avisarNoDisponible('Google')}
+              {/* <a>, no <button onClick>: tiene que ser una navegación
+                  real del navegador a la API (GET /auth/google), no un
+                  fetch — Google no permite iniciar el flujo OAuth desde
+                  XHR/fetch, necesita la navegación de nivel top para
+                  poder mostrar su propia pantalla de consentimiento. */}
+              <a
+                href={`${API_BASE_URL}/auth/google`}
                 className="w-full py-3 px-4 border border-white/20 text-gray-300 font-semibold rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -255,7 +267,7 @@ export function LoginPage() {
                   />
                 </svg>
                 Ingresar con Google
-              </button>
+              </a>
             </div>
           </div>
         </div>

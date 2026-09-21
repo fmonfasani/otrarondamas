@@ -19,7 +19,11 @@ export class AuthService {
       include: { usuarioPermisos: { include: { permiso: true } } },
     });
 
-    if (!usuario || !usuario.activo) {
+    // passwordHash es null para usuarios que solo se registraron por
+    // Google (ver auth.google.service.ts) — no tienen contraseña local,
+    // así que el login por password se rechaza igual que credenciales
+    // inválidas (mismo mensaje, no se revela el motivo).
+    if (!usuario || !usuario.activo || !usuario.passwordHash) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -28,8 +32,18 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const permisos = usuario.usuarioPermisos.map((up) => up.permiso.nombre);
+    return this.emitirSesion(usuario, usuario.usuarioPermisos.map((up) => up.permiso.nombre));
+  }
 
+  /**
+   * Arma el JWT + el objeto `usuario` de respuesta, compartido por el
+   * login con password y el callback de Google (auth.google.service.ts)
+   * — misma forma de sesión sin importar cómo se autenticó.
+   */
+  async emitirSesion(
+    usuario: { id: string; nombre: string; email: string; empresaId: string },
+    permisos: string[],
+  ) {
     const payload: JwtPayload = {
       sub: usuario.id,
       email: usuario.email,

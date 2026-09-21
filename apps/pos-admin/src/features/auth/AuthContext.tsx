@@ -6,6 +6,7 @@ interface AuthContextValue {
   user: AuthenticatedUser | null;
   loading: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
+  completarSesionConToken: (accessToken: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -43,6 +44,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Usado por GoogleCallbackPage: el callback de /auth/google/callback en
+  // el backend redirige acá con el token en la URL (no puede devolver el
+  // usuario completo en un redirect del navegador de forma prolija), así
+  // que se pide /auth/me con ese token para completar la sesión — mismo
+  // resultado final que login(), pero arrancando de un token ya emitido
+  // en vez de credenciales. Siempre usa localStorage: no hay checkbox
+  // "Recordarme" en el flujo de Google.
+  const completarSesionConToken = useCallback(async (accessToken: string) => {
+    setLoading(true);
+    try {
+      localStorage.setItem('accessToken', accessToken);
+      const usuario = await api.me();
+      localStorage.setItem('user', JSON.stringify(usuario));
+      setUser(usuario);
+    } catch (err) {
+      localStorage.removeItem('accessToken');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
@@ -52,7 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, completarSesionConToken, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

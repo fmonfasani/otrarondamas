@@ -20,7 +20,10 @@ import type {
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
 // Sin .env, cae al puerto por defecto de la API en desarrollo local.
-const API_BASE_URL =
+// Exportada porque el link "Ingresar con Google" navega el navegador
+// entero a ${API_BASE_URL}/auth/google — no es un fetch de este cliente,
+// así que no puede pasar por request() (ver LoginPage.tsx).
+export const API_BASE_URL =
   (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? 'http://localhost:3000';
 
 export class ApiError extends Error {
