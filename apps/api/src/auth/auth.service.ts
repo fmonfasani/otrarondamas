@@ -4,6 +4,17 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from './auth.types';
 
+interface UsuarioParaSesion {
+  id: string;
+  nombre: string;
+  email: string;
+  empresaId: string;
+  fotoUrl: string | null;
+  googleId: string | null;
+  createdAt: Date;
+  empresa: { nombre: string };
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -16,7 +27,7 @@ export class AuthService {
     // no revelar cuál de los dos fue el motivo del rechazo.
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
-      include: { usuarioPermisos: { include: { permiso: true } } },
+      include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
     });
 
     // passwordHash es null para usuarios que solo se registraron por
@@ -38,12 +49,13 @@ export class AuthService {
   /**
    * Arma el JWT + el objeto `usuario` de respuesta, compartido por el
    * login con password y el callback de Google (auth.google.service.ts)
-   * — misma forma de sesión sin importar cómo se autenticó.
+   * — misma forma de sesión sin importar cómo se autenticó. El JWT en sí
+   * solo lleva los campos de autorización (ver JwtPayload); el objeto
+   * `usuario` de la respuesta lleva también los de perfil, mismo shape
+   * que devuelve GET /auth/me, para que el frontend no necesite una
+   * segunda llamada después de loguearse para tener el perfil completo.
    */
-  async emitirSesion(
-    usuario: { id: string; nombre: string; email: string; empresaId: string },
-    permisos: string[],
-  ) {
+  async emitirSesion(usuario: UsuarioParaSesion, permisos: string[]) {
     const payload: JwtPayload = {
       sub: usuario.id,
       email: usuario.email,
@@ -59,7 +71,11 @@ export class AuthService {
         nombre: usuario.nombre,
         email: usuario.email,
         empresaId: usuario.empresaId,
+        empresaNombre: usuario.empresa.nombre,
         permisos,
+        fotoUrl: usuario.fotoUrl,
+        metodoLogin: (usuario.googleId ? 'google' : 'password') as 'google' | 'password',
+        createdAt: usuario.createdAt.toISOString(),
       },
     };
   }

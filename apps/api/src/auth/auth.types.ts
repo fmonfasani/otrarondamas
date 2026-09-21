@@ -22,3 +22,17 @@ export interface AuthenticatedUser {
   empresaId: string;
   permisos: string[];
 }
+
+/**
+ * Shape de GET /auth/me — a diferencia de AuthenticatedUser (que sale
+ * del JWT, sin volver a tocar la base en cada request protegido), este
+ * sí consulta Prisma fresco: incluye datos de perfil (foto, nombre de
+ * empresa) que no tiene sentido embeber en el token firmado porque
+ * pueden cambiar sin que el usuario vuelva a loguearse.
+ */
+export interface PerfilUsuario extends AuthenticatedUser {
+  empresaNombre: string;
+  fotoUrl: string | null;
+  metodoLogin: 'google' | 'password';
+  createdAt: string;
+}

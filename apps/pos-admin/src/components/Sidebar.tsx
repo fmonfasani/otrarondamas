@@ -7,6 +7,7 @@ import {
   DollarSign,
   FileText,
   Settings,
+  User,
   LogOut,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5" /> },
   { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5" /> },
   { path: '/settings', label: 'Configuración', icon: <Settings className="w-5 h-5" /> },
+  { path: '/profile', label: 'Mi Perfil', icon: <User className="w-5 h-5" /> },
 ];
 
 export const Sidebar: React.FC = () => {

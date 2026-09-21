@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { AuthenticatedUser } from '@otrarondamas/shared-types';
+import type { PerfilUsuario } from '@otrarondamas/shared-types';
 import { api, ApiError } from '../../lib/api';
 
 interface AuthContextValue {
-  user: AuthenticatedUser | null;
+  user: PerfilUsuario | null;
   loading: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   completarSesionConToken: (accessToken: string) => Promise<void>;
@@ -17,18 +17,18 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 // se pierde al cerrar la pestaña/ventana. lib/api.ts's request() debe leer
 // de los dos storages (ver ese archivo) porque no sabe de antemano en
 // cuál quedó guardado el token de la sesión actual.
-function readStoredUser(): AuthenticatedUser | null {
+function readStoredUser(): PerfilUsuario | null {
   const raw = localStorage.getItem('user') ?? sessionStorage.getItem('user');
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AuthenticatedUser;
+    return JSON.parse(raw) as PerfilUsuario;
   } catch {
     return null;
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthenticatedUser | null>(readStoredUser);
+  const [user, setUser] = useState<PerfilUsuario | null>(readStoredUser);
   const [loading, setLoading] = useState(false);
 
   const login = useCallback(async (email: string, password: string, rememberMe: boolean) => {

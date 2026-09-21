@@ -1,7 +1,7 @@
 import type {
   LoginRequest,
   LoginResponse,
-  AuthenticatedUser,
+  PerfilUsuario,
   Producto,
   Venta,
   CreateVentaRequest,
@@ -66,7 +66,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
-  me: () => request<AuthenticatedUser>('/auth/me'),
+  me: () => request<PerfilUsuario>('/auth/me'),
 
   buscarProductos: (search: string) =>
     request<Producto[]>(`/catalogo/productos?search=${encodeURIComponent(search)}`),

@@ -10,6 +10,15 @@ export interface AuthenticatedUser {
   permisos: string[];
 }
 
+// Shape de GET /auth/me — ver apps/api/src/auth/auth.types.ts para el
+// porqué de no embeber estos campos en AuthenticatedUser/el JWT.
+export interface PerfilUsuario extends AuthenticatedUser {
+  empresaNombre: string;
+  fotoUrl: string | null;
+  metodoLogin: 'google' | 'password';
+  createdAt: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -17,7 +26,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   accessToken: string;
-  usuario: AuthenticatedUser;
+  usuario: PerfilUsuario;
 }
 
 // --- Catálogo (apps/api/src/catalogo) ---

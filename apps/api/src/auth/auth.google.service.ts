@@ -35,7 +35,7 @@ export class AuthGoogleService {
   async loginConGoogle(perfil: GooglePerfil) {
     let usuario = await this.prisma.usuario.findUnique({
       where: { googleId: perfil.googleId },
-      include: { usuarioPermisos: { include: { permiso: true } } },
+      include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
     });
 
     if (!usuario) {
@@ -44,14 +44,14 @@ export class AuthGoogleService {
       // en vez de crear un duplicado — mismo email, misma persona.
       const existente = await this.prisma.usuario.findUnique({
         where: { email: perfil.email },
-        include: { usuarioPermisos: { include: { permiso: true } } },
+        include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
       });
 
       if (existente) {
         usuario = await this.prisma.usuario.update({
           where: { id: existente.id },
           data: { googleId: perfil.googleId, fotoUrl: perfil.fotoUrl },
-          include: { usuarioPermisos: { include: { permiso: true } } },
+          include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
         });
       } else {
         const empresaId = process.env.GOOGLE_SIGNUP_EMPRESA_ID;
@@ -74,7 +74,7 @@ export class AuthGoogleService {
             passwordHash: null,
             activo: true,
           },
-          include: { usuarioPermisos: { include: { permiso: true } } },
+          include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
         });
       }
     }
