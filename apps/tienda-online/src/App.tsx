@@ -1,36 +1,27 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CarritoProvider } from './features/carrito/CarritoContext';
+import { CatalogoPage } from './features/catalogo/CatalogoPage';
+import { CheckoutPage } from './features/checkout/CheckoutPage';
+import { SeguimientoPedidoPage } from './features/pedido/SeguimientoPedidoPage';
 
+/**
+ * Tienda online pública (RF-06, Fases 1-3). Sin login, sin permisos —
+ * ver docs del roadmap (artifact "Roadmap de Tienda Online"). Nunca
+ * importar nada de pos-admin acá: son apps separadas a propósito
+ * (bundle propio, sin código de gestión interna expuesto a un
+ * visitante anónimo).
+ */
 function App() {
   return (
-    <Router>
-      <div>
-        <nav>
-          <ul>
-            <li>
-              <Link to="/">Home</Link>
-            </li>
-            <li>
-              <Link to="/catalog">Catalog</Link>
-            </li>
-            <li>
-              <Link to="/cart">Cart & Checkout</Link>
-            </li>
-          </ul>
-        </nav>
-
-        <h1>Tienda Online App</h1>
-
+    <CarritoProvider>
+      <Router>
         <Routes>
-          <Route path="/" element={<h2>Welcome to the Online Store</h2>} />
-          <Route path="/catalog" element={<h2>Public Catalog Placeholder</h2>} />
-          <Route
-            path="/cart"
-            element={<h2>Cart & Checkout Placeholder (Mercado Pago D-03 pending)</h2>}
-          />
+          <Route path="/" element={<CatalogoPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/pedido/:id" element={<SeguimientoPedidoPage />} />
         </Routes>
-      </div>
-    </Router>
+      </Router>
+    </CarritoProvider>
   );
 }
 

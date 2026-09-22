@@ -45,6 +45,8 @@ services:
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?falta GOOGLE_CALLBACK_URL en .env}
       FRONTEND_URL: ${FRONTEND_URL:?falta FRONTEND_URL en .env}
       GOOGLE_SIGNUP_EMPRESA_ID: ${GOOGLE_SIGNUP_EMPRESA_ID:?falta GOOGLE_SIGNUP_EMPRESA_ID en .env}
+      # Tienda online pública (RF-06) — ver tienda.service.ts.
+      TIENDA_EMPRESA_ID: ${TIENDA_EMPRESA_ID:?falta TIENDA_EMPRESA_ID en .env}
     ports:
       - "127.0.0.1:8600:3000"
 

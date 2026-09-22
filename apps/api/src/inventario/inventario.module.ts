@@ -7,5 +7,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [InventarioController],
   providers: [InventarioService],
+  // TiendaModule reusa stockConsolidado() para la disponibilidad
+  // pública (RF-06) — ver tienda.service.ts.
+  exports: [InventarioService],
 })
 export class InventarioModule {}

@@ -188,6 +188,7 @@ model Producto {
   ventaItems       VentaItem[]
   movimientosStock MovimientoStock[]
   compraItems      CompraItem[]      @relation("ProductoCompraItems")
+  pedidoItems      PedidoItem[]
 }
 
 model Presentacion {
@@ -312,14 +313,30 @@ model VentaItem {
   updatedAt      DateTime @updatedAt
 }
 
+// Fase 1 de Tienda Online (RF-06): completa lo que este modelo dejaba
+// a medias para RF-07 — agrega PedidoItem (no existía forma de saber
+// qué productos/cantidades tenía un Pedido) y vuelve usuarioId
+// opcional (ver comentario en el campo). Ver docs/scaffolding-notas.md.
 model Pedido {
   id          String       @id @default(uuid())
   empresaId   String
   empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  clienteId   String?
-  cliente     Cliente?     @relation("ClientePedidos", fields: [clienteId], references: [id])
-  usuarioId   String
-  usuario     Usuario      @relation(fields: [usuarioId], references: [id]) // Responsable de la carga/gestión del pedido
+  // Siempre poblado, nunca null — decisión explícita del dueño: un
+  // pedido de tienda online sin cuenta igual crea/reusa un Cliente (por
+  // email, dentro de la empresa) en vez de guardar datos de contacto
+  // sueltos acá. Evita duplicar lo que Cliente ya modela y deja listo
+  // el terreno para RF-10 (reconocer compras repetidas del mismo
+  // comprador) sin otra migración.
+  clienteId   String
+  cliente     Cliente      @relation("ClientePedidos", fields: [clienteId], references: [id])
+  // Responsable de la GESTIÓN del pedido (quién lo tomó/confirma), no
+  // de quién lo originó — un pedido de tienda online nace con
+  // usuarioId: null (nadie lo gestionó todavía) y se puebla recién
+  // cuando un vendedor lo toma desde la bandeja de pedidos (Fase 4 del
+  // roadmap). RF-07 (WhatsApp) lo sigue poblando desde el alta, como
+  // antes.
+  usuarioId   String?
+  usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
   estado      EstadoPedido @default(RECIBIDO)
   canalOrigen String // WhatsApp, redes, web, presencial
   total       Decimal
@@ -327,9 +344,29 @@ model Pedido {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  pedidoItems    PedidoItem[]
   pagos          Pago[]         @relation("PedidoPagos")
   entrega        Entrega? // One-to-one or one-to-many relationship, depends on business logic if a pedido can have multiple deliveries
   notificaciones Notificacion[]
+}
+
+// Análogo a VentaItem — sin este modelo, Pedido no tenía forma de
+// registrar qué productos/cantidades contenía (gap detectado al
+// diseñar la Fase 1 de Tienda Online, RF-06).
+model PedidoItem {
+  id             String   @id @default(uuid())
+  pedidoId       String
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id])
+  productoId     String
+  producto       Producto @relation(fields: [productoId], references: [id])
+  cantidad       Decimal
+  // Precio congelado al momento del pedido, tomado del catálogo — mismo
+  // criterio que VentaItem.precioUnitario (INV-12): nunca se acepta un
+  // precio que mande el cliente.
+  precioUnitario Decimal
+  descuentoItem  Decimal  @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Pago {
@@ -518,30 +555,30 @@ model RecepcionCompra {
 }
 
 model MovimientoStock {
-  id                String           @id @default(uuid())
-  empresaId         String
-  empresa           Empresa          @relation(fields: [empresaId], references: [id])
-  productoId        String
-  producto          Producto         @relation(fields: [productoId], references: [id])
-  loteId            String?
-  lote              Lote?            @relation("LoteMovimientosStock", fields: [loteId], references: [id])
-  tipoMovimiento    String // Entrada, Salida, Ajuste
-  cantidad          Decimal
-  motivo            String // Venta, Compra, AjusteManual, Devolucion
-  referenciaId      String? // ID de la venta, compra, etc.
-  usuarioId         String?
-  usuario           Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
-  recepcionCompraId String?
-  recepcionCompra   RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
+  id                   String           @id @default(uuid())
+  empresaId            String
+  empresa              Empresa          @relation(fields: [empresaId], references: [id])
+  productoId           String
+  producto             Producto         @relation(fields: [productoId], references: [id])
+  loteId               String?
+  lote                 Lote?            @relation("LoteMovimientosStock", fields: [loteId], references: [id])
+  tipoMovimiento       String // Entrada, Salida, Ajuste
+  cantidad             Decimal
+  motivo               String // Venta, Compra, AjusteManual, Devolucion
+  referenciaId         String? // ID de la venta, compra, etc.
+  usuarioId            String?
+  usuario              Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
+  recepcionCompraId    String?
+  recepcionCompra      RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
   // D-09 (Fase 5 de Inventario): no se bloquea la venta de un lote
   // vencido, solo se advierte/audita. true si, al momento de generar
   // ESTE movimiento, Lote.vencimiento ya era <= a la fecha de la
   // operación — calculado una sola vez acá, no derivado después
   // comparando contra Lote.vencimiento (que puede cambiar de sentido
   // con el correr del tiempo respecto a cuándo se hizo la venta).
-  loteVencidoAlMomento Boolean       @default(false)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  loteVencidoAlMomento Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 }
 
 model Entrega {

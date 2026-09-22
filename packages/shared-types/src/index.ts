@@ -407,3 +407,80 @@ export interface RecibirCompraRequest {
   items: RecibirCompraItemRequest[];
   observaciones?: string;
 }
+
+// --- Tienda online (apps/api/src/tienda) — RF-06, Fases 1-3 ---
+// Superficie PÚBLICA, consumida por apps/tienda-online (sin login).
+// No confundir con Producto/Venta: son formas reducidas pensadas para
+// un visitante anónimo, nunca exponen costo ni otros campos internos.
+
+export interface ProductoTienda {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  categoriaId: string;
+  unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
+  precio: string; // Decimal de Prisma serializa como string
+  disponible: boolean;
+  stockTotal: number;
+}
+
+export interface CrearPedidoItemRequest {
+  productoId: string;
+  cantidad: number;
+}
+
+export interface CrearPedidoRequest {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  items: CrearPedidoItemRequest[];
+}
+
+export type EstadoPedido =
+  | 'RECIBIDO'
+  | 'CONFIRMADO'
+  | 'EN_PREPARACION'
+  | 'LISTO'
+  | 'ASIGNADO'
+  | 'EN_CAMINO'
+  | 'ENTREGADO'
+  | 'PARCIALMENTE_ENTREGADO'
+  | 'ENTREGA_FALLIDA'
+  | 'CANCELADO';
+
+export interface PedidoCreado {
+  id: string;
+  empresaId: string;
+  clienteId: string;
+  usuarioId: string | null;
+  estado: EstadoPedido;
+  canalOrigen: string;
+  total: string;
+  descuento: string;
+  createdAt: string;
+  updatedAt: string;
+  pedidoItems: {
+    id: string;
+    pedidoId: string;
+    productoId: string;
+    cantidad: string;
+    precioUnitario: string;
+    descuentoItem: string;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+}
+
+export interface SeguimientoPedidoItem {
+  producto: string;
+  cantidad: string;
+  precioUnitario: string;
+}
+
+export interface SeguimientoPedido {
+  id: string;
+  estado: EstadoPedido;
+  total: string;
+  createdAt: string;
+  items: SeguimientoPedidoItem[];
+}
