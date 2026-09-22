@@ -50,17 +50,38 @@ services:
     ports:
       - "127.0.0.1:8600:3000"
 
+  # Panel interno (dueño/vendedor autenticados) — corte de dominios
+  # (RF-06): se muda a admin.otrarondamas.wapsell.com, puerto 3030 sin
+  # cambios. VITE_API_URL_ADMIN es la misma API de siempre, con nombre
+  # de variable propio para no confundirla con VITE_API_URL_TIENDA (ambas
+  # apps hablan con la misma API, pero cada una necesita su propio build
+  # arg — Vite incrusta el valor en el bundle al compilar).
   pos-admin:
     build:
       context: .
       dockerfile: apps/pos-admin/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:?falta VITE_API_URL en .env}
+        VITE_API_URL: ${VITE_API_URL_ADMIN:?falta VITE_API_URL_ADMIN en .env}
     restart: always
     depends_on:
       - api
     ports:
       - "127.0.0.1:3030:80"
+
+  # Tienda pública (RF-06) — pasa a ocupar otrarondamas.wapsell.com en
+  # el corte de dominios. Puerto propio (3040), nunca comparte el 3030
+  # de pos-admin.
+  tienda-online:
+    build:
+      context: .
+      dockerfile: apps/tienda-online/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL_TIENDA:?falta VITE_API_URL_TIENDA en .env}
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3040:80"
 
 volumes:
   otrarondamas_db_data:

@@ -751,3 +751,23 @@ Contrapartida del vendedor: sin esto, un pedido de tienda online quedaba `RECIBI
 Verificado contra la DB real (no solo build): pedido creado vía `/tienda/pedidos` aparece en `GET /pedidos` con datos de cliente completos; confirmarlo descuenta el stock correcto (136→133 sobre un producto real) y genera el `MovimientoStock` esperado (`motivo: 'Venta'`, `referenciaId` = id del Pedido, `usuarioId` de quien confirmó); re-confirmar/cancelar un pedido ya `CONFIRMADO` rechaza 400 explícito; estado fuera de las dos transiciones permitidas rechaza 400 (`class-validator`); `seller` (sin `pedidos.gestionar`) recibe 403 incluso al **listar**, no solo al mutar; cancelar un pedido `RECIBIDO` no descuenta stock. Datos y stock de prueba revertidos después de validar.
 
 **Fuera de este incremento**: pago con Mercado Pago (Fase 5, D-03), precios/descuentos online (Fase 6, D-01/D-02), y el corte de dominios `pos-admin` → `admin.*` (infraestructura, sigue sin hacerse).
+
+## 26. Corte de dominios — código e infraestructura preparados, bloqueado por DNS (22/09/2026)
+
+Todo lo que se podía preparar sin depender de que `admin.otrarondamas.wapsell.com` resuelva por DNS quedó hecho en este incremento. **No se activó nada todavía** — sigue sin cortar hasta que el DNS exista y propague (el dueño lo está gestionando en el proveedor de `wapsell.com`, fuera del VPS y fuera de este repo).
+
+- `apps/tienda-online/Dockerfile` + `nginx.conf` — nuevos, mismo patrón exacto que `apps/pos-admin/Dockerfile`/`nginx.conf` (multi-stage, build de Vite servido por nginx, reescritura a `index.html` para las rutas de React Router).
+- `docker-compose.prod.yml`: servicio `tienda-online` nuevo (puerto `3040`, nunca comparte el `3030` de `pos-admin`). `VITE_API_URL` se separó en `VITE_API_URL_ADMIN`/`VITE_API_URL_TIENDA` — dos build args distintos para dos apps que hablan con la misma API (cambio que **rompe compatibilidad** con cualquier `.env` de producción anterior que todavía tuviera `VITE_API_URL` a secas; documentado en `.env.prod.example`, hay que migrar la variable en el `.env` real del VPS antes de rebuildear `pos-admin`/`tienda-online` con esta versión del compose).
+- `infra/nginx/otrarondamas.wapsell.com.conf` — actualizado: el dominio raíz pasa de apuntar a `pos-admin` (puerto 3030) a `tienda-online` (puerto 3040). El certificado existente (`otrarondamas.wapsell.com` + `api.otrarondamas.wapsell.com`) no necesita reemitirse para este cambio — solo cambia el `proxy_pass`.
+- `infra/nginx/admin.otrarondamas.wapsell.com.conf` — vhost nuevo, mismo contenido que tenía el vhost de la raíz antes del corte (proxy a `pos-admin`, puerto 3030 sin cambios). **No copiado a `/etc/nginx/sites-enabled/` en el VPS todavía** — el archivo mismo documenta los 3 pasos de activación (certbot con `--webroot` una vez que el DNS resuelva, copiar a `sites-enabled`, `nginx -t && reload`).
+- `.env.prod.example`: `CORS_ORIGINS` pasa a incluir ambos dominios (`otrarondamas.wapsell.com,admin.otrarondamas.wapsell.com` — sin `admin.*` ahí, el navegador bloquea las llamadas de `pos-admin` a la API por CORS antes de llegar al backend). `FRONTEND_URL` (usado por el redirect de Google OAuth tras login) pasa de la raíz a `admin.*` — el login con Google es una función del panel interno, no de la tienda pública. Verificado que ningún código (`GoogleCallbackPage.tsx`, `auth.controller.ts`) hardcodea el dominio; todo lee de esa env var.
+
+**Verificado antes de escribir esto** (no asumido): un solo certificado Let's Encrypt cubre hoy `otrarondamas.wapsell.com` + `api.otrarondamas.wapsell.com` (`certbot certificates` en el VPS), y `admin.otrarondamas.wapsell.com` no tiene registro DNS (`nslookup` sin resultado) — confirmado con el dueño antes de intentar cualquier `certbot certonly`, que hubiera fallado el challenge HTTP-01 sin DNS.
+
+**Pasos que faltan para activar el corte** (en orden, una vez que el DNS propague):
+1. Confirmar `nslookup admin.otrarondamas.wapsell.com` resuelve a `89.167.96.239`.
+2. Migrar `VITE_API_URL` → `VITE_API_URL_ADMIN`/`VITE_API_URL_TIENDA` y agregar `admin.*` a `CORS_ORIGINS`/cambiar `FRONTEND_URL` en el `.env` real del VPS.
+3. `certbot certonly --webroot -w /var/www/certbot -d admin.otrarondamas.wapsell.com`.
+4. Copiar `admin.otrarondamas.wapsell.com.conf` a `/etc/nginx/sites-enabled/`, `nginx -t && systemctl reload nginx`.
+5. `docker compose -f docker-compose.prod.yml build tienda-online pos-admin` (ambos, por el cambio de build args) + `up -d`.
+6. Avisar explícitamente a quien use el panel en la URL vieja: el acceso en `otrarondamas.wapsell.com` deja de servir `pos-admin` en el momento del paso 4-5, no es un cambio invisible.
