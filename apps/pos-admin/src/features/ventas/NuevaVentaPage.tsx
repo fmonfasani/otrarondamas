@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { CanalVenta, MedioPago, Venta } from '@otrarondamas/shared-types';
+import type { CanalVenta, Cliente, MedioPago, Venta } from '@otrarondamas/shared-types';
 import { api, ApiError } from '../../lib/api';
 import { useCarrito } from './useCarrito';
 import { BuscadorProductos } from './BuscadorProductos';
+import { BuscadorClientes } from './BuscadorClientes';
 
 const MEDIOS_PAGO: MedioPago[] = ['efectivo', 'transferencia', 'QR'];
 
@@ -16,6 +17,10 @@ const MEDIOS_PAGO: MedioPago[] = ['efectivo', 'transferencia', 'QR'];
 export function NuevaVentaPage() {
   const carrito = useCarrito();
   const [canal] = useState<CanalVenta>('presencial'); // único canal operable desde este POS por ahora
+  // Fase 2 del roadmap de Fidelización: identificar opcionalmente al
+  // comprador — null = "al mostrador", sigue funcionando igual que
+  // siempre. Ver BuscadorClientes.tsx.
+  const [cliente, setCliente] = useState<Cliente | null>(null);
   const [creandoVenta, setCreandoVenta] = useState(false);
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
   const [venta, setVenta] = useState<Venta | null>(null);
@@ -38,6 +43,7 @@ export function NuevaVentaPage() {
       const idsAdvertidos = new Set(carrito.items.map((i) => i.producto.id));
       const nuevaVenta = await api.crearVenta({
         canal,
+        clienteId: cliente?.id,
         items: carrito.items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad })),
       });
       const nombresConLoteVencido = (nuevaVenta.advertenciasStockVencido ?? [])
@@ -79,6 +85,7 @@ export function NuevaVentaPage() {
     setErrorVenta(null);
     setErrorPago(null);
     setProductosConLoteVencido([]);
+    setCliente(null);
   }
 
   const totalPagado = pagosRegistrados.reduce((acc, p) => acc + Number(p.monto), 0);
@@ -91,6 +98,8 @@ export function NuevaVentaPage() {
 
       {!venta ? (
         <>
+          <BuscadorClientes clienteSeleccionado={cliente} onSeleccionar={setCliente} />
+
           <BuscadorProductos onSeleccionar={carrito.agregar} />
 
           <h3>Carrito</h3>
@@ -155,6 +164,7 @@ export function NuevaVentaPage() {
           <p>
             Venta <code>{venta.id}</code> — Total: <strong>${venta.total}</strong>
           </p>
+          {cliente && <p>Cliente: {cliente.nombre}</p>}
 
           {productosConLoteVencido.length > 0 && (
             // No bloquea nada (D-09) — el lote vencido ya se vendió y

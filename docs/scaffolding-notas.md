@@ -808,3 +808,15 @@ Primera fase del roadmap de Fidelización (D-02 orientado a fidelizar clientes, 
 Verificado contra la DB real (no solo build): cliente creado con email/teléfono; búsqueda por nombre encuentra el resultado; actualización de teléfono persiste; crear un segundo cliente con el mismo email rechaza 400 con mensaje explícito; cliente sin email se crea con `email: null` sin problema; `seller` puede listar clientes (GET abierto) y también crear (tiene `clientes.gestionar` asignado desde el seed). Build de producción de `pos-admin` exitoso. Datos de prueba eliminados después de validar.
 
 **Siguiente paso del roadmap**: Fase 2 (cliente opcional en `NuevaVentaPage.tsx`, el POS presencial) — sin eso, la fidelización solo podría contar pedidos de la tienda online, dejando afuera la mayoría de las ventas reales de un comercio físico.
+
+## 29. Fidelización, Fase 2 — cliente opcional en el POS presencial (22/09/2026)
+
+Puramente frontend: el backend ya aceptaba `clienteId` opcional en `CreateVentaDto` desde el scaffolding inicial (comentario explícito *"RF-05: permitir ventas sin identificar al cliente"*) y `VentasService.create()` ya lo pasaba a `Venta.clienteId` — el gap era exclusivamente que `NuevaVentaPage.tsx` nunca lo pedía ni lo mandaba.
+
+- `BuscadorClientes.tsx` nuevo — mismo patrón de búsqueda debounced que `BuscadorProductos.tsx` (`GET /clientes?search=`), pero con una diferencia de interacción: a diferencia de agregar productos (acción repetible, se acumulan en el carrito), acá solo puede haber un cliente elegido a la vez — seleccionar uno reemplaza al anterior, con un botón explícito para "Quitar cliente" y volver a vender al mostrador.
+- `NuevaVentaPage.tsx`: nuevo estado `cliente: Cliente | null` (default `null` = mostrador, sin cambio de comportamiento). Se pasa `clienteId: cliente?.id` a `api.crearVenta()`; se resetea en `nuevaVenta()` (booton "Nueva venta" después de confirmar); se muestra el nombre del cliente en la pantalla de venta confirmada si había uno.
+- El selector nunca es obligatorio — vender sin cliente sigue exactamente igual que antes de este incremento, es aditivo puro.
+
+Verificado contra la DB real (no solo build): venta con `clienteId` de un cliente real → `Venta.clienteId` queda correctamente poblado; venta sin cliente (mostrador) sigue devolviendo `clienteId: null`, sin cambio de comportamiento respecto a antes de esta fase. Build de producción de `pos-admin` exitoso. Datos y stock de prueba revertidos después de validar.
+
+**Siguiente paso del roadmap**: Fase 3 (niveles de fidelidad por historial de compra) — recién ahora que tanto `Pedido` (tienda online, desde el inicio) como `Venta` (presencial, desde esta fase) pueden tener un cliente identificado, contar el historial real tiene sentido. Los umbrales exactos de cada nivel son una decisión del dueño a confirmar en esa fase, no asumidos de antemano.
