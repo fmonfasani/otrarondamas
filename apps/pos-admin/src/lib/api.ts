@@ -36,6 +36,10 @@ import type {
   Cliente,
   CreateClienteRequest,
   UpdateClienteRequest,
+  ReglaFidelizacion,
+  CreateReglaFidelizacionRequest,
+  UpdateReglaFidelizacionRequest,
+  JerarquiaCatalogo,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -90,6 +94,9 @@ export const api = {
 
   buscarProductos: (search: string) =>
     request<Producto[]>(`/catalogo/productos?search=${encodeURIComponent(search)}`),
+  // Árbol de categorización (Familia→Subfamilia→Tipo→Subtipo), para
+  // poblar selectores en cascada — ver JerarquiaCatalogoController.
+  jerarquiaCatalogo: () => request<JerarquiaCatalogo>('/catalogo/jerarquia'),
   // Fase 6 de Tienda Online — solo el % de descuento se edita desde acá
   // por ahora (ver PreciosPage.tsx), aunque el endpoint acepta
   // cualquier campo del producto. Requiere productos.gestionar.
@@ -174,4 +181,19 @@ export const api = {
     request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(dto) }),
   actualizarCliente: (id: string, dto: UpdateClienteRequest) =>
     request<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
+
+  // Reglas de fidelización — Fase 4 del roadmap. Requiere
+  // fidelizacion.gestionar en todo, incluido el listado (política de
+  // precios del negocio, mismo criterio que Pedidos).
+  listarReglasFidelizacion: () => request<ReglaFidelizacion[]>('/reglas-fidelizacion'),
+  crearReglaFidelizacion: (dto: CreateReglaFidelizacionRequest) =>
+    request<ReglaFidelizacion>('/reglas-fidelizacion', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+  actualizarReglaFidelizacion: (id: string, dto: UpdateReglaFidelizacionRequest) =>
+    request<ReglaFidelizacion>(`/reglas-fidelizacion/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
 };

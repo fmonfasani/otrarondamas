@@ -655,3 +655,48 @@ export interface CreateClienteRequest {
 }
 
 export type UpdateClienteRequest = Partial<CreateClienteRequest>;
+
+// --- Reglas de fidelización (apps/api/src/fidelizacion) — Fase 4 del
+// roadmap de Fidelización. CRUD protegido en su totalidad, incluidos
+// los GET (política de precios del negocio, mismo criterio que
+// Pedidos) — ver fidelizacion.controller.ts.
+
+export interface ReglaFidelizacion {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  nivelRequerido: NivelFidelidad;
+  descuentoPorcentaje: string; // Decimal de Prisma serializa como string
+  // Alcance por jerarquía de catálogo — cada nivel es un filtro
+  // independiente y opcional (a diferencia de Producto, acá NO forman
+  // necesariamente una cadena completa: una regla puede apuntar a toda
+  // una Familia sin acotar Subfamilia/Tipo/Subtipo).
+  familiaId: string | null;
+  familia: { nombre: string } | null;
+  subfamiliaId: string | null;
+  subfamilia: { nombre: string } | null;
+  tipoId: string | null;
+  tipo: { nombre: string } | null;
+  subtipoId: string | null;
+  subtipo: { nombre: string } | null;
+  marca: string | null;
+  cantidadMinima: number | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReglaFidelizacionRequest {
+  nombre: string;
+  nivelRequerido: NivelFidelidad;
+  descuentoPorcentaje: number;
+  familiaId?: string;
+  subfamiliaId?: string;
+  tipoId?: string;
+  subtipoId?: string;
+  marca?: string;
+  cantidadMinima?: number;
+  activo?: boolean;
+}
+
+export type UpdateReglaFidelizacionRequest = Partial<CreateReglaFidelizacionRequest>;

@@ -15,6 +15,7 @@ import { AutorizacionesModule } from './autorizaciones/autorizaciones.module';
 import { TiendaModule } from './tienda/tienda.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { FidelizacionModule } from './fidelizacion/fidelizacion.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
@@ -33,6 +34,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     TiendaModule,
     PedidosModule,
     ClientesModule,
+    FidelizacionModule,
   ],
   controllers: [AppController],
   providers: [

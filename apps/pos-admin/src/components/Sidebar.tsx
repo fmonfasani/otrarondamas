@@ -11,6 +11,7 @@ import {
   Truck,
   LogOut,
   Tag,
+  Heart,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { path: '/compras', label: 'Compras', icon: <Truck className="w-5 h-5" /> },
   { path: '/precios', label: 'Precios', icon: <Tag className="w-5 h-5" /> },
   { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
+  { path: '/fidelizacion', label: 'Fidelización', icon: <Heart className="w-5 h-5" /> },
   { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5" /> },
   { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5" /> },
   { path: '/settings', label: 'Configuración', icon: <Settings className="w-5 h-5" /> },
