@@ -33,6 +33,9 @@ import type {
   PedidoListado,
   ActualizarEstadoPedidoRequest,
   UpdateProductoRequest,
+  Cliente,
+  CreateClienteRequest,
+  UpdateClienteRequest,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -160,4 +163,15 @@ export const api = {
     request<PedidoListado[]>(`/pedidos${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`),
   actualizarEstadoPedido: (id: string, dto: ActualizarEstadoPedidoRequest) =>
     request<PedidoListado>(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify(dto) }),
+
+  // Clientes — Fase 1 del roadmap de Fidelización. GET abierto a
+  // cualquier usuario logueado (mismo criterio que Compras/Catálogo);
+  // crear/editar requiere clientes.gestionar.
+  listarClientes: (search?: string) =>
+    request<Cliente[]>(`/clientes${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  getCliente: (id: string) => request<Cliente>(`/clientes/${id}`),
+  crearCliente: (dto: CreateClienteRequest) =>
+    request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(dto) }),
+  actualizarCliente: (id: string, dto: UpdateClienteRequest) =>
+    request<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
 };

@@ -791,3 +791,20 @@ D-01/D-02 del SDD siguen sin definirse en general (reglas de precio mayorista, d
 Verificado contra la DB real (no solo build): aplicar 20% de descuento a un producto real (precioMinorista 1674.746) → catálogo público devuelve `precio: "1339.80"`, `precioSinDescuento: "1674.75"`, `descuentoPorcentaje: 20` (cálculo exacto: 1674.746 × 0.8, redondeado); un pedido de 2 unidades de ese producto congela `precioUnitario: "1339.8"` (no el bruto) y `total: "2679.6"`; un producto sin descuento sigue devolviendo `precioSinDescuento: null`, `descuentoPorcentaje: null`, sin cambios de comportamiento; `descuentoPorcentaje: 150` y `-5` rechazan 400 explícito (`class-validator`). Build de producción de ambos frontends (`pos-admin`, `tienda-online`) exitoso. Datos y descuento de prueba revertidos después de validar.
 
 Con esto, las 6 fases del roadmap de Tienda Online (RF-06) están completas y desplegables. Quedan sin resolver del SDD general: D-01 completo (mayorista fuera de la tienda) y D-02 completo (descuentos por cantidad/cliente) — ninguno bloqueaba esta fase, siguen abiertos para cuando haya un caso real que los necesite.
+
+## 28. Fidelización, Fase 1 — módulo de Clientes (22/09/2026)
+
+Primera fase del roadmap de Fidelización (D-02 orientado a fidelizar clientes, confirmado con el dueño — D-01/mayorista quedó en backlog aparte, fuera de este roadmap). Base bloqueante: `clientes.gestionar` existía en el catálogo de permisos desde el scaffolding inicial sin ningún módulo real detrás, y el placeholder `"Clientes - En desarrollo"` seguía en `/customers` desde el commit inicial.
+
+**Backend** (`apps/api/src/clientes/`, módulo nuevo):
+- CRUD sobre el `model Cliente` ya existente (sin tocar el schema — `nombre`, `email`, `telefono`, `direccion` ya estaban ahí).
+- `GET /clientes?search=`, `GET /clientes/:id` — **sin** `@RequierePermiso`, mismo criterio que `catalogo.controller.ts`/`compras.controller.ts` (listarProveedores): cualquier vendedor logueado puede buscar/ver un cliente, igual que ya puede buscar productos. Decisión distinta a Pedidos (que protege también los GET) porque acá no hay datos tan sensibles como en un pedido con dirección de entrega, y el caso de uso real (buscar un cliente para una venta) necesita quedar abierto.
+- `POST /clientes`, `PATCH /clientes/:id` — protegidos con `clientes.gestionar` (permiso ya existente, sin cambios en el seed).
+- Validación explícita de email duplicado (`Cliente.email` es `@@unique([empresaId, email])`) antes del `create`/`update`, para devolver 400 con mensaje claro en vez de dejar que Postgres rechace con un error de constraint. `email` es opcional (`Cliente.email: String?`) — un cliente de mostrador puede no tener email, a diferencia de un comprador de la tienda online donde sí es obligatorio (ahí es el único identificador de contacto).
+- `ClientesModule` exporta `ClientesService` de entrada — la Fase 2 (cliente en el POS) y Fase 3 (niveles) del roadmap lo van a necesitar, mismo criterio que `InventarioModule` exportando para `TiendaModule`.
+
+**Frontend**: `ClientesPage.tsx` en `pos-admin`, reemplaza el placeholder en `/customers`. Búsqueda debounced + alta/edición inline (no oculta el formulario según permiso, backend rechaza 403 si corresponde — mismo criterio que el resto del panel). Sin cuenta corriente (RF-10) ni nivel de fidelidad todavía, eso es alcance de fases posteriores del roadmap.
+
+Verificado contra la DB real (no solo build): cliente creado con email/teléfono; búsqueda por nombre encuentra el resultado; actualización de teléfono persiste; crear un segundo cliente con el mismo email rechaza 400 con mensaje explícito; cliente sin email se crea con `email: null` sin problema; `seller` puede listar clientes (GET abierto) y también crear (tiene `clientes.gestionar` asignado desde el seed). Build de producción de `pos-admin` exitoso. Datos de prueba eliminados después de validar.
+
+**Siguiente paso del roadmap**: Fase 2 (cliente opcional en `NuevaVentaPage.tsx`, el POS presencial) — sin eso, la fidelización solo podría contar pedidos de la tienda online, dejando afuera la mayoría de las ventas reales de un comercio físico.

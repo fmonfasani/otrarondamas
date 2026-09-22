@@ -557,3 +557,29 @@ export type TransicionPedido = 'CONFIRMADO' | 'CANCELADO';
 export interface ActualizarEstadoPedidoRequest {
   estado: TransicionPedido;
 }
+
+// --- Clientes (apps/api/src/clientes) — Fase 1 del roadmap de Fidelización ---
+// CRUD mínimo: nombre/email/teléfono/dirección. Sin cuenta corriente
+// (RF-10) ni nivel de fidelidad todavía (Fase 3 del roadmap).
+
+export interface Cliente {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  limiteCredito: string | null; // RF-10, sin uso todavía — Decimal de Prisma
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClienteRequest {
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+}
+
+export type UpdateClienteRequest = Partial<CreateClienteRequest>;
