@@ -562,6 +562,10 @@ export interface ActualizarEstadoPedidoRequest {
 // CRUD mínimo: nombre/email/teléfono/dirección. Sin cuenta corriente
 // (RF-10) ni nivel de fidelidad todavía (Fase 3 del roadmap).
 
+// Fase 3 del roadmap de Fidelización: nivel calculado al vuelo por
+// historial de compras confirmadas — nunca persistido.
+export type NivelFidelidad = 'NUEVO' | 'FRECUENTE' | 'VIP';
+
 export interface Cliente {
   id: string;
   empresaId: string;
@@ -573,6 +577,10 @@ export interface Cliente {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
+  // Presente en GET /clientes y GET /clientes/:id (se calcula ahí).
+  // Ausente en la respuesta de POST/PATCH, que devuelven el registro
+  // recién escrito sin recalcular el nivel.
+  nivel?: NivelFidelidad;
 }
 
 export interface CreateClienteRequest {

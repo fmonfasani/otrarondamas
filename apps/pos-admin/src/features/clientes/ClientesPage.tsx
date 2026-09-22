@@ -2,16 +2,26 @@ import { useEffect, useState } from 'react';
 import type { Cliente } from '@otrarondamas/shared-types';
 import { api, ApiError } from '../../lib/api';
 
+const NIVEL_LABEL: Record<string, string> = {
+  NUEVO: 'Nuevo',
+  FRECUENTE: 'Frecuente',
+  VIP: 'VIP',
+};
+
 /**
- * Fase 1 del roadmap de Fidelización: CRUD mínimo de Cliente — base
- * bloqueante para las fases siguientes (cliente en el POS, niveles de
- * fidelidad, reglas de descuento). Reemplaza el placeholder
- * "Clientes - En desarrollo" que existía en /customers desde el
- * scaffolding inicial.
+ * Fase 1 del roadmap de Fidelización: CRUD mínimo de Cliente —
+ * reemplaza el placeholder "Clientes - En desarrollo" que existía en
+ * /customers desde el scaffolding inicial.
  *
- * Sin cuenta corriente (RF-10) ni nivel de fidelidad todavía — eso es
- * otro alcance (Fase 3+ del roadmap). Esto es solo alta/edición de
- * datos básicos.
+ * Fase 3: nivel de fidelidad (NUEVO/FRECUENTE/VIP), calculado por el
+ * backend a partir del historial real de compras — solo lectura acá,
+ * no hay forma de asignarlo a mano (ver ClientesService.calcularNivel()).
+ * POST/PATCH /clientes no devuelven `nivel` (no se recalcula en esas
+ * respuestas) — un cliente recién creado siempre es NUEVO (0 compras,
+ * sin ambigüedad); uno editado conserva el nivel que ya tenía en la
+ * lista, porque editar sus datos no cambia su historial de compras.
+ *
+ * Sin cuenta corriente (RF-10) todavía — eso es otro alcance.
  *
  * El frontend no oculta el formulario de alta/edición según permiso
  * (mismo criterio que CajaPage/InventarioPage/ComprasPage/PreciosPage)
@@ -83,10 +93,17 @@ export function ClientesPage() {
     try {
       if (editandoId === 'nuevo') {
         const creado = await api.crearCliente(dto);
-        setClientes((prev) => [creado, ...prev]);
+        // POST no devuelve nivel — un cliente recién creado siempre es
+        // NUEVO (0 compras todavía), sin ambigüedad.
+        setClientes((prev) => [{ ...creado, nivel: 'NUEVO' }, ...prev]);
       } else if (editandoId) {
+        const nivelPrevio = clientes.find((c) => c.id === editandoId)?.nivel;
         const actualizado = await api.actualizarCliente(editandoId, dto);
-        setClientes((prev) => prev.map((c) => (c.id === editandoId ? actualizado : c)));
+        // PATCH tampoco devuelve nivel — editar datos de contacto no
+        // cambia el historial de compras, se conserva el que ya tenía.
+        setClientes((prev) =>
+          prev.map((c) => (c.id === editandoId ? { ...actualizado, nivel: nivelPrevio } : c)),
+        );
       }
       setEditandoId(null);
     } catch (err) {
@@ -165,6 +182,7 @@ export function ClientesPage() {
         {clientes.map((cliente) => (
           <li key={cliente.id}>
             <span>{cliente.nombre}</span>
+            {cliente.nivel && <span> — {NIVEL_LABEL[cliente.nivel] ?? cliente.nivel}</span>}
             {cliente.email && <span> — {cliente.email}</span>}
             {cliente.telefono && <span> — {cliente.telefono}</span>}
             <button type="button" onClick={() => iniciarEdicion(cliente)}>

@@ -4,6 +4,14 @@ import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.serv
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 
+// Fase 3 del roadmap de Fidelización: umbrales de compras confirmadas
+// para cada nivel, configurables por env var (mismo patrón que
+// INVENTARIO_ALERTA_VENCIMIENTO_DIAS en inventario.service.ts) — no
+// hardcodeados, para poder ajustarlos sin una migración si el dueño
+// decide cambiarlos más adelante. Confirmados con el dueño: Nuevo 0-2,
+// Frecuente 3-9, VIP 10+.
+export type NivelFidelidad = 'NUEVO' | 'FRECUENTE' | 'VIP';
+
 /**
  * Fase 1 del roadmap de Fidelización: CRUD mínimo de Cliente — base
  * bloqueante para todo lo demás (niveles de fidelidad, reglas de
@@ -34,11 +42,18 @@ export class ClientesService {
         : {}),
       /* eslint-enable indent */
     };
-    return db.cliente.findMany({
+    const clientes = await db.cliente.findMany({
       where,
       orderBy: { nombre: 'asc' },
       ...(search ? { take: 50 } : {}),
     });
+    // Fase 3: un nivel por cada cliente listado. N+1 consultas
+    // aceptable acá — search ya limita a 50 resultados, y sin search es
+    // el mismo criterio que stockConsolidado() (no hay paginación
+    // todavía en ningún listado del proyecto).
+    return Promise.all(
+      clientes.map(async (c) => ({ ...c, nivel: await this.calcularNivel(empresaId, c.id) })),
+    );
   }
 
   async obtener(empresaId: string, id: string) {
@@ -47,7 +62,37 @@ export class ClientesService {
     if (!cliente) {
       throw new NotFoundException('Cliente no encontrado');
     }
-    return cliente;
+    const nivel = await this.calcularNivel(empresaId, id);
+    return { ...cliente, nivel };
+  }
+
+  /**
+   * Fase 3 del roadmap de Fidelización: nivel calculado al vuelo a
+   * partir del historial real — nunca se persiste un campo `nivel`
+   * desnormalizado que pueda desactualizarse (mismo criterio que
+   * InventarioService.stockConsolidado(), que tampoco persiste un
+   * total). Cuenta Venta (estado 'CONFIRMADA', ver ventas.service.ts —
+   * hoy es el único estado que existe, no hay anulación implementada
+   * todavía) + Pedido (estado 'CONFIRMADO') asociados a este cliente.
+   */
+  async calcularNivel(empresaId: string, clienteId: string): Promise<NivelFidelidad> {
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const [ventasConfirmadas, pedidosConfirmados] = await Promise.all([
+      db.venta.count({ where: { clienteId, estado: 'CONFIRMADA' } }),
+      db.pedido.count({ where: { clienteId, estado: 'CONFIRMADO' } }),
+    ]);
+    const totalCompras = ventasConfirmadas + pedidosConfirmados;
+
+    const umbralVip = Number(process.env.FIDELIZACION_UMBRAL_VIP ?? 10);
+    const umbralFrecuente = Number(process.env.FIDELIZACION_UMBRAL_FRECUENTE ?? 3);
+
+    if (totalCompras >= umbralVip) {
+      return 'VIP';
+    }
+    if (totalCompras >= umbralFrecuente) {
+      return 'FRECUENTE';
+    }
+    return 'NUEVO';
   }
 
   async crear(empresaId: string, dto: CreateClienteDto) {
