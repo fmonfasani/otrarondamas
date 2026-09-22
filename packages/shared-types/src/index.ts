@@ -31,14 +31,69 @@ export interface LoginResponse {
 
 // --- Catálogo (apps/api/src/catalogo) ---
 
+// --- Categorización de catálogo (apps/api/src/catalogo) ---
+// Jerarquía fija de 4 niveles, todos obligatorios en Producto (se usa el
+// nodo "GEN" de Tipo/Subtipo cuando un rubro no necesita más detalle que
+// Familia/Subfamilia). Ver la sesión de definición de catálogo.
+
+export interface Familia {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  prefijo: string; // 3 letras, usado como segmento del SKU
+  activo: boolean;
+}
+
+export interface Subfamilia {
+  id: string;
+  empresaId: string;
+  familiaId: string;
+  nombre: string;
+  prefijo: string;
+  activo: boolean;
+}
+
+export interface Tipo {
+  id: string;
+  empresaId: string;
+  subfamiliaId: string;
+  nombre: string;
+  prefijo: string;
+  activo: boolean;
+}
+
+export interface Subtipo {
+  id: string;
+  empresaId: string;
+  tipoId: string;
+  nombre: string;
+  prefijo: string;
+  activo: boolean;
+}
+
+// Shape de GET /catalogo/jerarquia — las 4 tablas completas, para armar
+// el árbol en el cliente (selectores en cascada de Producto/
+// ReglaFidelizacion) sin pedir un endpoint por nivel.
+export interface JerarquiaCatalogo {
+  familias: Familia[];
+  subfamilias: Subfamilia[];
+  tipos: Tipo[];
+  subtipos: Subtipo[];
+}
+
 export interface Producto {
   id: string;
   empresaId: string;
   nombre: string;
+  // SKU interno FAM-SUB-TIP-SUBT-NNNNNNNN — no editable después de
+  // creado (ver comentario en UpdateProductoRequest).
   codigoInterno: string;
   codigoBarras: string | null;
   marca: string | null;
-  categoriaId: string;
+  familiaId: string;
+  subfamiliaId: string;
+  tipoId: string;
+  subtipoId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
   costo: string; // Decimal de Prisma serializa como string en JSON
   precioMinorista: string;
@@ -56,7 +111,10 @@ export interface CreateProductoRequest {
   codigoInterno: string;
   codigoBarras?: string;
   marca?: string;
-  categoriaId: string;
+  familiaId: string;
+  subfamiliaId: string;
+  tipoId: string;
+  subtipoId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
   costo: number;
   precioMinorista: number;
@@ -264,7 +322,10 @@ export interface StockConsolidado {
   productoId: string;
   nombre: string;
   codigoInterno: string;
-  categoriaId: string;
+  familiaId: string;
+  subfamiliaId: string;
+  tipoId: string;
+  subtipoId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
   stockTotal: number;
   // stockMinimo=0 (default de todo el catálogo existente) nunca
@@ -436,7 +497,10 @@ export interface ProductoTienda {
   productoId: string;
   nombre: string;
   codigoInterno: string;
-  categoriaId: string;
+  familiaId: string;
+  subfamiliaId: string;
+  tipoId: string;
+  subtipoId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
   // Precio final a mostrar/cobrar (ya con el descuento aplicado, si lo
   // tiene) — Fase 6, RF-06/RF-04.

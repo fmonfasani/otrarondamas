@@ -45,11 +45,25 @@ export class InventarioService {
    * es el momento de extender empresaScopeExtension con groupBy, con su
    * propia revisión — no antes.
    */
-  async stockConsolidado(empresaId: string, search?: string, soloConStockBajo?: boolean) {
+  async stockConsolidado(
+    empresaId: string,
+    search?: string,
+    soloConStockBajo?: boolean,
+    // Fase de diseño de Tienda Online: filtro por Familia/Subfamilia
+    // para la navegación por categoría del catálogo público (antes solo
+    // existía el buscador de texto libre) — reusado tal cual por el
+    // panel interno si algún día necesita lo mismo, sin duplicar esta
+    // query. familiaId filtra la Familia entera; subfamiliaId (si se
+    // manda junto) acota más dentro de esa Familia.
+    familiaId?: string,
+    subfamiliaId?: string,
+  ) {
     const db = this.prismaFactory.forEmpresa(empresaId);
 
     const whereProducto: Prisma.ProductoWhereInput = {
       activo: true,
+      ...(familiaId ? { familiaId } : {}),
+      ...(subfamiliaId ? { subfamiliaId } : {}),
       /* eslint-disable indent -- falso positivo conocido de la regla
          `indent` base con un ternario que devuelve un objeto anidado
          (mismo patrón que catalogo.controller.ts) */
@@ -64,10 +78,14 @@ export class InventarioService {
       /* eslint-enable indent */
     };
 
+    // El límite de 50 no solo protege la búsqueda de texto: filtrar por
+    // una Familia entera (ej. "Bebidas") también puede traer cientos de
+    // productos sin este tope — mismo motivo, mismo límite.
+    const limitar = !!search || !!familiaId || !!subfamiliaId;
     const productos = await db.producto.findMany({
       where: whereProducto,
       orderBy: { nombre: 'asc' },
-      ...(search ? { take: 50 } : {}),
+      ...(limitar ? { take: 50 } : {}),
     });
 
     const productoIds = productos.map((p) => p.id);
@@ -89,7 +107,10 @@ export class InventarioService {
         productoId: producto.id,
         nombre: producto.nombre,
         codigoInterno: producto.codigoInterno,
-        categoriaId: producto.categoriaId,
+        familiaId: producto.familiaId,
+        subfamiliaId: producto.subfamiliaId,
+        tipoId: producto.tipoId,
+        subtipoId: producto.subtipoId,
         unidadBase: producto.unidadBase,
         stockTotal,
         stockMinimo,

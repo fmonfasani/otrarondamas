@@ -57,6 +57,16 @@ enum UnidadBase {
   CAJA
 }
 
+// Fase 3 del roadmap de Fidelización (ver clientes.service.ts): niveles
+// calculados al vuelo por historial de compras, nunca persistidos en
+// Cliente. Este enum solo se usa para tipar
+// ReglaFidelizacion.nivelRequerido (Fase 4) — no es un campo de Cliente.
+enum NivelFidelidad {
+  NUEVO
+  FRECUENTE
+  VIP
+}
+
 model Empresa {
   id            String   @id @default(uuid())
   nombre        String   @unique
@@ -64,26 +74,31 @@ model Empresa {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  usuarios          Usuario[]
-  categorias        Categoria[]
-  productos         Producto[]
-  clientes          Cliente[]
-  cajas             Caja[]
-  proveedores       Proveedor[]
-  ventas            Venta[]
-  pedidos           Pedido[]
-  compras           Compra[]
-  movimientosStock  MovimientoStock[]
-  audits            AuditLog[]
-  autorizaciones    Autorizacion[]    @relation("EmpresaAutorizaciones")
-  presentaciones    Presentacion[]    @relation("EmpresaPresentaciones")
-  lotes             Lote[]            @relation("EmpresaLotes")
-  cuentasCorriente  CuentaCorriente[] @relation("EmpresaCuentasCorriente")
-  deudas            Deuda[]           @relation("EmpresaDeudas")
-  pagos             Pago[]            @relation("EmpresaPagos")
-  recepcionesCompra RecepcionCompra[] @relation("EmpresaRecepcionesCompra")
-  entregas          Entrega[]         @relation("EmpresaEntregas")
-  notificaciones    Notificacion[]    @relation("EmpresaNotificaciones")
+  usuarios           Usuario[]
+  familias           Familia[]
+  subfamilias        Subfamilia[]
+  tipos              Tipo[]
+  subtipos           Subtipo[]
+  productoProveedor  ProductoProveedor[]
+  productos          Producto[]
+  clientes           Cliente[]
+  cajas              Caja[]
+  proveedores        Proveedor[]
+  ventas             Venta[]
+  pedidos            Pedido[]
+  compras            Compra[]
+  movimientosStock   MovimientoStock[]
+  audits             AuditLog[]
+  autorizaciones     Autorizacion[]      @relation("EmpresaAutorizaciones")
+  presentaciones     Presentacion[]      @relation("EmpresaPresentaciones")
+  lotes              Lote[]              @relation("EmpresaLotes")
+  cuentasCorriente   CuentaCorriente[]   @relation("EmpresaCuentasCorriente")
+  deudas             Deuda[]             @relation("EmpresaDeudas")
+  pagos              Pago[]              @relation("EmpresaPagos")
+  recepcionesCompra  RecepcionCompra[]   @relation("EmpresaRecepcionesCompra")
+  entregas           Entrega[]           @relation("EmpresaEntregas")
+  notificaciones     Notificacion[]      @relation("EmpresaNotificaciones")
+  reglasFidelizacion ReglaFidelizacion[]
 }
 
 model Usuario {
@@ -145,30 +160,161 @@ model UsuarioPermiso {
   @@unique([usuarioId, permisoId])
 }
 
-model Categoria {
+// Jerarquía de categorización de catálogo — sesión de definición con el
+// dueño del 22/09/2026 (ver docs, auditoría de docs/spec-catalogo-productos.md).
+// Reemplaza el antiguo `model Categoria` (plano, sin jerarquía).
+//
+// Decisión de modelo: 4 tablas separadas, una por nivel (no un único
+// nodo genérico con campo "nivel") — el tipo de dato en sí refleja la
+// jerarquía, y Prisma garantiza en el schema que un Tipo solo puede
+// colgar de una Subfamilia real, sin depender de una validación manual
+// en código. Los 4 niveles son FIJOS y OBLIGATORIOS siempre — cuando un
+// rubro no necesita tanto detalle, se usa el nodo "GEN" (genérico) de
+// ese nivel en vez de dejarlo sin asignar.
+//
+// Visibilidad al cliente: los 4 niveles son SIEMPRE visibles en la
+// tienda pública — es una regla fija de esta fase, sin campo de
+// configuración por nodo (decisión explícita: se agrega si aparece un
+// caso real que lo necesite, no antes).
+//
+// Marca y Proveedor NO son niveles de este árbol — Marca sigue siendo
+// un atributo simple de Producto (ya así), Proveedor es una relación
+// N a N aparte (ver ProductoProveedor) porque un producto puede tener
+// más de un proveedor, algo que un nivel único de jerarquía no puede
+// representar.
+model Familia {
   id        String   @id @default(uuid())
   empresaId String
   empresa   Empresa  @relation(fields: [empresaId], references: [id])
   nombre    String
+  // Prefijo de 3 letras para el SKU (FAM-SUB-TIP-SUBT-NNNNNNNN) — ej.
+  // "Bebidas sin alcohol" -> "BSA". Único por empresa, nunca se
+  // reutiliza aunque cambie el nombre de la Familia (mismo criterio que
+  // codigoInterno: el prefijo ya usado en SKUs existentes no se toca).
+  prefijo   String   @db.Char(3)
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  productos Producto[]
+  subfamilias        Subfamilia[]
+  productos          Producto[]          @relation("ProductoFamilia")
+  reglasFidelizacion ReglaFidelizacion[]
 
   @@unique([empresaId, nombre])
+  @@unique([empresaId, prefijo])
+}
+
+model Subfamilia {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  familiaId String
+  familia   Familia  @relation(fields: [familiaId], references: [id])
+  nombre    String
+  prefijo   String   @db.Char(3)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tipos              Tipo[]
+  productos          Producto[]          @relation("ProductoSubfamilia")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  // El nombre es único DENTRO de la Familia, no globalmente — dos
+  // Familias distintas podrían tener una Subfamilia con el mismo
+  // nombre sin que sea un error. El prefijo, en cambio, solo necesita
+  // ser único dentro de su Familia (el SKU ya lleva el prefijo de
+  // Familia adelante, así que "BSA-GAS-..." y "BCA-GAS-..." no
+  // colisionan aunque ambos usen "GAS").
+  @@unique([familiaId, nombre])
+  @@unique([familiaId, prefijo])
+}
+
+model Tipo {
+  id           String     @id @default(uuid())
+  empresaId    String
+  empresa      Empresa    @relation(fields: [empresaId], references: [id])
+  subfamiliaId String
+  subfamilia   Subfamilia @relation(fields: [subfamiliaId], references: [id])
+  nombre       String
+  prefijo      String     @db.Char(3)
+  activo       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  subtipos           Subtipo[]
+  productos          Producto[]          @relation("ProductoTipo")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  @@unique([subfamiliaId, nombre])
+  @@unique([subfamiliaId, prefijo])
+}
+
+model Subtipo {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  tipoId    String
+  tipo      Tipo     @relation(fields: [tipoId], references: [id])
+  nombre    String
+  prefijo   String   @db.Char(3)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productos          Producto[]          @relation("ProductoSubtipo")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  @@unique([tipoId, nombre])
+  @@unique([tipoId, prefijo])
+}
+
+// N a N: un producto puede tener más de un proveedor, un proveedor
+// puede vender muchos productos — mismo criterio ya confirmado por el
+// dueño (Proveedor es informativo para el dueño, nunca visible al
+// cliente; distinto de Familia/Subfamilia/Tipo/Subtipo, que sí lo son).
+model ProductoProveedor {
+  id          String    @id @default(uuid())
+  empresaId   String
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  productoId  String
+  producto    Producto  @relation(fields: [productoId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productoId, proveedorId])
 }
 
 model Producto {
-  id                  String     @id @default(uuid())
-  empresaId           String
-  empresa             Empresa    @relation(fields: [empresaId], references: [id])
-  nombre              String
-  codigoInterno       String     @unique // RF-03
-  codigoBarras        String?
-  marca               String?
-  categoriaId         String
-  categoria           Categoria  @relation(fields: [categoriaId], references: [id])
+  id            String  @id @default(uuid())
+  empresaId     String
+  empresa       Empresa @relation(fields: [empresaId], references: [id])
+  nombre        String
+  // SKU interno — reemplaza el codigoInterno original (string libre,
+  // @unique GLOBAL — bug ya conocido). Formato FAM-SUB-TIP-SUBT-NNNNNNNN
+  // (4 segmentos de 3 letras + correlativo de 8 dígitos, GLOBAL por
+  // empresa — no reinicia por combinación de niveles, para que mover un
+  // producto de categoría no le cambie el número). Se genera al crear
+  // el producto, nunca se recalcula después. Único POR EMPRESA (no
+  // global) — corrige el gap original.
+  codigoInterno String
+  codigoBarras  String?
+  marca         String?
+
+  // Los 4 niveles de la jerarquía — todos obligatorios, con el nodo
+  // "GEN" de cada nivel cuando el rubro no necesita más detalle. Ver
+  // comentario en model Familia para el criterio completo.
+  familiaId    String
+  familia      Familia    @relation("ProductoFamilia", fields: [familiaId], references: [id])
+  subfamiliaId String
+  subfamilia   Subfamilia @relation("ProductoSubfamilia", fields: [subfamiliaId], references: [id])
+  tipoId       String
+  tipo         Tipo       @relation("ProductoTipo", fields: [tipoId], references: [id])
+  subtipoId    String
+  subtipo      Subtipo    @relation("ProductoSubtipo", fields: [subtipoId], references: [id])
+
   unidadBase          UnidadBase
   costo               Decimal
   precioMinorista     Decimal
@@ -191,12 +337,17 @@ model Producto {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  lotes            Lote[]
-  presentaciones   Presentacion[]    @relation("ProductoPresentaciones")
-  ventaItems       VentaItem[]
-  movimientosStock MovimientoStock[]
-  compraItems      CompraItem[]      @relation("ProductoCompraItems")
-  pedidoItems      PedidoItem[]
+  lotes             Lote[]
+  presentaciones    Presentacion[]      @relation("ProductoPresentaciones")
+  ventaItems        VentaItem[]
+  movimientosStock  MovimientoStock[]
+  compraItems       CompraItem[]        @relation("ProductoCompraItems")
+  pedidoItems       PedidoItem[]
+  productoProveedor ProductoProveedor[]
+
+  // Corrige el gap original (@unique GLOBAL) — el SKU es único por
+  // empresa, no en todo el sistema.
+  @@unique([empresaId, codigoInterno])
 }
 
 model Presentacion {
@@ -250,6 +401,50 @@ model Cliente {
   pedidos          Pedido[]          @relation("ClientePedidos")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
+}
+
+// Fase 4 del roadmap de Fidelización (D-02, orientado a fidelizar):
+// combina A QUIÉN (nivelRequerido, calculado al vuelo por
+// ClientesService.calcularNivel() — nunca leído de un campo persistido
+// en Cliente) con SOBRE QUÉ aplica, opcionalmente acotado. Sin ninguno
+// de los tres campos de alcance, aplica a todo el catálogo. Distinta
+// de Producto.descuentoPorcentaje (Fase 6 de Tienda Online): esa es
+// fija y global, esta depende de quién compra.
+model ReglaFidelizacion {
+  id                  String         @id @default(uuid())
+  empresaId           String
+  empresa             Empresa        @relation(fields: [empresaId], references: [id])
+  nombre              String // Ej: "VIP en Bebidas" — para identificarla en el panel, sin efecto en el cálculo
+  nivelRequerido      NivelFidelidad
+  descuentoPorcentaje Decimal        @db.Decimal(5, 2)
+  // Alcance opcional — el dueño puede acotar por CUALQUIERA de los 4
+  // niveles de jerarquía (sesión de definición del 22/09/2026), más
+  // marca y cantidad mínima. Todos independientes entre sí (una regla
+  // puede combinar, por ejemplo, Familia + cantidad mínima a la vez).
+  // Sin ninguno, la regla aplica a cualquier ítem del carrito.
+  familiaId           String?
+  familia             Familia?       @relation(fields: [familiaId], references: [id])
+  subfamiliaId        String?
+  subfamilia          Subfamilia?    @relation(fields: [subfamiliaId], references: [id])
+  tipoId              String?
+  tipo                Tipo?          @relation(fields: [tipoId], references: [id])
+  subtipoId           String?
+  subtipo             Subtipo?       @relation(fields: [subtipoId], references: [id])
+  marca               String? // Producto.marca es string libre, no FK — se compara tal cual
+  cantidadMinima      Int? // mínimo de unidades DEL ÍTEM (no del carrito completo)
+  activo              Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Fase 5: histórico de qué VentaItem/PedidoItem aplicó esta regla —
+  // onDelete: Restrict explícito en ambas relaciones (el default de
+  // Prisma para una FK opcional es SetNull, no Restrict): no debería
+  // poder borrarse una regla que ya se usó en ventas/pedidos reales,
+  // rompería la trazabilidad del descuento aplicado. Hoy no hay
+  // endpoint DELETE para ReglaFidelizacion de todos modos, pero esto la
+  // protege si se agrega uno más adelante sin pensar en este caso.
+  ventaItems  VentaItem[]
+  pedidoItems PedidoItem[]
 }
 
 model CuentaCorriente {
@@ -309,16 +504,29 @@ model Venta {
 }
 
 model VentaItem {
-  id             String   @id @default(uuid())
-  ventaId        String
-  venta          Venta    @relation(fields: [ventaId], references: [id])
-  productoId     String
-  producto       Producto @relation(fields: [productoId], references: [id])
-  cantidad       Decimal
-  precioUnitario Decimal
-  descuentoItem  Decimal  @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                              String             @id @default(uuid())
+  ventaId                         String
+  venta                           Venta              @relation(fields: [ventaId], references: [id])
+  productoId                      String
+  producto                        Producto           @relation(fields: [productoId], references: [id])
+  cantidad                        Decimal
+  precioUnitario                  Decimal
+  // Descuento MANUAL cargado por el vendedor (ej. una promo puntual
+  // negociada en el momento) — nunca lo calcula el sistema. Separado a
+  // propósito del descuento de fidelización de abajo: mezclarlos en un
+  // solo número impediría auditar/mostrar de dónde vino cada uno.
+  descuentoItem                   Decimal            @default(0)
+  // Fase 5 del roadmap de Fidelización: descuento AUTOMÁTICO calculado
+  // por FidelizacionService.calcularDescuentoAplicable() a partir del
+  // nivel del cliente (congelado con su historial ANTES de esta venta,
+  // ver ventas.service.ts) y el alcance de la regla — nunca lo manda el
+  // cliente HTTP. Ambos descuentos (este + descuentoItem) se restan del
+  // subtotal del ítem, ver ventas.service.ts.
+  descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
+  reglaFidelizacionId             String?
+  reglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
+  createdAt                       DateTime           @default(now())
+  updatedAt                       DateTime           @updatedAt
 }
 
 // Fase 1 de Tienda Online (RF-06): completa lo que este modelo dejaba
@@ -362,19 +570,32 @@ model Pedido {
 // registrar qué productos/cantidades contenía (gap detectado al
 // diseñar la Fase 1 de Tienda Online, RF-06).
 model PedidoItem {
-  id             String   @id @default(uuid())
-  pedidoId       String
-  pedido         Pedido   @relation(fields: [pedidoId], references: [id])
-  productoId     String
-  producto       Producto @relation(fields: [productoId], references: [id])
-  cantidad       Decimal
+  id                              String             @id @default(uuid())
+  pedidoId                        String
+  pedido                          Pedido             @relation(fields: [pedidoId], references: [id])
+  productoId                      String
+  producto                        Producto           @relation(fields: [productoId], references: [id])
+  cantidad                        Decimal
   // Precio congelado al momento del pedido, tomado del catálogo — mismo
   // criterio que VentaItem.precioUnitario (INV-12): nunca se acepta un
-  // precio que mande el cliente.
-  precioUnitario Decimal
-  descuentoItem  Decimal  @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // precio que mande el cliente. Ya incluye el % de Producto.
+  // descuentoPorcentaje (Fase 6 de Tienda Online) si el producto tenía
+  // uno — ver tienda.service.ts.
+  precioUnitario                  Decimal
+  descuentoItem                   Decimal            @default(0)
+  // Fase 5 del roadmap de Fidelización, extendido a Tienda Online:
+  // descuento AUTOMÁTICO calculado por
+  // FidelizacionService.calcularDescuentoAplicable() a partir del nivel
+  // del cliente de tienda (mismo Cliente que VentasService, identificado
+  // por email — nunca anónimo acá, a diferencia del POS). Se aplica
+  // ENCIMA del % de producto ya incluido en precioUnitario (confirmado
+  // con el dueño: los dos descuentos se combinan, no se elige el mayor)
+  // — ver tienda.service.ts.
+  descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
+  reglaFidelizacionId             String?
+  reglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
+  createdAt                       DateTime           @default(now())
+  updatedAt                       DateTime           @updatedAt
 }
 
 model Pago {
@@ -509,7 +730,8 @@ model Proveedor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  compras Compra[]
+  compras           Compra[]
+  productoProveedor ProductoProveedor[]
 
   @@unique([empresaId, nombre])
 }
