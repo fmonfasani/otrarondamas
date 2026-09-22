@@ -58,7 +58,18 @@ export function CatalogoPage() {
         {productos.map((producto) => (
           <li key={producto.productoId}>
             <span>{producto.nombre}</span>
-            <span>${producto.precio}</span>
+            {/* Fase 6: descuento único y global por producto — el
+                precio ya viene con el descuento aplicado desde el
+                backend, acá solo se muestra el precio original tachado
+                cuando corresponde. */}
+            {producto.precioSinDescuento ? (
+              <span>
+                <s>${producto.precioSinDescuento}</s> ${producto.precio} (
+                {producto.descuentoPorcentaje}% off)
+              </span>
+            ) : (
+              <span>${producto.precio}</span>
+            )}
             {producto.disponible ? (
               <button type="button" onClick={() => carrito.agregar(producto)}>
                 Agregar

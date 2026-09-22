@@ -120,6 +120,7 @@ export class CatalogoController {
       costo: dto.costo,
       precioMinorista: dto.precioMinorista,
       precioMayorista: dto.precioMayorista,
+      descuentoPorcentaje: dto.descuentoPorcentaje,
       activo: dto.activo,
       empresaId: user.empresaId,
     };

@@ -10,6 +10,7 @@ import {
   User,
   Truck,
   LogOut,
+  Tag,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { path: '/orders', label: 'Pedidos', icon: <Package className="w-5 h-5" /> },
   { path: '/inventory', label: 'Inventario', icon: <Package className="w-5 h-5" /> },
   { path: '/compras', label: 'Compras', icon: <Truck className="w-5 h-5" /> },
+  { path: '/precios', label: 'Precios', icon: <Tag className="w-5 h-5" /> },
   { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
   { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5" /> },
   { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5" /> },

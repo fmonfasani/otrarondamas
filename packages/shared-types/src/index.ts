@@ -43,10 +43,29 @@ export interface Producto {
   costo: string; // Decimal de Prisma serializa como string en JSON
   precioMinorista: string;
   precioMayorista: string | null;
+  // Fase 6 de Tienda Online (RF-06/RF-04): descuento único, global y
+  // por porcentaje sobre precioMinorista. null o 0 = sin descuento.
+  descuentoPorcentaje: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CreateProductoRequest {
+  nombre: string;
+  codigoInterno: string;
+  codigoBarras?: string;
+  marca?: string;
+  categoriaId: string;
+  unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
+  costo: number;
+  precioMinorista: number;
+  precioMayorista?: number;
+  descuentoPorcentaje?: number;
+  activo?: boolean;
+}
+
+export type UpdateProductoRequest = Partial<Omit<CreateProductoRequest, 'codigoInterno'>>;
 
 // --- Ventas (apps/api/src/ventas) ---
 
@@ -419,7 +438,13 @@ export interface ProductoTienda {
   codigoInterno: string;
   categoriaId: string;
   unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
+  // Precio final a mostrar/cobrar (ya con el descuento aplicado, si lo
+  // tiene) — Fase 6, RF-06/RF-04.
   precio: string; // Decimal de Prisma serializa como string
+  // Precio original SIN descontar, solo presente cuando hay descuento
+  // activo — para que el frontend pueda mostrar "antes/después" tachado.
+  precioSinDescuento: string | null;
+  descuentoPorcentaje: number | null;
   disponible: boolean;
   stockTotal: number;
 }

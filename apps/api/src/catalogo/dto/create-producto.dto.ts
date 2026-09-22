@@ -7,6 +7,8 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -48,6 +50,15 @@ export class CreateProductoDto {
   @IsNumber()
   @IsPositive()
   precioMayorista?: number;
+
+  // Fase 6 de Tienda Online (RF-06/RF-04): descuento único, global y
+  // por porcentaje sobre precioMinorista. 0-100, sin tope de negocio
+  // propio — ver comentario en schema.prisma.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  descuentoPorcentaje?: number;
 
   @IsOptional()
   @IsBoolean()

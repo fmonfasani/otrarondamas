@@ -11,6 +11,7 @@ import { ProfilePage } from './features/profile/ProfilePage';
 import { InventarioPage } from './features/inventario/InventarioPage';
 import { ComprasPage } from './features/compras/ComprasPage';
 import { PedidosPage } from './features/pedidos/PedidosPage';
+import { PreciosPage } from './features/precios/PreciosPage';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
                     <Route path="/orders" element={<PedidosPage />} />
                     <Route path="/inventory" element={<InventarioPage />} />
                     <Route path="/compras" element={<ComprasPage />} />
+                    <Route path="/precios" element={<PreciosPage />} />
                     <Route
                       path="/customers"
                       element={<div className="text-center py-12">Clientes - En desarrollo</div>}

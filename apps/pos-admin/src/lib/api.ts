@@ -32,6 +32,7 @@ import type {
   AlertasInventario,
   PedidoListado,
   ActualizarEstadoPedidoRequest,
+  UpdateProductoRequest,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -86,6 +87,11 @@ export const api = {
 
   buscarProductos: (search: string) =>
     request<Producto[]>(`/catalogo/productos?search=${encodeURIComponent(search)}`),
+  // Fase 6 de Tienda Online — solo el % de descuento se edita desde acá
+  // por ahora (ver PreciosPage.tsx), aunque el endpoint acepta
+  // cualquier campo del producto. Requiere productos.gestionar.
+  actualizarProducto: (id: string, dto: UpdateProductoRequest) =>
+    request<Producto>(`/catalogo/productos/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
 
   crearVenta: (dto: CreateVentaRequest) =>
     request<Venta>('/ventas', { method: 'POST', body: JSON.stringify(dto) }),

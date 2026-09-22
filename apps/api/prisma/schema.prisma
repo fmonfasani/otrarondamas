@@ -160,28 +160,36 @@ model Categoria {
 }
 
 model Producto {
-  id              String     @id @default(uuid())
-  empresaId       String
-  empresa         Empresa    @relation(fields: [empresaId], references: [id])
-  nombre          String
-  codigoInterno   String     @unique // RF-03
-  codigoBarras    String?
-  marca           String?
-  categoriaId     String
-  categoria       Categoria  @relation(fields: [categoriaId], references: [id])
-  unidadBase      UnidadBase
-  costo           Decimal
-  precioMinorista Decimal
-  precioMayorista Decimal? // D-01: nullable until rule is defined
+  id                  String     @id @default(uuid())
+  empresaId           String
+  empresa             Empresa    @relation(fields: [empresaId], references: [id])
+  nombre              String
+  codigoInterno       String     @unique // RF-03
+  codigoBarras        String?
+  marca               String?
+  categoriaId         String
+  categoria           Categoria  @relation(fields: [categoriaId], references: [id])
+  unidadBase          UnidadBase
+  costo               Decimal
+  precioMinorista     Decimal
+  precioMayorista     Decimal? // D-01: nullable until rule is defined
+  // Fase 6 de Tienda Online (RF-06/RF-04): descuento único, global y
+  // por porcentaje sobre precioMinorista — el SDD limita la tienda a
+  // "un precio base único, con posibilidad de aplicar descuentos", no
+  // reglas por cantidad/cliente (esas siguen D-01/D-02, sin definir).
+  // null o 0 = sin descuento. 0-100, sin tope de negocio propio (el
+  // SDD no define uno — si el dueño carga un valor alto, es su
+  // decisión de precio, no se cuestiona).
+  descuentoPorcentaje Decimal?   @db.Decimal(5, 2)
   // INV-AL-01 (Fase 4 de inventario): umbral de alerta de bajo stock.
   // Default 0 para los productos existentes — con 0, ningún producto
   // dispara la alerta hasta que alguien lo configure explícitamente
   // (decisión del dueño: evitar 4342 alertas falsas el día que se
   // active la función, ver docs/scaffolding-notas.md).
-  stockMinimo     Decimal    @default(0)
-  activo          Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  stockMinimo         Decimal    @default(0)
+  activo              Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   lotes            Lote[]
   presentaciones   Presentacion[]    @relation("ProductoPresentaciones")

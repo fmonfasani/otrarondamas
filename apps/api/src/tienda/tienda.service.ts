@@ -45,6 +45,25 @@ export class TiendaService {
   }
 
   /**
+   * Fase 6 (RF-06/RF-04): aplica el descuento único y global del
+   * producto (si tiene) sobre precioMinorista. El SDD limita la tienda
+   * a "un precio base único, con posibilidad de aplicar descuentos" —
+   * no hay reglas por cantidad/cliente (D-01/D-02 siguen sin definir).
+   * Redondeado a 2 decimales (moneda), nunca se devuelve un precio con
+   * más precisión que la que tiene sentido mostrar/cobrar.
+   */
+  private precioConDescuento(
+    precioMinorista: Prisma.Decimal,
+    descuentoPorcentaje: Prisma.Decimal | null,
+  ): string {
+    if (!descuentoPorcentaje || descuentoPorcentaje.isZero()) {
+      return precioMinorista.toFixed(2);
+    }
+    const factor = new Prisma.Decimal(1).minus(descuentoPorcentaje.dividedBy(100));
+    return precioMinorista.times(factor).toFixed(2);
+  }
+
+  /**
    * Catálogo público — reusa InventarioService.stockConsolidado() para
    * la disponibilidad (RF-06: "se actualizará la disponibilidad según
    * el stock del sistema"), sin duplicar ese cálculo. Le agrega el
@@ -58,25 +77,33 @@ export class TiendaService {
 
     const productos = await db.producto.findMany({
       where: { id: { in: stock.map((s) => s.productoId) } },
-      select: { id: true, precioMinorista: true },
+      select: { id: true, precioMinorista: true, descuentoPorcentaje: true },
     });
-    const precioPorProducto = new Map(productos.map((p) => [p.id, p.precioMinorista]));
+    const productoPorId = new Map(productos.map((p) => [p.id, p]));
 
     // Nunca se expone costo, stockMinimo ni ningún otro campo interno —
     // stockConsolidado() ya filtra a activo=true, acá solo se agrega el
-    // precio público. D-01/D-02 (precios y descuentos online) siguen sin
-    // definir — se muestra precioMinorista tal cual, sin ninguna regla
-    // de canal todavía (ver Fase 6 del roadmap).
-    return stock.map((item) => ({
-      productoId: item.productoId,
-      nombre: item.nombre,
-      codigoInterno: item.codigoInterno,
-      categoriaId: item.categoriaId,
-      unidadBase: item.unidadBase,
-      precio: precioPorProducto.get(item.productoId) ?? '0',
-      disponible: item.stockTotal > 0,
-      stockTotal: item.stockTotal,
-    }));
+    // precio público. Fase 6 (RF-06/RF-04): descuento único y global
+    // sobre precioMinorista, sin reglas por cantidad/cliente
+    // (D-01/D-02 siguen sin definir).
+    return stock.map((item) => {
+      const producto = productoPorId.get(item.productoId);
+      const precioBase = producto?.precioMinorista ?? new Prisma.Decimal(0);
+      const descuentoPorcentaje = producto?.descuentoPorcentaje ?? null;
+      return {
+        productoId: item.productoId,
+        nombre: item.nombre,
+        codigoInterno: item.codigoInterno,
+        categoriaId: item.categoriaId,
+        unidadBase: item.unidadBase,
+        precio: this.precioConDescuento(precioBase, descuentoPorcentaje),
+        precioSinDescuento:
+          descuentoPorcentaje && !descuentoPorcentaje.isZero() ? precioBase.toFixed(2) : null,
+        descuentoPorcentaje: descuentoPorcentaje?.toNumber() ?? null,
+        disponible: item.stockTotal > 0,
+        stockTotal: item.stockTotal,
+      };
+    });
   }
 
   /**
@@ -104,10 +131,16 @@ export class TiendaService {
 
     // Precio congelado del catálogo al momento del pedido — mismo
     // criterio que VentasService (INV-12): nunca se acepta un precio
-    // que mande el cliente.
+    // que mande el cliente. Fase 6: el precio congelado YA incluye el
+    // descuento del producto si tenía uno — es el precio real que se
+    // le mostró y cobró al comprador, no el precio bruto sin descontar.
     const itemsConPrecio = dto.items.map((item) => {
       const producto = productoPorId.get(item.productoId)!;
-      return { ...item, precioUnitario: producto.precioMinorista };
+      const precioUnitario = this.precioConDescuento(
+        producto.precioMinorista,
+        producto.descuentoPorcentaje,
+      );
+      return { ...item, precioUnitario };
     });
 
     const total = itemsConPrecio.reduce((acc, item) => {
