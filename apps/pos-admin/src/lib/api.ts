@@ -30,6 +30,8 @@ import type {
   RecibirCompraRequest,
   RecepcionCompra,
   AlertasInventario,
+  PedidoListado,
+  ActualizarEstadoPedidoRequest,
 } from '@otrarondamas/shared-types';
 
 // En dev, Vite expone las env vars prefijadas VITE_ vía import.meta.env.
@@ -145,4 +147,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
+
+  // Pedidos — RF-06 Fase 4. Requiere el permiso pedidos.gestionar en
+  // todo, incluido el listado (expone datos personales del cliente).
+  listarPedidos: (estado?: string) =>
+    request<PedidoListado[]>(`/pedidos${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`),
+  actualizarEstadoPedido: (id: string, dto: ActualizarEstadoPedidoRequest) =>
+    request<PedidoListado>(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify(dto) }),
 };

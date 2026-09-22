@@ -10,6 +10,7 @@ import { CajaPage } from './features/caja/CajaPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { InventarioPage } from './features/inventario/InventarioPage';
 import { ComprasPage } from './features/compras/ComprasPage';
+import { PedidosPage } from './features/pedidos/PedidosPage';
 
 function App() {
   return (
@@ -26,10 +27,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
-                    <Route
-                      path="/orders"
-                      element={<div className="text-center py-12">Pedidos - En desarrollo</div>}
-                    />
+                    <Route path="/orders" element={<PedidosPage />} />
                     <Route path="/inventory" element={<InventarioPage />} />
                     <Route path="/compras" element={<ComprasPage />} />
                     <Route

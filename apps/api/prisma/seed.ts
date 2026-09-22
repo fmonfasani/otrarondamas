@@ -65,6 +65,13 @@ async function main() {
     // (gestionar el catálogo no implica poder comprometer dinero con un
     // proveedor — son autorizaciones de negocio distintas).
     'compras.gestionar',
+    // RF-06 (tienda online), Fase 4: ver/tomar/confirmar/cancelar
+    // pedidos de la bandeja. Permiso nuevo, no se reusó ventas.crear
+    // (gestionar qué entra por la tienda es una responsabilidad
+    // distinta de vender presencialmente, mismo criterio que
+    // compras.gestionar arriba) — recordar correr
+    // `npm run prisma:sync-permisos` después de este seed.
+    'pedidos.gestionar',
   ];
 
   for (const permName of permissions) {

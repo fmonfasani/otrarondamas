@@ -14,12 +14,14 @@ type EmpresaScopedTx = Parameters<Parameters<EmpresaScopedClient['$transaction']
 /**
  * Fase 1 (RF-11 / INV-CONS-*): consulta de stock, solo lectura.
  * Fase 2 (INV-AJ-*): ajustes manuales — agrega registrarAjuste().
- * No implementa un segundo mecanismo de descuento automático de stock
- * en ventas — ese ya existe y sigue viviendo en
- * VentasService.descontarStock() (INV-DISP-01/INV-INV-04: reusar, nunca
- * duplicar). Un ajuste manual es una operación distinta y explícita,
+ * `descontarStock()` (movido acá desde VentasService en la Fase 4 de
+ * Tienda Online, RF-06) es el ÚNICO mecanismo de descuento automático
+ * de stock del sistema — lo usan tanto VentasService (venta presencial)
+ * como PedidosService (confirmar un pedido online). INV-DISP-01/INV-INV-04:
+ * reusar, nunca duplicar esa lógica en un segundo lugar. Un ajuste
+ * manual (registrarAjuste) es una operación distinta y explícita,
  * iniciada por una persona sobre un lote que ella elige — no reemplaza
- * ni imita el descuento automático de una venta.
+ * ni imita el descuento automático.
  */
 @Injectable()
 export class InventarioService {
@@ -246,5 +248,88 @@ export class InventarioService {
       WHERE "id" = ${loteId} AND "empresaId" = ${empresaId} AND "cantidad" + ${cantidad} >= 0
     `);
     return { count: filas };
+  }
+
+  /**
+   * Descuenta `cantidad` del stock de un producto, tomando de los lotes
+   * disponibles en orden FIFO por vencimiento (el lote que vence más
+   * pronto se consume primero). Debe correr DENTRO de la transacción del
+   * caller (crear la venta/confirmar el pedido) — nunca como paso
+   * separado, para que la concurrencia quede protegida por la misma
+   * atomicidad (INV-03/INV-06).
+   *
+   * D-09: no se filtran lotes vencidos de la selección — un lote vencido
+   * puede seguir vendiéndose (decisión explícita del dueño, no bloqueo),
+   * pero cada MovimientoStock que salga de un lote ya vencido al momento
+   * de la operación queda marcado con `loteVencidoAlMomento: true`, para
+   * auditoría permanente. Devuelve `true` si algún lote afectado estaba
+   * vencido, para que el caller pueda armar una advertencia.
+   *
+   * `motivo`/`referenciaId` los define el caller: 'Venta' + id de Venta
+   * (VentasService) o 'Venta' + id de Pedido (PedidosService, al
+   * confirmar un pedido online — sigue siendo una venta real, solo que
+   * se originó por ese canal, no se inventa un motivo nuevo).
+   *
+   * Genera un MovimientoStock tipo "Salida" por cada lote afectado.
+   * Rechaza la operación completa (revierte la transacción) si la suma
+   * de cantidad disponible en todos los lotes del producto no alcanza —
+   * D-09 dejó esto sin cambios: el stock insuficiente se sigue
+   * rechazando siempre, no tiene mecanismo de excepción/autorización.
+   */
+  async descontarStock(
+    tx: EmpresaScopedTx,
+    empresaId: string,
+    productoId: string,
+    cantidadRequerida: number,
+    motivo: string,
+    referenciaId: string,
+    usuarioId: string | null,
+  ): Promise<boolean> {
+    const lotes = await tx.lote.findMany({
+      where: { empresaId, productoId, cantidad: { gt: 0 } },
+      orderBy: { vencimiento: 'asc' },
+    });
+
+    const stockTotal = lotes.reduce((acc, l) => acc + Number(l.cantidad), 0);
+    if (stockTotal < cantidadRequerida) {
+      throw new BadRequestException(
+        `Stock insuficiente para el producto ${productoId}: disponible ${stockTotal}, requerido ${cantidadRequerida}`,
+      );
+    }
+
+    const ahora = new Date();
+    let restante = cantidadRequerida;
+    let huboLoteVencido = false;
+    for (const lote of lotes) {
+      if (restante <= 0) break;
+      const cantidadDeEsteLote = Math.min(restante, Number(lote.cantidad));
+      const loteVencido = lote.vencimiento <= ahora;
+      if (loteVencido) {
+        huboLoteVencido = true;
+      }
+
+      await tx.lote.update({
+        where: { id: lote.id },
+        data: { cantidad: { decrement: cantidadDeEsteLote } },
+      });
+
+      await tx.movimientoStock.create({
+        data: {
+          empresaId,
+          productoId,
+          loteId: lote.id,
+          tipoMovimiento: 'Salida',
+          cantidad: cantidadDeEsteLote,
+          motivo,
+          referenciaId,
+          usuarioId,
+          loteVencidoAlMomento: loteVencido,
+        },
+      });
+
+      restante -= cantidadDeEsteLote;
+    }
+
+    return huboLoteVencido;
   }
 }

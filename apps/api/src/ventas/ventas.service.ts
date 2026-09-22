@@ -1,16 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
+import { InventarioService } from '../inventario/inventario.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
-
-// El cliente que devuelve EmpresaScopedPrismaService.forEmpresa() es un
-// tipo dinámico generado por Prisma Client Extensions — no calza con
-// Prisma.TransactionClient del cliente base. Se extrae el tipo del
-// parámetro `tx` directamente desde la firma real de `$transaction` de
-// ESE cliente (mismo patrón ya usado en empresa-scoped-prisma.service.ts
-// para el tipo de `client`), en vez de anotar un tipo genérico de Prisma
-// que no es estructuralmente compatible.
-type EmpresaScopedClient = ReturnType<EmpresaScopedPrismaService['forEmpresa']>;
-type EmpresaScopedTx = Parameters<Parameters<EmpresaScopedClient['$transaction']>[0]>[0];
 
 /**
  * RF-05 (ventas presenciales). No implementa pagos mixtos ni conciliación
@@ -20,7 +11,10 @@ type EmpresaScopedTx = Parameters<Parameters<EmpresaScopedClient['$transaction']
  */
 @Injectable()
 export class VentasService {
-  constructor(private readonly prismaFactory: EmpresaScopedPrismaService) {}
+  constructor(
+    private readonly prismaFactory: EmpresaScopedPrismaService,
+    private readonly inventarioService: InventarioService,
+  ) {}
 
   async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
@@ -93,11 +87,16 @@ export class VentasService {
       // permanente sin depender de esta respuesta puntual.
       const productosConLoteVencido = new Set<string>();
       for (const item of itemsConPrecio) {
-        const tuvoLoteVencido = await this.descontarStock(
+        // Fase 4 de Tienda Online (RF-06): descontarStock() se movió a
+        // InventarioService — mismo método que usa PedidosService al
+        // confirmar un pedido online, nunca dos caminos de descuento en
+        // paralelo (INV-DISP-01/INV-INV-04).
+        const tuvoLoteVencido = await this.inventarioService.descontarStock(
           tx,
           empresaId,
           item.productoId,
           item.cantidad,
+          'Venta',
           venta.id,
           usuarioId,
         );
@@ -108,80 +107,6 @@ export class VentasService {
 
       return { ...venta, advertenciasStockVencido: [...productosConLoteVencido] };
     });
-  }
-
-  /**
-   * Descuenta `cantidad` del stock de un producto, tomando de los lotes
-   * disponibles en orden FIFO por vencimiento (el lote que vence más
-   * pronto se consume primero).
-   *
-   * D-09: no se filtran lotes vencidos de la selección — un lote vencido
-   * puede seguir vendiéndose (decisión explícita del dueño, no bloqueo),
-   * pero cada MovimientoStock que salga de un lote ya vencido al momento
-   * de la venta queda marcado con `loteVencidoAlMomento: true`, para
-   * auditoría permanente. Devuelve `true` si algún lote afectado por esta
-   * venta estaba vencido, para que el caller pueda armar una advertencia.
-   *
-   * Genera un MovimientoStock tipo "Salida" por cada lote afectado.
-   * Rechaza la operación completa (revierte la transacción) si la suma
-   * de cantidad disponible en todos los lotes del producto no alcanza —
-   * D-09 dejó esto sin cambios: el stock insuficiente se sigue
-   * rechazando siempre, no tiene mecanismo de excepción/autorización.
-   */
-  private async descontarStock(
-    tx: EmpresaScopedTx,
-    empresaId: string,
-    productoId: string,
-    cantidadRequerida: number,
-    ventaId: string,
-    usuarioId: string,
-  ): Promise<boolean> {
-    const lotes = await tx.lote.findMany({
-      where: { empresaId, productoId, cantidad: { gt: 0 } },
-      orderBy: { vencimiento: 'asc' },
-    });
-
-    const stockTotal = lotes.reduce((acc, l) => acc + Number(l.cantidad), 0);
-    if (stockTotal < cantidadRequerida) {
-      throw new BadRequestException(
-        `Stock insuficiente para el producto ${productoId}: disponible ${stockTotal}, requerido ${cantidadRequerida}`,
-      );
-    }
-
-    const ahora = new Date();
-    let restante = cantidadRequerida;
-    let huboLoteVencido = false;
-    for (const lote of lotes) {
-      if (restante <= 0) break;
-      const cantidadDeEsteLote = Math.min(restante, Number(lote.cantidad));
-      const loteVencido = lote.vencimiento <= ahora;
-      if (loteVencido) {
-        huboLoteVencido = true;
-      }
-
-      await tx.lote.update({
-        where: { id: lote.id },
-        data: { cantidad: { decrement: cantidadDeEsteLote } },
-      });
-
-      await tx.movimientoStock.create({
-        data: {
-          empresaId,
-          productoId,
-          loteId: lote.id,
-          tipoMovimiento: 'Salida',
-          cantidad: cantidadDeEsteLote,
-          motivo: 'Venta',
-          referenciaId: ventaId,
-          usuarioId,
-          loteVencidoAlMomento: loteVencido,
-        },
-      });
-
-      restante -= cantidadDeEsteLote;
-    }
-
-    return huboLoteVencido;
   }
 
   async findAll(empresaId: string) {

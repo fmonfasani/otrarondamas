@@ -484,3 +484,51 @@ export interface SeguimientoPedido {
   createdAt: string;
   items: SeguimientoPedidoItem[];
 }
+
+// --- Pedidos (apps/api/src/pedidos) — RF-06 Fase 4 ---
+// Superficie PRIVADA (pos-admin), contrapartida de /tienda/*. Requiere
+// el permiso pedidos.gestionar en TODO (incluidos los GET) — a
+// diferencia de Compras/Caja, acá el propio listado expone datos
+// personales del cliente.
+
+export interface PedidoItemConProducto {
+  id: string;
+  pedidoId: string;
+  productoId: string;
+  producto: { nombre: string };
+  cantidad: string;
+  precioUnitario: string;
+  descuentoItem: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClienteResumen {
+  nombre: string;
+  email: string;
+  telefono: string | null;
+}
+
+export interface PedidoListado {
+  id: string;
+  empresaId: string;
+  clienteId: string;
+  cliente: ClienteResumen;
+  usuarioId: string | null;
+  estado: EstadoPedido;
+  canalOrigen: string;
+  total: string;
+  descuento: string;
+  createdAt: string;
+  updatedAt: string;
+  pedidoItems: PedidoItemConProducto[];
+}
+
+// Solo estas dos transiciones están implementadas hoy — ver
+// apps/api/src/pedidos/dto/actualizar-estado-pedido.dto.ts. El resto
+// del ciclo de vida (preparación, entrega) es RF-13, sin implementar.
+export type TransicionPedido = 'CONFIRMADO' | 'CANCELADO';
+
+export interface ActualizarEstadoPedidoRequest {
+  estado: TransicionPedido;
+}
