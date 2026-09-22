@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, InternalServerErrorException } from '@
 import { Prisma } from '@prisma/client';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { InventarioService } from '../inventario/inventario.service';
+import { FidelizacionService } from '../fidelizacion/fidelizacion.service';
+import { ClientesService } from '../clientes/clientes.service';
 import { CrearPedidoDto } from './dto/crear-pedido.dto';
 
 // Mismo patrón que ventas.service.ts/inventario.service.ts: el cliente
@@ -29,6 +31,8 @@ export class TiendaService {
   constructor(
     private readonly prismaFactory: EmpresaScopedPrismaService,
     private readonly inventarioService: InventarioService,
+    private readonly fidelizacionService: FidelizacionService,
+    private readonly clientesService: ClientesService,
   ) {}
 
   private empresaId(): string {
@@ -69,11 +73,21 @@ export class TiendaService {
    * el stock del sistema"), sin duplicar ese cálculo. Le agrega el
    * precio, que ese método no expone (pensado para el panel interno,
    * donde el precio ya se ve en otro lado).
+   *
+   * familiaId/subfamiliaId (spec de diseño de Tienda Online): navegación
+   * por categoría además del buscador de texto — se pasan tal cual a
+   * stockConsolidado(), que ya sabe filtrar por ellos.
    */
-  async catalogo(search?: string) {
+  async catalogo(search?: string, familiaId?: string, subfamiliaId?: string) {
     const empresaId = this.empresaId();
     const db = this.prismaFactory.forEmpresa(empresaId);
-    const stock = await this.inventarioService.stockConsolidado(empresaId, search);
+    const stock = await this.inventarioService.stockConsolidado(
+      empresaId,
+      search,
+      undefined,
+      familiaId,
+      subfamiliaId,
+    );
 
     const productos = await db.producto.findMany({
       where: { id: { in: stock.map((s) => s.productoId) } },
@@ -94,7 +108,10 @@ export class TiendaService {
         productoId: item.productoId,
         nombre: item.nombre,
         codigoInterno: item.codigoInterno,
-        categoriaId: item.categoriaId,
+        familiaId: item.familiaId,
+        subfamiliaId: item.subfamiliaId,
+        tipoId: item.tipoId,
+        subtipoId: item.subtipoId,
         unidadBase: item.unidadBase,
         precio: this.precioConDescuento(precioBase, descuentoPorcentaje),
         precioSinDescuento:
@@ -104,6 +121,22 @@ export class TiendaService {
         stockTotal: item.stockTotal,
       };
     });
+  }
+
+  /**
+   * Familia/Subfamilia activas, para armar los chips de filtro del
+   * catálogo público (spec de diseño de Tienda Online) — mismo criterio
+   * que JerarquiaCatalogoController (panel interno), pero sin Tipo/
+   * Subtipo (el filtro de tienda solo llega a Subfamilia) y sin auth.
+   */
+  async jerarquia() {
+    const empresaId = this.empresaId();
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const [familias, subfamilias] = await Promise.all([
+      db.familia.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
+      db.subfamilia.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
+    ]);
+    return { familias, subfamilias };
   }
 
   /**
@@ -129,22 +162,60 @@ export class TiendaService {
       }
     }
 
+    // Fase 5 del roadmap de Fidelización, extendida a Tienda Online: el
+    // Cliente se identifica por email ANTES de la transacción (a
+    // diferencia de antes, que solo se resolvía dentro) — hace falta su
+    // nivel de fidelidad para calcular los descuentos de cada ítem, y
+    // ClientesService.calcularNivel() consulta con su propio
+    // prismaFactory.forEmpresa(), que no vería un Cliente creado dentro
+    // de una transacción todavía no confirmada. Un cliente que no
+    // existe todavía es, por definición, NUEVO (0 compras) — mismo
+    // criterio ya usado en ClientesService.crear().
+    const clienteExistente = await db.cliente.findFirst({ where: { email: dto.email } });
+    const nivelCliente = clienteExistente
+      ? await this.clientesService.calcularNivel(empresaId, clienteExistente.id)
+      : 'NUEVO';
+    const reglasActivas = await this.fidelizacionService.listarReglasActivas(empresaId);
+
     // Precio congelado del catálogo al momento del pedido — mismo
     // criterio que VentasService (INV-12): nunca se acepta un precio
     // que mande el cliente. Fase 6: el precio congelado YA incluye el
-    // descuento del producto si tenía uno — es el precio real que se
-    // le mostró y cobró al comprador, no el precio bruto sin descontar.
+    // descuento del producto si tenía uno. Fase 5 de Fidelización: el %
+    // automático se aplica ENCIMA de ese precio ya descontado
+    // (confirmado con el dueño: los dos descuentos se combinan, no se
+    // elige el mayor entre ellos).
     const itemsConPrecio = dto.items.map((item) => {
       const producto = productoPorId.get(item.productoId)!;
       const precioUnitario = this.precioConDescuento(
         producto.precioMinorista,
         producto.descuentoPorcentaje,
       );
-      return { ...item, precioUnitario };
+      const descuentoFidelizacion = this.fidelizacionService.calcularDescuentoAplicable(
+        reglasActivas,
+        nivelCliente,
+        {
+          familiaId: producto.familiaId,
+          subfamiliaId: producto.subfamiliaId,
+          tipoId: producto.tipoId,
+          subtipoId: producto.subtipoId,
+          marca: producto.marca,
+          cantidad: item.cantidad,
+        },
+      );
+      return {
+        ...item,
+        precioUnitario,
+        descuentoFidelizacionPorcentaje: descuentoFidelizacion?.descuentoPorcentaje ?? null,
+        reglaFidelizacionId: descuentoFidelizacion?.reglaId ?? null,
+      };
     });
 
     const total = itemsConPrecio.reduce((acc, item) => {
-      return acc + Number(item.precioUnitario) * item.cantidad;
+      const bruto = Number(item.precioUnitario) * item.cantidad;
+      const neto = item.descuentoFidelizacionPorcentaje
+        ? bruto * (1 - item.descuentoFidelizacionPorcentaje / 100)
+        : bruto;
+      return acc + neto;
     }, 0);
 
     return db.$transaction(async (tx: EmpresaScopedTx) => {
@@ -159,13 +230,17 @@ export class TiendaService {
       // fijo de operaciones — upsert no está en esa lista (mismo motivo
       // que groupBy en inventario.service.ts) y falla ruidoso en vez de
       // dejarlo pasar sin scope. findFirst con `where` sí está cubierto.
-      const clienteExistente = await tx.cliente.findFirst({ where: { email: dto.email } });
+      //
+      // Se vuelve a buscar acá (no se reusa clienteExistente de arriba)
+      // porque la fuente de verdad de si hay que crear o actualizar es
+      // la propia transacción, no una lectura hecha antes de abrirla.
+      const clienteExistenteTx = await tx.cliente.findFirst({ where: { email: dto.email } });
       /* eslint-disable indent -- falso positivo conocido de la regla
          `indent` base con un ternario que devuelve una llamada con
          objeto anidado (mismo patrón que catalogo.controller.ts) */
-      const cliente = clienteExistente
+      const cliente = clienteExistenteTx
         ? await tx.cliente.update({
-            where: { id: clienteExistente.id },
+            where: { id: clienteExistenteTx.id },
             data: { nombre: dto.nombre, telefono: dto.telefono },
           })
         : await tx.cliente.create({
@@ -194,6 +269,8 @@ export class TiendaService {
               productoId: item.productoId,
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
+              descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
+              reglaFidelizacionId: item.reglaFidelizacionId,
             })),
           },
         } satisfies Prisma.PedidoUncheckedCreateInput,

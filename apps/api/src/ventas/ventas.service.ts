@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { InventarioService } from '../inventario/inventario.service';
+import { FidelizacionService } from '../fidelizacion/fidelizacion.service';
+import { ClientesService } from '../clientes/clientes.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
 
 /**
@@ -8,12 +10,21 @@ import { CreateVentaDto } from './dto/create-venta.dto';
  * de Mercado Pago (RF-08) — esos son un incremento aparte. Esta primera
  * versión registra la venta, descuenta stock y calcula el total; el
  * cobro/pago de esa venta se modela después.
+ *
+ * Fase 5 del roadmap de Fidelización: además del descuento manual
+ * (descuentoItem), cada ítem puede recibir un descuento AUTOMÁTICO según
+ * el nivel de fidelidad del cliente — ver
+ * FidelizacionService.calcularDescuentoAplicable(), usado en create()
+ * más abajo. Solo venta presencial por ahora (TiendaService/pedidos
+ * online queda para un incremento aparte).
  */
 @Injectable()
 export class VentasService {
   constructor(
     private readonly prismaFactory: EmpresaScopedPrismaService,
     private readonly inventarioService: InventarioService,
+    private readonly fidelizacionService: FidelizacionService,
+    private readonly clientesService: ClientesService,
   ) {}
 
   async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
@@ -38,18 +49,59 @@ export class VentasService {
     // precio no modifican retrospectivamente ventas anteriores, lo que
     // implica que el precio de una venta se fija en el momento, desde el
     // catálogo, no desde el request).
+    //
+    // Fase 5 de Fidelización: el nivel del cliente se calcula con el
+    // historial existente ANTES de esta venta (la venta todavía no
+    // existe en la base en este punto) — confirmado con el dueño: evita
+    // el caso "esta compra me hace VIP Y esta misma compra ya tiene el
+    // descuento VIP". Sin clienteId, nivelCliente queda null y
+    // calcularDescuentoAplicable() no aplica ninguna regla.
+    const nivelCliente = dto.clienteId
+      ? await this.clientesService.calcularNivel(empresaId, dto.clienteId)
+      : null;
+    // Una sola consulta para toda la venta, no una por ítem — ver
+    // comentario en calcularDescuentoAplicable().
+    const reglasActivas = nivelCliente
+      ? await this.fidelizacionService.listarReglasActivas(empresaId)
+      : [];
+
     const itemsConPrecio = dto.items.map((item) => {
       const producto = productoPorId.get(item.productoId)!;
+      const descuentoFidelizacion = this.fidelizacionService.calcularDescuentoAplicable(
+        reglasActivas,
+        nivelCliente,
+        {
+          familiaId: producto.familiaId,
+          subfamiliaId: producto.subfamiliaId,
+          tipoId: producto.tipoId,
+          subtipoId: producto.subtipoId,
+          marca: producto.marca,
+          cantidad: item.cantidad,
+        },
+      );
       return {
         ...item,
         precioUnitario: producto.precioMinorista,
         // TODO(D-01): aplicar precioMayorista según ReglaPrecio cuando
         // exista esa entidad — hoy todo canal usa precioMinorista.
+        descuentoFidelizacionPorcentaje: descuentoFidelizacion?.descuentoPorcentaje ?? null,
+        reglaFidelizacionId: descuentoFidelizacion?.reglaId ?? null,
       };
     });
 
+    // Orden de aplicación (sobre el subtotal bruto precioUnitario*cantidad):
+    // 1) % de fidelización (automático, calculado arriba).
+    // 2) descuentoItem (monto absoluto, manual del vendedor) se resta
+    //    después, sobre lo que ya quedó tras el % de fidelización — un
+    //    descuento manual adicional siempre pisa encima del automático,
+    //    nunca al revés (el vendedor puede afinar el precio final a mano
+    //    incluso cuando ya hay un descuento automático aplicado).
     const total = itemsConPrecio.reduce((acc, item) => {
-      const subtotal = Number(item.precioUnitario) * item.cantidad - (item.descuentoItem ?? 0);
+      const bruto = Number(item.precioUnitario) * item.cantidad;
+      const trasFidelizacion = item.descuentoFidelizacionPorcentaje
+        ? bruto * (1 - item.descuentoFidelizacionPorcentaje / 100)
+        : bruto;
+      const subtotal = trasFidelizacion - (item.descuentoItem ?? 0);
       return acc + subtotal;
     }, 0);
 
@@ -73,6 +125,8 @@ export class VentasService {
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
               descuentoItem: item.descuentoItem ?? 0,
+              descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
+              reglaFidelizacionId: item.reglaFidelizacionId,
             })),
           },
         },

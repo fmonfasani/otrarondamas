@@ -147,7 +147,16 @@ export interface VentaItem {
   productoId: string;
   cantidad: string;
   precioUnitario: string;
+  // Descuento MANUAL cargado por el vendedor.
   descuentoItem: string;
+  // Fase 5 del roadmap de Fidelización: descuento AUTOMÁTICO por nivel
+  // de fidelidad del cliente, calculado por el backend — null si no
+  // aplicó ninguna regla (sin cliente identificado, o ninguna regla
+  // matcheó). Se resta sobre el subtotal DESPUÉS de descuentoItem (ver
+  // ventas.service.ts) — ambos son independientes y se muestran por
+  // separado, nunca sumados en un solo número.
+  descuentoFidelizacionPorcentaje: string | null;
+  reglaFidelizacionId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -555,6 +564,10 @@ export interface PedidoCreado {
     cantidad: string;
     precioUnitario: string;
     descuentoItem: string;
+    // Fase 5 del roadmap de Fidelización, extendida a Tienda Online —
+    // ver comentario en VentaItem más arriba, mismo criterio.
+    descuentoFidelizacionPorcentaje: string | null;
+    reglaFidelizacionId: string | null;
     createdAt: string;
     updatedAt: string;
   }[];
@@ -588,6 +601,10 @@ export interface PedidoItemConProducto {
   cantidad: string;
   precioUnitario: string;
   descuentoItem: string;
+  // Fase 5 del roadmap de Fidelización, extendida a Tienda Online — ver
+  // comentario en VentaItem más arriba, mismo criterio.
+  descuentoFidelizacionPorcentaje: string | null;
+  reglaFidelizacionId: string | null;
   createdAt: string;
   updatedAt: string;
 }

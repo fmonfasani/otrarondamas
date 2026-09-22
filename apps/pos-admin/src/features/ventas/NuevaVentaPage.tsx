@@ -29,6 +29,14 @@ export function NuevaVentaPage() {
   // respuesta de POST /ventas solo trae productoId (advertenciasStockVencido).
   // No bloquea nada, es solo para mostrarle la advertencia al vendedor.
   const [productosConLoteVencido, setProductosConLoteVencido] = useState<string[]>([]);
+  // Fase 5 del roadmap de Fidelización: nombre de producto + % aplicado,
+  // para los ítems de esta venta que recibieron el descuento automático
+  // (venta.ventaItems solo trae productoId, no el nombre) — mismo
+  // patrón que productosConLoteVencido arriba, resuelto ANTES de vaciar
+  // el carrito.
+  const [itemsConDescuentoFidelizacion, setItemsConDescuentoFidelizacion] = useState<
+    { nombre: string; porcentaje: string }[]
+  >([]);
 
   const [medioPago, setMedioPago] = useState<MedioPago>('efectivo');
   const [montoPago, setMontoPago] = useState('');
@@ -50,6 +58,15 @@ export function NuevaVentaPage() {
         .filter((id) => idsAdvertidos.has(id))
         .map((id) => carrito.items.find((i) => i.producto.id === id)?.producto.nombre ?? id);
       setProductosConLoteVencido(nombresConLoteVencido);
+      const conDescuento = nuevaVenta.ventaItems
+        .filter((item) => item.descuentoFidelizacionPorcentaje)
+        .map((item) => ({
+          nombre:
+            carrito.items.find((i) => i.producto.id === item.productoId)?.producto.nombre ??
+            item.productoId,
+          porcentaje: item.descuentoFidelizacionPorcentaje!,
+        }));
+      setItemsConDescuentoFidelizacion(conDescuento);
       setVenta(nuevaVenta);
       carrito.vaciar();
     } catch (err) {
@@ -85,6 +102,7 @@ export function NuevaVentaPage() {
     setErrorVenta(null);
     setErrorPago(null);
     setProductosConLoteVencido([]);
+    setItemsConDescuentoFidelizacion([]);
     setCliente(null);
   }
 
@@ -172,6 +190,19 @@ export function NuevaVentaPage() {
             // Esto es solo un aviso para el vendedor/dueño.
             <p role="alert">
               ⚠ Se vendió stock de un lote ya vencido para: {productosConLoteVencido.join(', ')}
+            </p>
+          )}
+
+          {itemsConDescuentoFidelizacion.length > 0 && (
+            // Fase 5 del roadmap de Fidelización — el descuento ya se
+            // aplicó del lado del servidor (ver ventas.service.ts), esto
+            // es solo para que el vendedor vea qué ítems lo recibieron y
+            // por qué bajó el total.
+            <p>
+              ✓ Descuento por fidelización aplicado:{' '}
+              {itemsConDescuentoFidelizacion
+                .map((i) => `${i.nombre} (-${i.porcentaje}%)`)
+                .join(', ')}
             </p>
           )}
 
