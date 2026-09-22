@@ -19,8 +19,23 @@ export class TiendaController {
 
   @Public()
   @Get('productos')
-  catalogo(@Query('search') search?: string) {
-    return this.tiendaService.catalogo(search);
+  catalogo(
+    @Query('search') search?: string,
+    @Query('familiaId') familiaId?: string,
+    @Query('subfamiliaId') subfamiliaId?: string,
+  ) {
+    return this.tiendaService.catalogo(search, familiaId, subfamiliaId);
+  }
+
+  // La jerarquía de catálogo (Familia/Subfamilia) es pública también acá
+  // — el visitante necesita los nombres reales para armar los chips de
+  // filtro, no solo el catalogo() con sus ids sueltos. Mismo shape que
+  // GET /catalogo/jerarquia (JerarquiaCatalogoController, panel interno)
+  // pero sin auth, reusando el mismo servicio.
+  @Public()
+  @Get('jerarquia')
+  jerarquia() {
+    return this.tiendaService.jerarquia();
   }
 
   @Public()

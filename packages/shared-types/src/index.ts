@@ -522,6 +522,15 @@ export interface ProductoTienda {
   stockTotal: number;
 }
 
+// Shape de GET /tienda/jerarquia — Familia/Subfamilia activas, para
+// armar los chips de filtro del catálogo público (spec de diseño de
+// Tienda Online). Subconjunto de JerarquiaCatalogo (sin Tipo/Subtipo,
+// el filtro de tienda no llega tan hondo).
+export interface JerarquiaTienda {
+  familias: Familia[];
+  subfamilias: Subfamilia[];
+}
+
 export interface CrearPedidoItemRequest {
   productoId: string;
   cantidad: number;

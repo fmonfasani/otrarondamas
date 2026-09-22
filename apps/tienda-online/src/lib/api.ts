@@ -3,6 +3,7 @@ import type {
   CrearPedidoRequest,
   PedidoCreado,
   SeguimientoPedido,
+  JerarquiaTienda,
 } from '@otrarondamas/shared-types';
 
 // Mismo patrón que pos-admin/src/lib/api.ts — en dev, Vite expone las
@@ -42,10 +43,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  catalogo: (search?: string) =>
-    request<ProductoTienda[]>(
-      `/tienda/productos${search ? `?search=${encodeURIComponent(search)}` : ''}`,
-    ),
+  catalogo: (search?: string, familiaId?: string, subfamiliaId?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (familiaId) params.set('familiaId', familiaId);
+    if (subfamiliaId) params.set('subfamiliaId', subfamiliaId);
+    const qs = params.toString();
+    return request<ProductoTienda[]>(`/tienda/productos${qs ? `?${qs}` : ''}`);
+  },
+  // Spec de diseño de Tienda Online: chips de Familia/Subfamilia para
+  // navegar el catálogo sin depender solo del buscador de texto.
+  jerarquia: () => request<JerarquiaTienda>('/tienda/jerarquia'),
   crearPedido: (dto: CrearPedidoRequest) =>
     request<PedidoCreado>('/tienda/pedidos', { method: 'POST', body: JSON.stringify(dto) }),
   seguimiento: (pedidoId: string) => request<SeguimientoPedido>(`/tienda/pedidos/${pedidoId}`),
