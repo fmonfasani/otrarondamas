@@ -894,3 +894,45 @@ Documento completo: `docs/spec-login-roles.md` (nuevo) + RF-17/actor §3.1/decis
 4 decisiones técnicas resueltas con el dueño: Cliente y Usuario permanecen como tablas SEPARADAS (sin fusionar modelos); documentos del legajo en disco del VPS fuera del webroot (no cloud storage externo); vencimiento de documentos sensibles rastreado con alerta al dueño (mismo patrón que vencimiento de Lote en Inventario); email transaccional vía Resend.
 
 **Estado: solo especificación, sin código todavía.** Explícitamente fuera de este alcance: pantallas funcionales de Proveedor/Repartidor/Cliente mayorista, el sistema de pedidos a proveedores en tiempo real, y precios/condiciones mayoristas (D-01, backlog aparte). Pendiente para la fase de diseño técnico (antes de escribir schema/migraciones): plazo de retención de documentos tras vencimiento, cifrado en reposo del disco de legajos, período de vigencia esperado por tipo de documento — no se asume ningún valor sin confirmación explícita del dueño, mismo criterio que las decisiones D-01 a D-19 del SDD.
+
+## 36. RF-17 backend — Login, Roles del Negocio y Legajo (22/09/2026)
+
+Implementación completa del lado del negocio (panel admin). Cubre los Usuarios internos del negocio y el flujo de legajo para roles que lo requieren.
+
+**Schema / migraciones:** tablas `Cliente`, `LegajoCliente` (con `clienteId?` y `usuarioId?` — polimorfismo explícito, nunca las dos a la vez), campo `estadoLegajo` en `Usuario` y `Cliente`, campo `esMayorista` en `Cliente`. Migración `20260923000000_rf17_login_roles_legajo` — solo adiciones, sin DROP ni NOT NULL sin DEFAULT, aplicó sin downtime.
+
+**JWT con discriminador `type`:** un solo secreto, una sola estrategia Passport. El campo `type: 'usuario' | 'cliente'` en el payload diferencia tokens de panel vs tienda. Tokens pre-RF-17 sin `type` se tratan como `'usuario'` (retrocompatibilidad). `estadoLegajo: null` (cliente minorista sin legajo) se trata como `'APROBADO'` para que `LegajoAprobadoGuard` no los bloquee.
+
+**`LegajoAprobadoGuard`:** bloquea endpoints de negocio si `estadoLegajo === 'PENDIENTE'`; deja pasar `null` (minorista) y `'APROBADO'`.
+
+**Flujo de invitación / activación:** `POST /invitaciones` → email con link `?token=` → `POST /invitaciones/activar` crea `Usuario` con `estadoLegajo: PENDIENTE`. El Owner completa el legajo del nuevo usuario desde el panel y lo aprueba con `PATCH /legajo/:usuarioId/aprobar`.
+
+**Endpoints de legajo (panel):** `GET/PATCH /legajo/mi-legajo`, `POST /legajo/mi-legajo/documentos` (subida autenticada, MIME validado, nombre UUID, servido solo autenticado desde fuera del webroot), `GET /legajo/mi-legajo/estado`, `GET /legajo/pendientes` (owner), `PATCH /legajo/:usuarioId/aprobar` (owner), `GET /legajo/:usuarioId/documentos/:docId` (descarga autenticada).
+
+**Corrección post-deploy:** `seller@otrarondamas.com` migró con `rol: OWNER` (default del schema). Corregido a `ASISTENTE_LOCAL` — primero verificado en rehearsal, luego aplicado a producción.
+
+**Commit:** `cbf91ef`. Deployado a producción con patrón backup→rehearsal→migrate→restart.
+
+## 37. RF-17 lado Cliente — auth de clientes en Tienda Online (23/09/2026)
+
+Segunda parte del RF-17: autenticación de clientes (minoristas y mayoristas) en `otrarondamas.wapsell.com`. Arquitectura separada del lado de Usuarios internos — mismo JWT pero `type: 'cliente'`.
+
+**Backend (`apps/api`):**
+- `AuthClienteService` + `AuthClienteController` en `/auth/cliente` — registro minorista (`POST /registro`), login (`POST /login`), perfil (`GET /me`), OAuth Google (`GET /google` + callback). Usa `TIENDA_EMPRESA_ID` para scopear al negocio correcto; el callback redirige a `TIENDA_FRONTEND_URL || FRONTEND_URL`.
+- Legajo cliente en `/legajo/cliente` — `GET/PATCH /mi-legajo`, `POST /mi-legajo/documentos`, `GET /mi-legajo/estado` (solo mayoristas autenticados). `GET /pendientes` y `PATCH /:clienteId/aprobar` (owner desde panel).
+- Invitación mayorista: `POST /invitaciones/mayorista` (panel, requiere `usuarios.gestionar`) + `POST /invitaciones/mayorista/activar` (público, crea `Cliente` con `esMayorista: true` y `estadoLegajo: PENDIENTE`). Usa el modelo `Invitacion` existente con `rol: 'PROVEEDOR'` como placeholder — el discriminador real es el endpoint de activación.
+
+**Frontend (`apps/tienda-online`):**
+- `AuthContext` + `useAuth()`: token y sesión en `localStorage` con `try/catch` para ventanas privadas. `ClienteSession` definido una sola vez en `api.ts` y re-exportado desde el contexto.
+- `apiAuth`: `registro`, `login`, `me`, `activarInvitacionMayorista`, `miLegajo`, `actualizarLegajo`, `estadoLegajo`.
+- **LoginPage** (`/login`): email+password + botón Google OAuth; soporte `?next=` para redirect post-login; maneja el `?token=` del callback de Google directamente (sin `useEffect` extra).
+- **RegistroPage** (`/registro`): auto-registro minorista.
+- **ActivarInvitacionMayoristaPage** (`/activar-invitacion-mayorista`): lee `?token=` de la URL, crea la cuenta mayorista, redirige siempre a `/mi-cuenta/legajo`.
+- **MiCuentaPage** (`/mi-cuenta`): perfil, badge de estado, banner "completá tu legajo" para mayoristas pendientes, logout.
+- **LegajoMayoristaPage** (`/mi-cuenta/legajo`): CUIT / razón social / condición IVA / tipo factura; carga legajo existente si ya fue completado antes.
+- **Header** actualizado: icono de persona junto al carrito — amarillo con dot verde si hay sesión activa, blanco si no.
+- `App.tsx`: `AuthProvider` wrapping todo el árbol, 5 nuevas rutas.
+
+**Deploy:** no hay migraciones nuevas (el schema `Cliente`/`LegajoCliente` ya estaba en la migración `36`). Rebuild de `api` + `tienda-online`, restart sin downtime. Verificado: `/auth/cliente/login` responde 401 correcto; tienda-online sirve bundle `44792ce9`.
+
+**Commits:** `3345292` (backend cliente), `0e7123f` (frontend auth).
