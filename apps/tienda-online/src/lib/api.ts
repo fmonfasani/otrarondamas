@@ -21,9 +21,28 @@ export class ApiError extends Error {
   }
 }
 
-// A diferencia de pos-admin, esta app nunca manda un token — todo acá
-// habla con endpoints @Public() de la API (ver tienda.controller.ts).
-// No hay sesión que adjuntar.
+// RF-17: los endpoints de cliente autenticado necesitan enviar el token.
+// `requestAuth` es como `request` pero inyecta el Bearer token guardado
+// en localStorage. Se importa con el token como argumento para no
+// acoplar api.ts a localStorage directamente (más fácil de testear y
+// de reusar desde contextos distintos).
+async function requestAuth<T>(
+  path: string,
+  token: string,
+  options: RequestInit = {},
+): Promise<T> {
+  return request<T>(path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
+
+// A diferencia de pos-admin, la mayor parte de esta app habla con
+// endpoints @Public() de la API (ver tienda.controller.ts). Los
+// endpoints de cliente autenticado (RF-17) usan requestAuth().
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -58,3 +77,71 @@ export const api = {
     request<PedidoCreado>('/tienda/pedidos', { method: 'POST', body: JSON.stringify(dto) }),
   seguimiento: (pedidoId: string) => request<SeguimientoPedido>(`/tienda/pedidos/${pedidoId}`),
 };
+
+// RF-17: endpoints del lado Cliente (autenticado o público de auth)
+export const apiAuth = {
+  registro: (dto: { nombre: string; email: string; password: string }) =>
+    request<{ accessToken: string; cliente: ClienteSession }>(
+      '/auth/cliente/registro',
+      { method: 'POST', body: JSON.stringify(dto) },
+    ),
+
+  login: (dto: { email: string; password: string }) =>
+    request<{ accessToken: string; cliente: ClienteSession }>(
+      '/auth/cliente/login',
+      { method: 'POST', body: JSON.stringify(dto) },
+    ),
+
+  me: (token: string) =>
+    requestAuth<ClienteSession>('/auth/cliente/me', token),
+
+  activarInvitacionMayorista: (dto: {
+    token: string;
+    nombre: string;
+    password: string;
+  }) =>
+    request<{ accessToken: string; cliente: ClienteSession }>(
+      '/invitaciones/mayorista/activar',
+      { method: 'POST', body: JSON.stringify(dto) },
+    ),
+
+  miLegajo: (token: string) =>
+    requestAuth<LegajoCliente>('/legajo/cliente/mi-legajo', token),
+
+  actualizarLegajo: (
+    token: string,
+    dto: Partial<{ cuit: string; razonSocial: string; condicionIva: string }>,
+  ) =>
+    requestAuth<LegajoCliente>('/legajo/cliente/mi-legajo', token, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  estadoLegajo: (token: string) =>
+    requestAuth<{ estadoLegajo: string; completo: boolean; faltantes: string[] }>(
+      '/legajo/cliente/mi-legajo/estado',
+      token,
+    ),
+};
+
+// Tipos locales para los responses de auth del cliente
+export interface ClienteSession {
+  id: string;
+  nombre: string;
+  email: string;
+  empresaId: string;
+  empresaNombre: string;
+  esMayorista: boolean;
+  estadoLegajo: 'PENDIENTE' | 'APROBADO' | null;
+  metodoLogin: 'google' | 'password';
+  createdAt: string;
+}
+
+export interface LegajoCliente {
+  id: string;
+  clienteId: string;
+  cuit: string | null;
+  razonSocial: string | null;
+  condicionIva: string | null;
+  tipoFactura: string | null;
+}
