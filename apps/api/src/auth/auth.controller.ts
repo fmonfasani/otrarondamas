@@ -67,6 +67,11 @@ export class AuthController {
       fotoUrl: usuario.fotoUrl,
       metodoLogin: usuario.googleId ? 'google' : 'password',
       createdAt: usuario.createdAt.toISOString(),
+      // Frescos de la base, no del JWT — GET /auth/me existe justamente
+      // para reflejar cambios sin esperar a un nuevo login (ver
+      // comentario de la clase JwtPayload sobre esta limitación).
+      rol: usuario.rol,
+      estadoLegajo: usuario.estadoLegajo,
     };
   }
 

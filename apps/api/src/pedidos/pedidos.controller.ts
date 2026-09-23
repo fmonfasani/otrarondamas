@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PedidosService } from './pedidos.service';
 import { ActualizarEstadoPedidoDto } from './dto/actualizar-estado-pedido.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -19,6 +20,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('pedidos')
 @ApiBearerAuth()
 @Controller('pedidos')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class PedidosController {
   constructor(private readonly pedidosService: PedidosService) {}
 

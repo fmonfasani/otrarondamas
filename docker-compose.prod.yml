@@ -47,6 +47,17 @@ services:
       GOOGLE_SIGNUP_EMPRESA_ID: ${GOOGLE_SIGNUP_EMPRESA_ID:?falta GOOGLE_SIGNUP_EMPRESA_ID en .env}
       # Tienda online pública (RF-06) — ver tienda.service.ts.
       TIENDA_EMPRESA_ID: ${TIENDA_EMPRESA_ID:?falta TIENDA_EMPRESA_ID en .env}
+      # RF-17 (docs/spec-login-roles.md) — ruta DENTRO del contenedor;
+      # el volumen de abajo la persiste fuera del ciclo de vida del
+      # contenedor (si no, cada rebuild borraría los documentos ya
+      # subidos). RESEND_* no llevan `:?` — su ausencia no debe tumbar
+      # el arranque de toda la API, solo deshabilita el envío de
+      # emails (ver email.service.ts).
+      LEGAJO_STORAGE_DIR: /data/legajos
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+    volumes:
+      - otrarondamas_legajos_data:/data/legajos
     ports:
       - "127.0.0.1:8600:3000"
 
@@ -85,3 +96,8 @@ services:
 
 volumes:
   otrarondamas_db_data:
+  # RF-17: documentos sensibles del legajo (antecedentes penales,
+  # constancia de CUIL) — volumen Docker gestionado, no un bind mount a
+  # una ruta del host (más simple de operar en este VPS compartido, y
+  # ya sigue el mismo patrón que otrarondamas_db_data arriba).
+  otrarondamas_legajos_data:

@@ -156,6 +156,11 @@ async function main() {
       email: 'seller@otrarondamas.com',
       passwordHash: hashedPassword,
       activo: true,
+      // RF-17: este usuario representa el rol "Asistente de local" (antes
+      // "Vendedor") — sin esto, el default del campo (OWNER) lo dejaría
+      // mal clasificado. ownerUser de arriba no necesita `rol` explícito
+      // porque OWNER ya es el default del schema.
+      rol: 'ASISTENTE_LOCAL',
       usuarioPermisos: {
         create: [
           { permiso: { connect: { nombre: 'ventas.crear' } } },
@@ -220,7 +225,12 @@ async function main() {
   });
 
   const productoAislamiento = await prisma.producto.upsert({
-    where: { empresaId_codigoInterno: { empresaId: empresaAislamiento.id, codigoInterno: 'GEN-GEN-GEN-GEN-00000001' } },
+    where: {
+      empresaId_codigoInterno: {
+        empresaId: empresaAislamiento.id,
+        codigoInterno: 'GEN-GEN-GEN-GEN-00000001',
+      },
+    },
     update: {},
     create: {
       empresaId: empresaAislamiento.id,
@@ -336,7 +346,10 @@ async function main() {
     const subfamiliaIdPorRubro = new Map(
       jerarquiaData.subfamilias.map((s) => [
         s.rubroOriginalCategoria,
-        subfamilias.find((row) => row.nombre === s.nombre && row.familiaId === familiaIdPorPrefijo.get(s.familiaPrefijo))!.id,
+        subfamilias.find(
+          (row) =>
+            row.nombre === s.nombre && row.familiaId === familiaIdPorPrefijo.get(s.familiaPrefijo),
+        )!.id,
       ]),
     );
     console.log(`Subfamilias creadas/existentes: ${subfamilias.length}`);
@@ -374,7 +387,9 @@ async function main() {
     console.log(`Nodos GEN (Tipo/Subtipo) creados/existentes: ${tipos.length}/${subtipos.length}`);
 
     const rubrosSinMapeo = new Set(
-      minoristaData.filter((r) => r.rubro && !subfamiliaIdPorRubro.has(r.rubro)).map((r) => r.rubro),
+      minoristaData
+        .filter((r) => r.rubro && !subfamiliaIdPorRubro.has(r.rubro))
+        .map((r) => r.rubro),
     );
     if (rubrosSinMapeo.size > 0) {
       throw new Error(
@@ -405,7 +420,13 @@ async function main() {
       const familia = familias.find((f) => f.id === subfamilia.familiaId)!;
       const tipoId = tipoIdPorSubfamiliaId.get(subfamiliaId)!;
       const subtipoId = subtipoIdPorTipoId.get(tipoId)!;
-      const sku = construirSku(familia.prefijo, subfamilia.prefijo, PREFIJO_GEN, PREFIJO_GEN, idx + 1);
+      const sku = construirSku(
+        familia.prefijo,
+        subfamilia.prefijo,
+        PREFIJO_GEN,
+        PREFIJO_GEN,
+        idx + 1,
+      );
       return { row: r, sku, familiaId: familia.id, subfamiliaId, tipoId, subtipoId };
     });
 

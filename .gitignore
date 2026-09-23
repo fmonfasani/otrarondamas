@@ -45,3 +45,8 @@ coverage/
 # (apps/api/prisma/seed-data-minorista.json) no se ignora — ver
 # docs/scaffolding-notas.md sección 10.
 docs/Catalogos raw/
+
+# RF-17 (docs/spec-login-roles.md): documentos sensibles del legajo en
+# desarrollo local (LEGAJO_STORAGE_DIR) — nunca se commitean, mismo
+# criterio que cualquier dato personal/sensible real.
+apps/api/legajos-storage/

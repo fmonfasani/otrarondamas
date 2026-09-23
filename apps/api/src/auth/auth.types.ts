@@ -7,12 +7,26 @@
  * limitación conocida del enfoque "permisos en el token", aceptable para
  * este incremento; no hay mecanismo de revocación todavía.
  */
+// RF-17 (docs/spec-login-roles.md): mismos valores que el enum Prisma
+// RolUsuario — repetido acá en vez de importar @prisma/client para no
+// atar auth.types.ts (consumido también fuera del contexto de request)
+// a la generación del cliente Prisma.
+export type RolUsuario = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
+export type EstadoLegajo = 'PENDIENTE' | 'APROBADO';
+
 export interface JwtPayload {
   sub: string; // Usuario.id
   email: string;
   nombre: string;
   empresaId: string;
   permisos: string[];
+  // RF-17: viajan en el token por el mismo motivo que `permisos` —
+  // LegajoAprobadoGuard necesita `estadoLegajo` sin volver a consultar
+  // la base en cada request protegido. Misma limitación ya documentada
+  // para `permisos`: si el dueño aprueba un legajo, el cambio no se
+  // refleja hasta que esa persona vuelva a loguearse.
+  rol: RolUsuario;
+  estadoLegajo: EstadoLegajo;
 }
 
 export interface AuthenticatedUser {
@@ -21,6 +35,8 @@ export interface AuthenticatedUser {
   nombre: string;
   empresaId: string;
   permisos: string[];
+  rol: RolUsuario;
+  estadoLegajo: EstadoLegajo;
 }
 
 /**

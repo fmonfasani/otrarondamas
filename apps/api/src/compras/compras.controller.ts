@@ -1,7 +1,18 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { ComprasService } from './compras.service';
 import { CreateProveedorDto } from './dto/create-proveedor.dto';
@@ -22,6 +33,7 @@ import { RecibirCompraDto } from './dto/recibir-compra.dto';
 @ApiTags('compras')
 @ApiBearerAuth()
 @Controller()
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class ComprasController {
   constructor(private readonly comprasService: ComprasService) {}
 

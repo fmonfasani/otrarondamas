@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PagosService } from './pagos.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -15,6 +16,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('pagos')
 @ApiBearerAuth()
 @Controller('ventas/:ventaId/pagos')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 

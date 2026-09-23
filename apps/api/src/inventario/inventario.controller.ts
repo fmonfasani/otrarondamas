@@ -8,11 +8,13 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { InventarioService } from './inventario.service';
 import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto';
@@ -27,6 +29,7 @@ import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto';
 @ApiTags('inventario')
 @ApiBearerAuth()
 @Controller('inventario')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class InventarioController {
   constructor(
     private readonly inventarioService: InventarioService,

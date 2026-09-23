@@ -59,6 +59,12 @@ const MODELOS_CON_EMPRESA_ID = [
   'AuditLog',
   'Autorizacion',
   'ReglaFidelizacion',
+  // RF-17 (docs/spec-login-roles.md): Invitacion tiene empresaId
+  // directo. Legajo/DocumentoLegajo NO entran acá — heredan el scope
+  // vía Usuario/Cliente (mismo patrón ya documentado arriba para
+  // VentaItem/AperturaCaja/etc.: el código que los consulta siempre
+  // pasa por su padre con empresaId ya filtrado).
+  'Invitacion',
 ] as const;
 
 type ModeloConEmpresaId = (typeof MODELOS_CON_EMPRESA_ID)[number];

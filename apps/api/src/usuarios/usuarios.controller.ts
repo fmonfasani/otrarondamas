@@ -1,7 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -16,6 +17,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('usuarios')
 @ApiBearerAuth()
 @Controller('usuarios')
+@UseGuards(LegajoAprobadoGuard) // RF-17: apoyo del arqueo de caja, ver caja.controller.ts
 export class UsuariosController {
   constructor(private readonly prismaFactory: EmpresaScopedPrismaService) {}
 

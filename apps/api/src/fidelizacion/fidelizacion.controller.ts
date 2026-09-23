@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FidelizacionService } from './fidelizacion.service';
 import { CreateReglaFidelizacionDto } from './dto/create-regla-fidelizacion.dto';
 import { UpdateReglaFidelizacionDto } from './dto/update-regla-fidelizacion.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -19,6 +20,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('fidelizacion')
 @ApiBearerAuth()
 @Controller('reglas-fidelizacion')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class FidelizacionController {
   constructor(private readonly fidelizacionService: FidelizacionService) {}
 

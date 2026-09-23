@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VentasService } from './ventas.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
@@ -14,6 +15,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('ventas')
 @ApiBearerAuth()
 @Controller('ventas')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class VentasController {
   constructor(private readonly ventasService: VentasService) {}
 

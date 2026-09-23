@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtPayload } from './auth.types';
+import { JwtPayload, RolUsuario, EstadoLegajo } from './auth.types';
 
 interface UsuarioParaSesion {
   id: string;
@@ -13,6 +13,8 @@ interface UsuarioParaSesion {
   googleId: string | null;
   createdAt: Date;
   empresa: { nombre: string };
+  rol: RolUsuario;
+  estadoLegajo: EstadoLegajo;
 }
 
 @Injectable()
@@ -77,6 +79,8 @@ export class AuthService {
       nombre: usuario.nombre,
       empresaId: usuario.empresaId,
       permisos,
+      rol: usuario.rol,
+      estadoLegajo: usuario.estadoLegajo,
     };
 
     return {
@@ -91,6 +95,8 @@ export class AuthService {
         fotoUrl: usuario.fotoUrl,
         metodoLogin: (usuario.googleId ? 'google' : 'password') as 'google' | 'password',
         createdAt: usuario.createdAt.toISOString(),
+        rol: usuario.rol,
+        estadoLegajo: usuario.estadoLegajo,
       },
     };
   }

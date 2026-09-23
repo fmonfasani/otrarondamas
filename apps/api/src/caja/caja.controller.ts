@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CajaService } from './caja.service';
 import { AbrirCajaDto } from './dto/abrir-caja.dto';
@@ -7,6 +7,7 @@ import { RegistrarArqueoDto } from './dto/registrar-arqueo.dto';
 import { AutorizarArqueoDto } from './dto/autorizar-arqueo.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -30,6 +31,10 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('caja')
 @ApiBearerAuth()
 @Controller('caja')
+// RF-17: caja es la operación de negocio más sensible del panel (abre/
+// cierra turno, maneja efectivo) — una cuenta con legajo PENDIENTE no
+// puede tocar nada acá, sin excepción. Ver LegajoAprobadoGuard.
+@UseGuards(LegajoAprobadoGuard)
 export class CajaController {
   constructor(private readonly cajaService: CajaService) {}
 

@@ -67,6 +67,39 @@ enum NivelFidelidad {
   VIP
 }
 
+// RF-17 (docs/spec-login-roles.md, sesión de definición del 22/09/2026):
+// distingue el rol de cada Usuario del panel interno. NO reemplaza el
+// sistema de permisos granular (Permiso/UsuarioPermiso) — un OWNER sigue
+// necesitando el permiso productos.gestionar para gestionar productos,
+// este campo nunca se usa para autorizar nada por sí solo. Sirve
+// exclusivamente para saber qué Legajo pedirle a la cuenta y en qué
+// lista mostrarla (ver LegajoService). Fijo, asignado una sola vez al
+// invitar — cambiar el rol de una cuenta ya operando no está
+// contemplado en este incremento.
+enum RolUsuario {
+  OWNER
+  ASISTENTE_LOCAL
+  PROVEEDOR
+  REPARTIDOR
+}
+
+// Estado del Legajo de una cuenta del lado "Negocio" (Usuario no-OWNER,
+// o Cliente mayorista) — controla si puede operar. OWNER y las cuentas
+// que ya existían antes de este incremento se migran directo a
+// APROBADO (ver migración de datos): no tiene sentido bloquear
+// retroactivamente a alguien que ya estaba operando.
+enum EstadoLegajo {
+  PENDIENTE
+  APROBADO
+}
+
+// Los 2 documentos sensibles definidos en spec-login-roles.md sección 3
+// — solo Asistente de local y Repartidor los requieren.
+enum TipoDocumentoLegajo {
+  ANTECEDENTES_PENALES
+  CONSTANCIA_CUIL
+}
+
 model Empresa {
   id            String   @id @default(uuid())
   nombre        String   @unique
@@ -99,6 +132,7 @@ model Empresa {
   entregas           Entrega[]           @relation("EmpresaEntregas")
   notificaciones     Notificacion[]      @relation("EmpresaNotificaciones")
   reglasFidelizacion ReglaFidelizacion[]
+  invitaciones       Invitacion[]
 }
 
 model Usuario {
@@ -120,6 +154,18 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // RF-17: rol fijo asignado al invitar (ver enum RolUsuario). Las
+  // cuentas que existían antes de este incremento se migran a OWNER
+  // (owner@otrarondamas.com) o ASISTENTE_LOCAL (cualquier otro Usuario
+  // existente), ver migración de datos.
+  rol          RolUsuario   @default(OWNER)
+  // OWNER se migra directo a APROBADO (nunca tuvo legajo que completar,
+  // no tiene sentido pedírselo retroactivamente). Las cuentas nuevas de
+  // ASISTENTE_LOCAL/PROVEEDOR/REPARTIDOR nacen en PENDIENTE — no pueden
+  // operar hasta que el dueño aprueba su legajo (ver LegajoService).
+  estadoLegajo EstadoLegajo @default(APROBADO)
+  legajo       Legajo?
+
   usuarioPermisos     UsuarioPermiso[]
   ventas              Venta[]
   pedidos             Pedido[]
@@ -136,6 +182,7 @@ model Usuario {
   recepcionesCompra   RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
   movimientosStock    MovimientoStock[] @relation("UsuarioMovimientosStock")
   autorizaciones      Autorizacion[]    @relation("UsuarioAutorizaciones")
+  invitacionesCreadas Invitacion[]      @relation("InvitacionesCreadas")
 }
 
 model Permiso {
@@ -158,6 +205,28 @@ model UsuarioPermiso {
   updatedAt DateTime @updatedAt
 
   @@unique([usuarioId, permisoId])
+}
+
+// RF-17: alta por invitación, nunca auto-registro público (decisión
+// explícita del dueño). El dueño crea la invitación desde el panel con
+// el rol ya elegido; la persona invitada activa su cuenta con el
+// `token` (enviado por email vía Resend, ver InvitacionesService) y
+// recién ahí se crea el Usuario real con ese rol. La invitación en sí
+// NO crea la cuenta — es un registro de intención con expiración, para
+// que un link viejo o filtrado no siga siendo válido indefinidamente.
+model Invitacion {
+  id            String     @id @default(uuid())
+  empresaId     String
+  empresa       Empresa    @relation(fields: [empresaId], references: [id])
+  email         String
+  rol           RolUsuario
+  token         String     @unique
+  invitadoPorId String
+  invitadoPor   Usuario    @relation("InvitacionesCreadas", fields: [invitadoPorId], references: [id])
+  expiraEn      DateTime
+  usadaEn       DateTime? // null = todavía no activada
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 // Jerarquía de categorización de catálogo — sesión de definición con el
@@ -395,12 +464,93 @@ model Cliente {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // RF-17 (docs/spec-login-roles.md): login real para el Cliente de
+  // tienda online — hasta este incremento, un Cliente se creaba/reusaba
+  // sin contraseña (solo datos de contacto, ver TiendaService.
+  // crearPedido()). Ambos nullable a propósito, MISMO patrón que
+  // Usuario.passwordHash/googleId: siguen coexistiendo clientes con
+  // cuenta real (login) y clientes que solo dejaron sus datos al pedir
+  // (sin login) — un pedido de tienda nunca exige tener contraseña.
+  passwordHash String?
+  googleId     String? @unique
+
+  // Cliente mayorista (B2B, punto de entrada admin.*, ver RF-17): datos
+  // fiscales + legajo. esMayorista=false para el Cliente minorista de
+  // siempre (default), que NO completa legajo ni pasa por aprobación.
+  esMayorista  Boolean       @default(false)
+  cuit         String?
+  razonSocial  String?
+  condicionIva String?
+  estadoLegajo EstadoLegajo? // null para minorista (no aplica); PENDIENTE/APROBADO solo si esMayorista
+  legajo       Legajo?
+
   ventas           Venta[]
   cuentasCorriente CuentaCorriente[] @relation("ClienteCuentasCorriente")
   deudas           Deuda[]           @relation("ClienteDeudas")
   pedidos          Pedido[]          @relation("ClientePedidos")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
+}
+
+// RF-17 (docs/spec-login-roles.md): campos y documentos exigidos por
+// rol antes de aprobar una cuenta. Dueño de este Legajo: EXACTAMENTE
+// uno de usuarioId/clienteId lleno (nunca los dos, nunca ninguno) —
+// Prisma no expresa "exactamente uno de dos" a nivel de schema, se
+// valida en LegajoService antes de crear/actualizar. Todos los campos
+// son nullable a nivel de schema porque lo que es obligatorio varía
+// por rol (ver tabla de la sección 3 de spec-login-roles.md) — esa
+// validación de "obligatorio para ESTE rol" vive en el DTO/service, no
+// acá, mismo criterio que Producto en el spec de catálogo (nunca se
+// infiere ni se calcula por suposición).
+model Legajo {
+  id        String   @id @default(uuid())
+  usuarioId String?  @unique
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  clienteId String?  @unique
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  // Datos fiscales — Owner, Proveedor, Cliente mayorista.
+  cuit         String?
+  razonSocial  String?
+  condicionIva String?
+  tipoFactura  String? // Solo Proveedor
+
+  // Datos personales — Asistente de local, Repartidor.
+  dni       String?
+  telefono  String?
+  direccion String?
+
+  // Datos de vehículo — solo Repartidor.
+  vehiculoDatos    String?
+  licenciaConducir String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documentos DocumentoLegajo[]
+}
+
+// Un documento sensible (certificado de antecedentes penales, constancia
+// de CUIL) subido como parte de un Legajo. Solo Asistente de local y
+// Repartidor los requieren (ver spec-login-roles.md sección 3) — Owner,
+// Proveedor y Cliente mayorista no suben documentos, solo completan
+// campos de texto del Legajo.
+//
+// Archivo en disco del VPS, fuera del webroot (decisión resuelta en la
+// sesión de definición, no cloud storage externo) — `rutaArchivo` es
+// una ruta relativa a ese directorio base, nunca una URL pública;
+// LegajoController la resuelve y sirve el archivo solo autenticado,
+// solo al dueño.
+model DocumentoLegajo {
+  id            String              @id @default(uuid())
+  legajoId      String
+  legajo        Legajo              @relation(fields: [legajoId], references: [id])
+  tipo          TipoDocumentoLegajo
+  rutaArchivo   String
+  nombreArchivo String // nombre original del archivo subido, para mostrarlo en el panel
+  vencimiento   DateTime // toda la documentación sensible de este incremento vence (D-20)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 }
 
 // Fase 4 del roadmap de Fidelización (D-02, orientado a fidelizar):

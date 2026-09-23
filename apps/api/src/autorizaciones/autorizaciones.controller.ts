@@ -1,6 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AutorizacionesService } from './autorizaciones.service';
 import { SolicitarAutorizacionDto } from './dto/solicitar-autorizacion.dto';
@@ -15,6 +16,7 @@ import { SolicitarAutorizacionDto } from './dto/solicitar-autorizacion.dto';
 @ApiTags('autorizaciones')
 @ApiBearerAuth()
 @Controller('autorizaciones')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class AutorizacionesController {
   constructor(private readonly autorizacionesService: AutorizacionesService) {}
 

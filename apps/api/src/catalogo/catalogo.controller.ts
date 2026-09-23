@@ -7,12 +7,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
+import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
@@ -32,6 +34,7 @@ import { UpdateProductoDto } from './dto/update-producto.dto';
 @ApiTags('catalogo')
 @ApiBearerAuth()
 @Controller('catalogo/productos')
+@UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class CatalogoController {
   constructor(private readonly prismaFactory: EmpresaScopedPrismaService) {}
 
