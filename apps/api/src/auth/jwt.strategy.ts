@@ -29,6 +29,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       permisos: payload.permisos,
       rol: payload.rol,
       estadoLegajo: payload.estadoLegajo,
+      type: payload.type ?? 'usuario', // tokens anteriores a RF-17 no tienen `type`
+      esMayorista: payload.esMayorista,
     };
   }
 }

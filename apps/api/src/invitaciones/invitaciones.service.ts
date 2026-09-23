@@ -4,8 +4,11 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
+import { AuthClienteService } from '../auth/auth.cliente.service';
 import { CrearInvitacionDto } from './dto/crear-invitacion.dto';
 import { ActivarInvitacionDto } from './dto/activar-invitacion.dto';
+import { CrearInvitacionMayoristaDto } from './dto/crear-invitacion-mayorista.dto';
+import { ActivarInvitacionMayoristaDto } from './dto/activar-invitacion-mayorista.dto';
 
 // La invitación deja de ser válida a los 7 días — un link viejo o
 // filtrado no debe seguir siendo utilizable indefinidamente. Fijo por
@@ -28,6 +31,7 @@ export class InvitacionesService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly authService: AuthService,
+    private readonly authClienteService: AuthClienteService,
   ) {}
 
   async crear(empresaId: string, invitadoPorId: string, dto: CrearInvitacionDto) {
@@ -135,6 +139,113 @@ export class InvitacionesService {
     ]);
 
     return this.authService.emitirSesion(usuario, []);
+  }
+
+  /**
+   * Crea una invitación para un Cliente mayorista (B2B). Usa el mismo
+   * modelo `Invitacion` pero con `rol: 'ASISTENTE_LOCAL'` como placeholder
+   * (el único campo de rol que acepta el schema; el tipo real de cuenta
+   * se determina por el endpoint de activación usado, no por este campo).
+   * El token se puede usar SOLO en `POST /invitaciones/mayorista/activar`,
+   * no en `POST /invitaciones/activar` (que crea Usuario, no Cliente).
+   *
+   * Alternativa más limpia a futuro: agregar `esMayoristaInvitacion` al
+   * schema de Invitacion — pendiente si el flujo crece. Por ahora el
+   * contexto del endpoint de activación es suficiente discriminador.
+   */
+  async crearMayorista(empresaId: string, invitadoPorId: string, dto: CrearInvitacionMayoristaDto) {
+    // Verificar que no haya un Cliente ni Usuario con ese email ya
+    const yaExisteCliente = await this.prisma.cliente.findFirst({
+      where: { empresaId, email: dto.email },
+    });
+    if (yaExisteCliente) {
+      throw new BadRequestException(`Ya existe un cliente con el email ${dto.email}`);
+    }
+
+    const invitacionPendiente = await this.prisma.invitacion.findFirst({
+      where: { empresaId, email: dto.email, usadaEn: null, expiraEn: { gt: new Date() } },
+    });
+    if (invitacionPendiente) {
+      throw new BadRequestException(`Ya hay una invitación pendiente para ${dto.email}`);
+    }
+
+    const expiraEn = new Date();
+    expiraEn.setDate(expiraEn.getDate() + DIAS_EXPIRACION_INVITACION);
+
+    // 'PROVEEDOR' como placeholder de rol — el schema requiere un RolUsuario
+    // pero para el mayorista el discriminador real es el endpoint de activación.
+    const invitacion = await this.prisma.invitacion.create({
+      data: {
+        empresaId,
+        email: dto.email,
+        rol: 'PROVEEDOR',
+        token: crypto.randomBytes(32).toString('hex'),
+        invitadoPorId,
+        expiraEn,
+      },
+    });
+
+    const tiendaUrl = process.env.TIENDA_FRONTEND_URL || process.env.FRONTEND_URL;
+    if (!tiendaUrl) {
+      throw new Error('TIENDA_FRONTEND_URL / FRONTEND_URL no configurado');
+    }
+    const linkActivacion = new URL('/activar-invitacion-mayorista', tiendaUrl);
+    linkActivacion.searchParams.set('token', invitacion.token);
+
+    const enviado = await this.emailService.enviar(
+      dto.email,
+      'Te invitaron a Otra Roonda Más como cliente mayorista',
+      `<p>Hola${dto.nombreComercial ? ` ${dto.nombreComercial}` : ''}!</p>
+       <p>Te invitaron a acceder a la tienda de Otra Roonda Más como cliente mayorista.</p>
+       <p><a href="${linkActivacion.toString()}">Activar mi cuenta</a></p>
+       <p>Este link vence en ${DIAS_EXPIRACION_INVITACION} días.</p>`,
+    );
+
+    return { invitacion, linkActivacion: linkActivacion.toString(), emailEnviado: enviado };
+  }
+
+  /**
+   * Activa la invitación creando un Cliente con esMayorista=true y
+   * estadoLegajo=PENDIENTE — no opera hasta que el dueño apruebe el legajo.
+   */
+  async activarMayorista(dto: ActivarInvitacionMayoristaDto) {
+    const invitacion = await this.prisma.invitacion.findUnique({ where: { token: dto.token } });
+    if (!invitacion) {
+      throw new NotFoundException('Invitación no encontrada');
+    }
+    if (invitacion.usadaEn) {
+      throw new BadRequestException('Esta invitación ya fue utilizada');
+    }
+    if (invitacion.expiraEn < new Date()) {
+      throw new BadRequestException(
+        'Esta invitación venció — pedile al dueño que te invite de nuevo',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const [cliente] = await this.prisma.$transaction([
+      this.prisma.cliente.create({
+        data: {
+          empresaId: invitacion.empresaId,
+          nombre: dto.nombre,
+          email: invitacion.email,
+          passwordHash,
+          esMayorista: true,
+          // Explícito PENDIENTE — igual que invitaciones de Usuario.
+          // Null sería "minorista sin legajo"; PENDIENTE es "mayorista
+          // esperando aprobación del dueño" (ver spec-login-roles.md).
+          estadoLegajo: 'PENDIENTE',
+        },
+        include: { empresa: true },
+      }),
+      this.prisma.invitacion.update({
+        where: { id: invitacion.id },
+        data: { usadaEn: new Date() },
+      }),
+    ]);
+
+    return this.authClienteService.emitirSesionCliente(cliente);
   }
 
   private nombreRol(rol: CrearInvitacionDto['rol']): string {

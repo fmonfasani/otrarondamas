@@ -81,6 +81,7 @@ export class AuthService {
       permisos,
       rol: usuario.rol,
       estadoLegajo: usuario.estadoLegajo,
+      type: 'usuario',
     };
 
     return {

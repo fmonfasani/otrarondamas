@@ -15,7 +15,7 @@ export type RolUsuario = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR
 export type EstadoLegajo = 'PENDIENTE' | 'APROBADO';
 
 export interface JwtPayload {
-  sub: string; // Usuario.id
+  sub: string; // Usuario.id o Cliente.id según `type`
   email: string;
   nombre: string;
   empresaId: string;
@@ -27,6 +27,12 @@ export interface JwtPayload {
   // refleja hasta que esa persona vuelva a loguearse.
   rol: RolUsuario;
   estadoLegajo: EstadoLegajo;
+  // RF-17 cliente: distingue si el sub es un Usuario o un Cliente —
+  // el mismo JWT_SECRET firma ambos para no necesitar dos estrategias
+  // Passport; los guards leen este campo para saber qué tabla consultar.
+  type: 'usuario' | 'cliente';
+  // Solo presente cuando type === 'cliente'
+  esMayorista?: boolean;
 }
 
 export interface AuthenticatedUser {
@@ -37,6 +43,9 @@ export interface AuthenticatedUser {
   permisos: string[];
   rol: RolUsuario;
   estadoLegajo: EstadoLegajo;
+  // RF-17 cliente
+  type: 'usuario' | 'cliente';
+  esMayorista?: boolean;
 }
 
 /**

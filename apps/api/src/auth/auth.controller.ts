@@ -72,6 +72,7 @@ export class AuthController {
       // comentario de la clase JwtPayload sobre esta limitación).
       rol: usuario.rol,
       estadoLegajo: usuario.estadoLegajo,
+      type: 'usuario' as const,
     };
   }
 

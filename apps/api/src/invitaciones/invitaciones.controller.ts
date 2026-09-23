@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InvitacionesService } from './invitaciones.service';
 import { CrearInvitacionDto } from './dto/crear-invitacion.dto';
 import { ActivarInvitacionDto } from './dto/activar-invitacion.dto';
+import { CrearInvitacionMayoristaDto } from './dto/crear-invitacion-mayorista.dto';
+import { ActivarInvitacionMayoristaDto } from './dto/activar-invitacion-mayorista.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -56,5 +58,30 @@ export class InvitacionesController {
   @HttpCode(HttpStatus.OK)
   activar(@Body() dto: ActivarInvitacionDto) {
     return this.invitacionesService.activar(dto);
+  }
+
+  // --- Mayorista (Cliente B2B) ---
+
+  /**
+   * El dueño invita a un nuevo cliente mayorista. Crea una Invitacion
+   * que solo puede activarse en el endpoint /mayorista/activar (no en
+   * /activar que crea un Usuario).
+   */
+  @ApiBearerAuth()
+  @RequierePermiso('usuarios.gestionar')
+  @Post('mayorista')
+  crearMayorista(@Body() dto: CrearInvitacionMayoristaDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.invitacionesService.crearMayorista(user.empresaId, user.id, dto);
+  }
+
+  /**
+   * El cliente mayorista invitado activa su cuenta. @Public() porque
+   * todavía no tiene sesión — el token de la invitación es su credencial.
+   */
+  @Public()
+  @Post('mayorista/activar')
+  @HttpCode(HttpStatus.OK)
+  activarMayorista(@Body() dto: ActivarInvitacionMayoristaDto) {
+    return this.invitacionesService.activarMayorista(dto);
   }
 }
