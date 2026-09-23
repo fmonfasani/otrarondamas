@@ -832,3 +832,65 @@ Umbrales confirmados con el dueño antes de tocar código (mismos valores que la
 Verificado contra la DB real (no solo build): cliente nuevo → `nivel: NUEVO`; 3 ventas presenciales confirmadas → pasa exactamente a `FRECUENTE` en la tercera, no antes; 9 ventas → sigue `FRECUENTE` (no llega a 10); un pedido de tienda online **con el mismo email** del cliente (reusa el mismo `Cliente`, mecanismo ya de la Fase 1 de Tienda Online) confirmado como décima compra → pasa exactamente a `VIP` — confirma que ventas presenciales y pedidos online se suman al mismo historial, tal como pedía el roadmap. `GET /clientes?search=` también expone el `nivel` calculado en cada resultado. Build de producción de `pos-admin` exitoso. Datos y stock de prueba revertidos después de validar.
 
 **Siguiente paso del roadmap**: Fase 4 (reglas de descuento configurables — nivel + alcance opcional por marca/categoría/cantidad mínima). El permiso que protege el CRUD de reglas y el modelo `ReglaFidelizacion` quedan a definir en esa fase, no asumidos de antemano.
+
+## 31. Categorización de catálogo — jerarquía Familia/Subfamilia/Tipo/Subtipo (22/09/2026)
+
+Disparado por una alarma del dueño al notar que el spec aprobado (RF-03 del SDD) no contemplaba categorización jerárquica real, solo Marca/Categoría planas — mientras se armaba el formulario de alcance de `ReglaFidelizacion` (Fase 4 de Fidelización, pausada para esto). Sesión de definición interactiva, decisión por decisión, con el dueño; auditoría previa publicada como artifact antes de tocar código (siguiendo lo que exige `docs/spec-catalogo-productos.md`, borrador sin aprobar).
+
+Decisiones confirmadas: **4 niveles fijos y obligatorios** (Familia → Subfamilia → Tipo → Subtipo, no opcionales como se planteó al principio de la sesión — se corrigió al definir el SKU), con nodo "GEN" de relleno cuando un rubro no necesita tanto detalle. Modelo POO: 4 tablas separadas (no un único nodo genérico con campo "nivel"). Visibilidad: los 4 niveles son SIEMPRE visibles al cliente de tienda online. SKU nuevo `FAM-SUB-TIP-SUBT-NNNNNNNN` (4 segmentos de 3 letras + correlativo de 8 dígitos, único por empresa — corrige el bug del `codigoInterno` viejo, único GLOBAL). 11 Familias y 187 Subfamilias mapeadas automáticamente desde las categorías reales del catálogo consolidado, revisadas por el dueño en un artifact interactivo antes de aplicar.
+
+- **Modelo de datos**: `Familia`/`Subfamilia`/`Tipo`/`Subtipo` nuevos + `ProductoProveedor` (N a N producto-proveedor, reemplaza la idea descartada de modelar Proveedor como "un nivel más" del árbol). `model Categoria` eliminado.
+- **Migración de schema en 2 pasos** (mismo patrón ya documentado en este archivo para cambios de NOT NULL sobre tablas con datos): FK nullable → migración de datos → FK NOT NULL + drop `Categoria`.
+- **Migración de datos**: `prisma/migrate-categoria-a-jerarquia.ts` (script nuevo, distinto de `seed.ts` — ese asume base vacía y crea productos desde cero; este asume productos EXISTENTES con historial real y los actualiza en el lugar, preservando id y relaciones). Cubre todas las empresas, crea Familia/Subfamilia propia para categorías sin mapeo al catálogo real (ej. "General" de la empresa de aislamiento).
+- **Gap de seguridad encontrado y corregido**: `empresa-scope.extension.ts` (aislamiento multiempresa) no tenía los 5 modelos nuevos en `MODELOS_CON_EMPRESA_ID` — quedaban sin scope multiempresa desde que se creó el schema. Detectado al verificar el endpoint de jerarquía (devolvía más filas de las esperadas).
+- **Backend**: `JerarquiaCatalogoController` (`GET /catalogo/jerarquia`, panel interno). `CatalogoController` valida que los 4 niveles encadenen (Subtipo→Tipo→Subfamilia→Familia) al crear/editar un Producto. `InventarioService.stockConsolidado()` extendido con filtro opcional `familiaId`/`subfamiliaId`.
+- **Frontend**: `FidelizacionPage.tsx` retomada con selector en cascada de los 4 niveles para el alcance de una regla.
+
+Verificado en local contra el seed real (4342 productos): 0 productos sin categorizar tras la migración, SKUs únicos, aislamiento multiempresa confirmado (la empresa demo ve solo su propia Familia). Verificado en producción con los mismos criterios — ver sección 34.
+
+## 32. Fidelización, Fase 4 — reglas de descuento por nivel (22/09/2026)
+
+CRUD de `ReglaFidelizacion`: nivel mínimo (`NUEVO`/`FRECUENTE`/`VIP`) + % de descuento + alcance opcional por jerarquía de catálogo (cada nivel independiente — a diferencia de `Producto`, acá NO exige cadena completa: una regla puede apuntar a una Familia entera sin acotar Subfamilia/Tipo/Subtipo), marca y cantidad mínima.
+
+- Protegido con `fidelizacion.gestionar` en todo, incluidos los `GET` (política de precios del negocio, mismo criterio que Pedidos).
+- `verificarNivelesCatalogo()`: cada nivel de alcance indicado debe existir y pertenecer a la empresa, sin exigir que encadenen entre sí.
+- `FidelizacionPage.tsx` (pos-admin, ruta `/fidelizacion`): listado + alta/edición con selector en cascada de Familia→Subfamilia→Tipo→Subtipo (cada nivel limpia los de abajo si no encadenan).
+
+## 33. Fidelización, Fase 5 — descuento automático en POS y Tienda Online (22/09/2026)
+
+Aplicación automática del descuento de fidelización combinando reglas (Fase 4) con el historial real de compras del cliente, en los dos canales de venta.
+
+Decisiones confirmadas antes de implementar: si varias reglas matchean el mismo ítem, gana la de MAYOR % (nunca se suman — evita vender con pérdida por reglas acumuladas). Campo separado (`descuentoFidelizacionPorcentaje` + `reglaFidelizacionId`) para el descuento automático, distinto de `descuentoItem` (manual del vendedor) — ambos se restan, nunca se mezclan en un solo número. `nivelRequerido` es un umbral MÍNIMO (VIP también recibe lo de FRECUENTE/NUEVO). El nivel del cliente se calcula con el historial ANTES de la venta actual.
+
+- `VentaItem`/`PedidoItem` ganan los 2 campos nuevos, con FK a `ReglaFidelizacion` (`onDelete: Restrict` explícito — preserva trazabilidad si algún día se agrega `DELETE` de reglas).
+- `FidelizacionService.calcularDescuentoAplicable()` es una función PURA (sin I/O) que recibe las reglas activas ya cargadas — se trae la lista UNA vez por venta/pedido, no una consulta por ítem del carrito.
+- `VentasService` (POS): nivel del cliente + reglas activas resueltos antes de la transacción, aplicados por ítem.
+- `TiendaService` (tienda online): el % de fidelización se combina CON el descuento de producto ya existente (Fase 6 de Tienda Online) — se aplican los dos, uno sobre el resultado del otro, nunca se elige el mayor entre ambos. El Cliente se identifica por email ANTES de abrir la transacción de creación del pedido (`ClientesService.calcularNivel()` no vería un Cliente creado dentro de una transacción todavía no confirmada) — un cliente que no existe aún es NUEVO por definición.
+
+Verificado contra la DB real en ambos canales: cliente subido a VIP con 10 compras reales confirmadas, descuento combinado exacto (`10%` de producto → `20%` de fidelización: `$1488.36 → $1339.52 → $1071.616`), sin descuento cuando falta cliente/nivel/alcance. Datos de prueba revertidos después de validar.
+
+## 34. Rediseño visual de Tienda Online + deploy a producción (22/09/2026)
+
+Dos partes: primero el rediseño visual (`tienda-online` no tenía diseño propio, era HTML crudo heredado del scaffolding de Vite), después subir todo lo acumulado de la sesión a producción — categorización de catálogo, Fidelización Fase 4/5 y el rediseño, todo junto.
+
+**Rediseño**: construido sobre los tokens EXACTOS del Design System ya publicado del proyecto ("Otra Ronda Más" — no valores aproximados), con el logo real (círculo negro, borde amarillo, copa de vino) descargado de ese mismo Design System. Mobile-first. Decisiones confirmadas con el dueño: grilla de producto con espacio reservado para foto (el catálogo real no tiene fotos cargadas todavía); navegación por chips de Familia/Subfamilia además del buscador de texto; las Familias de bebidas destacadas primero en el orden de los chips (coherente con el branding "Bebidas y mucho más para tu negocio") pero SIN preseleccionarlas como filtro activo — hay dos Familias reales de bebidas (con y sin alcohol), preseleccionar una ocultaría la otra mitad; datos operativos reales (horario, ubicación, teléfono, Instagram) integrados en footer y checkout. Nuevo `GET /tienda/jerarquia` (sin auth) para poblar los chips.
+
+**Deploy a producción**: la migración de datos real (4343 productos existentes reasignados de `Categoria` a la jerarquía nueva) nunca se había probado contra datos reales — solo contra el seed local. Antes de tocar producción: backup completo de la DB de producción (dump + copia local); el script de migración se ensayó primero contra una COPIA restaurada de ese backup, donde se encontraron y corrigieron 2 bugs reales (`codigoInterno: { not: null }` inválido porque el campo no es nullable, y el mismo problema en el conteo final de verificación — resuelto con `$queryRaw`). Recién después de un ensayo limpio se corrió contra la base real.
+
+Commits separados por feature (categorización de catálogo, Fidelización Fase 4, Fidelización Fase 5, rediseño visual, script de migración) en vez de uno solo — permite revisar o revertir algo puntual sin arrastrar el resto. `tienda.service.ts` y `fidelizacion.service.ts` quedaron con lógica de más de una fase entrelazada en el mismo archivo (no separable por hunk sin riesgo real); se agrupó cada archivo completo en el commit de la fase con más peso, documentado explícitamente en el mensaje de commit.
+
+**Gap encontrado en producción, no relacionado con el código de esta sesión**: el permiso `fidelizacion.gestionar` nunca había llegado a producción (el seed completo nunca se corrió ahí, solo migraciones de schema/datos puntuales) — insertado a mano y asignado al dueño con `sync-permisos-owner.ts` (script ya existente, diseñado exactamente para este caso), sin tocar nada más.
+
+Verificado en vivo contra producción real: los 3 dominios responden con el bundle/API nuevos; filtro de catálogo por Familia devuelve productos reales correctos; un pedido real de prueba se creó y confirmó correctamente (revertido después); permisos de Fidelización funcionando tras el fix. Un reporte inicial de "no veo la tienda online" resultó ser caché del navegador del dueño (confirmado en incógnito) — no un problema del deploy.
+
+## 35. Definición de Login, Roles del Negocio y Legajo (RF-17) — sin implementar todavía (22/09/2026)
+
+Pedido original del dueño: un selector visual único de login/registro (grid de cajas) más un sistema de pedidos a proveedores en tiempo real. Separado en dos alcances distintos tras preguntas — este ítem cubre solo login/roles; el sistema de pedidos a proveedores queda como roadmap aparte, sin diseñar.
+
+La forma del selector cambió dos veces durante la definición: de "grid visual de 6 cajas" a "dos URLs separadas sin selector visual" (pedido explícito del dueño), y el agrupamiento de "Cliente mayorista" pasó de estar junto al Cliente minorista a estar junto al personal del negocio (también pedido explícito, aunque comercialmente sea un comprador B2B, su acceso es al panel interno).
+
+Documento completo: `docs/spec-login-roles.md` (nuevo) + RF-17/actor §3.1/decisión D-20 agregados a `docs/SDD-especificacion-funcional-v0.1.md`. Resumen: dos dominios de entrada sin selector (`otrarondamas.wapsell.com` = solo Cliente minorista con login real nuevo; `admin.otrarondamas.wapsell.com` = Owner, Asistente de local —antes "Vendedor"—, Cliente mayorista, Proveedor, Repartidor). Los 5 roles del lado "Negocio" completan un legajo (campos + documentos según el rol) y quedan en estado Pendiente hasta que el dueño aprueba manualmente. Alta por invitación del dueño, nunca auto-registro público.
+
+4 decisiones técnicas resueltas con el dueño: Cliente y Usuario permanecen como tablas SEPARADAS (sin fusionar modelos); documentos del legajo en disco del VPS fuera del webroot (no cloud storage externo); vencimiento de documentos sensibles rastreado con alerta al dueño (mismo patrón que vencimiento de Lote en Inventario); email transaccional vía Resend.
+
+**Estado: solo especificación, sin código todavía.** Explícitamente fuera de este alcance: pantallas funcionales de Proveedor/Repartidor/Cliente mayorista, el sistema de pedidos a proveedores en tiempo real, y precios/condiciones mayoristas (D-01, backlog aparte). Pendiente para la fase de diseño técnico (antes de escribir schema/migraciones): plazo de retención de documentos tras vencimiento, cifrado en reposo del disco de legajos, período de vigencia esperado por tipo de documento — no se asume ningún valor sin confirmación explícita del dueño, mismo criterio que las decisiones D-01 a D-19 del SDD.

@@ -47,6 +47,7 @@ Reemplazar progresivamente los cuadernos y registros manuales por un sistema que
 |---|---|
 | Plataforma SaaS | Empresas, usuarios, aislamiento de datos y administración |
 | Usuarios y roles | Cuentas individuales y permisos configurables |
+| Login y roles del negocio | Dos puntos de entrada (Cliente/Negocio), legajo por rol y aprobación del dueño (RF-17) |
 | Catálogo | Productos, categorías, códigos, precios y presentaciones |
 | Ventas | POS presencial, mayorista y venta online |
 | Pedidos | Pedidos web, WhatsApp y redes sociales |
@@ -79,15 +80,31 @@ Salvo que el dueño lo incorpore expresamente:
 
 ### 3.1 Actores iniciales
 
-| Actor | Responsabilidad |
-|---|---|
-| Dueño | Administración, configuración, autorizaciones y validación |
-| Vendedor | Ventas, pedidos, preparación, entregas y cobros, según permisos |
-| Administrador SaaS | Administración técnica de empresas y plataforma, con acceso controlado |
+**Actualizado en la sesión de definición de Login y Roles del Negocio (22/09/2026)** — ver
+`docs/spec-login-roles.md` para el detalle completo (legajo por rol, flujo de alta, decisiones
+resueltas). El actor "Vendedor" de la v0.1 original se renombra a "Asistente de local" (mismas
+responsabilidades y permisos, solo cambia el nombre) y se agregan cuatro actores nuevos.
+
+| Actor | Responsabilidad | Punto de entrada |
+|---|---|---|
+| Dueño (Owner) | Administración, configuración, autorizaciones y validación | admin.otrarondamas.wapsell.com |
+| Asistente de local | Ventas, pedidos, preparación, entregas y cobros, según permisos (antes "Vendedor") | admin.otrarondamas.wapsell.com |
+| Cliente mayorista | Comercio que compra al negocio por mayor (B2B) — no es personal del negocio | admin.otrarondamas.wapsell.com |
+| Proveedor | Provee mercadería al negocio; pasa de ser un dato sin cuenta a un actor con login propio | admin.otrarondamas.wapsell.com |
+| Repartidor | Entrega pedidos a domicilio (RF-13) — rol y legajo definidos; sin pantallas funcionales todavía | admin.otrarondamas.wapsell.com |
+| Cliente (minorista) | Compra en el catálogo público, ahora con login real (antes sin autenticación) | otrarondamas.wapsell.com |
+| Administrador SaaS | Administración técnica de empresas y plataforma, con acceso controlado | — |
 
 El dueño tendrá acceso completo a la operación de su empresa desde dispositivos autorizados.
 
-Los vendedores tendrán cuentas individuales. No se presupone que todos tengan idénticos permisos.
+Los actores del panel interno (Dueño, Asistente de local, Cliente mayorista, Proveedor,
+Repartidor) tendrán cuentas individuales. No se presupone que todos tengan idénticos permisos:
+el modelo de autorización granular ya existente (§3.2) se extiende a los actores nuevos sin
+cambiar su diseño — cada uno recibe únicamente los permisos correspondientes a su rol.
+
+Los actores Proveedor, Repartidor y Cliente mayorista, además de los permisos, completan un
+**legajo** (datos fiscales o personales, y documentación según el rol) antes de poder operar,
+sujeto a aprobación explícita del dueño. Ver RF-17.
 
 ### 3.2 Modelo de autorización
 
@@ -352,6 +369,35 @@ Registrar como mínimo:
 
 La auditoría debe cubrir ventas, modificaciones, cobros, anulaciones, devoluciones, ajustes, autorizaciones y operaciones de caja.
 
+### RF-17. Login, roles del negocio y legajo
+
+**Agregado en la sesión de definición del 22/09/2026** — ver `docs/spec-login-roles.md` para el
+detalle completo (tabla de campos/documentos por rol, diagrama de flujo, decisiones resueltas).
+
+- El sistema tendrá dos puntos de entrada separados, sin selector visual entre ellos: uno para
+  el Cliente minorista (otrarondamas.wapsell.com) y otro para todo actor que opera o comercia
+  con el negocio — Dueño, Asistente de local, Cliente mayorista, Proveedor, Repartidor
+  (admin.otrarondamas.wapsell.com).
+- El Cliente minorista tendrá login real (email y contraseña, o Google) — hasta esta sesión no
+  existía autenticación para ese actor.
+- Ningún actor del lado "negocio" se auto-registra: el dueño inicia el alta desde el panel
+  (invitación por email), y la persona invitada activa su cuenta y completa su legajo.
+- El legajo exige campos y, según el rol, documentación (certificado de antecedentes penales,
+  constancia de CUIL) con fecha de vencimiento propia. Mientras el legajo esté incompleto o sin
+  aprobar, la cuenta permanece en estado "Pendiente" y no puede operar.
+- El dueño revisa y aprueba manualmente cada legajo antes de que la cuenta pase a "Aprobada".
+- El sistema alertará al dueño cuando un documento del legajo esté por vencer.
+- Los documentos sensibles del legajo se almacenan fuera del acceso público directo; solo el
+  dueño puede solicitarlos autenticado.
+
+Fuera de alcance de este requisito (ver `docs/spec-login-roles.md`, sección "qué entra y qué
+no"): pantallas funcionales para Proveedor, Repartidor y Cliente mayorista; el sistema de
+pedidos a proveedores en tiempo real; precios y condiciones mayoristas (D-01, ya en backlog).
+
+Modelo de datos: Cliente (tienda pública) y Usuario (panel interno) permanecen como tablas
+separadas — un Cliente mayorista es un Cliente con datos de legajo adicionales y acceso a
+admin.\*, nunca un Usuario del panel interno.
+
 ## 5. Reglas de negocio e invariantes
 
 Estas reglas deben protegerse desde la lógica del servidor y la base de datos, no únicamente desde la interfaz.
@@ -524,6 +570,7 @@ Estas decisiones deben resolverse antes de congelar el alcance funcional. El due
 | D-17 | Política de cambios, devoluciones y reembolsos | Registrar devoluciones vinculadas a la venta original, conservando productos y cantidades involucrados, y generando los movimientos de stock correspondientes. Los reembolsos se registran como operaciones separadas y trazables. Excepciones requieren autorización del dueño. Plazos, condiciones y modalidad de reembolso: **pendiente**. |
 | D-18 | Método de costos para calcular ganancias estimadas | Conservar el historial de compras y costos por producto para permitir implementar un método de costeo verificable. No se presentan ganancias estimadas como definitivas hasta seleccionar el método. El método concreto (costo promedio, FIFO, último costo u otro) queda **pendiente**; no se elige ninguno por defecto sin validación. |
 | D-19 | Capacidad real disponible en el VPS Hetzner compartido (`89.167.96.239`) antes de sumar la carga del ERP — *agregado tras inspección del repo de Wapsell (19/09/2026), ver sección 7.3* | Realizar una medición técnica de CPU, RAM, disco, carga y servicios existentes antes de decidir el despliegue, documentada con evidencia. No desplegar ni modificar servicios existentes sin autorización explícita. Resultado de la medición: **pendiente de ejecución**. |
+| D-20 | Login/roles del negocio y legajo (RF-17) — *agregado en la sesión de definición del 22/09/2026, ver `docs/spec-login-roles.md`* | **Resuelto en esta sesión**: Cliente y Usuario permanecen separados (sin fusionar modelos); documentos del legajo en disco del VPS fuera del webroot, servidos solo autenticado (no cloud storage externo); vencimiento de documentos sensibles rastreado con alerta al dueño; email transaccional vía Resend. Pendiente: plazo exacto de retención de documentos tras el vencimiento de un legajo, cifrado en reposo del disco donde se guardan, y período de vigencia esperado por tipo de documento (no se asume un valor en meses sin confirmación). |
 
 ### 10.1 Restricciones de diseño nuevas, derivadas de las respuestas del dueño
 
@@ -570,6 +617,7 @@ Se mantendrán los cuadernos en paralelo hasta que el dueño autorice dejar de u
 | Pruebas | No ejecutadas |
 | Infraestructura | Parcialmente definida — patrón de despliegue confirmado (Docker + nginx host + VPS compartido); capacidad real pendiente de verificar (D-19) |
 | Decisiones D-01 a D-19 | **Criterio de diseño aprobado por el dueño para las 19** (ver sección 10 y `docs/criterios-diseno-dueno-D01-D19.md`, 20/09/2026); los datos comerciales concretos de cada una (montos, porcentajes, zonas, plazos, presentaciones reales, mecanismo final de autorización, modalidad de Mercado Pago, método de costeo) siguen **pendientes**, no cerrados |
+| D-20 (RF-17, Login y roles del negocio) | **Resuelto en la sesión del 22/09/2026** — ver `docs/spec-login-roles.md`. Las 4 decisiones técnicas (modelo de datos, storage de legajo, vencimiento, email transaccional) están cerradas; implementación todavía no iniciada |
 | Aprobación del dueño | Pendiente en cuanto a la especificación funcional en su conjunto; el criterio de dirección de diseño para D-01 a D-19 sí fue aportado por el dueño (ver arriba) |
 
 Conclusión: el descubrimiento permite iniciar el diseño técnico, pero no equivale a una especificación aprobada ni demuestra que el sistema esté implementado. La inspección del repositorio de Wapsell confirmó la viabilidad de la arquitectura de módulo independiente (sección 7), y el dueño aportó criterio de dirección de diseño para las 19 decisiones pendientes (sección 10), lo que habilita avanzar con partes del diseño estructural sin esperar los datos comerciales concretos. Esos datos comerciales, el resto de las precisiones operativas y la aprobación final de la especificación siguen pendientes. El siguiente paso es incorporar este criterio al diseño técnico (modelo de datos, prompt de scaffolding) y continuar cerrando los datos comerciales que aún faltan.

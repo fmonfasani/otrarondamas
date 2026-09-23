@@ -101,11 +101,38 @@ El sistema debe permitir identificar:
 
 ## 4.1 Categoría
 
+**Actualización (22/09/2026): esta sección quedó IMPLEMENTADA con un modelo distinto al
+propuesto acá abajo.** El detalle de esta decisión está en `docs/scaffolding-notas.md`, sección
+31 ("Categorización de catálogo — jerarquía Familia/Subfamilia/Tipo/Subtipo"), y el requisito
+aprobado en `docs/SDD-especificacion-funcional-v0.1.md` (RF-03). Diferencias concretas con la
+propuesta original de esta sección:
+
+- **4 niveles fijos, no 5**: `Familia → Subfamilia → Tipo → Subtipo` (sin "Sección").
+- **Todos OBLIGATORIOS, no opcionales**: cada nivel usa un nodo "GEN" (genérico) de relleno
+  cuando un rubro no necesita tanto detalle, en vez de omitir el nivel. Esta fue una corrección
+  explícita durante la sesión de definición: se decidió "niveles opcionales" primero y se
+  corrigió a "obligatorios con GEN" al definir el formato del SKU interno (§4.5), que exige los
+  4 segmentos de prefijo siempre presentes.
+- **Un único árbol**, no una taxonomía paralela cliente/dueño — el modelo POO resuelto es una
+  sola jerarquía por producto, con el cliente de tienda viendo un subconjunto de niveles (en la
+  práctica, hoy ve los 4, ver decisión de visibilidad abajo).
+- **4 tablas separadas** (`Familia`/`Subfamilia`/`Tipo`/`Subtipo`), no un único nodo genérico
+  con campo "nivel" — el tipo de dato en sí refleja la jerarquía.
+- Marca sigue siendo un atributo simple de `Producto` (no un nivel del árbol), y Proveedor es
+  una relación N a N aparte (`ProductoProveedor`), no "un nivel más" — ambas alternativas se
+  consideraron y descartaron explícitamente durante la definición.
+
+11 Familias y 187 Subfamilias ya migradas en producción (4343 productos reales reasignados).
+El resto de esta sección (ejemplo ilustrativo de 5 niveles) queda como registro histórico de la
+propuesta original, no como el modelo vigente.
+
+---
+
 Representa una clasificación del catálogo.
 
 Debe permitir una estructura jerárquica flexible, sin exigir que todos los productos tengan la misma cantidad de niveles.
 
-Jerarquía conceptual propuesta:
+Jerarquía conceptual propuesta (histórica, no implementada — ver actualización arriba):
 
 Sección → Grupo → Subgrupo → Tipo → Subtipo
 
@@ -252,6 +279,15 @@ La naturaleza de cada precio —costo, precio de venta, precio sugerido u otro�
 # 5. Clasificación comercial
 
 ## 5.1 Taxonomía flexible
+
+**Actualización (22/09/2026): contradice el modelo implementado.** Ver §4.1. La decisión final
+fue la opuesta a "sin obligar niveles artificiales": los 4 niveles son obligatorios siempre
+(nodo "GEN" cuando un rubro no necesita tanto detalle), justamente porque el SKU interno
+codifica los 4 prefijos — la identidad interna del SKU SÍ depende de la clasificación completa,
+al revés de lo que proponía este párrafo. Queda como registro histórico de la propuesta
+original.
+
+---
 
 El catálogo debe permitir categorías con jerarquía variable.
 
