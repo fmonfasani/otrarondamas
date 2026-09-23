@@ -29,6 +29,10 @@ import type {
   CreateCompraRequest,
   RecibirCompraRequest,
   RecepcionCompra,
+  PagoProveedor,
+  CreatePagoProveedorRequest,
+  DevolucionProveedor,
+  CreateDevolucionProveedorRequest,
   AlertasInventario,
   PedidoListado,
   ActualizarEstadoPedidoRequest,
@@ -160,6 +164,16 @@ export const api = {
   emitirCompra: (id: string) => request<Compra>(`/compras/${id}/emitir`, { method: 'POST' }),
   recibirCompra: (id: string, dto: RecibirCompraRequest) =>
     request<RecepcionCompra>(`/compras/${id}/recepciones`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+  listarPagosCompra: (id: string) => request<PagoProveedor[]>(`/compras/${id}/pagos`),
+  crearPagoCompra: (id: string, dto: CreatePagoProveedorRequest) =>
+    request<PagoProveedor>(`/compras/${id}/pagos`, { method: 'POST', body: JSON.stringify(dto) }),
+  listarDevolucionesCompra: (id: string) =>
+    request<DevolucionProveedor[]>(`/compras/${id}/devoluciones`),
+  crearDevolucionCompra: (id: string, dto: CreateDevolucionProveedorRequest) =>
+    request<DevolucionProveedor>(`/compras/${id}/devoluciones`, {
       method: 'POST',
       body: JSON.stringify(dto),
     }),

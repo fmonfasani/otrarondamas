@@ -408,9 +408,8 @@ export interface RegistrarAjusteRequest {
   motivo: string;
 }
 
-// --- Compras y proveedores (apps/api/src/compras) — RF-12 Fase 1 ---
-// CRUD de Proveedor, orden de compra, recepción (total o parcial).
-// Sin pagos a proveedor, facturas ni devoluciones todavía.
+// --- Compras y proveedores (apps/api/src/compras) — RF-12 ---
+// CRUD de Proveedor, orden de compra, recepción, pagos y devoluciones.
 
 export interface Proveedor {
   id: string;
@@ -453,12 +452,18 @@ export interface Compra {
   usuarioId: string;
   estado: EstadoCompra;
   total: string;
+  totalPagado: string;
+  saldo: string;
+  numeroFactura: string | null;
+  fechaVencimientoPago: string | null;
   fechaOrden: string;
   fechaRecepcionEsperada: string | null;
   createdAt: string;
   updatedAt: string;
   items?: CompraItem[];
   recepciones?: RecepcionCompra[];
+  pagos?: PagoProveedor[];
+  devoluciones?: DevolucionProveedor[];
 }
 
 export interface RecepcionCompra {
@@ -495,6 +500,62 @@ export interface RecibirCompraItemRequest {
 export interface RecibirCompraRequest {
   items: RecibirCompraItemRequest[];
   observaciones?: string;
+}
+
+export interface PagoProveedor {
+  id: string;
+  empresaId: string;
+  compraId: string;
+  proveedorId: string;
+  usuarioId: string;
+  monto: string;
+  medioPago: string;
+  referencia: string | null;
+  fecha: string;
+  notas: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePagoProveedorRequest {
+  monto: number;
+  medioPago: string;
+  referencia?: string;
+  notas?: string;
+}
+
+export interface DevolucionProveedorItem {
+  id: string;
+  devolucionId: string;
+  productoId: string;
+  loteId: string | null;
+  cantidad: string;
+  costoUnitario: string;
+}
+
+export interface DevolucionProveedor {
+  id: string;
+  empresaId: string;
+  compraId: string;
+  proveedorId: string;
+  usuarioId: string;
+  motivo: string;
+  fecha: string;
+  createdAt: string;
+  updatedAt: string;
+  items?: DevolucionProveedorItem[];
+}
+
+export interface CreateDevolucionProveedorItemRequest {
+  productoId: string;
+  loteId?: string;
+  cantidad: number;
+  costoUnitario: number;
+}
+
+export interface CreateDevolucionProveedorRequest {
+  motivo: string;
+  items: CreateDevolucionProveedorItemRequest[];
 }
 
 // --- Tienda online (apps/api/src/tienda) — RF-06, Fases 1-3 ---

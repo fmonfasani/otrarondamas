@@ -5,6 +5,8 @@ import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { CreateCompraDto } from './dto/create-compra.dto';
 import { RecibirCompraDto } from './dto/recibir-compra.dto';
+import { CrearPagoProveedorDto } from './dto/crear-pago-proveedor.dto';
+import { CrearDevolucionProveedorDto } from './dto/crear-devolucion-proveedor.dto';
 
 // Mismo patrón que ventas.service.ts / inventario.service.ts: el
 // cliente de EmpresaScopedPrismaService.forEmpresa() es un tipo
@@ -259,5 +261,139 @@ export class ComprasService {
       (item) => Number(item.cantidadRecibida) >= Number(item.cantidadPedida),
     );
     return todoCompleto ? 'RECIBIDA' : 'RECEPCION_PARCIAL';
+  }
+
+  // --- Pagos a proveedor -------------------------------------------
+
+  async listarPagos(empresaId: string, compraId: string) {
+    const compra = await this.getCompra(empresaId, compraId);
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    return db.pagoProveedor.findMany({
+      where: { compraId: compra.id },
+      orderBy: { fecha: 'desc' },
+    });
+  }
+
+  /**
+   * Registra un pago parcial o total contra una Compra y recalcula
+   * totalPagado + saldo de la Compra dentro de la misma transacción.
+   * No se permite pagar más de lo que se debe (saldo actual).
+   */
+  async crearPago(
+    empresaId: string,
+    compraId: string,
+    dto: CrearPagoProveedorDto,
+    usuarioId: string,
+  ) {
+    const compra = await this.getCompra(empresaId, compraId);
+    const saldoActual = Number(compra.saldo ?? compra.total);
+    if (dto.monto > saldoActual + 0.001) {
+      throw new BadRequestException(
+        `El monto ($${dto.monto}) supera el saldo pendiente ($${saldoActual.toFixed(2)})`,
+      );
+    }
+
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    return db.$transaction(async (tx) => {
+      const pago = await tx.pagoProveedor.create({
+        data: {
+          empresaId,
+          compraId,
+          proveedorId: compra.proveedorId,
+          usuarioId,
+          monto: dto.monto,
+          medioPago: dto.medioPago,
+          referencia: dto.referencia,
+          notas: dto.notas,
+        } as Prisma.PagoProveedorUncheckedCreateInput,
+      });
+
+      const nuevoTotalPagado = Number(compra.totalPagado) + dto.monto;
+      const nuevoSaldo = Number(compra.total) - nuevoTotalPagado;
+      await tx.compra.update({
+        where: { id: compraId },
+        data: { totalPagado: nuevoTotalPagado, saldo: Math.max(0, nuevoSaldo) },
+      });
+
+      return pago;
+    });
+  }
+
+  // --- Devoluciones a proveedor ------------------------------------
+
+  async listarDevoluciones(empresaId: string, compraId: string) {
+    const compra = await this.getCompra(empresaId, compraId);
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    return db.devolucionProveedor.findMany({
+      where: { compraId: compra.id },
+      include: { items: true },
+      orderBy: { fecha: 'desc' },
+    });
+  }
+
+  /**
+   * Registra una devolución de mercadería al proveedor. Por cada item:
+   * - Valida que el lote (si se especifica) pertenezca al producto.
+   * - Genera un MovimientoStock Salida/Devolucion.
+   * - Reduce la cantidad del Lote.
+   * No reduce el total de la Compra (la deuda sigue siendo la misma —
+   * la devolución se negocia con el proveedor como nota de crédito o
+   * descuento en una futura compra, fuera del sistema por ahora).
+   */
+  async crearDevolucion(
+    empresaId: string,
+    compraId: string,
+    dto: CrearDevolucionProveedorDto,
+    usuarioId: string,
+  ) {
+    const compra = await this.getCompra(empresaId, compraId);
+    const db = this.prismaFactory.forEmpresa(empresaId);
+
+    return db.$transaction(async (tx) => {
+      const devolucion = await tx.devolucionProveedor.create({
+        data: {
+          empresaId,
+          compraId,
+          proveedorId: compra.proveedorId,
+          usuarioId,
+          motivo: dto.motivo,
+          items: {
+            create: dto.items.map((item) => ({
+              productoId: item.productoId,
+              loteId: item.loteId,
+              cantidad: item.cantidad,
+              costoUnitario: item.costoUnitario,
+            })),
+          },
+        } as Prisma.DevolucionProveedorUncheckedCreateInput,
+        include: { items: true },
+      });
+
+      // Generar un MovimientoStock de Salida por cada item devuelto
+      for (const item of dto.items) {
+        await tx.movimientoStock.create({
+          data: {
+            empresaId,
+            productoId: item.productoId,
+            loteId: item.loteId,
+            tipoMovimiento: 'Salida',
+            cantidad: item.cantidad,
+            motivo: 'Devolucion',
+            referenciaId: devolucion.id,
+            usuarioId,
+          },
+        });
+
+        // Reduce la cantidad del lote si se especificó
+        if (item.loteId) {
+          await tx.lote.update({
+            where: { id: item.loteId },
+            data: { cantidad: { decrement: item.cantidad } },
+          });
+        }
+      }
+
+      return devolucion;
+    });
   }
 }

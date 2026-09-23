@@ -129,6 +129,8 @@ model Empresa {
   deudas             Deuda[]             @relation("EmpresaDeudas")
   pagos              Pago[]              @relation("EmpresaPagos")
   recepcionesCompra  RecepcionCompra[]   @relation("EmpresaRecepcionesCompra")
+  pagosProveedor     PagoProveedor[]     @relation("EmpresaPagosProveedor")
+  devolucionesProveedor DevolucionProveedor[] @relation("EmpresaDevolucionesProveedor")
   entregas           Entrega[]           @relation("EmpresaEntregas")
   notificaciones     Notificacion[]      @relation("EmpresaNotificaciones")
   reglasFidelizacion ReglaFidelizacion[]
@@ -178,8 +180,10 @@ model Usuario {
   entregasPreparadas  Entrega[]         @relation("PreparadorEntrega")
   entregasRepartidas  Entrega[]         @relation("RepartidorEntrega")
   pagos               Pago[]            @relation("UsuarioPagos")
-  compras             Compra[]          @relation("UsuarioCompras")
-  recepcionesCompra   RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
+  compras               Compra[]            @relation("UsuarioCompras")
+  recepcionesCompra     RecepcionCompra[]   @relation("UsuarioRecepcionesCompra")
+  pagosProveedor        PagoProveedor[]     @relation("UsuarioPagosProveedor")
+  devolucionesProveedor DevolucionProveedor[] @relation("UsuarioDevolucionesProveedor")
   movimientosStock    MovimientoStock[] @relation("UsuarioMovimientosStock")
   autorizaciones      Autorizacion[]    @relation("UsuarioAutorizaciones")
   invitacionesCreadas Invitacion[]      @relation("InvitacionesCreadas")
@@ -410,9 +414,10 @@ model Producto {
   presentaciones    Presentacion[]      @relation("ProductoPresentaciones")
   ventaItems        VentaItem[]
   movimientosStock  MovimientoStock[]
-  compraItems       CompraItem[]        @relation("ProductoCompraItems")
-  pedidoItems       PedidoItem[]
-  productoProveedor ProductoProveedor[]
+  compraItems           CompraItem[]            @relation("ProductoCompraItems")
+  devolucionProveedorItems DevolucionProveedorItem[] @relation("ProductoDevolucionItems")
+  pedidoItems           PedidoItem[]
+  productoProveedor     ProductoProveedor[]
 
   // Corrige el gap original (@unique GLOBAL) — el SKU es único por
   // empresa, no en todo el sistema.
@@ -446,7 +451,8 @@ model Lote {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  movimientosStock MovimientoStock[] @relation("LoteMovimientosStock")
+  movimientosStock         MovimientoStock[]        @relation("LoteMovimientosStock")
+  devolucionProveedorItems DevolucionProveedorItem[] @relation("LoteDevolucionItems")
 
   @@unique([productoId, numeroLote, empresaId])
 }
@@ -882,6 +888,8 @@ model Proveedor {
 
   compras           Compra[]
   productoProveedor ProductoProveedor[]
+  pagos             PagoProveedor[]
+  devoluciones      DevolucionProveedor[]
 
   @@unique([empresaId, nombre])
 }
@@ -896,13 +904,22 @@ model Compra {
   usuario                Usuario      @relation("UsuarioCompras", fields: [usuarioId], references: [id]) // Quién generó la orden de compra
   estado                 EstadoCompra @default(BORRADOR)
   total                  Decimal
+  // totalPagado y saldo se recalculan cada vez que se crea un PagoProveedor
+  // o DevolucionProveedor — nunca se editan a mano; son la fuente de verdad
+  // para el panel de "cuánto debo a este proveedor por esta compra".
+  totalPagado            Decimal      @default(0)
+  saldo                  Decimal      @default(0) // = total - totalPagado (recalculado en service)
+  numeroFactura          String? // Factura del proveedor, opcional
+  fechaVencimientoPago   DateTime? // Para alertas de deuda vencida
   fechaOrden             DateTime     @default(now())
   fechaRecepcionEsperada DateTime?
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
 
-  recepciones RecepcionCompra[]
-  items       CompraItem[]
+  recepciones  RecepcionCompra[]
+  items        CompraItem[]
+  pagos        PagoProveedor[]
+  devoluciones DevolucionProveedor[]
 }
 
 model CompraItem {
@@ -1012,6 +1029,61 @@ model AuditLog {
   venta              Venta?        @relation("VentaAudits", fields: [ventaId], references: [id])
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+}
+
+// RF-12: pago parcial o total de una Compra al proveedor. El saldo de la
+// Compra se recalcula automáticamente en ComprasService cada vez que se
+// registra un pago (totalPagado += monto, saldo = total - totalPagado).
+// No se permite registrar un pago que supere el saldo pendiente.
+model PagoProveedor {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation("EmpresaPagosProveedor", fields: [empresaId], references: [id])
+  compraId    String
+  compra      Compra   @relation(fields: [compraId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  usuarioId   String
+  usuario     Usuario  @relation("UsuarioPagosProveedor", fields: [usuarioId], references: [id])
+  monto       Decimal
+  medioPago   String // Transferencia, Efectivo, Cheque, etc.
+  referencia  String? // CBU destino, número de cheque, etc.
+  fecha       DateTime @default(now())
+  notas       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// RF-12: devolución de mercadería a un proveedor. Genera un MovimientoStock
+// de Salida/Devolucion y reduce el saldo de la Compra original.
+model DevolucionProveedor {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation("EmpresaDevolucionesProveedor", fields: [empresaId], references: [id])
+  compraId    String
+  compra      Compra   @relation(fields: [compraId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  usuarioId   String
+  usuario     Usuario  @relation("UsuarioDevolucionesProveedor", fields: [usuarioId], references: [id])
+  motivo      String
+  fecha       DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items DevolucionProveedorItem[]
+}
+
+model DevolucionProveedorItem {
+  id            String              @id @default(uuid())
+  devolucionId  String
+  devolucion    DevolucionProveedor @relation(fields: [devolucionId], references: [id])
+  productoId    String
+  producto      Producto            @relation("ProductoDevolucionItems", fields: [productoId], references: [id])
+  loteId        String?
+  lote          Lote?               @relation("LoteDevolucionItems", fields: [loteId], references: [id])
+  cantidad      Decimal
+  costoUnitario Decimal // Costo al que se devuelve (para ajuste contable)
 }
 
 model Autorizacion {

@@ -19,6 +19,8 @@ import { CreateProveedorDto } from './dto/create-proveedor.dto';
 import { UpdateProveedorDto } from './dto/update-proveedor.dto';
 import { CreateCompraDto } from './dto/create-compra.dto';
 import { RecibirCompraDto } from './dto/recibir-compra.dto';
+import { CrearPagoProveedorDto } from './dto/crear-pago-proveedor.dto';
+import { CrearDevolucionProveedorDto } from './dto/crear-devolucion-proveedor.dto';
 
 /**
  * RF-12, Fase 1: proveedores, orden de compra, recepción. Sin pagos a
@@ -90,5 +92,37 @@ export class ComprasController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.comprasService.recibirCompra(user.empresaId, id, dto, user.id);
+  }
+
+  @Get('compras/:id/pagos')
+  async listarPagos(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.comprasService.listarPagos(user.empresaId, id);
+  }
+
+  @RequierePermiso('compras.gestionar')
+  @Post('compras/:id/pagos')
+  @HttpCode(HttpStatus.CREATED)
+  async crearPago(
+    @Param('id') id: string,
+    @Body() dto: CrearPagoProveedorDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.comprasService.crearPago(user.empresaId, id, dto, user.id);
+  }
+
+  @Get('compras/:id/devoluciones')
+  async listarDevoluciones(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.comprasService.listarDevoluciones(user.empresaId, id);
+  }
+
+  @RequierePermiso('compras.gestionar')
+  @Post('compras/:id/devoluciones')
+  @HttpCode(HttpStatus.CREATED)
+  async crearDevolucion(
+    @Param('id') id: string,
+    @Body() dto: CrearDevolucionProveedorDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.comprasService.crearDevolucion(user.empresaId, id, dto, user.id);
   }
 }

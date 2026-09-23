@@ -3,8 +3,11 @@ import { ChevronDown, ChevronRight, Plus, Trash2, Truck } from 'lucide-react';
 import type {
   Proveedor,
   Compra,
+  Producto,
   CreateCompraItemRequest,
   RecibirCompraItemRequest,
+  PagoProveedor,
+  CreateDevolucionProveedorItemRequest,
 } from '@otrarondamas/shared-types';
 import { Card, CardHeader, CardBody, Input, Button } from '../../components';
 import { api, ApiError } from '../../lib/api';
@@ -24,15 +27,16 @@ const ESTADO_COLOR: Record<Compra['estado'], string> = {
 };
 
 /**
- * RF-12, Fase 1 (proveedores, orden de compra, recepción). Sin pagos a
- * proveedor, facturas ni devoluciones todavía. Mutaciones requieren el
- * permiso compras.gestionar — el frontend no oculta los controles según
- * permiso (mismo criterio que CajaPage/InventarioPage), el backend
- * rechaza con 403 si corresponde.
+ * RF-12 (proveedores, orden de compra, recepción, pagos, devoluciones).
+ * Mutaciones requieren el permiso compras.gestionar — el frontend no
+ * oculta los controles según permiso (mismo criterio que CajaPage/
+ * InventarioPage), el backend rechaza con 403 si corresponde.
  */
 export function ComprasPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [compras, setCompras] = useState<Compra[]>([]);
+  const [sugerenciasProducto, setSugerenciasProducto] = useState<Producto[]>([]);
+  const [busquedaActivaIndex, setBusquedaActivaIndex] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +51,7 @@ export function ComprasPage() {
   const [itemsNuevaCompra, setItemsNuevaCompra] = useState<CreateCompraItemRequest[]>([
     { productoId: '', cantidadPedida: 1, costoUnitario: 0 },
   ]);
+  const [busquedasItem, setBusquedasItem] = useState<string[]>(['']);
   const [creandoCompra, setCreandoCompra] = useState(false);
 
   const [expandida, setExpandida] = useState<string | null>(null);
@@ -54,6 +59,23 @@ export function ComprasPage() {
   const [recepcionEnCurso, setRecepcionEnCurso] = useState<
     Record<string, RecibirCompraItemRequest>
   >({});
+
+  // Pagos a proveedor
+  const [pagosCompra, setPagosCompra] = useState<Record<string, PagoProveedor[]>>({});
+  const [mostrarPagos, setMostrarPagos] = useState<string | null>(null);
+  const [montoPago, setMontoPago] = useState('');
+  const [medioPago, setMediaPago] = useState('Transferencia');
+  const [referenciaPago, setReferenciaPago] = useState('');
+  const [registrandoPago, setRegistrandoPago] = useState(false);
+
+  // Devoluciones a proveedor
+  const [mostrarDevolucion, setMostrarDevolucion] = useState<string | null>(null);
+  const [motivoDevolucion, setMotivoDevolucion] = useState('');
+  const [itemsDev, setItemsDev] = useState<CreateDevolucionProveedorItemRequest[]>([
+    { productoId: '', cantidad: 1, costoUnitario: 0 },
+  ]);
+  const [busquedasItemDev, setBusquedasItemDev] = useState<string[]>(['']);
+  const [registrandoDevolucion, setRegistrandoDevolucion] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -105,10 +127,12 @@ export function ComprasPage() {
       ...prev,
       { productoId: '', cantidadPedida: 1, costoUnitario: 0 },
     ]);
+    setBusquedasItem((prev) => [...prev, '']);
   }
 
   function quitarItemCompra(index: number) {
     setItemsNuevaCompra((prev) => prev.filter((_, i) => i !== index));
+    setBusquedasItem((prev) => prev.filter((_, i) => i !== index));
   }
 
   function actualizarItemCompra(
@@ -130,6 +154,152 @@ export function ComprasPage() {
       ),
     );
     /* eslint-enable indent */
+  }
+
+  function seleccionarProductoItem(index: number, producto: Producto) {
+    actualizarItemCompra(index, 'productoId', producto.id);
+    setBusquedasItem((prev) => prev.map((b, i) => (i === index ? producto.nombre : b)));
+    setSugerenciasProducto([]);
+    setBusquedaActivaIndex(null);
+  }
+
+  async function buscarProducto(busqueda: string, index: number) {
+    setBusquedaActivaIndex(index);
+    setBusquedasItem((prev) => prev.map((b, i) => (i === index ? busqueda : b)));
+    if (!busqueda.trim()) {
+      actualizarItemCompra(index, 'productoId', '');
+      setSugerenciasProducto([]);
+      return;
+    }
+    try {
+      const resultados = await api.buscarProductos(busqueda);
+      setSugerenciasProducto(resultados.slice(0, 8));
+    } catch {
+      setSugerenciasProducto([]);
+    }
+  }
+
+  // --- Pagos a proveedor -------------------------------------------
+
+  async function abrirPagos(compraId: string) {
+    setMostrarPagos(compraId);
+    if (!(compraId in pagosCompra)) {
+      try {
+        const pagos = await api.listarPagosCompra(compraId);
+        setPagosCompra((prev) => ({ ...prev, [compraId]: pagos }));
+      } catch {
+        setPagosCompra((prev) => ({ ...prev, [compraId]: [] }));
+      }
+    }
+  }
+
+  async function registrarPago(compraId: string) {
+    const monto = parseFloat(montoPago);
+    if (!monto || monto <= 0) {
+      setError('Ingresá un monto válido.');
+      return;
+    }
+    setRegistrandoPago(true);
+    setError(null);
+    try {
+      const pago = await api.crearPagoCompra(compraId, {
+        monto,
+        medioPago,
+        referencia: referenciaPago.trim() || undefined,
+      });
+      setPagosCompra((prev) => ({
+        ...prev,
+        [compraId]: [pago, ...(prev[compraId] ?? [])],
+      }));
+      setMontoPago('');
+      setReferenciaPago('');
+      await cargar();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo registrar el pago');
+    } finally {
+      setRegistrandoPago(false);
+    }
+  }
+
+  // --- Devoluciones a proveedor ------------------------------------
+
+  function agregarItemDevolucion() {
+    setItemsDev((prev) => [...prev, { productoId: '', cantidad: 1, costoUnitario: 0 }]);
+    setBusquedasItemDev((prev) => [...prev, '']);
+  }
+
+  function quitarItemDevolucion(index: number) {
+    setItemsDev((prev) => prev.filter((_, i) => i !== index));
+    setBusquedasItemDev((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function actualizarItemDev(
+    index: number,
+    campo: keyof CreateDevolucionProveedorItemRequest,
+    valor: string,
+  ) {
+    setItemsDev((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [campo]: campo === 'productoId' ? valor : Number(valor) } : item,
+      ),
+    );
+  }
+
+  const [sugerenciasDevolucion, setSugerenciasDevolucion] = useState<Producto[]>([]);
+  const [busquedaActivaDevIndex, setBusquedaActivaDevIndex] = useState<number | null>(null);
+
+  function seleccionarProductoDevolucion(index: number, producto: Producto) {
+    actualizarItemDev(index, 'productoId', producto.id);
+    setBusquedasItemDev((prev) => prev.map((b, i) => (i === index ? producto.nombre : b)));
+    setSugerenciasDevolucion([]);
+    setBusquedaActivaDevIndex(null);
+  }
+
+  async function buscarProductoDevolucion(busqueda: string, index: number) {
+    setBusquedaActivaDevIndex(index);
+    setBusquedasItemDev((prev) => prev.map((b, i) => (i === index ? busqueda : b)));
+    if (!busqueda.trim()) {
+      actualizarItemDev(index, 'productoId', '');
+      setSugerenciasDevolucion([]);
+      return;
+    }
+    try {
+      const resultados = await api.buscarProductos(busqueda);
+      setSugerenciasDevolucion(resultados.slice(0, 8));
+    } catch {
+      setSugerenciasDevolucion([]);
+    }
+  }
+
+  async function registrarDevolucion(compraId: string) {
+    if (!motivoDevolucion.trim()) {
+      setError('Ingresá el motivo de la devolución.');
+      return;
+    }
+    const itemsValidos = itemsDev.filter(
+      (i) => i.productoId.trim() && i.cantidad > 0 && i.costoUnitario >= 0,
+    );
+    if (itemsValidos.length === 0) {
+      setError('Agregá al menos un producto válido.');
+      return;
+    }
+    setRegistrandoDevolucion(true);
+    setError(null);
+    try {
+      await api.crearDevolucionCompra(compraId, {
+        motivo: motivoDevolucion.trim(),
+        items: itemsValidos,
+      });
+      setMostrarDevolucion(null);
+      setMotivoDevolucion('');
+      setItemsDev([{ productoId: '', cantidad: 1, costoUnitario: 0 }]);
+      setBusquedasItemDev(['']);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo registrar la devolución');
+    } finally {
+      setRegistrandoDevolucion(false);
+    }
   }
 
   async function crearCompra() {
@@ -299,36 +469,65 @@ export function ComprasPage() {
               </select>
 
               {itemsNuevaCompra.map((item, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    placeholder="ID de producto"
-                    value={item.productoId}
-                    onChange={(e) => actualizarItemCompra(index, 'productoId', e.target.value)}
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cantidad"
-                    value={item.cantidadPedida || ''}
-                    onChange={(e) => actualizarItemCompra(index, 'cantidadPedida', e.target.value)}
-                    className="w-24 px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Costo unit."
-                    value={item.costoUnitario || ''}
-                    onChange={(e) => actualizarItemCompra(index, 'costoUnitario', e.target.value)}
-                    className="w-24 px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => quitarItemCompra(index)}
-                    className="text-gray-400 hover:text-brand-error"
-                    aria-label="Quitar ítem"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={index} className="space-y-1">
+                  <div className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Buscar producto..."
+                        value={busquedasItem[index] ?? ''}
+                        onChange={(e) => void buscarProducto(e.target.value, index)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                      />
+                      {busquedaActivaIndex === index && sugerenciasProducto.length > 0 && (
+                        <ul className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded shadow text-xs max-h-40 overflow-y-auto">
+                          {sugerenciasProducto.map((prod) => (
+                            <li key={prod.id}>
+                              <button
+                                type="button"
+                                className="w-full text-left px-2 py-1.5 hover:bg-gray-50"
+                                onClick={() => seleccionarProductoItem(index, prod)}
+                              >
+                                {prod.nombre}
+                                {prod.codigoBarras && (
+                                  <span className="text-gray-400 ml-1">· {prod.codigoBarras}</span>
+                                )}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      placeholder="Cantidad"
+                      value={item.cantidadPedida || ''}
+                      onChange={(e) =>
+                        actualizarItemCompra(index, 'cantidadPedida', e.target.value)
+                      }
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Costo unit."
+                      value={item.costoUnitario || ''}
+                      onChange={(e) => actualizarItemCompra(index, 'costoUnitario', e.target.value)}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => quitarItemCompra(index)}
+                      className="text-gray-400 hover:text-brand-error"
+                      aria-label="Quitar ítem"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {item.productoId && (
+                    <p className="text-xs text-gray-400 pl-1 font-mono truncate">
+                      id: {item.productoId}
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="flex justify-between items-center">
@@ -380,6 +579,26 @@ export function ComprasPage() {
 
                   {expandida === compra.id && (
                     <div className="px-4 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
+                      {/* Saldo */}
+                      <div className="flex gap-6 text-xs text-gray-600">
+                        <span>
+                          Total:{' '}
+                          <strong className="font-mono">${Number(compra.total).toFixed(2)}</strong>
+                        </span>
+                        <span>
+                          Pagado:{' '}
+                          <strong className="font-mono text-green-700">
+                            ${Number(compra.totalPagado ?? 0).toFixed(2)}
+                          </strong>
+                        </span>
+                        <span>
+                          Saldo:{' '}
+                          <strong className="font-mono text-amber-700">
+                            ${Number(compra.saldo ?? compra.total).toFixed(2)}
+                          </strong>
+                        </span>
+                      </div>
+
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-left text-gray-500">
@@ -493,6 +712,196 @@ export function ComprasPage() {
                           </Button>
                         )}
                       </div>
+
+                      {/* Pagos a proveedor */}
+                      <div className="border-t border-gray-200 pt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-gray-600">Pagos</span>
+                          <button
+                            type="button"
+                            className="text-xs text-brand-yellow hover:underline"
+                            onClick={() =>
+                              void (mostrarPagos === compra.id
+                                ? setMostrarPagos(null)
+                                : abrirPagos(compra.id))
+                            }
+                          >
+                            {mostrarPagos === compra.id ? 'Ocultar' : 'Ver / registrar pago'}
+                          </button>
+                        </div>
+                        {mostrarPagos === compra.id && (
+                          <div className="space-y-3">
+                            {(pagosCompra[compra.id] ?? []).length === 0 ? (
+                              <p className="text-xs text-gray-400">Sin pagos registrados.</p>
+                            ) : (
+                              <ul className="space-y-1 text-xs">
+                                {(pagosCompra[compra.id] ?? []).map((pago) => (
+                                  <li key={pago.id} className="flex justify-between text-gray-600">
+                                    <span>
+                                      {new Date(pago.fecha).toLocaleDateString('es-AR')} ·{' '}
+                                      {pago.medioPago}
+                                      {pago.referencia ? ` (${pago.referencia})` : ''}
+                                    </span>
+                                    <span className="font-mono font-semibold">
+                                      ${Number(pago.monto).toFixed(2)}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="flex gap-2 flex-wrap">
+                              <input
+                                type="number"
+                                placeholder="Monto"
+                                value={montoPago}
+                                onChange={(e) => setMontoPago(e.target.value)}
+                                className="w-28 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                              />
+                              <select
+                                value={medioPago}
+                                onChange={(e) => setMediaPago(e.target.value)}
+                                className="px-2 py-1.5 border border-gray-300 rounded text-xs"
+                              >
+                                <option>Transferencia</option>
+                                <option>Efectivo</option>
+                                <option>Cheque</option>
+                                <option>Débito</option>
+                                <option>Crédito</option>
+                              </select>
+                              <input
+                                type="text"
+                                placeholder="Referencia (opcional)"
+                                value={referenciaPago}
+                                onChange={(e) => setReferenciaPago(e.target.value)}
+                                className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-xs"
+                              />
+                              <Button
+                                size="sm"
+                                disabled={registrandoPago}
+                                onClick={() => void registrarPago(compra.id)}
+                              >
+                                {registrandoPago ? 'Guardando...' : 'Registrar pago'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Devoluciones a proveedor */}
+                      {(compra.estado === 'RECEPCION_PARCIAL' || compra.estado === 'RECIBIDA') && (
+                        <div className="border-t border-gray-200 pt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-600">
+                              Devoluciones
+                            </span>
+                            <button
+                              type="button"
+                              className="text-xs text-brand-yellow hover:underline"
+                              onClick={() =>
+                                setMostrarDevolucion(
+                                  mostrarDevolucion === compra.id ? null : compra.id,
+                                )
+                              }
+                            >
+                              {mostrarDevolucion === compra.id
+                                ? 'Cancelar'
+                                : 'Registrar devolución'}
+                            </button>
+                          </div>
+                          {mostrarDevolucion === compra.id && (
+                            <div className="space-y-3">
+                              <input
+                                type="text"
+                                placeholder="Motivo de la devolución"
+                                value={motivoDevolucion}
+                                onChange={(e) => setMotivoDevolucion(e.target.value)}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                              />
+                              {/* eslint-disable indent -- falso positivo
+                                  conocido de la regla `indent` con un &&
+                                  de dos condiciones cuyo consecuente
+                                  termina en JSX multilínea */}
+                              {itemsDev.map((item, idx) => (
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex gap-2 items-center">
+                                    <div className="relative flex-1">
+                                      <input
+                                        type="text"
+                                        placeholder="Buscar producto..."
+                                        value={busquedasItemDev[idx] ?? ''}
+                                        onChange={(e) =>
+                                          void buscarProductoDevolucion(e.target.value, idx)
+                                        }
+                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                      />
+                                      {busquedaActivaDevIndex === idx &&
+                                        sugerenciasDevolucion.length > 0 && (
+                                          <ul className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded shadow text-xs max-h-32 overflow-y-auto">
+                                            {sugerenciasDevolucion.map((prod) => (
+                                              <li key={prod.id}>
+                                                <button
+                                                  type="button"
+                                                  className="w-full text-left px-2 py-1.5 hover:bg-gray-50"
+                                                  onClick={() =>
+                                                    seleccionarProductoDevolucion(idx, prod)
+                                                  }
+                                                >
+                                                  {prod.nombre}
+                                                </button>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                    </div>
+                                    <input
+                                      type="number"
+                                      placeholder="Cant."
+                                      value={item.cantidad || ''}
+                                      onChange={(e) =>
+                                        actualizarItemDev(idx, 'cantidad', e.target.value)
+                                      }
+                                      className="w-20 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                    />
+                                    <input
+                                      type="number"
+                                      placeholder="Costo"
+                                      value={item.costoUnitario || ''}
+                                      onChange={(e) =>
+                                        actualizarItemDev(idx, 'costoUnitario', e.target.value)
+                                      }
+                                      className="w-20 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarItemDevolucion(idx)}
+                                      className="text-gray-400 hover:text-brand-error"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {/* eslint-enable indent */}
+                              <div className="flex justify-between items-center">
+                                <button
+                                  type="button"
+                                  onClick={agregarItemDevolucion}
+                                  className="text-xs text-gray-500 hover:text-brand-dark"
+                                >
+                                  + Agregar producto
+                                </button>
+                                <Button
+                                  size="sm"
+                                  disabled={registrandoDevolucion}
+                                  onClick={() => void registrarDevolucion(compra.id)}
+                                >
+                                  {registrandoDevolucion ? 'Guardando...' : 'Confirmar devolución'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
