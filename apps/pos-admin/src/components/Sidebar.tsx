@@ -12,6 +12,8 @@ import {
   LogOut,
   Tag,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
@@ -23,21 +25,30 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: <BarChart3 className="w-5 h-5" /> },
-  { path: '/ventas/nueva', label: 'Nueva venta', icon: <ShoppingCart className="w-5 h-5" /> },
-  { path: '/orders', label: 'Pedidos', icon: <Package className="w-5 h-5" /> },
-  { path: '/inventory', label: 'Inventario', icon: <Package className="w-5 h-5" /> },
-  { path: '/compras', label: 'Compras', icon: <Truck className="w-5 h-5" /> },
-  { path: '/precios', label: 'Precios', icon: <Tag className="w-5 h-5" /> },
-  { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
-  { path: '/fidelizacion', label: 'Fidelización', icon: <Heart className="w-5 h-5" /> },
-  { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5" /> },
-  { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5" /> },
-  { path: '/settings', label: 'Configuración', icon: <Settings className="w-5 h-5" /> },
-  { path: '/profile', label: 'Mi Perfil', icon: <User className="w-5 h-5" /> },
+  { path: '/', label: 'Dashboard', icon: <BarChart3 className="w-5 h-5 shrink-0" /> },
+  {
+    path: '/ventas/nueva',
+    label: 'Nueva venta',
+    icon: <ShoppingCart className="w-5 h-5 shrink-0" />,
+  },
+  { path: '/orders', label: 'Pedidos', icon: <Package className="w-5 h-5 shrink-0" /> },
+  { path: '/inventory', label: 'Inventario', icon: <Package className="w-5 h-5 shrink-0" /> },
+  { path: '/compras', label: 'Compras', icon: <Truck className="w-5 h-5 shrink-0" /> },
+  { path: '/precios', label: 'Precios', icon: <Tag className="w-5 h-5 shrink-0" /> },
+  { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5 shrink-0" /> },
+  { path: '/fidelizacion', label: 'Fidelización', icon: <Heart className="w-5 h-5 shrink-0" /> },
+  { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5 shrink-0" /> },
+  { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5 shrink-0" /> },
+  { path: '/settings', label: 'Configuración', icon: <Settings className="w-5 h-5 shrink-0" /> },
+  { path: '/profile', label: 'Mi Perfil', icon: <User className="w-5 h-5 shrink-0" /> },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -48,38 +59,52 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-brand-dark text-white flex flex-col h-screen fixed left-0 top-0">
-      <div className="px-6 py-8 border-b border-gray-700">
-        <h1 className="text-h2 font-bold text-brand-yellow">OtraRonda</h1>
+    <aside
+      className={`${collapsed ? 'w-16' : 'w-64'} bg-brand-dark text-white flex flex-col h-screen fixed left-0 top-0 transition-all duration-200 z-40`}
+    >
+      {/* Header: logo + toggle */}
+      <div className="flex items-center justify-between px-3 py-5 border-b border-gray-700 min-h-[72px]">
+        {!collapsed && <h1 className="text-h2 font-bold text-brand-yellow truncate">OtraRonda</h1>}
+        <button
+          onClick={onToggle}
+          className={`p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 transition-colors ${collapsed ? 'mx-auto' : 'ml-auto'}`}
+          aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+        >
+          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+        </button>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      {/* Nav items */}
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center gap-3 px-3 py-3 rounded-md transition-all ${
                 isActive
                   ? 'bg-brand-yellow text-brand-dark font-semibold'
                   : 'text-gray-300 hover:bg-gray-800'
-              }`}
+              } ${collapsed ? 'justify-center' : ''}`}
             >
               {item.icon}
-              <span>{item.label}</span>
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-4 py-6 border-t border-gray-700">
+      {/* Logout */}
+      <div className="px-2 py-4 border-t border-gray-700">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 text-gray-300 hover:bg-gray-800 rounded-md transition"
+          title={collapsed ? 'Salir' : undefined}
+          className={`flex items-center gap-3 w-full px-3 py-3 text-gray-300 hover:bg-gray-800 rounded-md transition ${collapsed ? 'justify-center' : ''}`}
         >
-          <LogOut className="w-5 h-5" />
-          <span>Salir</span>
+          <LogOut className="w-5 h-5 shrink-0" />
+          {!collapsed && <span>Salir</span>}
         </button>
       </div>
     </aside>
