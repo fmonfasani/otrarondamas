@@ -5,22 +5,20 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { InventarioService } from '../inventario/inventario.service';
 import { FidelizacionService } from '../fidelizacion/fidelizacion.service';
 import { ClientesService } from '../clientes/clientes.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
+import { CotizarVentaDto } from './dto/cotizar-venta.dto';
 
 /**
  * RF-05 (ventas presenciales).
  *
- * Inc-1 agrega las validaciones de integridad del spec-modulos_ventas §15:
- * - RN-VTA-07: rechazar productos inactivos (PRODUCTO_INACTIVO / 422)
- * - RN-VTA-06: rechazar descuento manual > 0 (DESCUENTO_NO_AUTORIZADO / 403)
- * - RN-VTA-11: validar que el cliente pertenezca a la empresa y esté activo
- * - RN-VTA-18: AuditLog en la misma transacción que la venta
- * - INV-VTA-07: idempotencia por idempotencyKey (retorna la venta existente sin
- *   duplicar stock ni pagos)
+ * Inc-1: validaciones de integridad (RN-VTA-06, 07, 11, 18, INV-VTA-07).
+ * Inc-2: cálculo con Prisma.Decimal y redondeo a 2 decimales por línea
+ *        (RN-VTA-02, CA-VTA-06). POST /ventas/cotizacion para preview.
  */
 @Injectable()
 export class VentasService {
@@ -31,64 +29,51 @@ export class VentasService {
     private readonly clientesService: ClientesService,
   ) {}
 
-  async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
-    // Inc-1 (INV-VTA-07): si la clave de idempotencia ya existe, devolver la
-    // venta original sin hacer nada. El check es fuera de la transacción
-    // intencionalmente: es solo lectura y permite el short-circuit antes de
-    // evaluar productos, stock, etc.
-    if (dto.idempotencyKey) {
-      const db = this.prismaFactory.forEmpresa(empresaId);
-      const existente = await db.venta.findUnique({
-        where: { idempotencyKey: dto.idempotencyKey },
-        include: { ventaItems: true },
-      });
-      if (existente) {
-        return { ...existente, advertenciasStockVencido: [] };
-      }
-    }
+  // Inc-2 (RN-VTA-02): subtotal por línea con Decimal, redondeo mitad-arriba
+  // a 2 decimales. El descuento fidelización se aplica sobre el bruto (precio
+  // × cantidad) y el descuento manual se resta del resultado, en ese orden.
+  // round() de Prisma.Decimal usa ROUND_HALF_UP por defecto.
+  private calcularSubtotalLinea(
+    precioUnitario: Prisma.Decimal,
+    cantidad: Prisma.Decimal,
+    descuentoFidelizacionPorcentaje: Prisma.Decimal | null,
+    descuentoItem: Prisma.Decimal,
+  ): Prisma.Decimal {
+    const bruto = precioUnitario.times(cantidad);
+    const trasFidelizacion = descuentoFidelizacionPorcentaje
+      ? bruto.times(new Prisma.Decimal(1).minus(descuentoFidelizacionPorcentaje.dividedBy(100)))
+      : bruto;
+    const subtotal = trasFidelizacion.minus(descuentoItem);
+    return subtotal.toDecimalPlaces(2);
+  }
 
+  private async resolverItems(
+    empresaId: string,
+    items: Array<{ productoId: string; cantidad: number; descuentoItem?: number }>,
+    clienteId?: string,
+  ) {
     const db = this.prismaFactory.forEmpresa(empresaId);
 
-    // Inc-1 (RN-VTA-11): validar que el cliente pertenezca a la empresa y
-    // esté activo. ClientesService.obtener() ya lanza NotFoundException si no
-    // existe o es de otra empresa. El chequeo de activo es adicional.
-    if (dto.clienteId) {
-      const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
-      if (!cliente.activo) {
-        throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
-      }
-    }
-
-    const productoIds = [...new Set(dto.items.map((i) => i.productoId))];
+    const productoIds = [...new Set(items.map((i) => i.productoId))];
     const productos = await db.producto.findMany({ where: { id: { in: productoIds } } });
     const productoPorId = new Map(productos.map((p) => [p.id, p]));
 
-    for (const item of dto.items) {
+    for (const item of items) {
       const producto = productoPorId.get(item.productoId);
-      if (!producto) {
-        throw new NotFoundException('PRODUCTO_NO_ENCONTRADO');
-      }
-      // Inc-1 (RN-VTA-07, C5, C27): rechazar productos inactivos
-      if (!producto.activo) {
-        throw new UnprocessableEntityException('PRODUCTO_INACTIVO');
-      }
-      // Inc-1 (RN-VTA-06, C1): descuento manual bloqueado hasta D-VTA-03
-      if (item.descuentoItem && item.descuentoItem > 0) {
+      if (!producto) throw new NotFoundException('PRODUCTO_NO_ENCONTRADO');
+      if (!producto.activo) throw new UnprocessableEntityException('PRODUCTO_INACTIVO');
+      if (item.descuentoItem && item.descuentoItem > 0)
         throw new ForbiddenException('DESCUENTO_NO_AUTORIZADO');
-      }
     }
 
-    // Precio congelado al momento de la venta, tomado del catálogo (INV-12).
-    // Nivel del cliente calculado con historial PREVIO a esta venta (ver
-    // comentario original en el service pre-Inc-1 sobre Fase 5 de Fidelización).
-    const nivelCliente = dto.clienteId
-      ? await this.clientesService.calcularNivel(empresaId, dto.clienteId)
+    const nivelCliente = clienteId
+      ? await this.clientesService.calcularNivel(empresaId, clienteId)
       : null;
     const reglasActivas = nivelCliente
       ? await this.fidelizacionService.listarReglasActivas(empresaId)
       : [];
 
-    const itemsConPrecio = dto.items.map((item) => {
+    return items.map((item) => {
       const producto = productoPorId.get(item.productoId)!;
       const descuentoFidelizacion = this.fidelizacionService.calcularDescuentoAplicable(
         reglasActivas,
@@ -109,18 +94,44 @@ export class VentasService {
         reglaFidelizacionId: descuentoFidelizacion?.reglaId ?? null,
       };
     });
+  }
 
+  async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
+    // Inc-1 (INV-VTA-07): idempotencia
+    if (dto.idempotencyKey) {
+      const db = this.prismaFactory.forEmpresa(empresaId);
+      const existente = await db.venta.findUnique({
+        where: { idempotencyKey: dto.idempotencyKey },
+        include: { ventaItems: true },
+      });
+      if (existente) {
+        return { ...existente, advertenciasStockVencido: [] };
+      }
+    }
+
+    // Inc-1 (RN-VTA-11): cliente válido para esta empresa
+    if (dto.clienteId) {
+      const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
+      if (!cliente.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
+    }
+
+    const itemsConPrecio = await this.resolverItems(empresaId, dto.items, dto.clienteId);
+
+    // Inc-2 (RN-VTA-02): total como suma de subtotales redondeados a 2 dec
     const total = itemsConPrecio.reduce((acc, item) => {
-      const bruto = Number(item.precioUnitario) * item.cantidad;
-      const trasFidelizacion = item.descuentoFidelizacionPorcentaje
-        ? bruto * (1 - item.descuentoFidelizacionPorcentaje / 100)
-        : bruto;
-      const subtotal = trasFidelizacion - (item.descuentoItem ?? 0);
-      return acc + subtotal;
-    }, 0);
+      const subtotal = this.calcularSubtotalLinea(
+        new Prisma.Decimal(item.precioUnitario.toString()),
+        new Prisma.Decimal(item.cantidad),
+        item.descuentoFidelizacionPorcentaje
+          ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+          : null,
+        new Prisma.Decimal(item.descuentoItem ?? 0),
+      );
+      return acc.plus(subtotal);
+    }, new Prisma.Decimal(0));
 
-    // INV-03/INV-06: descuento de stock y creación de venta en la misma
-    // transacción — garantía de atomicidad bajo concurrencia.
+    const db = this.prismaFactory.forEmpresa(empresaId);
+
     return db.$transaction(async (tx) => {
       const venta = await tx.venta.create({
         data: {
@@ -134,10 +145,12 @@ export class VentasService {
           ventaItems: {
             create: itemsConPrecio.map((item) => ({
               productoId: item.productoId,
-              cantidad: item.cantidad,
-              precioUnitario: item.precioUnitario,
-              descuentoItem: item.descuentoItem ?? 0,
-              descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
+              cantidad: new Prisma.Decimal(item.cantidad),
+              precioUnitario: new Prisma.Decimal(item.precioUnitario.toString()),
+              descuentoItem: new Prisma.Decimal(item.descuentoItem ?? 0),
+              descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje
+                ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+                : null,
               reglaFidelizacionId: item.reglaFidelizacionId,
             })),
           },
@@ -145,7 +158,7 @@ export class VentasService {
         include: { ventaItems: true },
       });
 
-      // Inc-1 (RN-VTA-18, C12): AuditLog de creación en la misma transacción.
+      // Inc-1 (RN-VTA-18): AuditLog en la misma transacción
       await tx.auditLog.create({
         data: {
           empresaId,
@@ -153,7 +166,11 @@ export class VentasService {
           accion: 'CREATE',
           entidadAfectada: 'Venta',
           entidadId: venta.id,
-          valoresPosteriores: { total, canal: dto.canal, items: dto.items.length },
+          valoresPosteriores: {
+            total: total.toString(),
+            canal: dto.canal,
+            items: dto.items.length,
+          },
           ventaId: venta.id,
         },
       });
@@ -178,6 +195,49 @@ export class VentasService {
     });
   }
 
+  // Inc-2 (RF-VTA-09, RF-VTA-10): preview del total con cálculo Decimal,
+  // sin crear la venta ni tocar stock. El frontend la llama 300 ms después
+  // del último cambio en el carrito para mostrar el total exacto.
+  async cotizar(dto: CotizarVentaDto, empresaId: string) {
+    // Inc-1 (RN-VTA-11): cliente válido para esta empresa
+    if (dto.clienteId) {
+      const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
+      if (!cliente.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
+    }
+
+    const itemsConPrecio = await this.resolverItems(empresaId, dto.items, dto.clienteId);
+
+    const lineas = itemsConPrecio.map((item) => {
+      const precioDecimal = new Prisma.Decimal(item.precioUnitario.toString());
+      const cantidadDecimal = new Prisma.Decimal(item.cantidad);
+      const fidPct = item.descuentoFidelizacionPorcentaje
+        ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+        : null;
+      const descManual = new Prisma.Decimal(item.descuentoItem ?? 0);
+      const subtotal = this.calcularSubtotalLinea(
+        precioDecimal,
+        cantidadDecimal,
+        fidPct,
+        descManual,
+      );
+      return {
+        productoId: item.productoId,
+        precioUnitario: precioDecimal.toString(),
+        cantidad: cantidadDecimal.toString(),
+        descuentoFidelizacionPorcentaje: fidPct?.toString() ?? null,
+        reglaFidelizacionId: item.reglaFidelizacionId ?? null,
+        descuentoItem: descManual.toString(),
+        subtotal: subtotal.toString(),
+      };
+    });
+
+    const total = lineas
+      .reduce((acc, l) => acc.plus(new Prisma.Decimal(l.subtotal)), new Prisma.Decimal(0))
+      .toDecimalPlaces(2);
+
+    return { lineas, total: total.toString() };
+  }
+
   async findAll(empresaId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
     return db.venta.findMany({
@@ -189,14 +249,11 @@ export class VentasService {
   async findOne(id: string, empresaId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
     const venta = await db.venta.findUnique({ where: { id }, include: { ventaItems: true } });
-    if (!venta) {
-      throw new NotFoundException('Venta no encontrada');
-    }
+    if (!venta) throw new NotFoundException('Venta no encontrada');
     return venta;
   }
 
   // Inc-1: búsqueda de productos para el POS (GET /ventas/productos?search=).
-  // Solo productos activos. Devuelve hasta 50 resultados con stock consolidado.
   async buscarProductos(empresaId: string, search: string) {
     if (!search || search.length < 2) {
       throw new BadRequestException('El término de búsqueda debe tener al menos 2 caracteres');

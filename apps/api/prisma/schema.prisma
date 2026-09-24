@@ -656,8 +656,10 @@ model Venta {
   // Inc-1 (C11): tipado como enum en vez de String libre
   estado    EstadoVenta @default(CONFIRMADA)
   canal     String // presencial/mayorista/online
-  total     Decimal
-  descuento Decimal     @default(0)
+  // Inc-2 (RN-VTA-02): precisión fija 14,2 para que el tipo en Postgres sea
+  // NUMERIC(14,2) — los cálculos intermedios usan Prisma.Decimal en el service.
+  total     Decimal     @db.Decimal(14, 2)
+  descuento Decimal     @default(0) @db.Decimal(14, 2)
   // Inc-1 (INV-VTA-07, CA-VTA-15): clave de idempotencia — el frontend la
   // genera antes de confirmar (UUID v4); un reintento con la misma clave
   // devuelve la venta ya creada sin duplicar stock ni pagos.
@@ -677,13 +679,13 @@ model VentaItem {
   venta                           Venta              @relation(fields: [ventaId], references: [id])
   productoId                      String
   producto                        Producto           @relation(fields: [productoId], references: [id])
-  cantidad                        Decimal
-  precioUnitario                  Decimal
+  cantidad                        Decimal            @db.Decimal(14, 2)
+  precioUnitario                  Decimal            @db.Decimal(14, 2)
   // Descuento MANUAL cargado por el vendedor (ej. una promo puntual
   // negociada en el momento) — nunca lo calcula el sistema. Separado a
   // propósito del descuento de fidelización de abajo: mezclarlos en un
   // solo número impediría auditar/mostrar de dónde vino cada uno.
-  descuentoItem                   Decimal            @default(0)
+  descuentoItem                   Decimal            @default(0) @db.Decimal(14, 2)
   // Fase 5 del roadmap de Fidelización: descuento AUTOMÁTICO calculado
   // por FidelizacionService.calcularDescuentoAplicable() a partir del
   // nivel del cliente (congelado con su historial ANTES de esta venta,

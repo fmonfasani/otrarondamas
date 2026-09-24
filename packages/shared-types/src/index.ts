@@ -245,6 +245,29 @@ export interface CreatePagoVentaRequest {
   referencia?: string; // Transferencia/QR
 }
 
+// Inc-2 (RF-VTA-09, RF-VTA-10): cotización previa del total.
+// Mismos campos que CreateVentaRequest pero sin idempotencyKey.
+export interface CotizarVentaRequest {
+  canal: CanalVenta;
+  clienteId?: string;
+  items: CreateVentaItemRequest[];
+}
+
+export interface CotizacionLinea {
+  productoId: string;
+  precioUnitario: string; // Decimal serializado
+  cantidad: string;
+  descuentoFidelizacionPorcentaje: string | null;
+  reglaFidelizacionId: string | null;
+  descuentoItem: string;
+  subtotal: string; // redondeado a 2 dec
+}
+
+export interface CotizacionResponse {
+  lineas: CotizacionLinea[];
+  total: string; // suma de subtotales, 2 dec
+}
+
 // --- Caja (apps/api/src/caja) ---
 
 export type EstadoCaja = 'CERRADA' | 'ABIERTA' | 'EN_ARQUEO';

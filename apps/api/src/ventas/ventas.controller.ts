@@ -1,8 +1,19 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VentasService } from './ventas.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
+import { CotizarVentaDto } from './dto/cotizar-venta.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -24,6 +35,16 @@ export class VentasController {
   @Get('productos')
   buscarProductos(@Query('search') search: string, @CurrentUser() user: AuthenticatedUser) {
     return this.ventasService.buscarProductos(user.empresaId, search ?? '');
+  }
+
+  // Inc-2 (RF-VTA-09, RF-VTA-10): cotización previa sin crear la venta.
+  // El frontend la llama 300 ms después del último cambio en el carrito
+  // para mostrar el total exacto calculado con Prisma.Decimal en el servidor.
+  @RequierePermiso('ventas.crear')
+  @Post('cotizacion')
+  @HttpCode(HttpStatus.OK)
+  cotizar(@Body() dto: CotizarVentaDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.ventasService.cotizar(dto, user.empresaId);
   }
 
   @RequierePermiso('ventas.crear')
