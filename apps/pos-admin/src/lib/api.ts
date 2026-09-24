@@ -6,7 +6,11 @@ import type {
   Venta,
   CreateVentaRequest,
   Pago,
-  CreatePagoRequest,
+  ProductoBusqueda,
+  CotizarVentaRequest,
+  CotizacionResponse,
+  CreatePagoVentaRequest,
+  PagoVentaResponse,
   EstadoCajaResponse,
   AbrirCajaRequest,
   AperturaCaja,
@@ -98,6 +102,10 @@ export const api = {
 
   buscarProductos: (search: string) =>
     request<Producto[]>(`/catalogo/productos?search=${encodeURIComponent(search)}`),
+  // Inc-1: búsqueda de productos para el POS (GET /ventas/productos?search=)
+  // Solo activos con stock; devuelve ProductoBusqueda con familia, stockDisponible, etc.
+  buscarProductosVenta: (search: string) =>
+    request<ProductoBusqueda[]>(`/ventas/productos?search=${encodeURIComponent(search)}`),
   // Árbol de categorización (Familia→Subfamilia→Tipo→Subtipo), para
   // poblar selectores en cascada — ver JerarquiaCatalogoController.
   jerarquiaCatalogo: () => request<JerarquiaCatalogo>('/catalogo/jerarquia'),
@@ -107,13 +115,30 @@ export const api = {
   actualizarProducto: (id: string, dto: UpdateProductoRequest) =>
     request<Producto>(`/catalogo/productos/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
 
+  // Inc-2 (RF-VTA-09): cotización previa del total antes de confirmar
+  cotizarVenta: (dto: CotizarVentaRequest) =>
+    request<CotizacionResponse>('/ventas/cotizacion', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
   crearVenta: (dto: CreateVentaRequest) =>
     request<Venta>('/ventas', { method: 'POST', body: JSON.stringify(dto) }),
   getVenta: (id: string) => request<Venta>(`/ventas/${id}`),
-  listarVentas: () => request<Venta[]>('/ventas'),
+  listarVentas: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<{ data: Venta[]; total: number; page: number; pageSize: number }>(
+      `/ventas${qs}`,
+    );
+  },
+  getComprobante: (ventaId: string) => request<Venta>(`/ventas/${ventaId}/comprobante`),
 
-  crearPago: (ventaId: string, dto: CreatePagoRequest) =>
-    request<Pago>(`/ventas/${ventaId}/pagos`, { method: 'POST', body: JSON.stringify(dto) }),
+  // Inc-3 (RF-VTA-14): pagos mixtos con vuelto
+  crearPago: (ventaId: string, dto: CreatePagoVentaRequest) =>
+    request<PagoVentaResponse>(`/ventas/${ventaId}/pagos`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
   listarPagos: (ventaId: string) => request<Pago[]>(`/ventas/${ventaId}/pagos`),
 
   estadoCaja: () => request<EstadoCajaResponse>('/caja/estado'),

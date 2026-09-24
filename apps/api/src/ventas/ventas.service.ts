@@ -14,6 +14,7 @@ import { ClientesService } from '../clientes/clientes.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
 import { CotizarVentaDto } from './dto/cotizar-venta.dto';
 import { CrearPagoVentaDto } from './dto/crear-pago-venta.dto';
+import { ListarVentasDto } from './dto/listar-ventas.dto';
 
 /**
  * RF-05 (ventas presenciales).
@@ -349,35 +350,120 @@ export class VentasService {
     });
   }
 
-  async findAll(empresaId: string) {
-    const db = this.prismaFactory.forEmpresa(empresaId);
-    return db.venta.findMany({
-      include: { ventaItems: true },
-      orderBy: { createdAt: 'desc' },
+  private calcularEstadoCobro(
+    saldo: Prisma.Decimal,
+    total: Prisma.Decimal,
+  ): 'PENDIENTE' | 'PARCIAL' | 'COBRADA' {
+    if (saldo.equals(total)) return 'PENDIENTE';
+    if (saldo.isZero()) return 'COBRADA';
+    return 'PARCIAL';
+  }
+
+  async findAll(empresaId: string, dto: ListarVentasDto = {}) {
+    const {
+      desde,
+      hasta,
+      estadoCobro,
+      usuarioId,
+      clienteId,
+      numero,
+      page = 1,
+      pageSize = 25,
+    } = dto;
+
+    const createdAtFilter: Prisma.DateTimeFilter | undefined =
+      desde || hasta
+        ? { ...(desde ? { gte: new Date(desde) } : {}), ...(hasta ? { lte: new Date(hasta) } : {}) }
+        : undefined;
+
+    const where: Prisma.VentaWhereInput = {
+      empresaId,
+      ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
+      ...(usuarioId ? { usuarioId } : {}),
+      ...(clienteId ? { clienteId } : {}),
+      ...(numero ? { numero } : {}),
+    };
+
+    const [ventas, total] = await Promise.all([
+      this.prismaFactory.forEmpresa(empresaId).venta.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          usuario: { select: { id: true, nombre: true } },
+          cliente: { select: { id: true, nombre: true } },
+          pagos: { where: { estado: 'APROBADO' }, select: { monto: true, medio: true } },
+          _count: { select: { pagos: true } },
+        },
+      }),
+      this.prismaFactory.forEmpresa(empresaId).venta.count({ where }),
+    ]);
+
+    // Calcular saldo y estadoCobro para filtrado y respuesta
+    const filas = ventas.map((v) => {
+      const totalDecimal = new Prisma.Decimal(v.total);
+      const sumaPagos = v.pagos.reduce(
+        (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
+        new Prisma.Decimal(0),
+      );
+      const saldoDecimal = totalDecimal.minus(sumaPagos);
+      const ec = this.calcularEstadoCobro(saldoDecimal, totalDecimal);
+      const numeroFormateado = v.numero ? `#${String(v.numero).padStart(8, '0')}` : null;
+      return {
+        ...v,
+        saldo: saldoDecimal.toDecimalPlaces(2).toString(),
+        estadoCobro: ec,
+        numeroFormateado,
+        medios: [...new Set(v.pagos.map((p) => p.medio))],
+      };
     });
+
+    // Filtrar por estadoCobro en memoria (es derivado, no está en DB)
+    const filasFiltradas = estadoCobro ? filas.filter((f) => f.estadoCobro === estadoCobro) : filas;
+
+    return { data: filasFiltradas, total, page, pageSize };
   }
 
   async findOne(id: string, empresaId: string) {
-    const db = this.prismaFactory.forEmpresa(empresaId);
-    const venta = await db.venta.findUnique({
+    const venta = await this.prismaFactory.forEmpresa(empresaId).venta.findFirst({
       where: { id },
       include: {
-        ventaItems: true,
-        // Inc-3: incluir pagos para calcular saldo derivado
-        pagos: { orderBy: { createdAt: 'asc' } },
         usuario: { select: { id: true, nombre: true } },
         cliente: { select: { id: true, nombre: true } },
+        ventaItems: {
+          include: { producto: { select: { id: true, nombre: true, codigoInterno: true } } },
+        },
+        pagos: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!venta) throw new NotFoundException('Venta no encontrada');
 
-    // Saldo derivado: total − suma de pagos APROBADOS
-    const totalPagado = venta.pagos
+    const totalDecimal = new Prisma.Decimal(venta.total);
+    const sumaPagos = venta.pagos
       .filter((p) => p.estado === 'APROBADO')
-      .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
-    const saldo = new Prisma.Decimal(venta.total.toString()).minus(totalPagado).toDecimalPlaces(2);
+      .reduce((acc, p) => acc.plus(new Prisma.Decimal(p.monto)), new Prisma.Decimal(0));
+    const saldoDecimal = totalDecimal.minus(sumaPagos);
+    const estadoCobro = this.calcularEstadoCobro(saldoDecimal, totalDecimal);
+    const numeroFormateado = venta.numero ? `#${String(venta.numero).padStart(8, '0')}` : null;
 
-    return { ...venta, saldo: saldo.toString() };
+    return {
+      ...venta,
+      saldo: saldoDecimal.toDecimalPlaces(2).toString(),
+      estadoCobro,
+      numeroFormateado,
+      ventaItems: venta.ventaItems.map((item) => ({
+        ...item,
+        nombre: item.producto?.nombre ?? item.productoId,
+        codigoInterno: item.producto?.codigoInterno ?? null,
+      })),
+    };
+  }
+
+  async getComprobante(id: string, empresaId: string) {
+    const venta = await this.findOne(id, empresaId);
+    // Retorna la misma estructura que findOne — el frontend la formatea para impresión
+    return venta;
   }
 
   // Inc-1: búsqueda de productos para el POS

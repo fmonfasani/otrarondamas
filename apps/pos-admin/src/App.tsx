@@ -6,6 +6,9 @@ import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
+import { VentasPage } from './features/ventas/VentasPage';
+import { VentaDetallePage } from './features/ventas/VentaDetallePage';
+import { ComprobantePage } from './features/ventas/ComprobantePage';
 import { CajaPage } from './features/caja/CajaPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { InventarioPage } from './features/inventario/InventarioPage';
@@ -22,6 +25,15 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+          {/* Comprobante sin sidebar (layout limpio para impresión) */}
+          <Route
+            path="/ventas/:id/comprobante"
+            element={
+              <ProtectedRoute>
+                <ComprobantePage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/*"
             element={
@@ -29,7 +41,9 @@ function App() {
                 <MainLayout>
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
+                    <Route path="/ventas" element={<VentasPage />} />
                     <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
+                    <Route path="/ventas/:id" element={<VentaDetallePage />} />
                     <Route path="/orders" element={<PedidosPage />} />
                     <Route path="/inventory" element={<InventarioPage />} />
                     <Route path="/compras" element={<ComprasPage />} />

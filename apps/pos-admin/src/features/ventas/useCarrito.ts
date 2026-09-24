@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
-import type { Producto } from '@otrarondamas/shared-types';
+import { useState, useCallback, useRef } from 'react';
+import type { ProductoBusqueda } from '@otrarondamas/shared-types';
 
 export interface ItemCarrito {
-  producto: Producto;
+  producto: ProductoBusqueda;
   cantidad: number;
 }
 
@@ -12,11 +12,16 @@ export interface ItemCarrito {
  * POST /ventas). El precio que se ve acá es solo informativo — el
  * backend vuelve a tomar precioMinorista del catálogo al confirmar, no
  * confía en lo que mande el cliente (ver apps/api/src/ventas/ventas.service.ts).
+ *
+ * idempotencyKey: UUID v4 generado al montar el hook, se regenera al llamar
+ * a vaciar(). Enviado en CreateVentaRequest para evitar duplicados por
+ * reintento (INV-VTA-07).
  */
 export function useCarrito() {
   const [items, setItems] = useState<ItemCarrito[]>([]);
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
-  const agregar = useCallback((producto: Producto) => {
+  const agregar = useCallback((producto: ProductoBusqueda) => {
     setItems((prev) => {
       const existente = prev.find((i) => i.producto.id === producto.id);
       if (existente) {
@@ -40,12 +45,23 @@ export function useCarrito() {
     setItems((prev) => prev.filter((i) => i.producto.id !== productoId));
   }, []);
 
-  const vaciar = useCallback(() => setItems([]), []);
+  const vaciar = useCallback(() => {
+    setItems([]);
+    idempotencyKeyRef.current = crypto.randomUUID();
+  }, []);
 
   const total = items.reduce(
     (acc, item) => acc + Number(item.producto.precioMinorista) * item.cantidad,
     0,
   );
 
-  return { items, agregar, actualizarCantidad, quitar, vaciar, total };
+  return {
+    items,
+    agregar,
+    actualizarCantidad,
+    quitar,
+    vaciar,
+    total,
+    idempotencyKey: idempotencyKeyRef.current,
+  };
 }

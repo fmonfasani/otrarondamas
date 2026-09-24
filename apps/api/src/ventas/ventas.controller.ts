@@ -15,6 +15,7 @@ import { VentasService } from './ventas.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
 import { CotizarVentaDto } from './dto/cotizar-venta.dto';
 import { CrearPagoVentaDto } from './dto/crear-pago-venta.dto';
+import { ListarVentasDto } from './dto/listar-ventas.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequierePermiso } from '../auth/decorators/requiere-permiso.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -54,14 +55,22 @@ export class VentasController {
     return this.ventasService.create(dto, user.empresaId, user.id);
   }
 
+  @RequierePermiso('ventas.ver')
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.ventasService.findAll(user.empresaId);
+  findAll(@Query() dto: ListarVentasDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.ventasService.findAll(user.empresaId, dto);
   }
 
+  @RequierePermiso('ventas.ver')
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.ventasService.findOne(id, user.empresaId);
+  }
+
+  @RequierePermiso('ventas.ver')
+  @Get(':id/comprobante')
+  getComprobante(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.ventasService.getComprobante(id, user.empresaId);
   }
 
   // Inc-3 (RF-VTA-14, RF-VTA-15, RF-VTA-16): registrar un pago sobre una venta.

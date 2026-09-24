@@ -27,6 +27,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: <BarChart3 className="w-5 h-5 shrink-0" /> },
   {
+    path: '/ventas',
+    label: 'Ventas',
+    icon: <FileText className="w-5 h-5 shrink-0" />,
+  },
+  {
     path: '/ventas/nueva',
     label: 'Nueva venta',
     icon: <ShoppingCart className="w-5 h-5 shrink-0" />,
@@ -77,7 +82,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       {/* Nav items */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive =
+            item.path === '/'
+              ? location.pathname === '/'
+              : location.pathname === item.path ||
+                (item.path !== '/ventas' && location.pathname.startsWith(item.path + '/')) ||
+                (item.path === '/ventas' && location.pathname === '/ventas');
           return (
             <Link
               key={item.path}
