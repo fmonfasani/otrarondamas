@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,13 +13,16 @@ import { FidelizacionService } from '../fidelizacion/fidelizacion.service';
 import { ClientesService } from '../clientes/clientes.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
 import { CotizarVentaDto } from './dto/cotizar-venta.dto';
+import { CrearPagoVentaDto } from './dto/crear-pago-venta.dto';
 
 /**
  * RF-05 (ventas presenciales).
  *
  * Inc-1: validaciones de integridad (RN-VTA-06, 07, 11, 18, INV-VTA-07).
- * Inc-2: cálculo con Prisma.Decimal y redondeo a 2 decimales por línea
- *        (RN-VTA-02, CA-VTA-06). POST /ventas/cotizacion para preview.
+ * Inc-2: cálculo con Prisma.Decimal y redondeo a 2 dec por línea (RN-VTA-02).
+ * Inc-3: número comercial correlativo (D-VTA-10), POST /ventas/:id/pagos con
+ *        montoRecibido/vuelto/referencia (RF-VTA-14-15-16), bloqueo de efectivo
+ *        con caja cerrada (D-VTA-07/A), saldo derivado en GET /ventas/:id.
  */
 @Injectable()
 export class VentasService {
@@ -29,10 +33,7 @@ export class VentasService {
     private readonly clientesService: ClientesService,
   ) {}
 
-  // Inc-2 (RN-VTA-02): subtotal por línea con Decimal, redondeo mitad-arriba
-  // a 2 decimales. El descuento fidelización se aplica sobre el bruto (precio
-  // × cantidad) y el descuento manual se resta del resultado, en ese orden.
-  // round() de Prisma.Decimal usa ROUND_HALF_UP por defecto.
+  // Inc-2: subtotal por línea con Decimal, redondeo mitad-arriba a 2 dec.
   private calcularSubtotalLinea(
     precioUnitario: Prisma.Decimal,
     cantidad: Prisma.Decimal,
@@ -43,8 +44,7 @@ export class VentasService {
     const trasFidelizacion = descuentoFidelizacionPorcentaje
       ? bruto.times(new Prisma.Decimal(1).minus(descuentoFidelizacionPorcentaje.dividedBy(100)))
       : bruto;
-    const subtotal = trasFidelizacion.minus(descuentoItem);
-    return subtotal.toDecimalPlaces(2);
+    return trasFidelizacion.minus(descuentoItem).toDecimalPlaces(2);
   }
 
   private async resolverItems(
@@ -96,20 +96,37 @@ export class VentasService {
     });
   }
 
+  // Inc-3 (D-VTA-07/A): verifica si hay apertura de caja vigente.
+  // La empresa puede no tener caja configurada (arranque inicial) — en ese
+  // caso se trata como caja cerrada.
+  private async cajaEstaAbierta(empresaId: string): Promise<boolean> {
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const caja = await db.caja.findUnique({ where: { empresaId } });
+    if (!caja) return false;
+    const apertura = await db.aperturaCaja.findFirst({
+      where: { cajaId: caja.id, fechaCierre: null },
+    });
+    return !!apertura;
+  }
+
   async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
-    // Inc-1 (INV-VTA-07): idempotencia
+    // Inc-1: idempotencia
     if (dto.idempotencyKey) {
       const db = this.prismaFactory.forEmpresa(empresaId);
       const existente = await db.venta.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
-        include: { ventaItems: true },
+        include: { ventaItems: true, pagos: true },
       });
       if (existente) {
-        return { ...existente, advertenciasStockVencido: [] };
+        const totalPagado = existente.pagos
+          .filter((p) => p.estado === 'APROBADO')
+          .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+        const saldo = new Prisma.Decimal(existente.total.toString()).minus(totalPagado);
+        return { ...existente, saldo: saldo.toString(), advertenciasStockVencido: [] };
       }
     }
 
-    // Inc-1 (RN-VTA-11): cliente válido para esta empresa
+    // Inc-1: cliente válido para esta empresa
     if (dto.clienteId) {
       const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
       if (!cliente.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
@@ -117,7 +134,7 @@ export class VentasService {
 
     const itemsConPrecio = await this.resolverItems(empresaId, dto.items, dto.clienteId);
 
-    // Inc-2 (RN-VTA-02): total como suma de subtotales redondeados a 2 dec
+    // Inc-2: total con Decimal
     const total = itemsConPrecio.reduce((acc, item) => {
       const subtotal = this.calcularSubtotalLinea(
         new Prisma.Decimal(item.precioUnitario.toString()),
@@ -133,6 +150,15 @@ export class VentasService {
     const db = this.prismaFactory.forEmpresa(empresaId);
 
     return db.$transaction(async (tx) => {
+      // Inc-3 (D-VTA-10/A): número correlativo por empresa dentro de la
+      // transacción — SELECT MAX + 1 con bloqueo implícito de la fila en
+      // la transacción serializable de Postgres.
+      const maxNumero = await tx.venta.aggregate({
+        where: { empresaId },
+        _max: { numero: true },
+      });
+      const numero = (maxNumero._max.numero ?? 0) + 1;
+
       const venta = await tx.venta.create({
         data: {
           empresaId,
@@ -140,6 +166,7 @@ export class VentasService {
           clienteId: dto.clienteId,
           canal: dto.canal,
           total,
+          numero,
           estado: 'CONFIRMADA',
           idempotencyKey: dto.idempotencyKey ?? null,
           ventaItems: {
@@ -158,7 +185,7 @@ export class VentasService {
         include: { ventaItems: true },
       });
 
-      // Inc-1 (RN-VTA-18): AuditLog en la misma transacción
+      // Inc-1: AuditLog en la misma transacción
       await tx.auditLog.create({
         data: {
           empresaId,
@@ -167,6 +194,7 @@ export class VentasService {
           entidadAfectada: 'Venta',
           entidadId: venta.id,
           valoresPosteriores: {
+            numero,
             total: total.toString(),
             canal: dto.canal,
             items: dto.items.length,
@@ -191,15 +219,16 @@ export class VentasService {
         }
       }
 
-      return { ...venta, advertenciasStockVencido: [...productosConLoteVencido] };
+      return {
+        ...venta,
+        saldo: total.toString(),
+        advertenciasStockVencido: [...productosConLoteVencido],
+      };
     });
   }
 
-  // Inc-2 (RF-VTA-09, RF-VTA-10): preview del total con cálculo Decimal,
-  // sin crear la venta ni tocar stock. El frontend la llama 300 ms después
-  // del último cambio en el carrito para mostrar el total exacto.
+  // Inc-2: cotización previa sin crear la venta
   async cotizar(dto: CotizarVentaDto, empresaId: string) {
-    // Inc-1 (RN-VTA-11): cliente válido para esta empresa
     if (dto.clienteId) {
       const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
       if (!cliente.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
@@ -238,6 +267,88 @@ export class VentasService {
     return { lineas, total: total.toString() };
   }
 
+  // Inc-3 (RF-VTA-14, RF-VTA-15, RF-VTA-16): registrar un pago sobre una venta.
+  // D-VTA-07/A: bloquear efectivo si la caja está cerrada.
+  // D-VTA-04/B: se permite salir con saldo — el saldo derivado lo calcula findOne().
+  async crearPago(ventaId: string, dto: CrearPagoVentaDto, empresaId: string, usuarioId: string) {
+    const db = this.prismaFactory.forEmpresa(empresaId);
+
+    const venta = await db.venta.findUnique({
+      where: { id: ventaId },
+      include: { pagos: { where: { estado: 'APROBADO' } } },
+    });
+    if (!venta) throw new NotFoundException('Venta no encontrada');
+    if (venta.empresaId !== empresaId) throw new NotFoundException('Venta no encontrada');
+    if (venta.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
+
+    const totalPagado = venta.pagos.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+    const saldo = new Prisma.Decimal(venta.total.toString()).minus(totalPagado);
+
+    if (saldo.lessThanOrEqualTo(0)) {
+      throw new BadRequestException('PAGO_EXCEDE_SALDO');
+    }
+
+    const montoDecimal = new Prisma.Decimal(dto.monto);
+    if (montoDecimal.greaterThan(saldo.plus(new Prisma.Decimal('0.001')))) {
+      throw new BadRequestException('PAGO_EXCEDE_SALDO');
+    }
+
+    // Inc-3 D-VTA-07/A: efectivo requiere caja abierta
+    if (dto.medio === 'efectivo') {
+      const abierta = await this.cajaEstaAbierta(empresaId);
+      if (!abierta) throw new ConflictException('CAJA_CERRADA');
+
+      // RN-VTA-12: en efectivo el montoRecibido puede superar el importe
+      const recibido = dto.montoRecibido ? new Prisma.Decimal(dto.montoRecibido) : montoDecimal;
+      if (recibido.lessThan(montoDecimal)) {
+        throw new BadRequestException('MONTO_RECIBIDO_INSUFICIENTE');
+      }
+    }
+
+    return db.$transaction(async (tx) => {
+      const montoRecibido =
+        dto.medio === 'efectivo' && dto.montoRecibido
+          ? new Prisma.Decimal(dto.montoRecibido)
+          : null;
+      const vuelto = montoRecibido ? montoRecibido.minus(montoDecimal).toDecimalPlaces(2) : null;
+
+      const pago = await tx.pago.create({
+        data: {
+          empresaId,
+          usuarioId,
+          ventaId,
+          monto: montoDecimal,
+          medio: dto.medio,
+          estado: 'APROBADO',
+          montoRecibido,
+          vuelto,
+          referencia: dto.referencia ?? null,
+        },
+      });
+
+      // Inc-1 (RN-VTA-18): AuditLog del cobro
+      await tx.auditLog.create({
+        data: {
+          empresaId,
+          usuarioId,
+          accion: 'PAGO',
+          entidadAfectada: 'Pago',
+          entidadId: pago.id,
+          valoresPosteriores: {
+            ventaId,
+            monto: montoDecimal.toString(),
+            medio: dto.medio,
+            vuelto: vuelto?.toString() ?? null,
+          },
+          ventaId,
+        },
+      });
+
+      const nuevoSaldo = saldo.minus(montoDecimal).toDecimalPlaces(2);
+      return { pago, saldo: nuevoSaldo.toString() };
+    });
+  }
+
   async findAll(empresaId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
     return db.venta.findMany({
@@ -248,12 +359,28 @@ export class VentasService {
 
   async findOne(id: string, empresaId: string) {
     const db = this.prismaFactory.forEmpresa(empresaId);
-    const venta = await db.venta.findUnique({ where: { id }, include: { ventaItems: true } });
+    const venta = await db.venta.findUnique({
+      where: { id },
+      include: {
+        ventaItems: true,
+        // Inc-3: incluir pagos para calcular saldo derivado
+        pagos: { orderBy: { createdAt: 'asc' } },
+        usuario: { select: { id: true, nombre: true } },
+        cliente: { select: { id: true, nombre: true } },
+      },
+    });
     if (!venta) throw new NotFoundException('Venta no encontrada');
-    return venta;
+
+    // Saldo derivado: total − suma de pagos APROBADOS
+    const totalPagado = venta.pagos
+      .filter((p) => p.estado === 'APROBADO')
+      .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+    const saldo = new Prisma.Decimal(venta.total.toString()).minus(totalPagado).toDecimalPlaces(2);
+
+    return { ...venta, saldo: saldo.toString() };
   }
 
-  // Inc-1: búsqueda de productos para el POS (GET /ventas/productos?search=).
+  // Inc-1: búsqueda de productos para el POS
   async buscarProductos(empresaId: string, search: string) {
     if (!search || search.length < 2) {
       throw new BadRequestException('El término de búsqueda debe tener al menos 2 caracteres');

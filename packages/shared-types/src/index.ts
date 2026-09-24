@@ -198,16 +198,22 @@ export interface Venta {
   descuento: string;
   // Inc-1 (INV-VTA-07): clave de idempotencia
   idempotencyKey: string | null;
+  // Inc-3 (D-VTA-10): número comercial correlativo (#00000125). null en ventas anteriores
+  numero: number | null;
   createdAt: string;
   updatedAt: string;
   ventaItems: VentaItem[];
-  // Fase 5 de Inventario (D-09): productoId de cada item que se descontó
-  // de al menos un lote ya vencido al momento de la venta. La venta NO
-  // se bloquea (decisión explícita, ver docs/scaffolding-notas.md) — es
-  // solo una advertencia puntual de esta respuesta; el registro
-  // permanente queda en MovimientoStock.loteVencidoAlMomento. Solo
-  // presente en la respuesta de POST /ventas, no en GET.
+  // Inc-3: presente en GET /ventas/:id — total − suma pagos APROBADOS
+  saldo?: string;
+  pagos?: Pago[];
+  // Fase 5 de Inventario (D-09): solo en POST /ventas
   advertenciasStockVencido?: string[];
+}
+
+// Inc-3: respuesta de POST /ventas/:id/pagos
+export interface PagoVentaResponse {
+  pago: Pago;
+  saldo: string; // saldo remanente tras este pago
 }
 
 // --- Pagos (apps/api/src/pagos) ---

@@ -656,16 +656,18 @@ model Venta {
   // Inc-1 (C11): tipado como enum en vez de String libre
   estado    EstadoVenta @default(CONFIRMADA)
   canal     String // presencial/mayorista/online
-  // Inc-2 (RN-VTA-02): precisión fija 14,2 para que el tipo en Postgres sea
-  // NUMERIC(14,2) — los cálculos intermedios usan Prisma.Decimal en el service.
+  // Inc-2 (RN-VTA-02): precisión fija 14,2
   total     Decimal     @db.Decimal(14, 2)
   descuento Decimal     @default(0) @db.Decimal(14, 2)
-  // Inc-1 (INV-VTA-07, CA-VTA-15): clave de idempotencia — el frontend la
-  // genera antes de confirmar (UUID v4); un reintento con la misma clave
-  // devuelve la venta ya creada sin duplicar stock ni pagos.
+  // Inc-1 (INV-VTA-07): clave de idempotencia
   idempotencyKey String? @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Inc-3 (D-VTA-10): número comercial correlativo por empresa, 8 dígitos en
+  // pantalla (#00000125). Se asigna con SELECT MAX(numero)+1 dentro de la
+  // transacción de create() — único por empresa, no global. null en ventas
+  // migradas antes de este incremento (no se recalcula retroactivamente).
+  numero    Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   ventaItems VentaItem[]
   pagos      Pago[]
