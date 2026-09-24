@@ -47,6 +47,7 @@ Reemplazar progresivamente los cuadernos y registros manuales por un sistema que
 |---|---|
 | Plataforma SaaS | Empresas, usuarios, aislamiento de datos y administración |
 | Usuarios y roles | Cuentas individuales y permisos configurables |
+| Login y roles del negocio | Dos puntos de entrada (Cliente/Negocio), legajo por rol y aprobación del dueño (RF-17) |
 | Catálogo | Productos, categorías, códigos, precios y presentaciones |
 | Ventas | POS presencial, mayorista y venta online |
 | Pedidos | Pedidos web, WhatsApp y redes sociales |
@@ -79,15 +80,31 @@ Salvo que el dueño lo incorpore expresamente:
 
 ### 3.1 Actores iniciales
 
-| Actor | Responsabilidad |
-|---|---|
-| Dueño | Administración, configuración, autorizaciones y validación |
-| Vendedor | Ventas, pedidos, preparación, entregas y cobros, según permisos |
-| Administrador SaaS | Administración técnica de empresas y plataforma, con acceso controlado |
+**Actualizado en la sesión de definición de Login y Roles del Negocio (22/09/2026)** — ver
+`docs/spec-login-roles.md` para el detalle completo (legajo por rol, flujo de alta, decisiones
+resueltas). El actor "Vendedor" de la v0.1 original se renombra a "Asistente de local" (mismas
+responsabilidades y permisos, solo cambia el nombre) y se agregan cuatro actores nuevos.
+
+| Actor | Responsabilidad | Punto de entrada |
+|---|---|---|
+| Dueño (Owner) | Administración, configuración, autorizaciones y validación | admin.otrarondamas.wapsell.com |
+| Asistente de local | Ventas, pedidos, preparación, entregas y cobros, según permisos (antes "Vendedor") | admin.otrarondamas.wapsell.com |
+| Cliente mayorista | Comercio que compra al negocio por mayor (B2B) — no es personal del negocio | admin.otrarondamas.wapsell.com |
+| Proveedor | Provee mercadería al negocio; pasa de ser un dato sin cuenta a un actor con login propio | admin.otrarondamas.wapsell.com |
+| Repartidor | Entrega pedidos a domicilio (RF-13) — rol y legajo definidos; sin pantallas funcionales todavía | admin.otrarondamas.wapsell.com |
+| Cliente (minorista) | Compra en el catálogo público, ahora con login real (antes sin autenticación) | otrarondamas.wapsell.com |
+| Administrador SaaS | Administración técnica de empresas y plataforma, con acceso controlado | — |
 
 El dueño tendrá acceso completo a la operación de su empresa desde dispositivos autorizados.
 
-Los vendedores tendrán cuentas individuales. No se presupone que todos tengan idénticos permisos.
+Los actores del panel interno (Dueño, Asistente de local, Cliente mayorista, Proveedor,
+Repartidor) tendrán cuentas individuales. No se presupone que todos tengan idénticos permisos:
+el modelo de autorización granular ya existente (§3.2) se extiende a los actores nuevos sin
+cambiar su diseño — cada uno recibe únicamente los permisos correspondientes a su rol.
+
+Los actores Proveedor, Repartidor y Cliente mayorista, además de los permisos, completan un
+**legajo** (datos fiscales o personales, y documentación según el rol) antes de poder operar,
+sujeto a aprobación explícita del dueño. Ver RF-17.
 
 ### 3.2 Modelo de autorización
 
@@ -163,6 +180,8 @@ El producto podrá contemplar:
 El sistema debe conservar los datos históricos de las ventas aunque cambien los precios o se desactive un producto.
 
 Pendiente: catálogo concreto, presentaciones y equivalencias reales.
+
+**Spec detallada propuesta:** `docs/spec-catalogo-productos.md` (borrador, sin aprobar) desarrolla este requisito con un modelo conceptual más granular — separa Producto/Variante/Presentación/SKU interno/Código de origen/Código de barras, define un flujo de importación y conciliación de catálogos de proveedores (DIPA MAX, catálogo minorista, Coca-Cola), listas de precios con historial, y el contrato de integración con el ingreso de mercadería a inventario. No reemplaza ni cierra este RF-03: es una propuesta de mayor detalle para ese mismo requisito, con sus propias decisiones pendientes (sección 14 de ese documento) que siguen abiertas. Antes de implementar sobre esa base hay que resolver los puntos de fricción con lo ya construido en el código (ver `docs/scaffolding-notas.md`, sección 8): el `schema.prisma` actual modela `Producto`/`Presentacion`/`Lote` de forma más simple que lo que ese spec propone (sin `Variante` ni SKU separado del id interno, sin entidades de importación/conciliación/proveedor-producto ni de listas de precios con historial).
 
 ### RF-04. Precios y descuentos
 
@@ -350,6 +369,35 @@ Registrar como mínimo:
 
 La auditoría debe cubrir ventas, modificaciones, cobros, anulaciones, devoluciones, ajustes, autorizaciones y operaciones de caja.
 
+### RF-17. Login, roles del negocio y legajo
+
+**Agregado en la sesión de definición del 22/09/2026** — ver `docs/spec-login-roles.md` para el
+detalle completo (tabla de campos/documentos por rol, diagrama de flujo, decisiones resueltas).
+
+- El sistema tendrá dos puntos de entrada separados, sin selector visual entre ellos: uno para
+  el Cliente minorista (otrarondamas.wapsell.com) y otro para todo actor que opera o comercia
+  con el negocio — Dueño, Asistente de local, Cliente mayorista, Proveedor, Repartidor
+  (admin.otrarondamas.wapsell.com).
+- El Cliente minorista tendrá login real (email y contraseña, o Google) — hasta esta sesión no
+  existía autenticación para ese actor.
+- Ningún actor del lado "negocio" se auto-registra: el dueño inicia el alta desde el panel
+  (invitación por email), y la persona invitada activa su cuenta y completa su legajo.
+- El legajo exige campos y, según el rol, documentación (certificado de antecedentes penales,
+  constancia de CUIL) con fecha de vencimiento propia. Mientras el legajo esté incompleto o sin
+  aprobar, la cuenta permanece en estado "Pendiente" y no puede operar.
+- El dueño revisa y aprueba manualmente cada legajo antes de que la cuenta pase a "Aprobada".
+- El sistema alertará al dueño cuando un documento del legajo esté por vencer.
+- Los documentos sensibles del legajo se almacenan fuera del acceso público directo; solo el
+  dueño puede solicitarlos autenticado.
+
+Fuera de alcance de este requisito (ver `docs/spec-login-roles.md`, sección "qué entra y qué
+no"): pantallas funcionales para Proveedor, Repartidor y Cliente mayorista; el sistema de
+pedidos a proveedores en tiempo real; precios y condiciones mayoristas (D-01, ya en backlog).
+
+Modelo de datos: Cliente (tienda pública) y Usuario (panel interno) permanecen como tablas
+separadas — un Cliente mayorista es un Cliente con datos de legajo adicionales y acceso a
+admin.\*, nunca un Usuario del panel interno.
+
 ## 5. Reglas de negocio e invariantes
 
 Estas reglas deben protegerse desde la lógica del servidor y la base de datos, no únicamente desde la interfaz.
@@ -499,29 +547,42 @@ El piloto no debe considerarse listo para producción hasta verificar:
 
 ## 10. Decisiones pendientes que bloquean el cierre definitivo
 
-Estas decisiones deben resolverse antes de congelar el alcance funcional:
+Estas decisiones deben resolverse antes de congelar el alcance funcional. El dueño aportó, para cada una, una **propuesta de dirección de diseño** (documentada en `docs/criterios-diseno-dueno-D01-D19.md`, 20/09/2026). Esa dirección no cierra la decisión: el dato comercial concreto (montos, porcentajes, zonas, plazos, presentaciones reales, mecanismo final) sigue pendiente y debe permanecer configurable, no asumido. La columna "Criterio de diseño aprobado" resume esa dirección; el detalle completo, con matices y ejemplos, está en el documento consolidado.
 
-| ID | Decisión pendiente |
-|---|---|
-| D-01 | Regla de precios mayoristas y asignación de clientes/listas |
-| D-02 | Porcentaje y condiciones de descuentos automáticos |
-| D-03 | Modalidad de integración de Mercado Pago |
-| D-04 | Alcance de integración de cobros presenciales |
-| D-05 | Confirmación del umbral de caja: condición estricta y manejo de diferencias menores |
-| D-06 | Mecanismo de autorización del dueño |
-| D-07 | Método de carga del catálogo y responsable operativo |
-| D-08 | Presentaciones, unidades y conversiones reales |
-| D-09 | Reglas de lotes, vencimientos y bloqueo de productos |
-| D-10 | Responsable y reglas de aprobación de diferencias de recepción |
-| D-11 | Zonas y costo de entrega |
-| D-12 | Preparación, asignación y contingencias de entrega |
-| D-13 | Canales, eventos y proveedor de notificaciones |
-| D-14 | Modelo y conexión de impresora; lector de códigos |
-| D-15 | Presupuesto total de infraestructura y servicios externos |
-| D-16 | Política de pagos parciales, vencimientos y aplicación de cobros |
-| D-17 | Política de cambios, devoluciones y reembolsos |
-| D-18 | Método de costos para calcular ganancias estimadas |
-| D-19 | Capacidad real disponible en el VPS Hetzner compartido (`89.167.96.239`) antes de sumar la carga del ERP — *agregado tras inspección del repo de Wapsell (19/09/2026), ver sección 7.3* |
+| ID | Decisión pendiente | Criterio de diseño aprobado (dirección, no dato cerrado) |
+|---|---|---|
+| D-01 | Regla de precios mayoristas y asignación de clientes/listas | Precio minorista y mayorista configurables por producto; aplicación automática mediante reglas configurables (p. ej. tipo de cliente o cantidad mínima); si no hay regla aplicable, usar el precio minorista. Cantidades mínimas reales y qué clientes son mayoristas: **pendiente**. |
+| D-02 | Porcentaje y condiciones de descuentos automáticos | Descuentos configurables por producto, cantidad o cliente; el sistema calcula automáticamente los descuentos habilitados; una excepción manual fuera de regla requiere autorización del dueño. Porcentajes y condiciones concretas: **pendiente**. |
+| D-03 | Modalidad de integración de Mercado Pago | Módulo de pagos diseñado desacoplado del proveedor: identificadores externos, estados de pago, soporte de notificaciones/webhooks e idempotencia cuando corresponda. La modalidad concreta (Checkout Pro, Checkout API u otra) se selecciona durante el diseño de la integración; no bloquea el modelo general de pagos. |
+| D-04 | Alcance de integración de cobros presenciales | Registrar siempre cobros manuales (medio, importe, fecha, operador); contemplar integraciones automáticas mediante adaptadores. La conciliación automática solo se habilita para medios/dispositivos efectivamente integrados. Qué medios concretos: **pendiente**. |
+| D-05 | Confirmación del umbral de caja: condición estricta y manejo de diferencias menores | Umbral mantenido como parámetro configurable; autorización del dueño exigida cuando la diferencia lo supere. El valor de referencia ($5.000) y la condición exacta de comparación permanecen **pendientes de confirmación**; no se asume tratamiento alguno para diferencias menores al umbral hasta que se defina la regla. |
+| D-06 | Mecanismo de autorización del dueño | Mecanismo centralizado de autorización para operaciones restringidas, con registro de quién autorizó, cuándo, para qué operación y con qué resultado. Restricciones explícitas: no almacenar PIN en texto plano; ningún agente o proceso automático puede autorizarse a sí mismo. El mecanismo concreto (PIN, aprobación desde la cuenta del dueño, o ambos) se define en el diseño de seguridad. |
+| D-07 | Método de carga del catálogo y responsable operativo | Admitir carga individual y preparar el sistema para importación masiva si resulta necesaria; validar datos obligatorios, detectar posibles duplicados y mostrar errores antes de confirmar la importación. Responsable operativo: **pendiente**. |
+| D-08 | Presentaciones, unidades y conversiones reales | Soportar productos con múltiples presentaciones y conversiones configurables (p. ej. unidad, pack, caja). Las conversiones deben ser explícitas y verificables; si no existe una equivalencia configurada, el sistema no debe calcularla por suposición. Presentaciones y equivalencias reales del catálogo: **pendiente**. |
+| D-09 | Reglas de lotes, vencimientos y bloqueo de productos | Registrar lotes, fechas de vencimiento y cantidades; generar alertas configurables; evitar la venta de productos vencidos. El bloqueo se aplica al lote vencido específico, sin bloquear innecesariamente otros lotes vigentes del mismo producto. La anticipación de 7 días se mantiene como propuesta inicial, **pendiente de confirmación**. |
+| D-10 | Responsable y reglas de aprobación de diferencias de recepción | Registrar automáticamente las diferencias entre cantidades esperadas y recibidas; la recepción con diferencias queda identificada y requiere revisión o autorización según una política configurable. Márgenes de tolerancia y responsables específicos: **pendiente** (no se inventan). |
+| D-11 | Zonas y costo de entrega | Permitir configurar zonas de entrega y sus tarifas; el costo se calcula automáticamente solo cuando exista una zona y tarifa válidas. Si la dirección no puede asociarse a una zona configurada, se solicita intervención antes de confirmar el costo. Zonas y tarifas reales: **pendiente**. |
+| D-12 | Preparación, asignación y contingencias de entrega | Registrar responsables, estados y resultado de cada entrega; automatizar los cambios de estado que se desprendan de eventos verificables. Las entregas fallidas quedan registradas y permiten reprogramación. Exigencia de evidencia (foto, firma u otra): **pendiente de definición operativa**. |
+| D-13 | Canales, eventos y proveedor de notificaciones | Notificaciones configurables por evento, canal y destinatario, con estado de envío y registro de errores; evitar duplicados. Los eventos candidatos del SDD pueden prepararse como catálogo configurable, pero no se habilitan envíos reales hasta definir canales, proveedor y credenciales. |
+| D-14 | Modelo y conexión de impresora; lector de códigos | Integración de periféricos desacoplada del backend; el POS trabaja con códigos de barras. Compatibilidad concreta, modelo, protocolo y disponibilidad de hardware: **pendiente**, dependen de los dispositivos que se elijan. |
+| D-15 | Presupuesto total de infraestructura y servicios externos | Priorizar arquitectura modular y costos operativos controlables, sin contratar servicios externos innecesarios para el MVP. Antes de contratar servicios o ampliar infraestructura, se presentan costos estimados y se solicita aprobación. Presupuesto máximo: **no se asume ninguno** hasta que se confirme. |
+| D-16 | Política de pagos parciales, vencimientos y aplicación de cobros | Permitir pagos parciales; registrar explícitamente la aplicación de cada cobro a una o más deudas; los saldos se calculan a partir de movimientos e imputaciones registradas. La aplicación automática de un cobro a una deuda solo ocurre si existe una regla definida; si no, el sistema solicita la selección al dueño. Mínimo de pago, vencimientos y fórmula exacta de saldo disponible: **pendiente**. |
+| D-17 | Política de cambios, devoluciones y reembolsos | Registrar devoluciones vinculadas a la venta original, conservando productos y cantidades involucrados, y generando los movimientos de stock correspondientes. Los reembolsos se registran como operaciones separadas y trazables. Excepciones requieren autorización del dueño. Plazos, condiciones y modalidad de reembolso: **pendiente**. |
+| D-18 | Método de costos para calcular ganancias estimadas | Conservar el historial de compras y costos por producto para permitir implementar un método de costeo verificable. No se presentan ganancias estimadas como definitivas hasta seleccionar el método. El método concreto (costo promedio, FIFO, último costo u otro) queda **pendiente**; no se elige ninguno por defecto sin validación. |
+| D-19 | Capacidad real disponible en el VPS Hetzner compartido (`89.167.96.239`) antes de sumar la carga del ERP — *agregado tras inspección del repo de Wapsell (19/09/2026), ver sección 7.3* | Realizar una medición técnica de CPU, RAM, disco, carga y servicios existentes antes de decidir el despliegue, documentada con evidencia. No desplegar ni modificar servicios existentes sin autorización explícita. Resultado de la medición: **pendiente de ejecución**. |
+| D-20 | Login/roles del negocio y legajo (RF-17) — *agregado en la sesión de definición del 22/09/2026, ver `docs/spec-login-roles.md`* | **Resuelto en esta sesión**: Cliente y Usuario permanecen separados (sin fusionar modelos); documentos del legajo en disco del VPS fuera del webroot, servidos solo autenticado (no cloud storage externo); vencimiento de documentos sensibles rastreado con alerta al dueño; email transaccional vía Resend. Pendiente: plazo exacto de retención de documentos tras el vencimiento de un legajo, cifrado en reposo del disco donde se guardan, y período de vigencia esperado por tipo de documento (no se asume un valor en meses sin confirmación). |
+
+### 10.1 Restricciones de diseño nuevas, derivadas de las respuestas del dueño
+
+Al responder D-01 a D-19, el dueño formuló siete restricciones de diseño explícitas que no tenían formulación propia en la v0.1 original de este documento. Se registran aquí como criterio de diseño aprobado; ninguna se numera como invariante nueva en la sección 5, porque esa promoción requeriría confirmación adicional del dueño sobre su alcance exacto (ver detalle en `docs/criterios-diseno-dueno-D01-D19.md`, sección "Restricciones nuevas explícitas").
+
+1. No almacenar PIN en texto plano (D-06).
+2. Ningún agente o proceso automático puede autorizarse a sí mismo (D-06) — candidato a invariante formal en una revisión futura, sujeto a confirmación explícita del dueño.
+3. El bloqueo por vencimiento se evalúa por lote, no por producto agregado (D-09).
+4. Si no hay conversión de presentación configurada, el sistema no la calcula por suposición (D-08).
+5. Si una dirección no coincide con ninguna zona de entrega configurada, se solicita intervención antes de confirmar el costo (D-11).
+6. La aplicación automática de un cobro a una deuda solo ocurre si existe una regla definida; en caso contrario, el sistema solicita la selección al dueño (D-16).
+7. Antes de contratar o ampliar infraestructura, se presentan costos estimados y se solicita aprobación (D-15).
 
 ## 11. Plan de implementación
 
@@ -555,6 +616,8 @@ Se mantendrán los cuadernos en paralelo hasta que el dueño autorice dejar de u
 | Implementación | No verificada |
 | Pruebas | No ejecutadas |
 | Infraestructura | Parcialmente definida — patrón de despliegue confirmado (Docker + nginx host + VPS compartido); capacidad real pendiente de verificar (D-19) |
-| Aprobación del dueño | Pendiente |
+| Decisiones D-01 a D-19 | **Criterio de diseño aprobado por el dueño para las 19** (ver sección 10 y `docs/criterios-diseno-dueno-D01-D19.md`, 20/09/2026); los datos comerciales concretos de cada una (montos, porcentajes, zonas, plazos, presentaciones reales, mecanismo final de autorización, modalidad de Mercado Pago, método de costeo) siguen **pendientes**, no cerrados |
+| D-20 (RF-17, Login y roles del negocio) | **Resuelto en la sesión del 22/09/2026** — ver `docs/spec-login-roles.md`. Las 4 decisiones técnicas (modelo de datos, storage de legajo, vencimiento, email transaccional) están cerradas; implementación todavía no iniciada |
+| Aprobación del dueño | Pendiente en cuanto a la especificación funcional en su conjunto; el criterio de dirección de diseño para D-01 a D-19 sí fue aportado por el dueño (ver arriba) |
 
-Conclusión: el descubrimiento permite iniciar el diseño técnico, pero no equivale a una especificación aprobada ni demuestra que el sistema esté implementado. La inspección del repositorio de Wapsell confirmó la viabilidad de la arquitectura de módulo independiente (sección 7), pero quedan pendientes el diseño técnico propio de Otra Roonda Más y el resto de las decisiones bloqueantes (sección 10). El siguiente paso es validar este SDD, cerrar las decisiones bloqueantes y luego iniciar el diseño técnico y los prompts de implementación.
+Conclusión: el descubrimiento permite iniciar el diseño técnico, pero no equivale a una especificación aprobada ni demuestra que el sistema esté implementado. La inspección del repositorio de Wapsell confirmó la viabilidad de la arquitectura de módulo independiente (sección 7), y el dueño aportó criterio de dirección de diseño para las 19 decisiones pendientes (sección 10), lo que habilita avanzar con partes del diseño estructural sin esperar los datos comerciales concretos. Esos datos comerciales, el resto de las precisiones operativas y la aprobación final de la especificación siguen pendientes. El siguiente paso es incorporar este criterio al diseño técnico (modelo de datos, prompt de scaffolding) y continuar cerrando los datos comerciales que aún faltan.

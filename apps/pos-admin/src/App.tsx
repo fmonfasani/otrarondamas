@@ -1,48 +1,73 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { AuthProvider, useAuth } from './features/auth/AuthContext';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './features/auth/AuthContext';
 import { LoginPage } from './features/auth/LoginPage';
+import { GoogleCallbackPage } from './features/auth/GoogleCallbackPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
+import { MainLayout } from './components/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
-
-function Nav() {
-  const { user } = useAuth();
-  return (
-    <nav>
-      <ul>
-        <li>
-          <Link to="/">Panel</Link>
-        </li>
-        {!user && (
-          <li>
-            <Link to="/login">Login</Link>
-          </li>
-        )}
-      </ul>
-    </nav>
-  );
-}
+import { NuevaVentaPage } from './features/ventas/NuevaVentaPage';
+import { VentasPage } from './features/ventas/VentasPage';
+import { VentaDetallePage } from './features/ventas/VentaDetallePage';
+import { ComprobantePage } from './features/ventas/ComprobantePage';
+import { CajaPage } from './features/caja/CajaPage';
+import { ProfilePage } from './features/profile/ProfilePage';
+import { InventarioPage } from './features/inventario/InventarioPage';
+import { ComprasPage } from './features/compras/ComprasPage';
+import { PedidosPage } from './features/pedidos/PedidosPage';
+import { PreciosPage } from './features/precios/PreciosPage';
+import { ClientesPage } from './features/clientes/ClientesPage';
+import { FidelizacionPage } from './features/fidelizacion/FidelizacionPage';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div>
-          <Nav />
-          <h1>POS/Admin — Otra Roonda Más</h1>
-          {/* TODO: diseño visual pendiente */}
-
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/login" element={<LoginPage />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+          {/* Comprobante sin sidebar (layout limpio para impresión) */}
+          <Route
+            path="/ventas/:id/comprobante"
+            element={
+              <ProtectedRoute>
+                <ComprobantePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Routes>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/ventas" element={<VentasPage />} />
+                    <Route path="/ventas/nueva" element={<NuevaVentaPage />} />
+                    <Route path="/ventas/:id" element={<VentaDetallePage />} />
+                    <Route path="/orders" element={<PedidosPage />} />
+                    <Route path="/inventory" element={<InventarioPage />} />
+                    <Route path="/compras" element={<ComprasPage />} />
+                    <Route path="/precios" element={<PreciosPage />} />
+                    <Route path="/customers" element={<ClientesPage />} />
+                    <Route path="/fidelizacion" element={<FidelizacionPage />} />
+                    <Route path="/cash" element={<CajaPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route
+                      path="/reports"
+                      element={<div className="text-center py-12">Reportes - En desarrollo</div>}
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <div className="text-center py-12">Configuración - En desarrollo</div>
+                      }
+                    />
+                  </Routes>
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </Router>
     </AuthProvider>
   );

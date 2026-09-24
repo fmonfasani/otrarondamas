@@ -17,7 +17,7 @@ import { Prisma } from '@prisma/client';
  * query de un modelo con empresaId sin ese filtro — sin depender de
  * estado de sesión de la conexión física.
  *
- * SOLO cubre los 17 modelos que tienen la columna `empresaId` de forma
+ * SOLO cubre los 21 modelos que tienen la columna `empresaId` de forma
  * directa (ver la lista MODELOS_CON_EMPRESA_ID abajo). Modelos que
  * heredan el scope a través de una relación (VentaItem -> Venta,
  * AplicacionPago -> Pago, AperturaCaja/MovimientoCaja/ArqueoCaja/
@@ -31,8 +31,16 @@ import { Prisma } from '@prisma/client';
  */
 const MODELOS_CON_EMPRESA_ID = [
   'Usuario',
-  'Categoria',
+  // Categoria se eliminó (reemplazada por la jerarquía Familia →
+  // Subfamilia → Tipo → Subtipo, ver la sesión de definición de
+  // catálogo) — los 5 modelos nuevos con empresaId directo se agregan
+  // acá abajo, mismo criterio que cualquier otro modelo con empresaId.
   'Producto',
+  'Familia',
+  'Subfamilia',
+  'Tipo',
+  'Subtipo',
+  'ProductoProveedor',
   'Presentacion',
   'Lote',
   'Cliente',
@@ -50,6 +58,13 @@ const MODELOS_CON_EMPRESA_ID = [
   'Notificacion',
   'AuditLog',
   'Autorizacion',
+  'ReglaFidelizacion',
+  // RF-17 (docs/spec-login-roles.md): Invitacion tiene empresaId
+  // directo. Legajo/DocumentoLegajo NO entran acá — heredan el scope
+  // vía Usuario/Cliente (mismo patrón ya documentado arriba para
+  // VentaItem/AperturaCaja/etc.: el código que los consulta siempre
+  // pasa por su padre con empresaId ya filtrado).
+  'Invitacion',
 ] as const;
 
 type ModeloConEmpresaId = (typeof MODELOS_CON_EMPRESA_ID)[number];

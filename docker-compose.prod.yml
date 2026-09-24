@@ -1,0 +1,103 @@
+# Compose de producción para OtraRondaMas. Pensado para correr en el VPS
+# compartido (89.167.96.239) junto a otros proyectos (catalaxia, wapsell,
+# etc.): todos los puertos publicados solo en 127.0.0.1, el nginx del host
+# es el único que expone 443 al público y hace el reverse proxy hacia acá
+# (ver /etc/nginx/sites-available/otrarondamas.wapsell.com en el VPS).
+#
+# Uso: docker compose -f docker-compose.prod.yml up -d --build
+# Requiere un .env junto a este archivo (ver .env.prod.example).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: otrarondamas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: otrarondamas
+    ports:
+      - "127.0.0.1:5501:5432"
+    volumes:
+      - otrarondamas_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otrarondamas -d otrarondamas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://otrarondamas:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}@db:5432/otrarondamas?schema=public
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
+      PORT: 3000
+      CORS_ORIGINS: ${CORS_ORIGINS:?falta CORS_ORIGINS en .env}
+      # Login con Google (apps/api/src/auth/google.strategy.ts) — el
+      # backend falla en el arranque si falta alguna de estas tres.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?falta GOOGLE_CLIENT_ID en .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?falta GOOGLE_CLIENT_SECRET en .env}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?falta GOOGLE_CALLBACK_URL en .env}
+      FRONTEND_URL: ${FRONTEND_URL:?falta FRONTEND_URL en .env}
+      GOOGLE_SIGNUP_EMPRESA_ID: ${GOOGLE_SIGNUP_EMPRESA_ID:?falta GOOGLE_SIGNUP_EMPRESA_ID en .env}
+      # Tienda online pública (RF-06) — ver tienda.service.ts.
+      TIENDA_EMPRESA_ID: ${TIENDA_EMPRESA_ID:?falta TIENDA_EMPRESA_ID en .env}
+      # RF-17 (docs/spec-login-roles.md) — ruta DENTRO del contenedor;
+      # el volumen de abajo la persiste fuera del ciclo de vida del
+      # contenedor (si no, cada rebuild borraría los documentos ya
+      # subidos). RESEND_* no llevan `:?` — su ausencia no debe tumbar
+      # el arranque de toda la API, solo deshabilita el envío de
+      # emails (ver email.service.ts).
+      LEGAJO_STORAGE_DIR: /data/legajos
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+    volumes:
+      - otrarondamas_legajos_data:/data/legajos
+    ports:
+      - "127.0.0.1:8600:3000"
+
+  # Panel interno (dueño/vendedor autenticados) — corte de dominios
+  # (RF-06): se muda a admin.otrarondamas.wapsell.com, puerto 3030 sin
+  # cambios. VITE_API_URL_ADMIN es la misma API de siempre, con nombre
+  # de variable propio para no confundirla con VITE_API_URL_TIENDA (ambas
+  # apps hablan con la misma API, pero cada una necesita su propio build
+  # arg — Vite incrusta el valor en el bundle al compilar).
+  pos-admin:
+    build:
+      context: .
+      dockerfile: apps/pos-admin/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL_ADMIN:?falta VITE_API_URL_ADMIN en .env}
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3030:80"
+
+  # Tienda pública (RF-06) — pasa a ocupar otrarondamas.wapsell.com en
+  # el corte de dominios. Puerto propio (3040), nunca comparte el 3030
+  # de pos-admin.
+  tienda-online:
+    build:
+      context: .
+      dockerfile: apps/tienda-online/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL_TIENDA:?falta VITE_API_URL_TIENDA en .env}
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3040:80"
+
+volumes:
+  otrarondamas_db_data:
+  # RF-17: documentos sensibles del legajo (antecedentes penales,
+  # constancia de CUIL) — volumen Docker gestionado, no un bind mount a
+  # una ruta del host (más simple de operar en este VPS compartido, y
+  # ya sigue el mismo patrón que otrarondamas_db_data arriba).
+  otrarondamas_legajos_data:

@@ -7,6 +7,8 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -28,8 +30,23 @@ export class CreateProductoDto {
   @IsString()
   marca?: string;
 
+  // Los 4 niveles de la jerarquía de catálogo son obligatorios siempre
+  // (ver schema.prisma model Producto) — se usa el nodo "GEN" de
+  // Tipo/Subtipo cuando el rubro no necesita más detalle que
+  // Familia/Subfamilia. No hay jerarquía "parcial": un producto sin
+  // Tipo/Subtipo explícito igual apunta a un Tipo/Subtipo real (el GEN
+  // de su Subfamilia), nunca a null.
   @IsUUID()
-  categoriaId: string;
+  familiaId: string;
+
+  @IsUUID()
+  subfamiliaId: string;
+
+  @IsUUID()
+  tipoId: string;
+
+  @IsUUID()
+  subtipoId: string;
 
   @IsEnum(UnidadBase)
   unidadBase: UnidadBase;
@@ -48,6 +65,15 @@ export class CreateProductoDto {
   @IsNumber()
   @IsPositive()
   precioMayorista?: number;
+
+  // Fase 6 de Tienda Online (RF-06/RF-04): descuento único, global y
+  // por porcentaje sobre precioMinorista. 0-100, sin tope de negocio
+  // propio — ver comentario en schema.prisma.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  descuentoPorcentaje?: number;
 
   @IsOptional()
   @IsBoolean()

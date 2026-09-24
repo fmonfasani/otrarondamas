@@ -1,5 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" para desarrollo local (Windows/Mac); debian-openssl-3.0.x para
+  // el runtime de producción (node:20-bookworm-slim en el Dockerfile de la
+  // API — Alpine se descartó por incompatibilidad de libssl con el engine
+  // nativo de Prisma, ver comentario en apps/api/Dockerfile).
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -43,6 +48,13 @@ enum EstadoCaja {
   EN_ARQUEO
 }
 
+// C11 (spec-modulos_ventas §6): reemplaza el campo String "CONFIRMADA"/"ANULADA"
+// con un enum tipado. ANULADA se implementa en Incremento 5.
+enum EstadoVenta {
+  CONFIRMADA
+  ANULADA
+}
+
 enum UnidadBase {
   UNIDAD
   KILOGRAMO
@@ -52,6 +64,49 @@ enum UnidadBase {
   CAJA
 }
 
+// Fase 3 del roadmap de Fidelización (ver clientes.service.ts): niveles
+// calculados al vuelo por historial de compras, nunca persistidos en
+// Cliente. Este enum solo se usa para tipar
+// ReglaFidelizacion.nivelRequerido (Fase 4) — no es un campo de Cliente.
+enum NivelFidelidad {
+  NUEVO
+  FRECUENTE
+  VIP
+}
+
+// RF-17 (docs/spec-login-roles.md, sesión de definición del 22/09/2026):
+// distingue el rol de cada Usuario del panel interno. NO reemplaza el
+// sistema de permisos granular (Permiso/UsuarioPermiso) — un OWNER sigue
+// necesitando el permiso productos.gestionar para gestionar productos,
+// este campo nunca se usa para autorizar nada por sí solo. Sirve
+// exclusivamente para saber qué Legajo pedirle a la cuenta y en qué
+// lista mostrarla (ver LegajoService). Fijo, asignado una sola vez al
+// invitar — cambiar el rol de una cuenta ya operando no está
+// contemplado en este incremento.
+enum RolUsuario {
+  OWNER
+  ASISTENTE_LOCAL
+  PROVEEDOR
+  REPARTIDOR
+}
+
+// Estado del Legajo de una cuenta del lado "Negocio" (Usuario no-OWNER,
+// o Cliente mayorista) — controla si puede operar. OWNER y las cuentas
+// que ya existían antes de este incremento se migran directo a
+// APROBADO (ver migración de datos): no tiene sentido bloquear
+// retroactivamente a alguien que ya estaba operando.
+enum EstadoLegajo {
+  PENDIENTE
+  APROBADO
+}
+
+// Los 2 documentos sensibles definidos en spec-login-roles.md sección 3
+// — solo Asistente de local y Repartidor los requieren.
+enum TipoDocumentoLegajo {
+  ANTECEDENTES_PENALES
+  CONSTANCIA_CUIL
+}
+
 model Empresa {
   id            String   @id @default(uuid())
   nombre        String   @unique
@@ -59,26 +114,34 @@ model Empresa {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  usuarios          Usuario[]
-  categorias        Categoria[]
-  productos         Producto[]
-  clientes          Cliente[]
-  cajas             Caja[]
-  proveedores       Proveedor[]
-  ventas            Venta[]
-  pedidos           Pedido[]
-  compras           Compra[]
-  movimientosStock  MovimientoStock[]
-  audits            AuditLog[]
-  autorizaciones    Autorizacion[]    @relation("EmpresaAutorizaciones")
-  presentaciones    Presentacion[]    @relation("EmpresaPresentaciones")
-  lotes             Lote[]            @relation("EmpresaLotes")
-  cuentasCorriente  CuentaCorriente[] @relation("EmpresaCuentasCorriente")
-  deudas            Deuda[]           @relation("EmpresaDeudas")
-  pagos             Pago[]            @relation("EmpresaPagos")
-  recepcionesCompra RecepcionCompra[] @relation("EmpresaRecepcionesCompra")
-  entregas          Entrega[]         @relation("EmpresaEntregas")
-  notificaciones    Notificacion[]    @relation("EmpresaNotificaciones")
+  usuarios           Usuario[]
+  familias           Familia[]
+  subfamilias        Subfamilia[]
+  tipos              Tipo[]
+  subtipos           Subtipo[]
+  productoProveedor  ProductoProveedor[]
+  productos          Producto[]
+  clientes           Cliente[]
+  cajas              Caja[]
+  proveedores        Proveedor[]
+  ventas             Venta[]
+  pedidos            Pedido[]
+  compras            Compra[]
+  movimientosStock   MovimientoStock[]
+  audits             AuditLog[]
+  autorizaciones     Autorizacion[]      @relation("EmpresaAutorizaciones")
+  presentaciones     Presentacion[]      @relation("EmpresaPresentaciones")
+  lotes              Lote[]              @relation("EmpresaLotes")
+  cuentasCorriente   CuentaCorriente[]   @relation("EmpresaCuentasCorriente")
+  deudas             Deuda[]             @relation("EmpresaDeudas")
+  pagos              Pago[]              @relation("EmpresaPagos")
+  recepcionesCompra  RecepcionCompra[]   @relation("EmpresaRecepcionesCompra")
+  pagosProveedor     PagoProveedor[]     @relation("EmpresaPagosProveedor")
+  devolucionesProveedor DevolucionProveedor[] @relation("EmpresaDevolucionesProveedor")
+  entregas           Entrega[]           @relation("EmpresaEntregas")
+  notificaciones     Notificacion[]      @relation("EmpresaNotificaciones")
+  reglasFidelizacion ReglaFidelizacion[]
+  invitaciones       Invitacion[]
 }
 
 model Usuario {
@@ -87,26 +150,50 @@ model Usuario {
   empresa      Empresa  @relation(fields: [empresaId], references: [id])
   nombre       String
   email        String   @unique
-  passwordHash String
+  // Nullable: un usuario que solo entró por Google no tiene contraseña
+  // local. Login por password (auth.service.ts) exige que no sea null
+  // antes de comparar con bcrypt.
+  passwordHash String?
+  // Id estable de la cuenta de Google (el "sub" del token), no el email
+  // (el email podría cambiar de lado de Google en teoría). Null para
+  // usuarios que nunca se logueraon con Google.
+  googleId     String?  @unique
+  fotoUrl      String?
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  usuarioPermisos    UsuarioPermiso[]
-  ventas             Venta[]
-  pedidos            Pedido[]
-  movimientosCaja    MovimientoCaja[]
-  audits             AuditLog[]
-  aperturasCaja      AperturaCaja[]
-  cierresCaja        CierreCaja[]
-  arqueosCaja        ArqueoCaja[]
-  entregasPreparadas Entrega[]         @relation("PreparadorEntrega")
-  entregasRepartidas Entrega[]         @relation("RepartidorEntrega")
-  pagos              Pago[]            @relation("UsuarioPagos")
-  compras            Compra[]          @relation("UsuarioCompras")
-  recepcionesCompra  RecepcionCompra[] @relation("UsuarioRecepcionesCompra")
-  movimientosStock   MovimientoStock[] @relation("UsuarioMovimientosStock")
-  autorizaciones     Autorizacion[]    @relation("UsuarioAutorizaciones")
+  // RF-17: rol fijo asignado al invitar (ver enum RolUsuario). Las
+  // cuentas que existían antes de este incremento se migran a OWNER
+  // (owner@otrarondamas.com) o ASISTENTE_LOCAL (cualquier otro Usuario
+  // existente), ver migración de datos.
+  rol          RolUsuario   @default(OWNER)
+  // OWNER se migra directo a APROBADO (nunca tuvo legajo que completar,
+  // no tiene sentido pedírselo retroactivamente). Las cuentas nuevas de
+  // ASISTENTE_LOCAL/PROVEEDOR/REPARTIDOR nacen en PENDIENTE — no pueden
+  // operar hasta que el dueño aprueba su legajo (ver LegajoService).
+  estadoLegajo EstadoLegajo @default(APROBADO)
+  legajo       Legajo?
+
+  usuarioPermisos     UsuarioPermiso[]
+  ventas              Venta[]
+  pedidos             Pedido[]
+  movimientosCaja     MovimientoCaja[]
+  audits              AuditLog[]
+  aperturasCaja       AperturaCaja[]
+  cierresCaja         CierreCaja[]
+  arqueosCaja         ArqueoCaja[]
+  arqueosComoEntrante ArqueoCaja[]      @relation("ArqueoUsuarioEntrante")
+  entregasPreparadas  Entrega[]         @relation("PreparadorEntrega")
+  entregasRepartidas  Entrega[]         @relation("RepartidorEntrega")
+  pagos               Pago[]            @relation("UsuarioPagos")
+  compras               Compra[]            @relation("UsuarioCompras")
+  recepcionesCompra     RecepcionCompra[]   @relation("UsuarioRecepcionesCompra")
+  pagosProveedor        PagoProveedor[]     @relation("UsuarioPagosProveedor")
+  devolucionesProveedor DevolucionProveedor[] @relation("UsuarioDevolucionesProveedor")
+  movimientosStock    MovimientoStock[] @relation("UsuarioMovimientosStock")
+  autorizaciones      Autorizacion[]    @relation("UsuarioAutorizaciones")
+  invitacionesCreadas Invitacion[]      @relation("InvitacionesCreadas")
 }
 
 model Permiso {
@@ -131,43 +218,217 @@ model UsuarioPermiso {
   @@unique([usuarioId, permisoId])
 }
 
-model Categoria {
+// RF-17: alta por invitación, nunca auto-registro público (decisión
+// explícita del dueño). El dueño crea la invitación desde el panel con
+// el rol ya elegido; la persona invitada activa su cuenta con el
+// `token` (enviado por email vía Resend, ver InvitacionesService) y
+// recién ahí se crea el Usuario real con ese rol. La invitación en sí
+// NO crea la cuenta — es un registro de intención con expiración, para
+// que un link viejo o filtrado no siga siendo válido indefinidamente.
+model Invitacion {
+  id            String     @id @default(uuid())
+  empresaId     String
+  empresa       Empresa    @relation(fields: [empresaId], references: [id])
+  email         String
+  rol           RolUsuario
+  token         String     @unique
+  invitadoPorId String
+  invitadoPor   Usuario    @relation("InvitacionesCreadas", fields: [invitadoPorId], references: [id])
+  expiraEn      DateTime
+  usadaEn       DateTime? // null = todavía no activada
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// Jerarquía de categorización de catálogo — sesión de definición con el
+// dueño del 22/09/2026 (ver docs, auditoría de docs/spec-catalogo-productos.md).
+// Reemplaza el antiguo `model Categoria` (plano, sin jerarquía).
+//
+// Decisión de modelo: 4 tablas separadas, una por nivel (no un único
+// nodo genérico con campo "nivel") — el tipo de dato en sí refleja la
+// jerarquía, y Prisma garantiza en el schema que un Tipo solo puede
+// colgar de una Subfamilia real, sin depender de una validación manual
+// en código. Los 4 niveles son FIJOS y OBLIGATORIOS siempre — cuando un
+// rubro no necesita tanto detalle, se usa el nodo "GEN" (genérico) de
+// ese nivel en vez de dejarlo sin asignar.
+//
+// Visibilidad al cliente: los 4 niveles son SIEMPRE visibles en la
+// tienda pública — es una regla fija de esta fase, sin campo de
+// configuración por nodo (decisión explícita: se agrega si aparece un
+// caso real que lo necesite, no antes).
+//
+// Marca y Proveedor NO son niveles de este árbol — Marca sigue siendo
+// un atributo simple de Producto (ya así), Proveedor es una relación
+// N a N aparte (ver ProductoProveedor) porque un producto puede tener
+// más de un proveedor, algo que un nivel único de jerarquía no puede
+// representar.
+model Familia {
   id        String   @id @default(uuid())
   empresaId String
   empresa   Empresa  @relation(fields: [empresaId], references: [id])
   nombre    String
+  // Prefijo de 3 letras para el SKU (FAM-SUB-TIP-SUBT-NNNNNNNN) — ej.
+  // "Bebidas sin alcohol" -> "BSA". Único por empresa, nunca se
+  // reutiliza aunque cambie el nombre de la Familia (mismo criterio que
+  // codigoInterno: el prefijo ya usado en SKUs existentes no se toca).
+  prefijo   String   @db.Char(3)
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  productos Producto[]
+  subfamilias        Subfamilia[]
+  productos          Producto[]          @relation("ProductoFamilia")
+  reglasFidelizacion ReglaFidelizacion[]
 
   @@unique([empresaId, nombre])
+  @@unique([empresaId, prefijo])
+}
+
+model Subfamilia {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  familiaId String
+  familia   Familia  @relation(fields: [familiaId], references: [id])
+  nombre    String
+  prefijo   String   @db.Char(3)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tipos              Tipo[]
+  productos          Producto[]          @relation("ProductoSubfamilia")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  // El nombre es único DENTRO de la Familia, no globalmente — dos
+  // Familias distintas podrían tener una Subfamilia con el mismo
+  // nombre sin que sea un error. El prefijo, en cambio, solo necesita
+  // ser único dentro de su Familia (el SKU ya lleva el prefijo de
+  // Familia adelante, así que "BSA-GAS-..." y "BCA-GAS-..." no
+  // colisionan aunque ambos usen "GAS").
+  @@unique([familiaId, nombre])
+  @@unique([familiaId, prefijo])
+}
+
+model Tipo {
+  id           String     @id @default(uuid())
+  empresaId    String
+  empresa      Empresa    @relation(fields: [empresaId], references: [id])
+  subfamiliaId String
+  subfamilia   Subfamilia @relation(fields: [subfamiliaId], references: [id])
+  nombre       String
+  prefijo      String     @db.Char(3)
+  activo       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  subtipos           Subtipo[]
+  productos          Producto[]          @relation("ProductoTipo")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  @@unique([subfamiliaId, nombre])
+  @@unique([subfamiliaId, prefijo])
+}
+
+model Subtipo {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  tipoId    String
+  tipo      Tipo     @relation(fields: [tipoId], references: [id])
+  nombre    String
+  prefijo   String   @db.Char(3)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productos          Producto[]          @relation("ProductoSubtipo")
+  reglasFidelizacion ReglaFidelizacion[]
+
+  @@unique([tipoId, nombre])
+  @@unique([tipoId, prefijo])
+}
+
+// N a N: un producto puede tener más de un proveedor, un proveedor
+// puede vender muchos productos — mismo criterio ya confirmado por el
+// dueño (Proveedor es informativo para el dueño, nunca visible al
+// cliente; distinto de Familia/Subfamilia/Tipo/Subtipo, que sí lo son).
+model ProductoProveedor {
+  id          String    @id @default(uuid())
+  empresaId   String
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  productoId  String
+  producto    Producto  @relation(fields: [productoId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productoId, proveedorId])
 }
 
 model Producto {
-  id              String     @id @default(uuid())
-  empresaId       String
-  empresa         Empresa    @relation(fields: [empresaId], references: [id])
-  nombre          String
-  codigoInterno   String     @unique // RF-03
-  codigoBarras    String?
-  marca           String?
-  categoriaId     String
-  categoria       Categoria  @relation(fields: [categoriaId], references: [id])
-  unidadBase      UnidadBase
-  costo           Decimal
-  precioMinorista Decimal
-  precioMayorista Decimal? // D-01: nullable until rule is defined
-  activo          Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id            String  @id @default(uuid())
+  empresaId     String
+  empresa       Empresa @relation(fields: [empresaId], references: [id])
+  nombre        String
+  // SKU interno — reemplaza el codigoInterno original (string libre,
+  // @unique GLOBAL — bug ya conocido). Formato FAM-SUB-TIP-SUBT-NNNNNNNN
+  // (4 segmentos de 3 letras + correlativo de 8 dígitos, GLOBAL por
+  // empresa — no reinicia por combinación de niveles, para que mover un
+  // producto de categoría no le cambie el número). Se genera al crear
+  // el producto, nunca se recalcula después. Único POR EMPRESA (no
+  // global) — corrige el gap original.
+  codigoInterno String
+  codigoBarras  String?
+  marca         String?
 
-  lotes            Lote[]
-  presentaciones   Presentacion[]    @relation("ProductoPresentaciones")
-  ventaItems       VentaItem[]
-  movimientosStock MovimientoStock[]
-  compraItems      CompraItem[]      @relation("ProductoCompraItems")
+  // Los 4 niveles de la jerarquía — todos obligatorios, con el nodo
+  // "GEN" de cada nivel cuando el rubro no necesita más detalle. Ver
+  // comentario en model Familia para el criterio completo.
+  familiaId    String
+  familia      Familia    @relation("ProductoFamilia", fields: [familiaId], references: [id])
+  subfamiliaId String
+  subfamilia   Subfamilia @relation("ProductoSubfamilia", fields: [subfamiliaId], references: [id])
+  tipoId       String
+  tipo         Tipo       @relation("ProductoTipo", fields: [tipoId], references: [id])
+  subtipoId    String
+  subtipo      Subtipo    @relation("ProductoSubtipo", fields: [subtipoId], references: [id])
+
+  unidadBase          UnidadBase
+  costo               Decimal
+  precioMinorista     Decimal
+  precioMayorista     Decimal? // D-01: nullable until rule is defined
+  // Fase 6 de Tienda Online (RF-06/RF-04): descuento único, global y
+  // por porcentaje sobre precioMinorista — el SDD limita la tienda a
+  // "un precio base único, con posibilidad de aplicar descuentos", no
+  // reglas por cantidad/cliente (esas siguen D-01/D-02, sin definir).
+  // null o 0 = sin descuento. 0-100, sin tope de negocio propio (el
+  // SDD no define uno — si el dueño carga un valor alto, es su
+  // decisión de precio, no se cuestiona).
+  descuentoPorcentaje Decimal?   @db.Decimal(5, 2)
+  // INV-AL-01 (Fase 4 de inventario): umbral de alerta de bajo stock.
+  // Default 0 para los productos existentes — con 0, ningún producto
+  // dispara la alerta hasta que alguien lo configure explícitamente
+  // (decisión del dueño: evitar 4342 alertas falsas el día que se
+  // active la función, ver docs/scaffolding-notas.md).
+  stockMinimo         Decimal    @default(0)
+  activo              Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  lotes             Lote[]
+  presentaciones    Presentacion[]      @relation("ProductoPresentaciones")
+  ventaItems        VentaItem[]
+  movimientosStock  MovimientoStock[]
+  compraItems           CompraItem[]            @relation("ProductoCompraItems")
+  devolucionProveedorItems DevolucionProveedorItem[] @relation("ProductoDevolucionItems")
+  pedidoItems           PedidoItem[]
+  productoProveedor     ProductoProveedor[]
+
+  // Corrige el gap original (@unique GLOBAL) — el SKU es único por
+  // empresa, no en todo el sistema.
+  @@unique([empresaId, codigoInterno])
 }
 
 model Presentacion {
@@ -197,7 +458,8 @@ model Lote {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  movimientosStock MovimientoStock[] @relation("LoteMovimientosStock")
+  movimientosStock         MovimientoStock[]        @relation("LoteMovimientosStock")
+  devolucionProveedorItems DevolucionProveedorItem[] @relation("LoteDevolucionItems")
 
   @@unique([productoId, numeroLote, empresaId])
 }
@@ -215,12 +477,137 @@ model Cliente {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // RF-17 (docs/spec-login-roles.md): login real para el Cliente de
+  // tienda online — hasta este incremento, un Cliente se creaba/reusaba
+  // sin contraseña (solo datos de contacto, ver TiendaService.
+  // crearPedido()). Ambos nullable a propósito, MISMO patrón que
+  // Usuario.passwordHash/googleId: siguen coexistiendo clientes con
+  // cuenta real (login) y clientes que solo dejaron sus datos al pedir
+  // (sin login) — un pedido de tienda nunca exige tener contraseña.
+  passwordHash String?
+  googleId     String? @unique
+
+  // Cliente mayorista (B2B, punto de entrada admin.*, ver RF-17): datos
+  // fiscales + legajo. esMayorista=false para el Cliente minorista de
+  // siempre (default), que NO completa legajo ni pasa por aprobación.
+  esMayorista  Boolean       @default(false)
+  cuit         String?
+  razonSocial  String?
+  condicionIva String?
+  estadoLegajo EstadoLegajo? // null para minorista (no aplica); PENDIENTE/APROBADO solo si esMayorista
+  legajo       Legajo?
+
   ventas           Venta[]
   cuentasCorriente CuentaCorriente[] @relation("ClienteCuentasCorriente")
   deudas           Deuda[]           @relation("ClienteDeudas")
   pedidos          Pedido[]          @relation("ClientePedidos")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
+}
+
+// RF-17 (docs/spec-login-roles.md): campos y documentos exigidos por
+// rol antes de aprobar una cuenta. Dueño de este Legajo: EXACTAMENTE
+// uno de usuarioId/clienteId lleno (nunca los dos, nunca ninguno) —
+// Prisma no expresa "exactamente uno de dos" a nivel de schema, se
+// valida en LegajoService antes de crear/actualizar. Todos los campos
+// son nullable a nivel de schema porque lo que es obligatorio varía
+// por rol (ver tabla de la sección 3 de spec-login-roles.md) — esa
+// validación de "obligatorio para ESTE rol" vive en el DTO/service, no
+// acá, mismo criterio que Producto en el spec de catálogo (nunca se
+// infiere ni se calcula por suposición).
+model Legajo {
+  id        String   @id @default(uuid())
+  usuarioId String?  @unique
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  clienteId String?  @unique
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  // Datos fiscales — Owner, Proveedor, Cliente mayorista.
+  cuit         String?
+  razonSocial  String?
+  condicionIva String?
+  tipoFactura  String? // Solo Proveedor
+
+  // Datos personales — Asistente de local, Repartidor.
+  dni       String?
+  telefono  String?
+  direccion String?
+
+  // Datos de vehículo — solo Repartidor.
+  vehiculoDatos    String?
+  licenciaConducir String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documentos DocumentoLegajo[]
+}
+
+// Un documento sensible (certificado de antecedentes penales, constancia
+// de CUIL) subido como parte de un Legajo. Solo Asistente de local y
+// Repartidor los requieren (ver spec-login-roles.md sección 3) — Owner,
+// Proveedor y Cliente mayorista no suben documentos, solo completan
+// campos de texto del Legajo.
+//
+// Archivo en disco del VPS, fuera del webroot (decisión resuelta en la
+// sesión de definición, no cloud storage externo) — `rutaArchivo` es
+// una ruta relativa a ese directorio base, nunca una URL pública;
+// LegajoController la resuelve y sirve el archivo solo autenticado,
+// solo al dueño.
+model DocumentoLegajo {
+  id            String              @id @default(uuid())
+  legajoId      String
+  legajo        Legajo              @relation(fields: [legajoId], references: [id])
+  tipo          TipoDocumentoLegajo
+  rutaArchivo   String
+  nombreArchivo String // nombre original del archivo subido, para mostrarlo en el panel
+  vencimiento   DateTime // toda la documentación sensible de este incremento vence (D-20)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+// Fase 4 del roadmap de Fidelización (D-02, orientado a fidelizar):
+// combina A QUIÉN (nivelRequerido, calculado al vuelo por
+// ClientesService.calcularNivel() — nunca leído de un campo persistido
+// en Cliente) con SOBRE QUÉ aplica, opcionalmente acotado. Sin ninguno
+// de los tres campos de alcance, aplica a todo el catálogo. Distinta
+// de Producto.descuentoPorcentaje (Fase 6 de Tienda Online): esa es
+// fija y global, esta depende de quién compra.
+model ReglaFidelizacion {
+  id                  String         @id @default(uuid())
+  empresaId           String
+  empresa             Empresa        @relation(fields: [empresaId], references: [id])
+  nombre              String // Ej: "VIP en Bebidas" — para identificarla en el panel, sin efecto en el cálculo
+  nivelRequerido      NivelFidelidad
+  descuentoPorcentaje Decimal        @db.Decimal(5, 2)
+  // Alcance opcional — el dueño puede acotar por CUALQUIERA de los 4
+  // niveles de jerarquía (sesión de definición del 22/09/2026), más
+  // marca y cantidad mínima. Todos independientes entre sí (una regla
+  // puede combinar, por ejemplo, Familia + cantidad mínima a la vez).
+  // Sin ninguno, la regla aplica a cualquier ítem del carrito.
+  familiaId           String?
+  familia             Familia?       @relation(fields: [familiaId], references: [id])
+  subfamiliaId        String?
+  subfamilia          Subfamilia?    @relation(fields: [subfamiliaId], references: [id])
+  tipoId              String?
+  tipo                Tipo?          @relation(fields: [tipoId], references: [id])
+  subtipoId           String?
+  subtipo             Subtipo?       @relation(fields: [subtipoId], references: [id])
+  marca               String? // Producto.marca es string libre, no FK — se compara tal cual
+  cantidadMinima      Int? // mínimo de unidades DEL ÍTEM (no del carrito completo)
+  activo              Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Fase 5: histórico de qué VentaItem/PedidoItem aplicó esta regla —
+  // onDelete: Restrict explícito en ambas relaciones (el default de
+  // Prisma para una FK opcional es SetNull, no Restrict): no debería
+  // poder borrarse una regla que ya se usó en ventas/pedidos reales,
+  // rompería la trazabilidad del descuento aplicado. Hoy no hay
+  // endpoint DELETE para ReglaFidelizacion de todos modos, pero esto la
+  // protege si se agrega uno más adelante sin pensar en este caso.
+  ventaItems  VentaItem[]
+  pedidoItems PedidoItem[]
 }
 
 model CuentaCorriente {
@@ -259,17 +646,26 @@ model Deuda {
 }
 
 model Venta {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  empresa   Empresa     @relation(fields: [empresaId], references: [id])
   usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario     @relation(fields: [usuarioId], references: [id])
   clienteId String?
-  cliente   Cliente? @relation(fields: [clienteId], references: [id])
-  estado    String   @default("CONFIRMADA") // INV-02: No se borra físicamente
+  cliente   Cliente?    @relation(fields: [clienteId], references: [id])
+  // Inc-1 (C11): tipado como enum en vez de String libre
+  estado    EstadoVenta @default(CONFIRMADA)
   canal     String // presencial/mayorista/online
-  total     Decimal
-  descuento Decimal  @default(0)
+  // Inc-2 (RN-VTA-02): precisión fija 14,2
+  total     Decimal     @db.Decimal(14, 2)
+  descuento Decimal     @default(0) @db.Decimal(14, 2)
+  // Inc-1 (INV-VTA-07): clave de idempotencia
+  idempotencyKey String? @unique
+  // Inc-3 (D-VTA-10): número comercial correlativo por empresa, 8 dígitos en
+  // pantalla (#00000125). Se asigna con SELECT MAX(numero)+1 dentro de la
+  // transacción de create() — único por empresa, no global. null en ventas
+  // migradas antes de este incremento (no se recalcula retroactivamente).
+  numero    Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -280,26 +676,55 @@ model Venta {
 }
 
 model VentaItem {
-  id             String   @id @default(uuid())
-  ventaId        String
-  venta          Venta    @relation(fields: [ventaId], references: [id])
-  productoId     String
-  producto       Producto @relation(fields: [productoId], references: [id])
-  cantidad       Decimal
-  precioUnitario Decimal
-  descuentoItem  Decimal  @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                              String             @id @default(uuid())
+  ventaId                         String
+  venta                           Venta              @relation(fields: [ventaId], references: [id])
+  productoId                      String
+  producto                        Producto           @relation(fields: [productoId], references: [id])
+  cantidad                        Decimal            @db.Decimal(14, 2)
+  precioUnitario                  Decimal            @db.Decimal(14, 2)
+  // Descuento MANUAL cargado por el vendedor (ej. una promo puntual
+  // negociada en el momento) — nunca lo calcula el sistema. Separado a
+  // propósito del descuento de fidelización de abajo: mezclarlos en un
+  // solo número impediría auditar/mostrar de dónde vino cada uno.
+  descuentoItem                   Decimal            @default(0) @db.Decimal(14, 2)
+  // Fase 5 del roadmap de Fidelización: descuento AUTOMÁTICO calculado
+  // por FidelizacionService.calcularDescuentoAplicable() a partir del
+  // nivel del cliente (congelado con su historial ANTES de esta venta,
+  // ver ventas.service.ts) y el alcance de la regla — nunca lo manda el
+  // cliente HTTP. Ambos descuentos (este + descuentoItem) se restan del
+  // subtotal del ítem, ver ventas.service.ts.
+  descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
+  reglaFidelizacionId             String?
+  reglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
+  createdAt                       DateTime           @default(now())
+  updatedAt                       DateTime           @updatedAt
 }
 
+// Fase 1 de Tienda Online (RF-06): completa lo que este modelo dejaba
+// a medias para RF-07 — agrega PedidoItem (no existía forma de saber
+// qué productos/cantidades tenía un Pedido) y vuelve usuarioId
+// opcional (ver comentario en el campo). Ver docs/scaffolding-notas.md.
 model Pedido {
   id          String       @id @default(uuid())
   empresaId   String
   empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  clienteId   String?
-  cliente     Cliente?     @relation("ClientePedidos", fields: [clienteId], references: [id])
-  usuarioId   String
-  usuario     Usuario      @relation(fields: [usuarioId], references: [id]) // Responsable de la carga/gestión del pedido
+  // Siempre poblado, nunca null — decisión explícita del dueño: un
+  // pedido de tienda online sin cuenta igual crea/reusa un Cliente (por
+  // email, dentro de la empresa) en vez de guardar datos de contacto
+  // sueltos acá. Evita duplicar lo que Cliente ya modela y deja listo
+  // el terreno para RF-10 (reconocer compras repetidas del mismo
+  // comprador) sin otra migración.
+  clienteId   String
+  cliente     Cliente      @relation("ClientePedidos", fields: [clienteId], references: [id])
+  // Responsable de la GESTIÓN del pedido (quién lo tomó/confirma), no
+  // de quién lo originó — un pedido de tienda online nace con
+  // usuarioId: null (nadie lo gestionó todavía) y se puebla recién
+  // cuando un vendedor lo toma desde la bandeja de pedidos (Fase 4 del
+  // roadmap). RF-07 (WhatsApp) lo sigue poblando desde el alta, como
+  // antes.
+  usuarioId   String?
+  usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
   estado      EstadoPedido @default(RECIBIDO)
   canalOrigen String // WhatsApp, redes, web, presencial
   total       Decimal
@@ -307,9 +732,42 @@ model Pedido {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  pedidoItems    PedidoItem[]
   pagos          Pago[]         @relation("PedidoPagos")
   entrega        Entrega? // One-to-one or one-to-many relationship, depends on business logic if a pedido can have multiple deliveries
   notificaciones Notificacion[]
+}
+
+// Análogo a VentaItem — sin este modelo, Pedido no tenía forma de
+// registrar qué productos/cantidades contenía (gap detectado al
+// diseñar la Fase 1 de Tienda Online, RF-06).
+model PedidoItem {
+  id                              String             @id @default(uuid())
+  pedidoId                        String
+  pedido                          Pedido             @relation(fields: [pedidoId], references: [id])
+  productoId                      String
+  producto                        Producto           @relation(fields: [productoId], references: [id])
+  cantidad                        Decimal
+  // Precio congelado al momento del pedido, tomado del catálogo — mismo
+  // criterio que VentaItem.precioUnitario (INV-12): nunca se acepta un
+  // precio que mande el cliente. Ya incluye el % de Producto.
+  // descuentoPorcentaje (Fase 6 de Tienda Online) si el producto tenía
+  // uno — ver tienda.service.ts.
+  precioUnitario                  Decimal
+  descuentoItem                   Decimal            @default(0)
+  // Fase 5 del roadmap de Fidelización, extendido a Tienda Online:
+  // descuento AUTOMÁTICO calculado por
+  // FidelizacionService.calcularDescuentoAplicable() a partir del nivel
+  // del cliente de tienda (mismo Cliente que VentasService, identificado
+  // por email — nunca anónimo acá, a diferencia del POS). Se aplica
+  // ENCIMA del % de producto ya incluido en precioUnitario (confirmado
+  // con el dueño: los dos descuentos se combinan, no se elige el mayor)
+  // — ver tienda.service.ts.
+  descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
+  reglaFidelizacionId             String?
+  reglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
+  createdAt                       DateTime           @default(now())
+  updatedAt                       DateTime           @updatedAt
 }
 
 model Pago {
@@ -326,6 +784,11 @@ model Pago {
   medio     String // efectivo, transferencia, QR, Mercado Pago
   estado    EstadoPago       @default(PENDIENTE)
   comision  Decimal          @default(0) // RF-08
+  // Inc-1/Inc-3 (RF-VTA-15, RF-VTA-16, C19): efectivo → monto recibido y
+  // vuelto; transferencia/QR → referencia opcional.
+  montoRecibido Decimal? // Solo efectivo: lo que entrega el cliente (puede superar monto)
+  vuelto        Decimal? // Solo efectivo: montoRecibido − monto
+  referencia    String? // Transferencia/QR: nro de operación, CBU de origen, etc.
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -403,8 +866,10 @@ model ArqueoCaja {
   caja                     Caja          @relation(fields: [cajaId], references: [id])
   aperturaCajaId           String
   aperturaCaja             AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
-  usuarioId                String
+  usuarioId                String // vendedor saliente: quien registra el arqueo (usuario autenticado de la request)
   usuario                  Usuario       @relation(fields: [usuarioId], references: [id])
+  usuarioEntranteId        String // RF-09: "arqueo confirmado por vendedor saliente y entrante" — segundo usuario, obligatorio, distinto del saliente (validado en caja.service.ts)
+  usuarioEntrante          Usuario       @relation("ArqueoUsuarioEntrante", fields: [usuarioEntranteId], references: [id])
   fondoFijoContado         Decimal
   efectivoVentasContado    Decimal
   efectivoDeudasContado    Decimal
@@ -442,7 +907,10 @@ model Proveedor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  compras Compra[]
+  compras           Compra[]
+  productoProveedor ProductoProveedor[]
+  pagos             PagoProveedor[]
+  devoluciones      DevolucionProveedor[]
 
   @@unique([empresaId, nombre])
 }
@@ -457,13 +925,22 @@ model Compra {
   usuario                Usuario      @relation("UsuarioCompras", fields: [usuarioId], references: [id]) // Quién generó la orden de compra
   estado                 EstadoCompra @default(BORRADOR)
   total                  Decimal
+  // totalPagado y saldo se recalculan cada vez que se crea un PagoProveedor
+  // o DevolucionProveedor — nunca se editan a mano; son la fuente de verdad
+  // para el panel de "cuánto debo a este proveedor por esta compra".
+  totalPagado            Decimal      @default(0)
+  saldo                  Decimal      @default(0) // = total - totalPagado (recalculado en service)
+  numeroFactura          String? // Factura del proveedor, opcional
+  fechaVencimientoPago   DateTime? // Para alertas de deuda vencida
   fechaOrden             DateTime     @default(now())
   fechaRecepcionEsperada DateTime?
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
 
-  recepciones RecepcionCompra[]
-  items       CompraItem[]
+  recepciones  RecepcionCompra[]
+  items        CompraItem[]
+  pagos        PagoProveedor[]
+  devoluciones DevolucionProveedor[]
 }
 
 model CompraItem {
@@ -496,23 +973,30 @@ model RecepcionCompra {
 }
 
 model MovimientoStock {
-  id                String           @id @default(uuid())
-  empresaId         String
-  empresa           Empresa          @relation(fields: [empresaId], references: [id])
-  productoId        String
-  producto          Producto         @relation(fields: [productoId], references: [id])
-  loteId            String?
-  lote              Lote?            @relation("LoteMovimientosStock", fields: [loteId], references: [id])
-  tipoMovimiento    String // Entrada, Salida, Ajuste
-  cantidad          Decimal
-  motivo            String // Venta, Compra, AjusteManual, Devolucion
-  referenciaId      String? // ID de la venta, compra, etc.
-  usuarioId         String?
-  usuario           Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
-  recepcionCompraId String?
-  recepcionCompra   RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                   String           @id @default(uuid())
+  empresaId            String
+  empresa              Empresa          @relation(fields: [empresaId], references: [id])
+  productoId           String
+  producto             Producto         @relation(fields: [productoId], references: [id])
+  loteId               String?
+  lote                 Lote?            @relation("LoteMovimientosStock", fields: [loteId], references: [id])
+  tipoMovimiento       String // Entrada, Salida, Ajuste
+  cantidad             Decimal
+  motivo               String // Venta, Compra, AjusteManual, Devolucion
+  referenciaId         String? // ID de la venta, compra, etc.
+  usuarioId            String?
+  usuario              Usuario?         @relation("UsuarioMovimientosStock", fields: [usuarioId], references: [id])
+  recepcionCompraId    String?
+  recepcionCompra      RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
+  // D-09 (Fase 5 de Inventario): no se bloquea la venta de un lote
+  // vencido, solo se advierte/audita. true si, al momento de generar
+  // ESTE movimiento, Lote.vencimiento ya era <= a la fecha de la
+  // operación — calculado una sola vez acá, no derivado después
+  // comparando contra Lote.vencimiento (que puede cambiar de sentido
+  // con el correr del tiempo respecto a cuándo se hizo la venta).
+  loteVencidoAlMomento Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 }
 
 model Entrega {
@@ -566,6 +1050,61 @@ model AuditLog {
   venta              Venta?        @relation("VentaAudits", fields: [ventaId], references: [id])
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+}
+
+// RF-12: pago parcial o total de una Compra al proveedor. El saldo de la
+// Compra se recalcula automáticamente en ComprasService cada vez que se
+// registra un pago (totalPagado += monto, saldo = total - totalPagado).
+// No se permite registrar un pago que supere el saldo pendiente.
+model PagoProveedor {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation("EmpresaPagosProveedor", fields: [empresaId], references: [id])
+  compraId    String
+  compra      Compra   @relation(fields: [compraId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  usuarioId   String
+  usuario     Usuario  @relation("UsuarioPagosProveedor", fields: [usuarioId], references: [id])
+  monto       Decimal
+  medioPago   String // Transferencia, Efectivo, Cheque, etc.
+  referencia  String? // CBU destino, número de cheque, etc.
+  fecha       DateTime @default(now())
+  notas       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// RF-12: devolución de mercadería a un proveedor. Genera un MovimientoStock
+// de Salida/Devolucion y reduce el saldo de la Compra original.
+model DevolucionProveedor {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Empresa  @relation("EmpresaDevolucionesProveedor", fields: [empresaId], references: [id])
+  compraId    String
+  compra      Compra   @relation(fields: [compraId], references: [id])
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  usuarioId   String
+  usuario     Usuario  @relation("UsuarioDevolucionesProveedor", fields: [usuarioId], references: [id])
+  motivo      String
+  fecha       DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items DevolucionProveedorItem[]
+}
+
+model DevolucionProveedorItem {
+  id            String              @id @default(uuid())
+  devolucionId  String
+  devolucion    DevolucionProveedor @relation(fields: [devolucionId], references: [id])
+  productoId    String
+  producto      Producto            @relation("ProductoDevolucionItems", fields: [productoId], references: [id])
+  loteId        String?
+  lote          Lote?               @relation("LoteDevolucionItems", fields: [loteId], references: [id])
+  cantidad      Decimal
+  costoUnitario Decimal // Costo al que se devuelve (para ajuste contable)
 }
 
 model Autorizacion {
