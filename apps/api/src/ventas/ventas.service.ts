@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { EmpresaScopedPrismaService } from '../prisma/empresa-scoped-prisma.service';
 import { InventarioService } from '../inventario/inventario.service';
 import { FidelizacionService } from '../fidelizacion/fidelizacion.service';
@@ -6,17 +12,15 @@ import { ClientesService } from '../clientes/clientes.service';
 import { CreateVentaDto } from './dto/create-venta.dto';
 
 /**
- * RF-05 (ventas presenciales). No implementa pagos mixtos ni conciliación
- * de Mercado Pago (RF-08) — esos son un incremento aparte. Esta primera
- * versión registra la venta, descuenta stock y calcula el total; el
- * cobro/pago de esa venta se modela después.
+ * RF-05 (ventas presenciales).
  *
- * Fase 5 del roadmap de Fidelización: además del descuento manual
- * (descuentoItem), cada ítem puede recibir un descuento AUTOMÁTICO según
- * el nivel de fidelidad del cliente — ver
- * FidelizacionService.calcularDescuentoAplicable(), usado en create()
- * más abajo. Solo venta presencial por ahora (TiendaService/pedidos
- * online queda para un incremento aparte).
+ * Inc-1 agrega las validaciones de integridad del spec-modulos_ventas §15:
+ * - RN-VTA-07: rechazar productos inactivos (PRODUCTO_INACTIVO / 422)
+ * - RN-VTA-06: rechazar descuento manual > 0 (DESCUENTO_NO_AUTORIZADO / 403)
+ * - RN-VTA-11: validar que el cliente pertenezca a la empresa y esté activo
+ * - RN-VTA-18: AuditLog en la misma transacción que la venta
+ * - INV-VTA-07: idempotencia por idempotencyKey (retorna la venta existente sin
+ *   duplicar stock ni pagos)
  */
 @Injectable()
 export class VentasService {
@@ -28,39 +32,58 @@ export class VentasService {
   ) {}
 
   async create(dto: CreateVentaDto, empresaId: string, usuarioId: string) {
+    // Inc-1 (INV-VTA-07): si la clave de idempotencia ya existe, devolver la
+    // venta original sin hacer nada. El check es fuera de la transacción
+    // intencionalmente: es solo lectura y permite el short-circuit antes de
+    // evaluar productos, stock, etc.
+    if (dto.idempotencyKey) {
+      const db = this.prismaFactory.forEmpresa(empresaId);
+      const existente = await db.venta.findUnique({
+        where: { idempotencyKey: dto.idempotencyKey },
+        include: { ventaItems: true },
+      });
+      if (existente) {
+        return { ...existente, advertenciasStockVencido: [] };
+      }
+    }
+
     const db = this.prismaFactory.forEmpresa(empresaId);
 
-    // Los productos deben existir y pertenecer a la empresa. Se resuelven
-    // ANTES de entrar a la transacción para poder validar todo el pedido
-    // de una vez y devolver un único error claro (ej. "no existe X"), en
-    // vez de fallar a mitad de la transacción por el segundo ítem.
+    // Inc-1 (RN-VTA-11): validar que el cliente pertenezca a la empresa y
+    // esté activo. ClientesService.obtener() ya lanza NotFoundException si no
+    // existe o es de otra empresa. El chequeo de activo es adicional.
+    if (dto.clienteId) {
+      const cliente = await this.clientesService.obtener(empresaId, dto.clienteId);
+      if (!cliente.activo) {
+        throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
+      }
+    }
+
     const productoIds = [...new Set(dto.items.map((i) => i.productoId))];
     const productos = await db.producto.findMany({ where: { id: { in: productoIds } } });
     const productoPorId = new Map(productos.map((p) => [p.id, p]));
 
     for (const item of dto.items) {
-      if (!productoPorId.has(item.productoId)) {
-        throw new NotFoundException(`Producto ${item.productoId} no encontrado`);
+      const producto = productoPorId.get(item.productoId);
+      if (!producto) {
+        throw new NotFoundException('PRODUCTO_NO_ENCONTRADO');
+      }
+      // Inc-1 (RN-VTA-07, C5, C27): rechazar productos inactivos
+      if (!producto.activo) {
+        throw new UnprocessableEntityException('PRODUCTO_INACTIVO');
+      }
+      // Inc-1 (RN-VTA-06, C1): descuento manual bloqueado hasta D-VTA-03
+      if (item.descuentoItem && item.descuentoItem > 0) {
+        throw new ForbiddenException('DESCUENTO_NO_AUTORIZADO');
       }
     }
 
-    // Precio congelado al momento de la venta, tomado del catálogo — no
-    // se acepta un precioUnitario del cliente (INV-12: los cambios de
-    // precio no modifican retrospectivamente ventas anteriores, lo que
-    // implica que el precio de una venta se fija en el momento, desde el
-    // catálogo, no desde el request).
-    //
-    // Fase 5 de Fidelización: el nivel del cliente se calcula con el
-    // historial existente ANTES de esta venta (la venta todavía no
-    // existe en la base en este punto) — confirmado con el dueño: evita
-    // el caso "esta compra me hace VIP Y esta misma compra ya tiene el
-    // descuento VIP". Sin clienteId, nivelCliente queda null y
-    // calcularDescuentoAplicable() no aplica ninguna regla.
+    // Precio congelado al momento de la venta, tomado del catálogo (INV-12).
+    // Nivel del cliente calculado con historial PREVIO a esta venta (ver
+    // comentario original en el service pre-Inc-1 sobre Fase 5 de Fidelización).
     const nivelCliente = dto.clienteId
       ? await this.clientesService.calcularNivel(empresaId, dto.clienteId)
       : null;
-    // Una sola consulta para toda la venta, no una por ítem — ver
-    // comentario en calcularDescuentoAplicable().
     const reglasActivas = nivelCliente
       ? await this.fidelizacionService.listarReglasActivas(empresaId)
       : [];
@@ -82,20 +105,11 @@ export class VentasService {
       return {
         ...item,
         precioUnitario: producto.precioMinorista,
-        // TODO(D-01): aplicar precioMayorista según ReglaPrecio cuando
-        // exista esa entidad — hoy todo canal usa precioMinorista.
         descuentoFidelizacionPorcentaje: descuentoFidelizacion?.descuentoPorcentaje ?? null,
         reglaFidelizacionId: descuentoFidelizacion?.reglaId ?? null,
       };
     });
 
-    // Orden de aplicación (sobre el subtotal bruto precioUnitario*cantidad):
-    // 1) % de fidelización (automático, calculado arriba).
-    // 2) descuentoItem (monto absoluto, manual del vendedor) se resta
-    //    después, sobre lo que ya quedó tras el % de fidelización — un
-    //    descuento manual adicional siempre pisa encima del automático,
-    //    nunca al revés (el vendedor puede afinar el precio final a mano
-    //    incluso cuando ya hay un descuento automático aplicado).
     const total = itemsConPrecio.reduce((acc, item) => {
       const bruto = Number(item.precioUnitario) * item.cantidad;
       const trasFidelizacion = item.descuentoFidelizacionPorcentaje
@@ -105,11 +119,8 @@ export class VentasService {
       return acc + subtotal;
     }, 0);
 
-    // INV-03/INV-06: el descuento de stock y la validación de que no
-    // quede negativo ocurren DENTRO de la misma transacción que crea la
-    // venta — no como una verificación previa separada, porque bajo
-    // concurrencia (dos ventas simultáneas del mismo producto) una
-    // verificación previa no atómica no garantiza el invariante.
+    // INV-03/INV-06: descuento de stock y creación de venta en la misma
+    // transacción — garantía de atomicidad bajo concurrencia.
     return db.$transaction(async (tx) => {
       const venta = await tx.venta.create({
         data: {
@@ -119,6 +130,7 @@ export class VentasService {
           canal: dto.canal,
           total,
           estado: 'CONFIRMADA',
+          idempotencyKey: dto.idempotencyKey ?? null,
           ventaItems: {
             create: itemsConPrecio.map((item) => ({
               productoId: item.productoId,
@@ -133,18 +145,21 @@ export class VentasService {
         include: { ventaItems: true },
       });
 
-      // D-09 (Fase 5 de Inventario): no se bloquea la venta de un producto
-      // con lotes vencidos, solo se advierte — ver descontarStock(). Se
-      // acumulan los productos afectados de esta venta para devolverlos
-      // en la respuesta (advertenciasStockVencido), además de quedar
-      // auditados por MovimientoStock.loteVencidoAlMomento de forma
-      // permanente sin depender de esta respuesta puntual.
+      // Inc-1 (RN-VTA-18, C12): AuditLog de creación en la misma transacción.
+      await tx.auditLog.create({
+        data: {
+          empresaId,
+          usuarioId,
+          accion: 'CREATE',
+          entidadAfectada: 'Venta',
+          entidadId: venta.id,
+          valoresPosteriores: { total, canal: dto.canal, items: dto.items.length },
+          ventaId: venta.id,
+        },
+      });
+
       const productosConLoteVencido = new Set<string>();
       for (const item of itemsConPrecio) {
-        // Fase 4 de Tienda Online (RF-06): descontarStock() se movió a
-        // InventarioService — mismo método que usa PedidosService al
-        // confirmar un pedido online, nunca dos caminos de descuento en
-        // paralelo (INV-DISP-01/INV-INV-04).
         const tuvoLoteVencido = await this.inventarioService.descontarStock(
           tx,
           empresaId,
@@ -178,5 +193,47 @@ export class VentasService {
       throw new NotFoundException('Venta no encontrada');
     }
     return venta;
+  }
+
+  // Inc-1: búsqueda de productos para el POS (GET /ventas/productos?search=).
+  // Solo productos activos. Devuelve hasta 50 resultados con stock consolidado.
+  async buscarProductos(empresaId: string, search: string) {
+    if (!search || search.length < 2) {
+      throw new BadRequestException('El término de búsqueda debe tener al menos 2 caracteres');
+    }
+
+    const db = this.prismaFactory.forEmpresa(empresaId);
+    const productos = await db.producto.findMany({
+      where: {
+        activo: true,
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { codigoInterno: { contains: search, mode: 'insensitive' } },
+          { codigoBarras: { equals: search } },
+        ],
+      },
+      take: 50,
+      include: {
+        familia: { select: { id: true, nombre: true } },
+        subfamilia: { select: { id: true, nombre: true } },
+        lotes: { select: { cantidad: true } },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    return productos.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      codigoInterno: p.codigoInterno,
+      codigoBarras: p.codigoBarras,
+      marca: p.marca,
+      precioMinorista: p.precioMinorista,
+      unidadBase: p.unidadBase,
+      activo: p.activo,
+      familia: p.familia,
+      subfamilia: p.subfamilia,
+      stockDisponible: p.lotes.reduce((sum, l) => sum + Number(l.cantidad), 0),
+      stockMinimo: Number(p.stockMinimo),
+    }));
   }
 }

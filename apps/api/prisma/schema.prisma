@@ -48,6 +48,13 @@ enum EstadoCaja {
   EN_ARQUEO
 }
 
+// C11 (spec-modulos_ventas §6): reemplaza el campo String "CONFIRMADA"/"ANULADA"
+// con un enum tipado. ANULADA se implementa en Incremento 5.
+enum EstadoVenta {
+  CONFIRMADA
+  ANULADA
+}
+
 enum UnidadBase {
   UNIDAD
   KILOGRAMO
@@ -639,19 +646,24 @@ model Deuda {
 }
 
 model Venta {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  empresa   Empresa     @relation(fields: [empresaId], references: [id])
   usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario     @relation(fields: [usuarioId], references: [id])
   clienteId String?
-  cliente   Cliente? @relation(fields: [clienteId], references: [id])
-  estado    String   @default("CONFIRMADA") // INV-02: No se borra físicamente
+  cliente   Cliente?    @relation(fields: [clienteId], references: [id])
+  // Inc-1 (C11): tipado como enum en vez de String libre
+  estado    EstadoVenta @default(CONFIRMADA)
   canal     String // presencial/mayorista/online
   total     Decimal
-  descuento Decimal  @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  descuento Decimal     @default(0)
+  // Inc-1 (INV-VTA-07, CA-VTA-15): clave de idempotencia — el frontend la
+  // genera antes de confirmar (UUID v4); un reintento con la misma clave
+  // devuelve la venta ya creada sin duplicar stock ni pagos.
+  idempotencyKey String? @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   ventaItems VentaItem[]
   pagos      Pago[]
@@ -768,6 +780,11 @@ model Pago {
   medio     String // efectivo, transferencia, QR, Mercado Pago
   estado    EstadoPago       @default(PENDIENTE)
   comision  Decimal          @default(0) // RF-08
+  // Inc-1/Inc-3 (RF-VTA-15, RF-VTA-16, C19): efectivo → monto recibido y
+  // vuelto; transferencia/QR → referencia opcional.
+  montoRecibido Decimal? // Solo efectivo: lo que entrega el cliente (puede superar monto)
+  vuelto        Decimal? // Solo efectivo: montoRecibido − monto
+  referencia    String? // Transferencia/QR: nro de operación, CBU de origen, etc.
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { LegajoAprobadoGuard } from '../legajo/guards/legajo-aprobado.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VentasService } from './ventas.service';
@@ -18,6 +18,13 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @UseGuards(LegajoAprobadoGuard) // RF-17: operación de negocio real, ver caja.controller.ts
 export class VentasController {
   constructor(private readonly ventasService: VentasService) {}
+
+  // Inc-1: búsqueda de productos para la pantalla de Nueva venta (RF-VTA-02).
+  // Ruta antes que ':id' para que Express no interprete "productos" como un ID.
+  @Get('productos')
+  buscarProductos(@Query('search') search: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.ventasService.buscarProductos(user.empresaId, search ?? '');
+  }
 
   @RequierePermiso('ventas.crear')
   @Post()

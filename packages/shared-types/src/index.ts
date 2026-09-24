@@ -129,6 +129,9 @@ export type UpdateProductoRequest = Partial<Omit<CreateProductoRequest, 'codigoI
 
 export type CanalVenta = 'presencial' | 'mayorista' | 'online';
 
+// Inc-1 (C11): enum en vez de String libre
+export type EstadoVenta = 'CONFIRMADA' | 'ANULADA';
+
 export interface CreateVentaItemRequest {
   productoId: string;
   cantidad: number;
@@ -139,6 +142,28 @@ export interface CreateVentaRequest {
   canal: CanalVenta;
   clienteId?: string;
   items: CreateVentaItemRequest[];
+  // Inc-1 (INV-VTA-07): UUID v4 generado por el cliente antes de confirmar.
+  // Reintento con la misma clave devuelve la venta ya creada.
+  idempotencyKey?: string;
+}
+
+// Inc-1: búsqueda de productos para el POS — solo activos, con stock.
+// Usado por GET /ventas/productos?search=
+export interface ProductoBusqueda {
+  id: string;
+  nombre: string;
+  codigoInterno: string;
+  codigoBarras: string | null;
+  marca: string | null;
+  precioMinorista: string;
+  unidadBase: 'UNIDAD' | 'KILOGRAMO' | 'LITRO' | 'METRO' | 'PACK' | 'CAJA';
+  activo: boolean;
+  // Familia/Subfamilia para mostrar categoría en resultado
+  familia: { id: string; nombre: string } | null;
+  subfamilia: { id: string; nombre: string } | null;
+  // Stock disponible (suma de todos los lotes vigentes)
+  stockDisponible: number;
+  stockMinimo: number;
 }
 
 export interface VentaItem {
@@ -166,10 +191,13 @@ export interface Venta {
   empresaId: string;
   usuarioId: string;
   clienteId: string | null;
-  estado: string;
+  // Inc-1 (C11): tipado como EstadoVenta
+  estado: EstadoVenta;
   canal: CanalVenta;
   total: string;
   descuento: string;
+  // Inc-1 (INV-VTA-07): clave de idempotencia
+  idempotencyKey: string | null;
   createdAt: string;
   updatedAt: string;
   ventaItems: VentaItem[];
@@ -201,8 +229,20 @@ export interface Pago {
   medio: string;
   estado: string;
   comision: string;
+  // Inc-1/Inc-3 (RF-VTA-15, RF-VTA-16, C19)
+  montoRecibido: string | null; // Solo efectivo
+  vuelto: string | null; // Solo efectivo
+  referencia: string | null; // Transferencia/QR: nro de operación
   createdAt: string;
   updatedAt: string;
+}
+
+// Inc-3 (RF-VTA-14, RF-VTA-15): pagos mixtos, efectivo con vuelto
+export interface CreatePagoVentaRequest {
+  medio: MedioPago;
+  monto: number;
+  montoRecibido?: number; // Solo efectivo
+  referencia?: string; // Transferencia/QR
 }
 
 // --- Caja (apps/api/src/caja) ---
