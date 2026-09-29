@@ -154,13 +154,13 @@ Cancellation is an explicit operation.
 
 ---
 
-### INV-SALE-002 — Sale effects must not be partially applied
+### INV-SALE-002 — Applicable Sale effects are not partially applied
 
 **Source:** D-008 / C-SALE-001.
 
-The effects associated with the applicable Sale operation must be applied consistently and must not leave a partially applied commercial/economic operation.
+For any Sale operation to which an effect applies according to the approved domain specifications, the applicable effects must not be left partially applied.
 
-**Important:** this invariant does not decide which domains are affected by every Sale or cancellation.
+**Important:** this invariant preserves the consistency requirement without defining which domains are affected by every Sale or cancellation.
 
 ---
 
@@ -181,8 +181,6 @@ Corrections require a compensating operation or authorized adjustment as defined
 **Source:** D-016 / C-FUL-001.
 
 Fulfillment is part of the Orders domain.
-
-It is not required by the current decision to become an independent principal navigation module.
 
 **Open:** physical model, states, tracking, zones, tariffs and evidence.
 
@@ -314,11 +312,21 @@ The Invariants layer must not advance to Tests/Evals until:
 - [ ] test strategy is defined without inventing implementation;
 - [ ] traceability from Decision → Contract → Invariant is complete.
 
-**Current status: DRAFT — NOT READY FOR TEST DERIVATION.**
+**Current status: DRAFT — AUDITED / REFINED; NOT APPROVED.**
 
 ---
 
-## 8. Non-actions
+## 8. Audit reconciliation note
+
+The Invariants audit identified two documentation-level refinements:
+- INV-SALE-002 was narrowed to the non-partial consistency property without defining the open Sale effect matrix.
+- INV-FUL-001 was narrowed to domain ownership; the navigation statement was removed from the invariant layer.
+
+These refinements do not create decisions or implementation commitments.
+
+---
+
+## 9. Non-actions
 
 This document does not:
 
