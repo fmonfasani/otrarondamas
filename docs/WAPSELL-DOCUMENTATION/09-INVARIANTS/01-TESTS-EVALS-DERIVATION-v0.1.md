@@ -45,20 +45,20 @@ The current document contains **no test execution evidence**.
 
 | Invariant | Verification target | Candidate verification | Current status |
 |---|---|---|---|
-| INV-IDENT-001 | User remains global across Business contexts | Integration/domain test with one User associated to multiple Business contexts; verify identity is not duplicated/redefined by membership | DERIVATION ONLY |
+| INV-IDENT-001 | User remains global across Business contexts | Integration/domain test with one User associated to multiple Business contexts; verify that Membership context does not redefine the User as a Business-owned identity | DERIVATION ONLY |
 | INV-TEN-001 | Business-scoped resources remain within Business context | Multi-tenant isolation integration tests using two Business contexts and representative scoped resources | DERIVATION ONLY |
-| INV-MEM-001 | Business access is contextualized through Membership | Authorization integration tests with same User across multiple Business contexts and distinct Membership states | DERIVATION ONLY; exact auth algorithm OPEN |
+| INV-MEM-001 | Business access is contextualized through Membership | Membership-context integration tests with the same User across multiple Business contexts and distinct Membership states; do not freeze the exact D-006 authorization algorithm | DERIVATION ONLY; exact auth algorithm OPEN |
 | INV-CUST-001 | Customer/User remain distinct concepts | Domain/integration tests for Customer without User and Customer with optional User linkage | DERIVATION ONLY |
 | INV-CUST-002 | Customer data remains Business-scoped | Cross-Business isolation tests for Customer read/write operations | DERIVATION ONLY |
 | INV-INV-001 | Inventory is Business-exclusive | Multi-tenant inventory isolation tests | DERIVATION ONLY |
-| INV-INV-002 | Cross-Business stock transfer is rejected | Negative integration test attempting a cross-Business transfer | DERIVATION ONLY |
+| INV-INV-002 | Cross-Business stock transfer is rejected | Negative integration test attempting a cross-Business transfer | NORMATIVE ACCEPTANCE CANDIDATE — D-014 OWNER-RULED |
 | INV-INV-003 | Inventory operations execute only in affected Business context | Authorization + integration isolation tests | DERIVATION ONLY |
 | INV-INV-004 | Stock movement is atomic/non-partial | Transactional integration test; concurrency test where implementation supports concurrent operations | DERIVATION ONLY |
 | INV-INV-005 | Invalid quantities are rejected | Boundary/negative tests after the exact invalid-quantity definition is approved | BLOCKED BY OPEN DEFINITION |
 | INV-SALE-001 | Confirmed Sale is not deleted and cancellation is explicit | Domain/integration tests covering deletion attempt and explicit cancellation path | DERIVATION ONLY; cancellation semantics OPEN |
 | INV-SALE-002 | Applicable Sale effects are not partially applied | Transactional consistency tests over only those effects defined by approved domain specifications | BLOCKED FOR FULL EVAL UNTIL EFFECT MATRIX EXISTS |
 | INV-CASH-001 | Closed Cash cannot be directly modified | Integration tests for direct mutation attempts and approved correction mechanism | BLOCKED FOR FULL EVAL UNTIL ADJUSTMENT WORKFLOW EXISTS |
-| INV-FUL-001 | Fulfillment belongs to Orders domain | Architecture/domain-contract validation rather than a runtime business test | DERIVATION ONLY |
+| INV-FUL-001 | Fulfillment belongs to Orders domain | Structural/documentation evaluation of the approved domain assignment | DERIVATION ONLY |
 
 ---
 
@@ -241,9 +241,9 @@ The correction path cannot be fully tested until the adjustment workflow and aut
 
 **Source:** INV-FUL-001.
 
-This is not primarily a runtime business test.
+**Type:** STRUCTURAL / DOCUMENTATION EVAL.
 
-Verification should be a structural/domain validation confirming that Fulfillment remains within the Orders domain in the approved architecture/specification.
+Verification should confirm that the approved specification assigns Fulfillment to the Orders domain. It is not an implementation architecture test until the Architecture layer establishes the approved decomposition.
 
 It must not assert a particular module, folder, endpoint, table, or service because those details are not yet approved.
 
@@ -323,11 +323,23 @@ Tests/Evals must not advance to implementation until:
 - [ ] no test claims full-domain compliance from a partial scenario;
 - [ ] pending Owner rulings remain outside executable acceptance criteria.
 
-**Current status: DRAFT — DERIVATION COMPLETE / NOT APPROVED FOR IMPLEMENTATION.**
+**Current status: DRAFT — AUDITED / REFINED; NOT APPROVED FOR IMPLEMENTATION.**
 
 ---
 
-## 9. Non-actions
+## 9. Audit reconciliation note
+
+The Tests/Evals audit identified four documentation-level refinements:
+- TEST-IDENT-001 was narrowed to avoid implying an unapproved physical uniqueness rule.
+- TEST-MEM-001 was narrowed to Membership context without freezing the D-006 authorization algorithm.
+- TEST-INV-002 was explicitly classified as a normative acceptance candidate because D-014 is Owner-ruled.
+- TEST-FUL-001 was classified as a structural/documentation evaluation until Architecture is approved.
+
+These refinements do not create business decisions or executable tests.
+
+---
+
+## 10. Non-actions
 
 This document does not:
 
@@ -343,7 +355,7 @@ This document does not:
 
 ---
 
-## 10. Next controlled step
+## 11. Next controlled step
 
 Before writing executable tests, perform an audit of this Tests/Evals derivation against:
 
