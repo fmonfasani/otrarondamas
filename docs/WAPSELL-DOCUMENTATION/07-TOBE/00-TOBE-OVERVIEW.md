@@ -286,6 +286,25 @@ datos. Ninguna entidad de este documento se convierte en `schema.prisma` aquí.
 | `05-PLATFORM-AND-GOVERNANCE-SPEC.md` | **Placeholder** | Platform, Audit, Notifications, Reports, Security, Observability |
 | `06-BRANDING-AND-EXPERIENCE-SPEC.md` | **Placeholder** | Branding, Design System, UX |
 
+**Estado TO-BE (actualización 2026-09-29):** existen documentos TO-BE sustantivos para Commerce,
+Inventory, Cash, Messaging, Branding & Experience y Platform & Governance. Permanecen **DRAFT — NOT
+APPROVED** y no sustituyen a las SPEC canónicas.
+
+| TO-BE | Estado | Cobertura |
+|---|---|---|
+| `00-TOBE-OVERVIEW.md` | DRAFT | Foundation / governance |
+| `01-IDENTITY-AND-TENANCY.md` | DRAFT | Identity, Tenancy, Authorization |
+| `02-COMMERCE.md` | DRAFT | Commerce, Payments, AR, AP, Fulfillment |
+| `03-INVENTORY.md` | DRAFT | Inventory |
+| `04-CASH.md` | DRAFT | Cash |
+| `05-MESSAGING.md` | DRAFT | Messaging |
+| `06-BRANDING-AND-EXPERIENCE.md` | DRAFT | Branding / Experience |
+| `07-PLATFORM-AND-GOVERNANCE.md` | DRAFT | Platform / Governance |
+| `08-TOBE-COVERAGE-AUDIT.md` | AUDIT | Cobertura transversal; no normativa |
+
+Los stubs TO-BE restantes no se rellenan automáticamente. Su necesidad se determina por cobertura y
+contratos, no por numeración de archivos.
+
 `07-TOBE/03-DATA.md`, `06-MODULES.md`, `11-NFR.md` y los demás TO-BE son **stubs** sin contenido y
 **no** se rellenan en esta fase.
 
@@ -352,8 +371,9 @@ Recogidos aquí; el detalle de Identity/Tenancy está en `01-IDENTITY-AND-TENANC
 Este documento es el **primer escalón TO-BE** de la cadena
 `REQUIREMENTS → DECISIONS → TO-BE → CONTRACTS → INVARIANTS → TESTS → PLAN → IMPLEMENTATION`.
 
-- **Completado en esta fase:** `07-TOBE/00-TOBE-OVERVIEW.md` (este documento) y
-  `07-TOBE/01-IDENTITY-AND-TENANCY.md`.
-- **No producido, por fase:** contracts, invariantes, tests, plan, implementación.
+- **Completado en la capa TO-BE:** Foundation, Identity/Tenancy, Commerce, Inventory, Cash,
+  Messaging, Branding & Experience y Platform & Governance.
+- **Audit realizado:** `07-TOBE/08-TOBE-COVERAGE-AUDIT.md` — PASS WITH FINDINGS.
+- **Pendiente:** Contracts → Invariants → Tests → Plan → Implementation.
 - **Prohibido en este documento:** convertir AS-IS en TO-BE, convertir PROPOSED en APPROVED, convertir
   un GAP de implementación en un plan, o crear una decisión.
