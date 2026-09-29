@@ -1,0 +1,4 @@
+| Type | Name A | Name B | Sources | Conflict | Required Decision |
+|---|---|---|---|---|---|
+| Architecture | Stack Simple (AS-IS) | Stack Enterprise (SRC-018 Propuesta) | `05-ASIS/02-ASIS-ARCHITECTURE.md` vs. `SRC-018` | El AS-IS se basa en un stack simple, mientras que SRC-018 propone una arquitectura mucho más compleja (Kubernetes, GraphQL, etc.) que no está implementada. | Definir la arquitectura TO-BE, incluyendo tecnologías de orquestación, comunicación y seguridad. (CON-026) |
+| DevOps / Quality | Ausencia de CI/CD (AS-IS) | Necesidad de CI/CD (TO-BE implícito) | `05-ASIS/02-ASIS-ARCHITECTURE.md`, `05-ASIS/11-ASIS-QUALITY.md` | El AS-IS no tiene CI/CD; despliegues manuales. El TO-BE de una plataforma SaaS requiere CI/CD robusto, que es un requisito arquitectónico y operacional crítico no definido. | Definir la estrategia y el roadmap para implementar CI/CD. (CON-027) |

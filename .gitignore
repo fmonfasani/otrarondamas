@@ -25,6 +25,10 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+# Atajos de Windows: apuntan a rutas de una sola máquina, nunca son
+# contenido del proyecto (CON-029 — uno quedó dentro de 04-DECISIONS/).
+*.lnk
 
 # Editor
 .vscode/*
