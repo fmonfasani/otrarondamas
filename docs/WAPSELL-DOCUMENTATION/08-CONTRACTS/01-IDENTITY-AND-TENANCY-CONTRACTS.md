@@ -102,13 +102,11 @@ boundary.
 
 **Source:** D-005 / D-006.
 
-**Contract candidate:** authenticated access to a Business-scoped operation requires validation of:
-1. global User identity;
-2. target Business;
-3. valid Membership for that Business;
-4. required role/permissions.
+**Contract candidate:** authenticated access to a Business-scoped operation must be evaluated in the context of the global User, target Business, valid Membership and the authorization required by the operation.
 
 A valid authentication token alone does not constitute authorization for a Business-scoped operation.
+
+The exact authorization check sequence and enforcement mechanism remain OPEN DETAIL; this contract does not freeze a four-step implementation algorithm.
 
 **Observable obligation:**
 - An operation must not be authorized solely because authentication succeeded.
@@ -241,7 +239,7 @@ Cash operations are Business-scoped and subject to D-013. Detailed cash permissi
 | C-AUTH-001 | D-005/D-006 | 01-IDENTITY-AND-TENANCY.md | NOT CREATED | NOT CREATED |
 | C-CUST-001 | D-002-bis | 01-IDENTITY-AND-TENANCY.md / 02-COMMERCE.md | NOT CREATED | NOT CREATED |
 | C-CONTEXT-001 | D-001/D-006 | 01-IDENTITY-AND-TENANCY.md | NOT CREATED | NOT CREATED |
-| C-BRAND-001 | D-004 | 06-BRANDING-AND-EXPERIENCE.md | NOT CREATED | NOT CREATED |
+| C-BRAND-001 | D-004 | Branding/Experience TO-BE source to be verified | NOT CREATED | NOT CREATED |
 
 ---
 
