@@ -1,0 +1,1172 @@
+{
+  "familias": [
+    {
+      "prefijo": "ALM",
+      "nombre": "Almacén"
+    },
+    {
+      "prefijo": "BSA",
+      "nombre": "Bebidas sin Alcohol"
+    },
+    {
+      "prefijo": "BCA",
+      "nombre": "Bebidas con Alcohol"
+    },
+    {
+      "prefijo": "GOL",
+      "nombre": "Golosinas"
+    },
+    {
+      "prefijo": "SNK",
+      "nombre": "Snacks"
+    },
+    {
+      "prefijo": "LAC",
+      "nombre": "Lácteos"
+    },
+    {
+      "prefijo": "GAL",
+      "nombre": "Galletitas"
+    },
+    {
+      "prefijo": "LIM",
+      "nombre": "Limpieza"
+    },
+    {
+      "prefijo": "HEL",
+      "nombre": "Helados"
+    },
+    {
+      "prefijo": "CML",
+      "nombre": "Comidas Listas"
+    },
+    {
+      "prefijo": "OTR",
+      "nombre": "Otros"
+    }
+  ],
+  "subfamilias": [
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Aceites",
+      "prefijo": "ACE",
+      "rubroOriginalCategoria": "COMESTIBLES / ACEITES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Aceites Especiales",
+      "prefijo": "AEX",
+      "rubroOriginalCategoria": "COMESTIBLES / ACEITES ESPECIALES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Aceitunas",
+      "prefijo": "CTN",
+      "rubroOriginalCategoria": "COMESTIBLES / ACEITUNAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Aderezos",
+      "prefijo": "ADE",
+      "rubroOriginalCategoria": "COMESTIBLES / ADEREZOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Adhesivos",
+      "prefijo": "ADH",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / ADHESIVOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Alcoholes",
+      "prefijo": "ALC",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / ALCOHOLES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Alimentos De Cereal",
+      "prefijo": "ALI",
+      "rubroOriginalCategoria": "COMESTIBLES / ALIMENTOS DE CEREAL"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Alimentos En Polvo",
+      "prefijo": "AEP",
+      "rubroOriginalCategoria": "COMESTIBLES / ALIMENTOS EN POLVO"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Alimentos Liquidos",
+      "prefijo": "ALX",
+      "rubroOriginalCategoria": "COMESTIBLES / ALIMENTOS LIQUIDOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Arroces",
+      "prefijo": "ARR",
+      "rubroOriginalCategoria": "COMESTIBLES / ARROCES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Avenas",
+      "prefijo": "AVE",
+      "rubroOriginalCategoria": "COMESTIBLES / AVENAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Azucar",
+      "prefijo": "AZU",
+      "rubroOriginalCategoria": "COMESTIBLES / AZUCAR"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Bazar",
+      "prefijo": "BAZ",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / BAZAR"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Boligrafos",
+      "prefijo": "BOL",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / BOLIGRAFOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Budines",
+      "prefijo": "BUD",
+      "rubroOriginalCategoria": "PRODUCTOS DE FIN DE AÑO / BUDINES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Cafe & Cafe En Saquitos",
+      "prefijo": "CAF",
+      "rubroOriginalCategoria": "COMESTIBLES / CAFE & CAFE EN SAQUITOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Caldos",
+      "prefijo": "CAL",
+      "rubroOriginalCategoria": "COMESTIBLES / CALDOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Catering",
+      "prefijo": "CAT",
+      "rubroOriginalCategoria": "COMESTIBLES / CATERING"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Coberturas/reposteria y Choc.taza",
+      "prefijo": "COB",
+      "rubroOriginalCategoria": "COMESTIBLES / COBERTURAS/REPOSTERIA Y CHOC.TAZA"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Confites De Fin De Año",
+      "prefijo": "CDF",
+      "rubroOriginalCategoria": "PRODUCTOS DE FIN DE AÑO / CONFITES DE FIN DE AÑO"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Conservas De Frutas",
+      "prefijo": "CON",
+      "rubroOriginalCategoria": "COMESTIBLES / CONSERVAS DE FRUTAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Conservas De Pescado",
+      "prefijo": "CDP",
+      "rubroOriginalCategoria": "COMESTIBLES / CONSERVAS DE PESCADO"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Conservas De Tomate",
+      "prefijo": "CDT",
+      "rubroOriginalCategoria": "COMESTIBLES / CONSERVAS DE TOMATE"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Dulces Solidos",
+      "prefijo": "DUL",
+      "rubroOriginalCategoria": "COMESTIBLES / DULCES SOLIDOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Edulcorantes",
+      "prefijo": "EDU",
+      "rubroOriginalCategoria": "COMESTIBLES / EDULCORANTES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Encendedores",
+      "prefijo": "ENC",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / ENCENDEDORES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Encurtidos Varios",
+      "prefijo": "EVX",
+      "rubroOriginalCategoria": "COMESTIBLES / ENCURTIDOS VARIOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Especias",
+      "prefijo": "ESP",
+      "rubroOriginalCategoria": "COMESTIBLES / ESPECIAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Fast Foods",
+      "prefijo": "FAS",
+      "rubroOriginalCategoria": "COMESTIBLES / FAST FOODS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Feculas",
+      "prefijo": "FEC",
+      "rubroOriginalCategoria": "COMESTIBLES / FECULAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Gelificables",
+      "prefijo": "GEL",
+      "rubroOriginalCategoria": "COMESTIBLES / GELIFICABLES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Granolas y Mix De Frutos Secos",
+      "prefijo": "GRA",
+      "rubroOriginalCategoria": "PRODUCTOS DE COPETIN / GRANOLAS Y MIX DE FRUTOS SECOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Harinas De Maiz",
+      "prefijo": "HAR",
+      "rubroOriginalCategoria": "COMESTIBLES / HARINAS DE MAIZ"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Harinas De Trigo",
+      "prefijo": "HDT",
+      "rubroOriginalCategoria": "COMESTIBLES / HARINAS DE TRIGO"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Horneables",
+      "prefijo": "HOR",
+      "rubroOriginalCategoria": "COMESTIBLES / HORNEABLES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Lamparas",
+      "prefijo": "LAM",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / LAMPARAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Leches En Polvo",
+      "prefijo": "LEC",
+      "rubroOriginalCategoria": "COMESTIBLES / LECHES EN POLVO"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Leches Fluidas y Condensadas",
+      "prefijo": "LFY",
+      "rubroOriginalCategoria": "COMESTIBLES / LECHES FLUIDAS Y CONDENSADAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Legumbres Al Natural",
+      "prefijo": "LEG",
+      "rubroOriginalCategoria": "COMESTIBLES / LEGUMBRES AL NATURAL"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Legumbres Secas",
+      "prefijo": "LSX",
+      "rubroOriginalCategoria": "COMESTIBLES / LEGUMBRES SECAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Lubricantes",
+      "prefijo": "LUB",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / LUBRICANTES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Maltas",
+      "prefijo": "MAL",
+      "rubroOriginalCategoria": "COMESTIBLES / MALTAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Manies De Copetin",
+      "prefijo": "MAN",
+      "rubroOriginalCategoria": "PRODUCTOS DE COPETIN / MANIES DE COPETIN"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Mayonesas",
+      "prefijo": "MAY",
+      "rubroOriginalCategoria": "COMESTIBLES / MAYONESAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Mermeladas y Dulces Untables",
+      "prefijo": "MER",
+      "rubroOriginalCategoria": "COMESTIBLES / MERMELADAS Y DULCES UNTABLES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Naipes",
+      "prefijo": "NAI",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / NAIPES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Palilleros",
+      "prefijo": "PAL",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / PALILLEROS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Pan Dulces",
+      "prefijo": "PAN",
+      "rubroOriginalCategoria": "PRODUCTOS DE FIN DE AÑO / PAN DULCES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Papas y Palitos De Copetin",
+      "prefijo": "PAP",
+      "rubroOriginalCategoria": "PRODUCTOS DE COPETIN / PAPAS Y PALITOS DE COPETIN"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Pastas Secas",
+      "prefijo": "PAS",
+      "rubroOriginalCategoria": "COMESTIBLES / PASTAS SECAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Picadillos",
+      "prefijo": "PIC",
+      "rubroOriginalCategoria": "COMESTIBLES / PICADILLOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Premezclas",
+      "prefijo": "PRE",
+      "rubroOriginalCategoria": "COMESTIBLES / PREMEZCLAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Profilacticos",
+      "prefijo": "PRO",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / PROFILACTICOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Pure De Manzanas",
+      "prefijo": "PUR",
+      "rubroOriginalCategoria": "COMESTIBLES / PURE DE MANZANAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Pure De Papas",
+      "prefijo": "PDP",
+      "rubroOriginalCategoria": "COMESTIBLES / PURE DE PAPAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Quesos Rallados",
+      "prefijo": "QUE",
+      "rubroOriginalCategoria": "COMESTIBLES / QUESOS RALLADOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Rebozadores",
+      "prefijo": "REB",
+      "rubroOriginalCategoria": "COMESTIBLES / REBOZADORES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Repelentes E Insecticidas",
+      "prefijo": "REP",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / REPELENTES E INSECTICIDAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Saborizadores Varios",
+      "prefijo": "SAB",
+      "rubroOriginalCategoria": "COMESTIBLES / SABORIZADORES VARIOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Sales Hogareñas",
+      "prefijo": "SAL",
+      "rubroOriginalCategoria": "COMESTIBLES / SALES HOGAREÑAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Salsas De Tomate",
+      "prefijo": "SDT",
+      "rubroOriginalCategoria": "COMESTIBLES / SALSAS DE TOMATE"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Salsas Deshidratadas",
+      "prefijo": "SDX",
+      "rubroOriginalCategoria": "COMESTIBLES / SALSAS DESHIDRATADAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Semolas",
+      "prefijo": "SEM",
+      "rubroOriginalCategoria": "COMESTIBLES / SEMOLAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Sopas",
+      "prefijo": "SOP",
+      "rubroOriginalCategoria": "COMESTIBLES / SOPAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Turrones",
+      "prefijo": "TUR",
+      "rubroOriginalCategoria": "PRODUCTOS DE FIN DE AÑO / TURRONES"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Velas",
+      "prefijo": "VEL",
+      "rubroOriginalCategoria": "ARTICULOS VARIOS / VELAS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Vinagres y Jugos De Limon",
+      "prefijo": "VIN",
+      "rubroOriginalCategoria": "COMESTIBLES / VINAGRES Y JUGOS DE LIMON"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Yerba & Te En Saquitos",
+      "prefijo": "YER",
+      "rubroOriginalCategoria": "COMESTIBLES / YERBA & TE EN SAQUITOS"
+    },
+    {
+      "familiaPrefijo": "ALM",
+      "nombre": "Yerba Mate",
+      "prefijo": "YMX",
+      "rubroOriginalCategoria": "COMESTIBLES / YERBA MATE"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Aperitivos",
+      "prefijo": "APE",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / APERITIVOS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Cervezas y Bajo Grado",
+      "prefijo": "CER",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / CERVEZAS Y BAJO GRADO"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Champagnes",
+      "prefijo": "CHA",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / CHAMPAGNES"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Espirituosas",
+      "prefijo": "ESP",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / ESPIRITUOSAS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Fernet",
+      "prefijo": "FER",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / FERNET"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Ginebras",
+      "prefijo": "GIN",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / GINEBRAS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Licores",
+      "prefijo": "LIC",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / LICORES"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Miniaturas",
+      "prefijo": "MIN",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / MINIATURAS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Petacas",
+      "prefijo": "PET",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / PETACAS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Vinos De Mesa",
+      "prefijo": "VIN",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / VINOS DE MESA"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Vinos Espumantes",
+      "prefijo": "VEX",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / VINOS ESPUMANTES"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Vinos Finos",
+      "prefijo": "VFX",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / VINOS FINOS"
+    },
+    {
+      "familiaPrefijo": "BCA",
+      "nombre": "Whiskys",
+      "prefijo": "WHI",
+      "rubroOriginalCategoria": "BEBIDAS CON ALCOHOL / WHISKYS"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Aguas y Sodas",
+      "prefijo": "AGU",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / AGUAS Y SODAS"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Amargos",
+      "prefijo": "AMA",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / AMARGOS"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Energizantes",
+      "prefijo": "ENE",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / ENERGIZANTES"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Gaseosas",
+      "prefijo": "GAS",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / GASEOSAS"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Jugos",
+      "prefijo": "JUG",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / JUGOS"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Jugos En Polvo",
+      "prefijo": "JEP",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / JUGOS EN POLVO"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Jugos Para Congelar",
+      "prefijo": "JPC",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / JUGOS PARA CONGELAR"
+    },
+    {
+      "familiaPrefijo": "BSA",
+      "nombre": "Refrescos",
+      "prefijo": "REF",
+      "rubroOriginalCategoria": "BEBIDAS SIN ALCOHOL / REFRESCOS"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Congelados De Pollo",
+      "prefijo": "CON",
+      "rubroOriginalCategoria": "CONGELADOS / CONGELADOS DE POLLO"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Empanados Saludables",
+      "prefijo": "EMP",
+      "rubroOriginalCategoria": "CONGELADOS / EMPANADOS SALUDABLES"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Hamburguesas",
+      "prefijo": "HAM",
+      "rubroOriginalCategoria": "CONGELADOS / HAMBURGUESAS"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Pescados",
+      "prefijo": "PES",
+      "rubroOriginalCategoria": "CONGELADOS / PESCADOS"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Pizzas Congeladas",
+      "prefijo": "PIZ",
+      "rubroOriginalCategoria": "CONGELADOS / PIZZAS CONGELADAS"
+    },
+    {
+      "familiaPrefijo": "CML",
+      "nombre": "Vegetales",
+      "prefijo": "VEG",
+      "rubroOriginalCategoria": "CONGELADOS / VEGETALES"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Bizcochos",
+      "prefijo": "GAL",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS BIZCOCHOS"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Crackers",
+      "prefijo": "GCX",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS CRACKERS"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Dulces",
+      "prefijo": "GDX",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS DULCES"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Dulces Rellenas",
+      "prefijo": "GDR",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS DULCES RELLENAS"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Obleas",
+      "prefijo": "GOX",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS OBLEAS"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Snacks",
+      "prefijo": "GSX",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS SNACKS"
+    },
+    {
+      "familiaPrefijo": "GAL",
+      "nombre": "Galletitas Surtidas",
+      "prefijo": "GAS",
+      "rubroOriginalCategoria": "GALLETITAS / GALLETITAS SURTIDAS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Alfajores",
+      "prefijo": "ALF",
+      "rubroOriginalCategoria": "GOLOSINAS / ALFAJORES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Barras De Cereal",
+      "prefijo": "BAR",
+      "rubroOriginalCategoria": "GOLOSINAS / BARRAS DE CEREAL"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Bocaditos",
+      "prefijo": "BOC",
+      "rubroOriginalCategoria": "GOLOSINAS / BOCADITOS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Bombones",
+      "prefijo": "BOM",
+      "rubroOriginalCategoria": "GOLOSINAS / BOMBONES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Caramelos De Goma",
+      "prefijo": "CAR",
+      "rubroOriginalCategoria": "GOLOSINAS / CARAMELOS DE GOMA"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Caramelos Duros",
+      "prefijo": "CDX",
+      "rubroOriginalCategoria": "GOLOSINAS / CARAMELOS DUROS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Caramelos Masticables",
+      "prefijo": "CMX",
+      "rubroOriginalCategoria": "GOLOSINAS / CARAMELOS MASTICABLES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Caramelos Rellenos",
+      "prefijo": "CRX",
+      "rubroOriginalCategoria": "GOLOSINAS / CARAMELOS RELLENOS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Cereal Inflado",
+      "prefijo": "CER",
+      "rubroOriginalCategoria": "GOLOSINAS / CEREAL INFLADO"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Chicles",
+      "prefijo": "CHI",
+      "rubroOriginalCategoria": "GOLOSINAS / CHICLES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Chocolates",
+      "prefijo": "CHO",
+      "rubroOriginalCategoria": "GOLOSINAS / CHOCOLATES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Chupetines",
+      "prefijo": "CHU",
+      "rubroOriginalCategoria": "GOLOSINAS / CHUPETINES"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Confites Golosinas",
+      "prefijo": "CON",
+      "rubroOriginalCategoria": "GOLOSINAS / CONFITES GOLOSINAS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Golosinas De Oblea",
+      "prefijo": "GOL",
+      "rubroOriginalCategoria": "GOLOSINAS / GOLOSINAS DE OBLEA"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Golosinas Varias",
+      "prefijo": "GVX",
+      "rubroOriginalCategoria": "GOLOSINAS / GOLOSINAS VARIAS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Pastillas",
+      "prefijo": "PAS",
+      "rubroOriginalCategoria": "GOLOSINAS / PASTILLAS"
+    },
+    {
+      "familiaPrefijo": "GOL",
+      "nombre": "Turrones",
+      "prefijo": "TUR",
+      "rubroOriginalCategoria": "GOLOSINAS / TURRONES"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Cremas De Leche",
+      "prefijo": "CRE",
+      "rubroOriginalCategoria": "REFRIGERADOS / CREMAS DE LECHE"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Fiambres Cocidos",
+      "prefijo": "FIA",
+      "rubroOriginalCategoria": "REFRIGERADOS / FIAMBRES COCIDOS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Fiambres Crudos",
+      "prefijo": "FCX",
+      "rubroOriginalCategoria": "REFRIGERADOS / FIAMBRES CRUDOS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Fiambres Varios",
+      "prefijo": "FVX",
+      "rubroOriginalCategoria": "REFRIGERADOS / FIAMBRES VARIOS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Lacteos",
+      "prefijo": "LAC",
+      "rubroOriginalCategoria": "REFRIGERADOS / LACTEOS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Mantecas",
+      "prefijo": "MAN",
+      "rubroOriginalCategoria": "REFRIGERADOS / MANTECAS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Mortadelas",
+      "prefijo": "MOR",
+      "rubroOriginalCategoria": "REFRIGERADOS / MORTADELAS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Pastas Frescas",
+      "prefijo": "PAS",
+      "rubroOriginalCategoria": "REFRIGERADOS / PASTAS FRESCAS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Quesos Blandos",
+      "prefijo": "QUE",
+      "rubroOriginalCategoria": "REFRIGERADOS / QUESOS BLANDOS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Quesos Duros y Semiduros",
+      "prefijo": "QDY",
+      "rubroOriginalCategoria": "REFRIGERADOS / QUESOS DUROS Y SEMIDUROS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Quesos Untables",
+      "prefijo": "QUX",
+      "rubroOriginalCategoria": "REFRIGERADOS / QUESOS UNTABLES"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Salames y Salamines",
+      "prefijo": "SAL",
+      "rubroOriginalCategoria": "REFRIGERADOS / SALAMES Y SALAMINES"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Tapas",
+      "prefijo": "TAP",
+      "rubroOriginalCategoria": "REFRIGERADOS / TAPAS"
+    },
+    {
+      "familiaPrefijo": "LAC",
+      "nombre": "Vienas",
+      "prefijo": "VIE",
+      "rubroOriginalCategoria": "REFRIGERADOS / VIENAS"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Aditivos Para La Ropa",
+      "prefijo": "ADI",
+      "rubroOriginalCategoria": "LIMPIEZA / ADITIVOS PARA LA ROPA"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Cuidado Del Automotor",
+      "prefijo": "CUI",
+      "rubroOriginalCategoria": "LIMPIEZA / CUIDADO DEL AUTOMOTOR"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Desinfectantes De Ambiente",
+      "prefijo": "DES",
+      "rubroOriginalCategoria": "LIMPIEZA / DESINFECTANTES DE AMBIENTE"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Detergentes",
+      "prefijo": "DET",
+      "rubroOriginalCategoria": "LIMPIEZA / DETERGENTES"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Jabones En Pan",
+      "prefijo": "JAB",
+      "rubroOriginalCategoria": "LIMPIEZA / JABONES EN PAN"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Jabones En Polvo",
+      "prefijo": "JEP",
+      "rubroOriginalCategoria": "LIMPIEZA / JABONES EN POLVO"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Lavandinas",
+      "prefijo": "LAV",
+      "rubroOriginalCategoria": "LIMPIEZA / LAVANDINAS"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Limpiadores Liquidos",
+      "prefijo": "LIM",
+      "rubroOriginalCategoria": "LIMPIEZA / LIMPIADORES LIQUIDOS"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Limpiadores Multiuso",
+      "prefijo": "LMX",
+      "rubroOriginalCategoria": "LIMPIEZA / LIMPIADORES MULTIUSO"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Liquidos Para La Ropa",
+      "prefijo": "LIQ",
+      "rubroOriginalCategoria": "LIMPIEZA / LIQUIDOS PARA LA ROPA"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Lustramuebles",
+      "prefijo": "LUS",
+      "rubroOriginalCategoria": "LIMPIEZA / LUSTRAMUEBLES"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Pastillas Para Inodoro",
+      "prefijo": "PAS",
+      "rubroOriginalCategoria": "LIMPIEZA / PASTILLAS PARA INODORO"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Productos Para Lavavajilla",
+      "prefijo": "PRO",
+      "rubroOriginalCategoria": "LIMPIEZA / PRODUCTOS PARA LAVAVAJILLA"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Rollos De Cocina",
+      "prefijo": "ROL",
+      "rubroOriginalCategoria": "LIMPIEZA / ROLLOS DE COCINA"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Servilletas Descartables",
+      "prefijo": "SER",
+      "rubroOriginalCategoria": "LIMPIEZA / SERVILLETAS DESCARTABLES"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Suavizantes Para La Ropa",
+      "prefijo": "SUA",
+      "rubroOriginalCategoria": "LIMPIEZA / SUAVIZANTES PARA LA ROPA"
+    },
+    {
+      "familiaPrefijo": "LIM",
+      "nombre": "Utensillos De Limpieza",
+      "prefijo": "UTE",
+      "rubroOriginalCategoria": "LIMPIEZA / UTENSILLOS DE LIMPIEZA"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Acondicionadores",
+      "prefijo": "ACO",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / ACONDICIONADORES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Algodones E Hisopos",
+      "prefijo": "ALG",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / ALGODONES E HISOPOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Alimento Para Gatos",
+      "prefijo": "ALI",
+      "rubroOriginalCategoria": "NUTRICION DE MASCOTAS / ALIMENTO PARA GATOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Alimento Para Perros",
+      "prefijo": "APP",
+      "rubroOriginalCategoria": "NUTRICION DE MASCOTAS / ALIMENTO PARA PERROS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Alkalinas",
+      "prefijo": "ALK",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / ALKALINAS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Audiologia",
+      "prefijo": "AUD",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / AUDIOLOGIA"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Carbon Zinc",
+      "prefijo": "CAR",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / CARBON ZINC"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Cepillos Dentales",
+      "prefijo": "CEP",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / CEPILLOS DENTALES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Combos",
+      "prefijo": "COM",
+      "rubroOriginalCategoria": "PROMOCIONES / COMBOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Cremas & Lociones Hidratantes",
+      "prefijo": "CRE",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / CREMAS & LOCIONES HIDRATANTES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Dentifricos",
+      "prefijo": "DEN",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / DENTIFRICOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Desod. & Antitransp. Aerosol",
+      "prefijo": "DES",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / DESOD. & ANTITRANSP. AEROSOL"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Desod. & Antitransp. Roll-on",
+      "prefijo": "DAR",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / DESOD. & ANTITRANSP. ROLL-ON"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Desodorantes Crema & Barra",
+      "prefijo": "DCB",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / DESODORANTES CREMA & BARRA"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Especiales",
+      "prefijo": "ESP",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / ESPECIALES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Fijadores",
+      "prefijo": "FIJ",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / FIJADORES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Filos",
+      "prefijo": "FIL",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / FILOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Fotograficas",
+      "prefijo": "FOT",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / FOTOGRAFICAS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Gel y Espuma De Afeitar",
+      "prefijo": "GEL",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / GEL Y ESPUMA DE AFEITAR"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Jabones De Tocador",
+      "prefijo": "JAB",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / JABONES DE TOCADOR"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Jabones Liquidos",
+      "prefijo": "JLX",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / JABONES LIQUIDOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Linternas",
+      "prefijo": "LIN",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / LINTERNAS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Pañales Para Adultos",
+      "prefijo": "PAN",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PAÑALES PARA ADULTOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Pañales Para Niños",
+      "prefijo": "PPN",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PAÑALES PARA NIÑOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Pañuelos Descartables",
+      "prefijo": "PDX",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PAÑUELOS DESCARTABLES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Papel De Fumar",
+      "prefijo": "PDF",
+      "rubroOriginalCategoria": "TABACOS / PAPEL DE FUMAR"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Papel Higienico",
+      "prefijo": "PAP",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PAPEL HIGIENICO"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Proteccion Femenina",
+      "prefijo": "PRO",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PROTECCION FEMENINA"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Protectores Diarios",
+      "prefijo": "PRD",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / PROTECTORES DIARIOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Recargables",
+      "prefijo": "REC",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / RECARGABLES"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Relojeria",
+      "prefijo": "REL",
+      "rubroOriginalCategoria": "PILAS Y LINTERNAS / RELOJERIA"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Shampoo",
+      "prefijo": "SHA",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / SHAMPOO"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Tabaco",
+      "prefijo": "TAB",
+      "rubroOriginalCategoria": "TABACOS / TABACO"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Talcos Pedicos",
+      "prefijo": "TAL",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / TALCOS PEDICOS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Toallas Humedas",
+      "prefijo": "TOA",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / TOALLAS HUMEDAS"
+    },
+    {
+      "familiaPrefijo": "OTR",
+      "nombre": "Tratamientos Para El Cabello",
+      "prefijo": "TRA",
+      "rubroOriginalCategoria": "HIGIENE PERSONAL / TRATAMIENTOS PARA EL CABELLO"
+    }
+  ]
+}

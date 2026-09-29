@@ -5,11 +5,41 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
+import { VentasModule } from './ventas/ventas.module';
+import { PagosModule } from './pagos/pagos.module';
+import { CajaModule } from './caja/caja.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { InventarioModule } from './inventario/inventario.module';
+import { ComprasModule } from './compras/compras.module';
+import { AutorizacionesModule } from './autorizaciones/autorizaciones.module';
+import { TiendaModule } from './tienda/tienda.module';
+import { PedidosModule } from './pedidos/pedidos.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { FidelizacionModule } from './fidelizacion/fidelizacion.module';
+import { LegajoModule } from './legajo/legajo.module';
+import { InvitacionesModule } from './invitaciones/invitaciones.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CatalogoModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    CatalogoModule,
+    VentasModule,
+    PagosModule,
+    CajaModule,
+    UsuariosModule,
+    InventarioModule,
+    ComprasModule,
+    AutorizacionesModule,
+    TiendaModule,
+    PedidosModule,
+    ClientesModule,
+    FidelizacionModule,
+    LegajoModule,
+    InvitacionesModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

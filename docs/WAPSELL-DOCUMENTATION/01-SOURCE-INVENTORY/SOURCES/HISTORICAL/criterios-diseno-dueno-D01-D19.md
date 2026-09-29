@@ -1,0 +1,72 @@
+# Criterios de diseño propuestos por el dueño — D-01 a D-19
+
+Estado: **Propuestas de dirección de diseño, no datos comerciales cerrados.**
+
+Este documento registra las respuestas del dueño a las 19 decisiones pendientes listadas en `docs/SDD-especificacion-funcional-v0.1.md` (sección 10). No reemplaza al SDD ni al prompt de scaffolding, y ninguno de los dos fue modificado a partir de este documento — es un registro intermedio para revisión antes de decidir qué se incorpora y dónde.
+
+**Aclaración explícita del dueño, conservada tal cual:** *"Estas propuestas permiten preparar el diseño y avanzar en componentes independientes. Las decisiones que requieren información real del comercio, elección de hardware, presupuesto o definición de políticas comerciales deben conservarse como pendientes. Claude Code no debe convertir estas propuestas en reglas definitivas ni modificar el SDD o el repositorio sin autorización explícita."*
+
+## Criterio general de diseño (aplicado a las 19 respuestas)
+
+1. Automatizar las operaciones repetitivas y determinísticas.
+2. Solicitar intervención humana cuando exista una excepción, ambigüedad o decisión comercial.
+3. Requerir autorización del dueño para operaciones sensibles o excepcionales.
+4. Mantener trazabilidad de las operaciones, decisiones, modificaciones y autorizaciones.
+5. No inventar datos reales del negocio. Cuando falte información, permitir configuración posterior y marcarla como pendiente.
+6. No bloquear el desarrollo de módulos que puedan construirse correctamente sin resolver una decisión pendiente.
+
+## Clasificación de cada respuesta
+
+Para cada D-XX distingo tres cosas: (a) qué **dirección de diseño** propone el dueño (esto sí orienta cómo construir), (b) qué **dato comercial concreto** sigue faltando (esto no se inventa, se deja configurable), y (c) si la respuesta **habilita** avanzar con el modelo de datos/estructura o **sigue bloqueando** algo estructural.
+
+| ID | Dirección de diseño propuesta | Dato comercial que sigue pendiente | ¿Habilita estructura? |
+|---|---|---|---|
+| **D-01** | Precio minorista y mayorista configurables por producto; aplicación automática por reglas configurables (tipo de cliente o cantidad mínima); si no hay regla aplicable, usar minorista | Cantidades mínimas reales y qué clientes son mayoristas | **Sí** — habilita modelar `Producto` con precio dual + una entidad/tabla de "regla de precio" configurable, sin necesitar los valores reales todavía |
+| **D-02** | Descuentos configurables por producto/cantidad/cliente; cálculo automático de los habilitados; excepción manual fuera de regla requiere autorización | Porcentajes y condiciones concretas | **Sí** — habilita el modelo de descuento configurable + el enganche con el mecanismo de autorización (D-06) |
+| **D-03** | Módulo de pagos desacoplado del proveedor: identificadores externos, estados de pago, soporte de notificaciones/webhooks e idempotencia | Modalidad concreta de integración con Mercado Pago (Checkout Pro/API/otra) | **Sí** — esto es exactamente lo que la auditoría previa señaló como necesario (entidad de pago con external ID e idempotencia); habilita completar el modelo de `Pago` sin esperar la elección de modalidad |
+| **D-04** | Registrar cobros manuales siempre; integraciones automáticas mediante adaptadores, solo para medios/dispositivos efectivamente integrados | Qué medios/dispositivos concretos tendrán integración automática | **Sí** — habilita un modelo de `Pago` con flag de origen (manual/adaptador) sin necesitar saber todavía cuáles adaptadores existen |
+| **D-05** | Umbral configurable como parámetro; autorización del dueño obligatoria si se supera | Valor de $5.000, condición exacta de comparación (`>` vs `>=`), tratamiento de diferencias menores | **Parcial** — habilita el campo `umbralDiferencia` como configuración, pero el comportamiento ante diferencias menores al umbral sigue sin definir (el dueño es explícito: "no asumir qué tratamiento corresponde") |
+| **D-06** | Mecanismo centralizado de autorización; registrar quién autorizó, cuándo, para qué operación y con qué resultado; **no** almacenar PIN en texto plano; **ningún agente o proceso automático puede autorizarse a sí mismo** | Mecanismo concreto (PIN vs. aprobación remota vs. ambos) | **Sí** — habilita completar la entidad `Autorizacion` y el servicio de autorización central, dejando el mecanismo de credencial como implementación intercambiable. La restricción de "ningún proceso automático se autoriza a sí mismo" es una regla de diseño nueva y explícita que debe quedar reflejada en el guard/servicio |
+| **D-07** | Carga individual + preparación para importación masiva futura; validar datos obligatorios, detectar duplicados, mostrar errores antes de confirmar importación | Responsable operativo de la carga | **Sí** — habilita diseñar el endpoint/flujo de carga con validación, sin necesitar definir quién lo opera |
+| **D-08** | Múltiples presentaciones y conversiones configurables (unidad, pack, caja); conversiones explícitas y verificables; **si no hay equivalencia configurada, el sistema no debe calcularla por suposición** | Presentaciones y equivalencias reales del catálogo físico | **Sí** — habilita el modelo `Presentacion` con conversión explícita opcional (nullable), reforzando que la ausencia de conversión debe bloquear el cálculo, no asumir un valor |
+| **D-09** | Registrar lotes, vencimientos y cantidades; alertas configurables; bloqueo de venta de vencidos; **el bloqueo aplica al lote vencido específico, no a otros lotes vigentes del mismo producto** | Confirmación del valor de 7 días de anticipación | **Sí** — esto es una precisión estructural importante: el bloqueo debe evaluarse por lote, no por producto agregado. Afecta cómo se relaciona `MovimientoStock`/venta con `Lote` (debe poder identificar de qué lote sale cada unidad vendida, al menos para los productos con lote) |
+| **D-10** | Registrar automáticamente diferencias esperado vs. recibido; requerir revisión/autorización según política configurable | Márgenes de tolerancia, responsables específicos | **Sí** — habilita el campo de diferencia en `RecepcionCompra` + enganche con autorización configurable |
+| **D-11** | Zonas y tarifas configurables; costo automático solo si hay zona+tarifa válida; si la dirección no matchea ninguna zona, **solicitar intervención antes de confirmar el costo** | Zonas y tarifas reales | **Sí** — habilita una entidad `ZonaEntrega`/`Tarifa` relacionada con `Entrega`, con el caso "sin zona" como estado explícito que requiere intervención, no un costo default inventado |
+| **D-12** | Registrar responsables, estados y resultado de cada entrega; automatizar cambios de estado derivados de eventos verificables; entregas fallidas registradas y reprogramables | Exigencia de evidencia (foto/firma) | **Sí** — la estructura básica de `Entrega` ya prevista alcanza; la evidencia queda como extensión futura (campo opcional o entidad `DocumentoAdjunto` genérica, ya señalada en la auditoría previa) |
+| **D-13** | Notificaciones configurables por evento/canal/destinatario, con estado de envío y registro de errores; catálogo de eventos candidatos preparable ya mismo; **no habilitar envíos reales todavía**; evitar duplicados | Canales definitivos, proveedor de envío, credenciales | **Sí** — habilita completar el modelo `Notificacion` (ya previsto en el prompt) con el catálogo de eventos como datos de configuración, sin conectar ningún envío real — esto es coherente con lo que el prompt actual ya proponía, sin cambios estructurales necesarios |
+| **D-14** | Integración de periféricos (impresora, lector de códigos) desacoplada del backend; el POS trabaja con códigos de barras como dato | Modelo concreto de hardware | **No aplica al backend** — es una decisión de frontend/POS y de hardware, no cambia el modelo de datos del servidor. El código de barras como campo de `Producto` ya está previsto |
+| **D-15** | Arquitectura modular, costos operativos controlables, no contratar servicios externos innecesarios para el MVP; presentar costos estimados y pedir aprobación antes de contratar/ampliar | Presupuesto máximo real | **No aplica al modelo de datos** — es una decisión de infraestructura/costos, no de esquema |
+| **D-16** | Pagos parciales permitidos; **aplicación de cada cobro a una o más deudas debe registrarse explícitamente**; saldos calculados a partir de movimientos e imputaciones registradas; aplicación automática solo si hay regla definida, si no, el sistema debe **solicitar la selección al dueño** | Mínimo de pago, vencimientos, fórmula exacta de saldo disponible | **Sí — es la confirmación más importante de esta tanda.** El dueño confirma explícitamente la necesidad de una entidad de imputación pago↔deuda (exactamente el hallazgo estructural C-1 de la auditoría previa), con registro explícito de cada aplicación. Esto **cierra** la ambigüedad estructural detectada, aunque los valores (mínimo, vencimiento, fórmula) sigan pendientes |
+| **D-17** | Devoluciones vinculadas a la venta original; conservar productos/cantidades involucrados; generar movimientos de stock correspondientes; reembolsos como operaciones separadas y trazables; excepciones requieren autorización del dueño | Plazos, condiciones, modalidad de reembolso | **Sí** — confirma la necesidad de la entidad `Devolucion` (ya señalada como omisión en la auditoría previa, hallazgo I-8) como vinculada a `Venta` + generadora de `MovimientoStock`, y un `Reembolso` como concepto separado de la devolución en sí |
+| **D-18** | Conservar historial de compras y costos por producto; el método de costeo debe ser configurable o definirse después; **no elegir FIFO, costo promedio ni último costo sin validación**; no presentar ganancias como definitivas hasta tener método | Método de costeo concreto | **Parcial** — habilita seguir registrando `MovimientoStock`/historial de costos de compra (ya previsto), pero el cálculo de "ganancia estimada" en reportes queda explícitamente bloqueado hasta la validación del método. No se debe implementar ningún método por defecto |
+| **D-19** | Medición técnica (CPU/RAM/disco/carga/servicios existentes) antes de decidir despliegue; **no desplegar ni modificar servicios existentes sin autorización explícita**; documentar con evidencia de medición | Resultado de la medición real | **No aplica al modelo de datos** — es una verificación de infraestructura pendiente de ejecución, no bloquea diseño de esquema ni backend |
+
+## Restricciones nuevas explícitas que introduce el dueño (no estaban en el SDD v0.1 original)
+
+Estas son reglas de diseño que el dueño agregó en sus respuestas y que no tenían formulación explícita en el SDD ni en el prompt hasta ahora. Las señalo aparte porque, si se aprueban, ameritan reflejarse como invariante o regla de diseño formal, no solo como nota de una decisión puntual:
+
+1. **No almacenar PIN en texto plano** (D-06) — requisito de seguridad explícito, aplicable al mecanismo de autorización cualquiera sea el que se elija.
+2. **Ningún agente o proceso automático puede autorizarse a sí mismo** (D-06) — esto es una restricción de diseño con implicancia directa sobre cómo se implementa cualquier automatización futura (ej. un job programado no puede generar su propia `Autorizacion`); vale la pena evaluar si esto debería promoverse a invariante formal (candidato a un futuro `INV-15`, sujeto a que el dueño lo confirme como tal).
+3. **El bloqueo por vencimiento aplica al lote, no al producto agregado** (D-09) — precisión estructural que afecta directamente el diseño de la relación Venta↔Lote↔Producto.
+4. **Si no hay conversión de presentación configurada, el sistema no debe calcularla por suposición** (D-08) — refuerza el patrón general "no inventar", aplicado específicamente al cálculo de conversión.
+5. **Si una dirección no matchea ninguna zona de entrega, se debe solicitar intervención antes de confirmar el costo** (D-11) — mismo patrón, aplicado a costo de entrega: nunca un costo default inventado.
+6. **La aplicación automática de un cobro a una deuda solo ocurre si hay una regla definida; si no, el sistema debe solicitar la selección al dueño explícitamente** (D-16) — coherente con RF-10 ("permitir al dueño elegir a qué deuda aplicar cada cobro"), pero ahora queda explícito que la ausencia de regla no implica aplicar automáticamente ningún criterio por defecto (ej. "más antigua primero") sin que el dueño lo haya definido.
+7. **Antes de contratar o ampliar infraestructura, presentar costos estimados y pedir aprobación** (D-15) — regla de proceso, no de sistema, pero relevante para cualquier fase de despliegue futura.
+
+Estas siete reglas comparten un mismo patrón que ya estaba impl­ícito en el SDD ("no inventar regla de negocio pendiente") pero que el dueño ahora hace explícito y extiende a nuevos casos concretos (PIN, autoservicio de autorización, conversión de presentación, zona de entrega, aplicación de cobro). Quedan registradas acá para que, si se aprueban formalmente, se incorporen al SDD como precisiones de invariantes existentes o invariantes nuevas.
+
+## Qué NO cambia con este documento
+
+- El SDD (`docs/SDD-especificacion-funcional-v0.1.md`) sigue sin modificarse. Las 19 decisiones D-01 a D-19 siguen figurando ahí como pendientes.
+- El prompt de scaffolding (`docs/prompt-scaffolding-opencode.md`) sigue sin modificarse.
+- Ningún valor comercial concreto (porcentajes, montos, zonas, plazos, presentaciones reales) fue fijado. Todo lo que este documento registra es **dirección de diseño**, no dato de negocio.
+- No se ejecutó scaffolding ni se generó código.
+
+## Próximo paso sugerido (no ejecutado)
+
+Con este documento como base, el siguiente paso natural sería decidir, con autorización explícita, cuál de estas dos rutas tomar (o ambas en secuencia):
+
+1. Incorporar las direcciones de diseño ya habilitadas (columna "¿Habilita estructura?" = Sí) como actualización de la sección 7/10 del SDD, dejando explícito que son criterio aprobado de diseño con datos reales pendientes.
+2. Reescribir el prompt de scaffolding incorporando estas direcciones — en particular la entidad de imputación de pagos (D-16), `Devolucion` (D-17), la precisión de bloqueo por lote (D-09), y la restricción de que ningún proceso se autoautoriza (D-06) — antes de ejecutarlo con OpenCode.
+
+Ninguna de las dos rutas se inicia en este documento. Queda a la espera de autorización explícita para avanzar.
