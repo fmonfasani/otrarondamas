@@ -100,7 +100,7 @@ Los asistentes de IA forman parte de la dirección de producto, pero permanecen 
 ## 14. C-MSG-014 — No undocumented channel integration
 **Source:** D-003 + Messaging TO-BE.
 No debe interpretarse un campo descriptivo como Pedido.canalOrigen = WhatsApp como evidencia de una integración funcional.
-El canal inicial contractual es el sistema propio de Wapsell. La integración con proveedores externos permanece abierta.
+El sistema propio de Wapsell es la dirección documentada para el Messaging inicial. La cláusula específica sobre dependencia/no dependencia de WhatsApp permanece **PENDING OWNER RULING** según el Decision Register vigente; no debe utilizarse este Contract para cerrar esa cuestión. Las integraciones con proveedores externos permanecen abiertas.
 
 ## 15. Domain boundaries
 | Boundary | Responsibility | Status |
@@ -186,14 +186,14 @@ El canal inicial contractual es el sistema propio de Wapsell. La integración co
 | Conversation is the central commercial interface | DOCUMENTED — DEC-001 |
 | Messaging is active in MVP | DOCUMENTED — D-003 |
 | Initial channel is Wapsell-owned messaging | DOCUMENTED — D-003 |
-| MVP does not require WhatsApp | DOCUMENTED — D-003 / Messaging TO-BE |
+| D-003 WhatsApp non-dependency clause | **PENDING OWNER RULING — Decision Register §4.3.2** |
 | Customer is separate from User | DOCUMENTED — D-002-bis |
 | Order and Sale are distinct | DOCUMENTED — D-007 |
 | Sale confirmation defines application of effects | DOCUMENTED — D-008 |
 | Fulfillment belongs to Orders | DOCUMENTED — D-016 |
 | AI is inactive during MVP | DOCUMENTED — D-003 |
-| No functional WhatsApp integration AS-IS | VERIFIED BY CODE — Messaging TO-BE evidence |
-| No functional Conversation/Message domain AS-IS | VERIFIED BY CODE — Messaging TO-BE evidence |
+| No functional WhatsApp integration AS-IS | **DOCUMENTED / AS-IS audit evidence; primary code verification belongs to the AS-IS/code audit** |
+| No functional Conversation/Message domain AS-IS | **DOCUMENTED / AS-IS audit evidence; primary code verification belongs to the AS-IS/code audit** |
 | Exact Message model | NOT DETERMINABLE WITH AVAILABLE INFORMATION |
 | Exact realtime mechanism | NOT DETERMINABLE WITH AVAILABLE INFORMATION |
 | Exact Messaging permissions | NOT DETERMINABLE WITH AVAILABLE INFORMATION |
