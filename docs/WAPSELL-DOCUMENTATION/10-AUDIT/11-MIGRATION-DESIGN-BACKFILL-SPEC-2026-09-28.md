@@ -1,7 +1,9 @@
 # Identity & Tenancy — Migration Design / Backfill Specification
 
 **Fecha:** 2026-09-28  
-**Estado:** PROPOSAL — NOT APPROVED  
+**Estado:** DESIGN APPROVED FOR NEXT-STAGE EXECUTION PLANNING
+
+**Approval scope (2026-09-28):** The Owner approved the decisions listed in §20.1. This approves the design decisions for planning; it does **not** authorize runtime/schema/data changes, migration execution, merge, deploy, or destructive operations.  
 **Base:** Migration Readiness Review 2026-09-28  
 **Regla:** este documento define diseño; no autoriza ejecución.
 
@@ -54,7 +56,7 @@ Dirección target:
 
 Membership → Role → RolePermission → Permission
 
-El catálogo exacto debe aprobarse antes de migrar.
+**Catálogo aprobado para planificación:** Owner/Admin, Vendedor, Gestor de Stock, Cliente/Comprador, Proveedor. `Repartidor` queda además como rol operativo independiente por aprobación del Owner. Los roles aplican contextualmente a Membership; Customer/Buyer representa además la entidad comercial Customer y no obliga a convertir Customer en User/Membership.
 
 ## 4. Autorización en coexistencia
 
@@ -68,14 +70,14 @@ No eliminar UsuarioPermiso hasta demostrar paridad.
 
 ## 5. Roles
 
-Mapping candidato, NO aprobado:
+Mapping aprobado para planificación:
 
 | Legacy | Target candidato | Confianza |
 |---|---|---|
 | OWNER | Owner/Admin | Alta |
-| ASISTENTE_LOCAL | Vendedor/Assistant | Baja |
-| PROVEEDOR | Proveedor | Media |
-| REPARTIDOR | Delivery / rol por definir | Media |
+| ASISTENTE_LOCAL | Vendedor | Aprobado |
+| PROVEEDOR | Proveedor | Aprobado como rol de acceso cuando corresponda; la entidad Supplier sigue separada |
+| REPARTIDOR | Repartidor | Aprobado como rol independiente |
 | Customer | Customer | Alta, pero no como mapping de Usuario |
 
 No usar OWNER como default silencioso ante valores sin mapping.
@@ -115,7 +117,7 @@ El modelo actual mezcla información fiscal, personal, operacional, delivery y d
 - no cambiar ownership;
 - no mover documentos.
 
-El backfill definitivo queda bloqueado por R-03.
+El backfill definitivo del perfil operativo queda condicionado a cerrar R-03, pero la separación conceptual queda **aprobada**: `User → Membership → OperationalProfile`, con `DeliveryProfile` como especialización cuando corresponda.
 
 ## 10. Historical actors
 
@@ -146,7 +148,7 @@ Se deben evaluar dos estrategias:
 
 **B — Nuevos IDs:** Empresa.id → nuevo Business.id. Requiere mapping LegacyEmpresaId → BusinessId.
 
-La opción final no está aprobada.
+**Decisión aprobada:** estrategia A — preservar IDs; `Empresa.id == Business.id` durante la transformación. Esto reduce churn de FKs y mantiene trazabilidad directa.
 
 ## 12. Orden de backfill
 
@@ -266,6 +268,15 @@ Antes de schema implementation deben cerrarse:
 - G7 Authentication/session contract.
 - G8 entorno/snapshot para validación.
 
+## 20.1 Decisiones del Owner — 2026-09-28
+
+1. **Roles MVP:** Owner/Admin, Vendedor, Gestor de Stock, Cliente/Comprador, Proveedor.
+2. **Repartidor:** rol operativo independiente; se preserva la capacidad legacy.
+3. **Legajo:** aprobado separar conceptualmente identidad, Membership, perfil operativo, delivery y datos comerciales/fiscales; no se ejecuta aún la migración física mientras R-03 esté abierto.
+4. **Autorización:** `Membership → Role → RolePermission → Permission`; no User-global permissions as the target authorization model.
+5. **Business IDs:** preservar IDs existentes (`Empresa.id == Business.id`).
+6. **Alcance de esta aprobación:** habilita cerrar G1/G2/G3/G6 y avanzar al diseño del Migration Execution Plan. No habilita todavía cambios de schema/runtime/datos ni ejecución de migraciones.
+
 ## 20. Conclusion
 
 El backfill confirma que la transformación debe ser incremental:
@@ -280,6 +291,6 @@ Membership → Role → Permission
 
 mientras Customer, Supplier, Operational Profile y actores históricos permanecen como conceptos independientes.
 
-**No se autoriza todavía ninguna migración Prisma ni modificación del runtime.**
+**No se autoriza todavía ninguna migración Prisma ni modificación del runtime.** La aprobación actual es de diseño/decisión, no de implementación.
 
 El siguiente artefacto, una vez cerrados G1/G2/G3/G4, será el Migration Execution Plan con DDL Prisma, compatibilidad, backfill ejecutable, validaciones y criterio de cutover.
