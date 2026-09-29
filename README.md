@@ -16,6 +16,17 @@ Son dos cosas distintas y conviene no confundirlas:
 
 El código de hoy es un ERP/POS **de un solo negocio**. La plataforma multi-negocio es un objetivo especificado, no una funcionalidad existente. La migración de código **no fue iniciada**.
 
+## Estado de la transformación Wapsell
+
+El repositorio mantiene una separación explícita entre el sistema operativo actual y la plataforma objetivo.
+
+- **AS-IS:** Otra Ronda Más funciona como ERP/POS de un solo Business, con aislamiento por `empresaId`.
+- **TO-BE:** Wapsell define `User` global, `Business`, `Membership` N:N, autorización contextual, Brand por Business y Messaging como interfaz comercial central.
+- **Transformación:** todavía no se debe interpretar la existencia de la SPEC como implementación. La migración física de identidad, tenancy, autorización y dominios se realiza incrementalmente y debe conservar la operación existente.
+- **IA:** forma parte de la dirección de producto de Wapsell, pero los asistentes permanecen inactivos durante el MVP inicial. El MVP inicial no depende de WhatsApp como canal. El alcance funcional concreto de la IA queda para una especificación posterior.
+
+La fuente documental canónica y el estado de cada decisión están en `docs/WAPSELL-DOCUMENTATION/`. Este README resume el estado del repositorio y no sustituye las SPEC ni los registros de decisiones.
+
 ## Estado actual
 
 Stack: **NestJS 10 + Prisma 5.22 + PostgreSQL**, dos frontends **React + Vite**, Docker Compose. Auth JWT + Google OAuth.
@@ -41,11 +52,11 @@ Stack: **NestJS 10 + Prisma 5.22 + PostgreSQL**, dos frontends **React + Vite**,
 
 Aunque esté especificado o diseñado, nada de esto está implementado:
 
-- Mensajería, conversaciones, WhatsApp, asistentes de IA.
+- Mensajería, conversaciones y asistentes de IA.
 - `Membership` (usuario ↔ negocio N:N), onboarding de negocios, gestión de Business como entidad operable.
 - Branding configurable por negocio (hoy está hardcodeado).
 - Cuenta corriente operativa, entregas, reportes reales, anulación de ventas, Mercado Pago.
-- **Tests y CI/CD** — Jest está configurado, con cero suites. Cobertura 0%.
+- **Tests y CI/CD** — Jest está configurado, pero actualmente no hay suites automatizadas; no hay workflows de CI/CD versionados.
 
 Algunos modelos existen en el schema sin servicios que los usen (`CuentaCorriente`, `Deuda`, `Entrega`): el modelo de datos va por delante de la funcionalidad.
 
@@ -57,7 +68,7 @@ No son sorpresas: están registrados con evidencia en código.
 - **Brechas de integridad de stock verificadas** — oversell concurrente, devolución a proveedor sin guarda, 0 `CHECK` y 0 `TRIGGER` en 17 migraciones, transacciones en `READ COMMITTED`, `Venta.numero` sin unicidad garantizada. Detalle: [`10-AUDIT/01-D010-D014-CODE-EVIDENCE-AUDIT.md`](docs/WAPSELL-DOCUMENTATION/10-AUDIT/01-D010-D014-CODE-EVIDENCE-AUDIT.md).
 - **Riesgo de autorización** — tokens de `Cliente` podrían alcanzar endpoints del panel sin type guard (CON-015).
 - **El nombre del negocio tiene un typo en el código**: `"Otra Roonda Más"` es la clave `@unique` del `upsert` de `Empresa` en el seed. Los frontends dicen "Otra Ronda Más". Reconciliar sin cuidado rompe el upsert (CON-008).
-- **27 conflictos registrados**, la mayoría `OPEN`. Ver el registro antes de tomar decisiones de arquitectura.
+- **Conflictos documentales** — consultar el registro de conflictos antes de tomar decisiones de arquitectura o modificar contratos.
 
 ## Estructura
 
@@ -138,7 +149,7 @@ Credenciales del seed (**solo desarrollo local**): `owner@otrarondamas.com` y `s
 npm run lint    # ESLint en todos los workspaces
 ```
 
-**No hay tests que ejecutar.** `npm test` en `apps/api` invoca Jest sin suites. Cualquier afirmación de que un cambio "funciona" hoy se apoya en verificación manual, no automatizada.
+**Tests:** actualmente no hay suites automatizadas que ejecutar. Las afirmaciones de funcionamiento deben distinguirse entre verificación por código, ejecución manual y tests automatizados.
 
 ## Despliegue
 
