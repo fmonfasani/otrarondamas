@@ -1,4 +1,4 @@
-# Wapsell — Implementation Plan v0.1
+# Wapsell — Implementation Plan v0.2
 
 **Status:** DRAFT — AUDITED / REFINED — NOT APPROVED  
 **Date:** 2026-09-29  
