@@ -446,3 +446,25 @@ The evidence now supports the following factual AS-IS statement:
 This statement describes the observed implementation. It does not establish compliance with the future Wapsell Membership model.
 
 No code, schema, API or authorization implementation was modified during this task.
+
+
+## 20. Endpoint-level coverage matrix
+
+A dedicated endpoint-level matrix was added after controller inspection:
+
+- `docs/WAPSELL-DOCUMENTATION/05-ASIS/14-ASIS-ENDPOINT-AUTH-TENANCY-MATRIX.md`
+
+The matrix records, for the inspected API surface:
+
+- endpoint;
+- global authentication behavior;
+- explicit permission metadata;
+- additional `LegajoAprobadoGuard` protection;
+- source and propagation of `empresaId`;
+- scoped Prisma versus manual tenant checks;
+- public/authentication/self-service exceptions;
+- remaining evidence limitations.
+
+The matrix confirms that the current API surface is not governed by a single enforcement mechanism: global JWT authentication and permission guards coexist with scoped Prisma, explicit `empresaId` propagation, manual tenant checks, public flows and additional legajo eligibility checks.
+
+**TASK-ASIS-001 remains SUBSTANTIALLY VERIFIED / RUNTIME COVERAGE STILL OPEN.** The new matrix improves code-level coverage; it does not replace runtime cross-tenant testing or establish 100% repository-wide safety.
