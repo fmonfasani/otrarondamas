@@ -49,6 +49,18 @@ The current implementation evidence identifies a system with:
 
 The AS-IS implementation is not itself the Wapsell target architecture.
 
+### 2.1 AS-IS preservation trace
+
+Before structural implementation, each affected existing capability must have an explicit disposition:
+
+- **PRESERVE** — existing behavior remains valid for the TO-BE state;
+- **ADAPT** — existing behavior remains useful but requires a defined change;
+- **REPLACE** — existing behavior is superseded by an approved TO-BE capability;
+- **MISSING** — required TO-BE capability is not present in AS-IS;
+- **NOT DETERMINABLE** — evidence is insufficient for a disposition.
+
+The disposition must be traceable to AS-IS evidence and the relevant TO-BE requirement/specification. A conceptual Architecture statement does not itself authorize replacement, deletion or migration.
+
 Existing code evidence must therefore be used to determine:
 
 - what can be preserved;
@@ -76,6 +88,18 @@ The purpose of the modular boundary is to allow:
 - incremental extraction/refactoring if future requirements justify it.
 
 The architecture does not currently authorize a microservices migration.
+
+### 3.3 Conceptual module/domain boundary criteria
+
+A conceptual module/domain boundary is valid when it has:
+
+- a coherent business responsibility;
+- identifiable authoritative rules within that responsibility;
+- explicit dependencies on other responsibilities;
+- a defined Business/authorization context where applicable;
+- independently traceable requirements, Contracts, Invariants and verification obligations.
+
+These criteria describe architectural responsibility only. They do not prescribe folders, packages, NestJS modules, frontend modules, database schemas, services, processes or deployable units.
 
 ### 3.2 Architectural principle
 
@@ -153,6 +177,8 @@ The physical persistence and API decomposition of Messaging remain open.
 
 These areas are architectural responsibilities, not authorization for physical database tables, routes, events, queues, or services.
 
+A responsibility listed here becomes implementation-relevant only through the normal specification chain and task-local readiness gate.
+
 ---
 
 ## 5. Business / tenancy boundary
@@ -208,6 +234,8 @@ The following conceptual boundaries are currently established:
 - Messaging ↔ Commerce: Messaging is an interaction/interface layer and must not become an alternative implementation of Commerce rules.
 
 No cross-domain interaction should be implemented solely from this conceptual list.
+
+Conceptual relationships in this section are architectural boundaries, not implementation tasks. Any implementation derived from them requires the applicable Requirement/SPEC, Contract, Invariant where applicable, verification definition, AS-IS/TO-BE impact and task-local readiness gate.
 
 ---
 
@@ -570,15 +598,19 @@ Verification must distinguish:
 
 No implementation claim should be inferred from this document.
 
+A downstream task must not bypass Plan G1 by treating this baseline as implementation authorization. Structural implementation requires an Architecture state explicitly ready for the applicable task and all task-local gates to be satisfied.
+
 ---
 
 ## 24. Status
 
-**ARCHITECTURE BASELINE: DRAFT — NOT APPROVED.**
+**ARCHITECTURE BASELINE: DRAFT — AUDITED / REFINED — NOT APPROVED.**
 
 This document satisfies the controlled specification purpose of TASK-ARCH-001 at baseline level, but it does not close all architectural Open Details and does not authorize structural implementation.
 
 ### Next controlled review
+
+The current audit result is CONDITIONAL PASS — REFINEMENT REQUIRED BEFORE ARCHITECTURE APPROVAL. The refinements incorporated in this revision address conceptual boundary criteria, AS-IS preservation traceability, and the prohibition against deriving implementation directly from conceptual architecture relationships.
 
 Audit this Architecture baseline for:
 
