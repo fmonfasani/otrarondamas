@@ -228,3 +228,121 @@ This evidence task does not authorize:
 This document records observed AS-IS behavior only. It does not declare the Wapsell Identity/Tenancy transformation complete.
 
 The next evidence step, if required, is repository-wide verification of the authorization/permission enforcement path and `empresaId` propagation across protected business modules.
+
+
+## 15. Authorization and tenant-scope enforcement — repository verification
+
+Additional repository files inspected:
+
+- `apps/api/src/app.module.ts`
+- `apps/api/src/auth/guards/jwt-auth.guard.ts`
+- `apps/api/src/auth/guards/permissions.guard.ts`
+- `apps/api/src/auth/auth.module.ts`
+- `apps/api/src/prisma/empresa-scoped-prisma.service.ts`
+- `apps/api/src/prisma/empresa-scope.extension.ts`
+
+### VERIFIED BY CODE — authentication guard
+
+`JwtAuthGuard` is registered globally through `APP_GUARD` in `AppModule`.
+
+By default, endpoints require a valid JWT. `@Public()` explicitly exempts an endpoint.
+
+The observed global guard ordering is:
+
+1. `JwtAuthGuard`
+2. `PermissionsGuard`
+
+The repository comments explicitly state that this order is required because `PermissionsGuard` consumes `request.user` populated by JWT authentication.
+
+### VERIFIED BY CODE — permission enforcement
+
+`PermissionsGuard` reads the permission declared through `@RequierePermiso`.
+
+If no permission metadata exists, the guard returns true after authentication.
+
+If permission metadata exists, it verifies that `request.user.permisos` contains the required permission and otherwise throws `ForbiddenException`.
+
+Therefore the AS-IS granular authorization mechanism is:
+
+`JWT → request.user.permisos → @RequierePermiso → PermissionsGuard`.
+
+This is distinct from the future D-006 contextual Membership authorization model.
+
+### VERIFIED BY CODE — tenant-scoped Prisma access
+
+`EmpresaScopedPrismaService.forEmpresa(empresaId)` creates a Prisma client extension bound to the supplied Business/Empresa identifier.
+
+The extension:
+
+- forces `empresaId` on `create`;
+- forces `empresaId` on `createMany`;
+- injects `empresaId` into supported `where` operations;
+- handles `findUnique` / `findUniqueOrThrow` by checking the returned record's `empresaId`;
+- rejects unsupported operations instead of silently executing them without an explicit tenant-scope rule.
+
+This provides direct code evidence for an application-level Empresa isolation mechanism.
+
+### IMPORTANT LIMITATION — VERIFIED BY CODE
+
+The extension itself documents that not every model is directly covered.
+
+Models without a direct `empresaId` and therefore relying on their parent/scope path include examples such as:
+
+- `VentaItem`;
+- `AplicacionPago`;
+- `AperturaCaja`;
+- `MovimientoCaja`;
+- `ArqueoCaja`;
+- `CierreCaja`;
+- `CompraItem`.
+
+The extension documentation states that these models currently depend on queries through their parent entity with `empresaId`.
+
+This is an observed AS-IS limitation, not a proposed correction.
+
+### NOT DETERMINABLE FROM THIS SLICE
+
+The evidence now establishes the principal authentication, permission and tenant-scope mechanisms, but it does not establish complete coverage across every controller/service/query in the repository.
+
+In particular, repository-wide verification is still required to establish:
+
+- which modules consistently use `EmpresaScopedPrismaService`;
+- which modules use the base `PrismaService` directly;
+- whether every protected business operation applies the intended permission metadata;
+- whether every access to indirectly scoped models follows a parent-scoped query path;
+- whether any raw SQL bypasses the extension.
+
+## 16. Revised AS-IS finding
+
+The previous statement that the authorization path was broadly “not determinable” is refined by this evidence.
+
+The following are now **VERIFIED BY CODE**:
+
+1. JWT authentication is global.
+2. Permission authorization is global.
+3. Permission checks consume permissions embedded in the JWT.
+4. Empresa-scoped Prisma access exists as an explicit mechanism.
+5. The scoped extension fail-closes unsupported operations.
+6. The scoped extension handles direct `empresaId` models and documents indirect-scope limitations.
+
+The following remain **NOT DETERMINABLE** without repository-wide coverage analysis:
+
+1. 100% endpoint permission coverage.
+2. 100% use of tenant-scoped Prisma access.
+3. 100% protection of indirectly scoped models.
+4. Absence of all possible scope bypasses.
+
+## 17. TASK-ASIS-001 progress
+
+**Status: IN PROGRESS — CORE AUTHORIZATION / TENANCY MECHANISM VERIFIED, COVERAGE AUDIT PENDING.**
+
+No implementation change was made.
+
+The next controlled evidence step is repository-wide coverage analysis of controllers/services using:
+
+- `PrismaService`;
+- `EmpresaScopedPrismaService`;
+- `@RequierePermiso`;
+- direct/raw database access.
+
+Only after that coverage is established should the AS-IS slice be considered complete.
