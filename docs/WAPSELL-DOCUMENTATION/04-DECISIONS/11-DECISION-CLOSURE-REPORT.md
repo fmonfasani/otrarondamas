@@ -122,7 +122,7 @@ Registradas en §4.3.2. Existen en **solo uno** de los dos drafts, ninguna es no
 
 | # | ID | Cláusula en disputa |
 |---|---|---|
-| 1 | D-003 | *"El MVP inicial no depende de WhatsApp como canal"* (solo v1.0) |
+| 1 | D-003 | *"El MVP inicial no depende de WhatsApp como canal"* (solo v1.0) — *(R3, 2026-09-30, aditivo: `RESOLVED — OWNER-RULED` el 2026-09-30, Register §8.1; estado histórico preservado)* |
 | 2 | **D-006** | **4** checks de autorización (v1.0) vs **2** (v1.1 + root) |
 | 3 | D-008 | Si la anulación de Sale debe revertir explícitamente stock, caja, pagos y AR |
 | 4 | **D-009** | Cláusula de aprobación documental obligatoria (solo v1.0) — **auto-referencial** |
@@ -171,7 +171,7 @@ Ejes transversales, aplicables sobre ese total:
 | **Requieren confirmación de redacción** | **16** | Todas menos D-001, D-002, D-002-bis |
 | **`OWNER-VERBATIM`** | **3** | D-001, D-002, D-002-bis |
 | **`OWNER-RULED`** (texto `DERIVED`) | **2** | D-010, D-014 |
-| **Cláusulas `PENDING OWNER RULING`** | **8** | §4.3.2 — afectan D-003, D-006, D-008, D-009, D-011, D-013, D-015, D-017 |
+| **Cláusulas `PENDING OWNER RULING`** | **8** | §4.3.2 — afectan D-003, D-006, D-008, D-009, D-011, D-013, D-015, D-017 *(R3, 2026-09-30, aditivo: la de D-003 quedó `RESOLVED`; recuento histórico)* |
 
 ### 5.1 Lo que este informe NO hace
 

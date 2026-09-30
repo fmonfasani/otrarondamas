@@ -10,6 +10,12 @@ Definir el contrato físico target para la transformación Empresa/Usuario hacia
 
 Este documento deriva del OR-002 Identity & Tenancy Technical Specification y de las 17 migraciones existentes inspeccionadas.
 
+> **R3 REVALIDATION NOTE (2026-09-30) — additive; the text below is preserved unchanged as historical evidence. This document is DRAFT, NOT APPROVED and NOT NORMATIVE (ISS-08: Audit is evidence only).**
+>
+> - The physical schema/contract described here is **not** approved and no physical detail is confirmed by the Owner. P1-A option C (`Empresa` → `Business` as final destination) does not authorize or design this physical migration.
+> - The clause "mismo email normalizado = misma persona" (Customer↔User matching) is **not** confirmed: it stays `OPEN`. Technical Specification `NOT APPROVED`; implementation `NOT AUTHORIZED`; G5, G7, G8, G9 `OPEN`.
+> - Authority for OR-002-B…F: `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` and Decision Register §8.1.
+
 ## 2. Physical target
 
 ### 2.1 Business

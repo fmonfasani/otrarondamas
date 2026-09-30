@@ -190,6 +190,9 @@ datos. Ninguna entidad de este documento se convierte en `schema.prisma` aquí.
   equivalencia.
 - **D-003** (`APPROVED — DERIVED / RECONSTRUCTED`): Messaging estará **activo** en el MVP inicial como
   sistema de mensajería **propio de Wapsell**; el MVP inicial **no depende de WhatsApp** como canal.
+  *(R3, 2026-09-30, nota aditiva: la cláusula WhatsApp quedó `RESOLVED — OWNER-RULED` —
+  "Wapsell Messaging MVP no depende de WhatsApp"—, `00-DECISION-REGISTER.md` §8.1; el resto de D-003 sigue
+  `DERIVED`; sin integración ni remoción implementada.)*
 - **Estado de los asistentes de IA** — `IN PRODUCT SCOPE, INACTIVE IN FIRST ITERATION`:
   - `DEC-001:23-25` — *"Asistentes de IA son parte del producto, no un descarte del MVP"*
     (**`APPROVED DIRECTION`**), lo que revierte explícitamente el criterio de Fase 1.

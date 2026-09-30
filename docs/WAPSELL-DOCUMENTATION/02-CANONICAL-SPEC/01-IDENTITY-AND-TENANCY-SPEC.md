@@ -46,6 +46,38 @@
 >
 > See `00-GOVERNANCE/GOVERNANCE-RECONCILIATION-REPORT.md`.
 
+> ### Ruling traceability (R1, 2026-09-30 — additive note; no normative text of this document was changed)
+>
+> - **Source / Authority:** `04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md` — **OR-001, `CLOSED` 2026-09-28**.
+>   P1-A: the decided destination of `Empresa` is `Business` (rename). P2-C: temporary coexistence of both
+>   models. P3: continuity without downtime over Ventas, Caja, Catálogo, Compras, Tienda Online, Auth and
+>   Datos históricos. P4: `"Roonda"` → `"Otra Ronda Más"`. P5-B: document first; implement only after the
+>   Owner approves the migration specification. D-001 `IMPLEMENTATION DETAIL` = `SPECIFICATION REQUIRED`
+>   (`13` §6).
+> - **Source / Authority:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` — **OR-002-A, `CLOSED` 2026-09-28**.
+>   `CON-010` is `RESOLVED` in conceptual direction: `User` (global) → `Membership` (N:N) → `Business`;
+>   `Customer` is an independent commercial relationship, not merged with `User`, with an optional
+>   `Customer → User` link. Authority: D-002 + D-002-bis. The `CLOSED` used in the verdict table above and
+>   the `RESOLVED` of the ruling are a vocabulary difference, not a substantive one.
+> - **Still `OPEN` (not decided by either ruling):** physical model, tables/columns/FKs, compatibility
+>   mechanism, deployment strategy, Prisma migrations, criterion for ending the coexistence, rollback,
+>   isolation mechanism, and whether "rename" in P1-A is physical or conceptual. The paragraph
+>   *"A full mechanical rename has deliberately not been performed"* above therefore remains accurate; the
+>   terminology pass it flags is a separate, pending action that R1 did not perform.
+> - **Neither ruling authorizes physical implementation** (no `Membership` table, migration, Prisma, JWT,
+>   guard, API or role change).
+> - `OR-002-B…F` have no primary ruling and are **not** propagated here. *(R1 statement — superseded by the R3 note below; preserved as historical.)*
+>
+> **R3 note (2026-09-30) — additive; no normative text of this document was changed.**
+> - **Source / Authority:** Owner rulings of 2026-09-30 (R2), recorded in `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` and `04-DECISIONS/00-DECISION-REGISTER.md` §8.1. `OR-002-B…F`, `P1-A` (option C) and `P5-B` are now ruled at the conceptual level:
+>   - **OR-002-B:** incremental transition; coexistence temporary and bounded; no prolonged or permanent coexistence.
+>   - **OR-002-C:** `User` is a global identity with globally unique email (the *uniqueness mechanism* remains `OPEN DETAIL`).
+>   - **OR-002-D:** `Usuario` → `User` + `Membership`; `Cliente` → `Customer`, independent of `User`, optional link.
+>   - **OR-002-E:** temporary compatibility of legacy sessions/tokens (respecting OR-001 P3); at the end of the transition sessions are invalidated and a new login is required.
+>   - **OR-002-F / P5-B:** `specification → Owner approval → implementation`.
+>   - **P1-A (option C):** `Empresa` → `Business` as the final destination for documentary terminology and the persistent model. This does **not** mean the physical migration is designed or authorized.
+> - **Still `OPEN` / not authorized:** whether Customer↔User matching by "same email" applies (`OPEN`); physical model, compatibility mechanism, criteria/timing for ending the coexistence, token/session mechanics; Technical Specification `NOT APPROVED`; implementation `NOT AUTHORIZED`; `F1` is not an authorization.
+
 ## 1. IDENTITY
 
 ### 1.1. User

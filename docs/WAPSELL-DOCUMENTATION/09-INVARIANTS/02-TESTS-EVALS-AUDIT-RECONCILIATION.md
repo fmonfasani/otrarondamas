@@ -139,7 +139,7 @@ No new candidate tests are created for:
 - D-016 detailed fulfillment lifecycle;
 - Messaging physical model;
 - AI execution;
-- WhatsApp pending clause;
+- WhatsApp pending clause *(R3, 2026-09-30, additive: clause now `RESOLVED — OWNER-RULED`, Decision Register §8.1; no test or eval derived in R3)*;
 - D-017 architecture implementation;
 - D-018 CI/CD implementation.
 

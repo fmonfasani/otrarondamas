@@ -7,6 +7,13 @@
 
 > Este documento convierte las decisiones de OR-002 en contratos técnicos implementables. No ejecuta cambios de schema, runtime ni datos por sí mismo.
 
+> **R3 REVALIDATION NOTE (2026-09-30) — additive; the text below is preserved unchanged as historical evidence. This document is NOT APPROVED, NOT NORMATIVE and has no Owner ruling of its own.**
+>
+> - Authority for OR-002-B…F is `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` + `04-DECISIONS/00-DECISION-REGISTER.md` §8.1 (ISS-08: Audit is evidence only). The labels "B2 / C1 / D1 / E2 / F1" used here are **not** Owner rulings and do not extend the R2 texts.
+> - **Confirmed by the Owner (R2), conceptual only:** B incremental transition with temporary/bounded coexistence; C `User` global with globally unique email; D `Usuario` → `User` + `Membership`, `Cliente` → `Customer` independent, optional link; E temporary legacy session/token compatibility then invalidation and re-login; F `specification → Owner approval → implementation`.
+> - **NOT confirmed:** the D1 clause "mismo email normalizado = misma persona" (Customer↔User matching by email = `OPEN`); the F1 wording "implementación autorizada" (implementation `NOT AUTHORIZED`; the confirmed flow requires Owner approval of the specification first); any physical detail, contract or mechanism in this document (Technical Specification `NOT APPROVED`).
+> - G5, G7, G8, G9 remain `OPEN`.
+
 ## 1. Objetivo
 
 Formalizar la transformación de identidad y tenancy desde el modelo AS-IS:

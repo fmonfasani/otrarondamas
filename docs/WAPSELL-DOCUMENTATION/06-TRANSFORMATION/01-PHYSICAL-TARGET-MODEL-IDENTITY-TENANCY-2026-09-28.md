@@ -4,6 +4,26 @@
 **Estado:** PROPOSAL — NOT APPROVED  
 **Tipo:** Transformation Design / Physical Target Model
 
+> **Trazabilidad de rulings (R1, 2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** OR-001 (`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`, `CLOSED` 2026-09-28) y
+> OR-002-A (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`, `CLOSED` 2026-09-28). Estos rulings fijan destino
+> (`Empresa` → `Business`), convivencia temporal, continuidad sin downtime, corrección de nombre y la dirección
+> conceptual `User` → `Membership` N:N → `Business` con `Customer` independiente. **No** fijan ningún nombre
+> físico, FK, constraint, tipo ni estrategia: OR-001 deja `OPEN` tablas/columnas/FKs, compatibilidad,
+> deployment, migraciones Prisma, fin de coexistencia, rollback y aislamiento, y ninguno autoriza
+> implementación física. Este documento sigue siendo `PROPOSAL — NOT APPROVED`.
+
+> **Propagación R3 (2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y `04-DECISIONS/00-DECISION-REGISTER.md` §8.
+> El Owner confirmó (2026-09-30): OR-002-B (transición incremental con coexistencia temporal y acotada),
+> OR-002-C (`User` global con email único a nivel global), OR-002-D (`Usuario` → `User` + `Membership`;
+> `Cliente` → `Customer` independiente con vínculo opcional), OR-002-E (compatibilidad temporal de sesiones y tokens
+> legacy; al finalizar la transición se invalidan sesiones y se exige nuevo login), OR-002-F y P5-B
+> (`ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`), y P1-A opción C (`Empresa` → `Business` como destino final,
+> también en el modelo persistente). Nombres físicos, FK, constraints, tipos, normalización de email,
+> criterio de vinculación `Customer` ↔ `User` (**"mismo email" sigue `OPEN`**) y estrategia siguen `OPEN`.
+> Especificación técnica = `NOT APPROVED`; implementación = `NOT AUTHORIZED`.
+
 > Este documento no modifica Prisma ni runtime. Define una propuesta técnica para convertir el modelo AS-IS en el modelo Wapsell. Ningún nombre físico, FK, constraint o estrategia aquí descrita debe tratarse como decisión aprobada hasta su revisión.
 
 ## 1. Objetivo

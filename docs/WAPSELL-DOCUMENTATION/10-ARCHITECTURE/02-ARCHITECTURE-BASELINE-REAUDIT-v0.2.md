@@ -38,6 +38,8 @@ The baseline continues to identify D-017 as DERIVED / RECONSTRUCTED and does not
 
 The unresolved WhatsApp authority issue remains explicitly OPEN and is not silently resolved by Architecture.
 
+> **R3 note (2026-09-30) — additive; historical re-audit result preserved.** The WhatsApp authority issue was subsequently resolved by the Owner (R2, 2026-09-30) and is `RESOLVED — OWNER-RULED` in the Decision Register §8.1; the dependency noted above is therefore closed for D-003's WhatsApp clause only. Other D-003 details remain OPEN.
+
 ### D-006
 
 **PASS WITH OPEN DEPENDENCY**

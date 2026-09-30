@@ -58,6 +58,31 @@
 > Per `00-DECISION-WORKSHOP.md:77`, approval routing targeted this folder's `07-DECISION-REGISTER.md`.
 > That file is now historical; the canonical register is `04-DECISIONS/00-DECISION-REGISTER.md` (GRF-03).
 
+> **R1 TRACEABILITY NOTE (2026-09-30) — additive. No row of the table below was modified. `ISS-07` remains `PRESERVED — DO NOT SILENTLY RECONCILE`.**
+>
+> - **CON-010** (row below, `Status` = `OPEN`): the row is preserved verbatim as the historical record.
+>   **Source / Authority for the later state:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` (OR-002-A, `CLOSED`
+>   2026-09-28) — `RESOLVED` in conceptual direction (`User` → `Membership` N:N → `Business`; `Customer`
+>   independent, optional link), with authority in D-002 + D-002-bis. `IMPLEMENTATION DETAIL` stays `OPEN`;
+>   physical implementation is not authorized. The `OPEN` row and the `RESOLVED` header (`:23-25`) **coexist**
+>   as a preserved documentary inconsistency; neither was edited.
+> - **CON-009** (row below, `Status` = `OPEN`): same pattern. The header (`:23`) records it as `RESOLVED (D-001)`.
+>   OR-001 (`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`, `CLOSED` 2026-09-28) fixes `Empresa` → `Business`
+>   as the destination; whether the rename is physical or conceptual is not defined by the ruling.
+> - **CON-008** (row below, `Status` = `OPEN`): OR-001 P4 records the Owner decision to correct `"Roonda"` →
+>   `"Otra Ronda Más"` (`13` §3, §5: *not corrected yet*). The `OPEN` status here and in
+>   `10-CONFLICT-RESOLUTION-MAPPING.md:67` was **not changed**: changing a conflict's normative status is
+>   `OWNER APPROVAL REQUIRED`.
+
+> **R3 PROPAGATION NOTE (2026-09-30) — additive. No row of the table was modified; the R1 note above is preserved as history.**
+>
+> - **Source / Authority:** Owner rulings of 2026-09-30 (R2) — `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` and `04-DECISIONS/00-DECISION-REGISTER.md` §8.1.
+> - **CON-010 / ISS-07:** `RESOLVED` conceptually (D-002 + D-002-bis + OR-002-A, confirmed by the Owner in R2). The `OPEN` row below remains the preserved historical record; the "PRESERVED — DO NOT SILENTLY RECONCILE" marker is now satisfied by this traceable, authority-backed note. `IMPLEMENTATION DETAIL` stays `OPEN`; implementation `NOT AUTHORIZED`.
+> - **CON-009:** P1-A option C — `Empresa` → `Business` for documentary terminology and the persistent model, as final destination. This does **not** design or authorize the physical migration. The row's `OPEN` status was not edited.
+> - **CON-008:** unchanged (`OPEN`); the R2 rulings do not address it beyond OR-001 P4.
+> - **ISS-08:** precedence Owner Ruling > Decision Register > canonical SPEC > TO-BE > Audit (evidence only) > Workshop/preparation > historical. Formal approval of the `00-GOVERNANCE` documents remains `OWNER APPROVAL REQUIRED`.
+> - **Remain OPEN / not consulted:** Customer↔User "same email" matching; D-005, OR-003, OR-005, D-006, D-008, D-011, D-013, D-015, D-016, D-017 (`NO CONSULTED`).
+
 | Conflict ID | Topic | Sources | Description | Impact | Status |
 |---|---|---|---|---|---|
 | CON-001 | Alcance de producto: Otra Ronda Más standalone vs. Wapsell plataforma multi-tenant conversacional | SRC-001 §7, SRC-003, SRC-004, SRC-011 (línea "standalone") vs. SRC-012, SRC-013, SRC-014–017, SRC-023 (línea "plataforma") | SRC-001/003/004 describen y ya implementan "Otra Ronda Más" como aplicación independiente de Wapsell, sin dependencia de código, con `Usuario.empresaId` 1:N fijo (un usuario = una empresa). SRC-012/013 describen Wapsell como plataforma multi-tenant de comercio conversacional (User=identidad global, Business=tenant, Membership=User↔Business N:N) con messaging y asistentes de IA, donde Otra Ronda Más sería el primer Business/tenant. SRC-011 confirma por lectura de código que Wapsell (el repo real) hoy no tiene messaging ni multi-tenant de negocios genérico. | Alto — afecta modelo de datos de las 42 tablas ya implementadas (`apps/api/prisma/schema.prisma`), arquitectura de autenticación/identidad, y alcance de producto completo (messaging, asistentes de IA) | **RESUELTO por DEC-001** (2026-09-25) — ver `04-DECISIONS/02-MULTITENANCY.md`. Resuelto a favor de la línea "Wapsell plataforma" en su versión completa (multi-tenancy + messaging + IA), no solo la parte de multi-tenancy. Migración de código **no iniciada**: esta resolución es documental únicamente, según lo acordado explícitamente con el dueño (ver Fase de la decisión en DEC-001). |

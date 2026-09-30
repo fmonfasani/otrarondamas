@@ -683,6 +683,8 @@ Cada fila es trazable a `00-DECISION-REGISTER.md` §4 (estado, decidido, pendien
 - **Affected architecture:** Identity, Membership, Authorization, Data Model.
 - **Affected implementation:** Tablas `Usuario`/`Cliente`, autenticación, emisión de tokens, migración de datos.
 
+> **Nota R3 (2026-09-30) — aditiva; el texto histórico de arriba se preserva.** OR-002-A fue cerrada el 2026-09-28 (`15-…`). OR-002-B…F fueron **resueltas conceptualmente** por el Owner el 2026-09-30 (R2; `18-R2-OWNER-DECISION-CLOSURE-REPORT.md`, Register §8.1): B transición incremental con convivencia temporal acotada; C `User` identidad global con email globalmente único; D `Usuario` → `User` + `Membership` y `Cliente` → `Customer` independiente/vínculo opcional; E compatibilidad temporal de sesiones/tokens con invalidación y nuevo login al final; F `especificación → aprobación del Owner → implementación`. El **mecanismo** de cada una sigue `OPEN`; Especificación Técnica `NOT APPROVED`; implementación `NOT AUTHORIZED`. La pregunta de arriba se conserva como evidencia histórica.
+
 ### OR-003 — Lifecycle de Customer y vínculo con User
 
 - **Decision:** D-002-bis
@@ -751,6 +753,8 @@ Un área se marca `READY` **solo** si no existe decisión pendiente que afecte m
 
 **Resultado: 1 área `READY` (Product), 11 `BLOCKED`.**
 
+> **Nota R3 (2026-09-30) — aditiva; la tabla y el resultado de arriba se preservan como estado histórico del informe.** Desde entonces: OR-001 CLOSED (2026-09-28); OR-002-A…F resueltas conceptualmente (A: 2026-09-28; B–F y P1-A/P5-B: 2026-09-30, R2); la cláusula WhatsApp de D-003 `RESOLVED — OWNER-RULED` (2026-09-30). Ninguna de estas resoluciones cambia por sí sola una fila a `READY`: los mecanismos/modelo físico siguen `OPEN`, D-005, OR-003, D-006, D-008, D-011, D-013, D-015, D-016 y D-017 siguen `NO CONSULTED`/pendientes, Especificación Técnica `NOT APPROVED` e implementación `NOT AUTHORIZED`. Estado vigente: `00-DECISION-REGISTER.md` §8.
+
 ---
 
 ## 16. G1 Closure Criteria
@@ -771,7 +775,7 @@ Criterios **derivados** del análisis, no inventados. Cada uno se apoya en una c
 
 **NO.** Ninguno de los 7 criterios está cumplido.
 
-**Qué bloquea:**
+**Qué bloquea:** *(estado histórico; ver nota R3 arriba y Register §8 para el estado vigente)*
 1. **7 Owner Rulings pendientes** (OR-001…OR-007).
 2. **Confirmación de redacción** de las decisiones `DERIVED / RECONSTRUCTED` del alcance.
 3. **Dependencias insatisfechas** en la cadena fundacional: D-001 y D-002 en `PARTIAL`; el resto en `NO`.

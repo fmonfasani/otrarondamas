@@ -70,7 +70,7 @@ The main blockers are documentary/governance issues rather than a need to invent
 
 **Severity:** HIGH — governance/documentation
 
-The canonical Decision Register states D-003 as reconstructed and records, in its reconciliation section, the clause concerning non-dependency on WhatsApp as **OPEN DETAIL — PENDING OWNER RULING**.
+The canonical Decision Register states D-003 as reconstructed and records, in its reconciliation section, the clause concerning non-dependency on WhatsApp as **OPEN DETAIL — PENDING OWNER RULING**. *(Historical finding; see R3 status update in this section: `RESOLVED — OWNER-RULED`, 2026-09-30.)*
 
 The Messaging TO-BE and Messaging Contracts currently present the non-dependency as settled/documented.
 
@@ -79,6 +79,8 @@ This must not be silently resolved by the Contracts layer.
 **Required treatment:** retain the conflict explicitly and mark the exact clause as pending owner ruling until the canonical register is updated by an authorized decision.
 
 **No product behavior should be derived from the disputed clause beyond what the undisputed D-003 core supports.**
+
+> **R3 status update (2026-09-30) — additive; the finding above is preserved as historical audit evidence.** AUD-CON-001 is **RECONCILED**: the Owner ruled on 2026-09-30 (R2) that *"Wapsell Messaging MVP no depende de WhatsApp."* and the canonical Decision Register now records the clause as `RESOLVED — OWNER-RULED` (`04-DECISIONS/00-DECISION-REGISTER.md` §8.1; authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`). The ruling does not prohibit future integrations and implements nothing. The remaining D-003 details (Conversation/Message model, additional channels, AI activation) stay `OPEN`.
 
 ---
 

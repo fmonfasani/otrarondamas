@@ -181,6 +181,13 @@ Cuatro propiedades **aprobadas**:
 
 1. **No es `User`.** No es un tipo de `User` ni una proyección de `User`. La fusión queda **refutada
    de forma permanente**; CON-010 **CERRADA** (`10-CONFLICT-RESOLUTION-MAPPING.md:69`).
+   *Source / Authority (R1, 2026-09-30, nota aditiva):* OR-002-A
+   (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`, `CLOSED` 2026-09-28): `Customer` independiente de `User`,
+   no fusionado, vínculo opcional; autoridad D-002 + D-002-bis. No autoriza implementación física.
+   *Source / Authority (R3, 2026-09-30, nota aditiva):* OR-002-D (Owner, 2026-09-30;
+   `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`): `Cliente` pasa a `Customer`, independiente de `User`,
+   con vínculo opcional. El criterio de vinculación (incluido "mismo email") sigue `OPEN`; no se define
+   "mismo email = misma persona". Lifecycle y modelo físico de `Customer` siguen `OPEN`.
 2. **Pertenece a un `Business`.** Su información comercial no es accesible desde otros `Business`.
    Coherente con D-001 (unidad de aislamiento) y DEC-001:13-14. El **mecanismo** es
    `IMPLEMENTATION DETAIL` / `OPEN`.

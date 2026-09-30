@@ -266,7 +266,7 @@ The following must not be concretized yet:
 | Fulfillment | Detailed states/tracking/zones/tariffs/evidence |
 | Messaging | Physical model and behavior |
 | AI | Execution scope and permissions |
-| WhatsApp | Pending Owner ruling on the specific clause |
+| WhatsApp | Pending Owner ruling on the specific clause *(R3, 2026-09-30, additive: clause now `RESOLVED — OWNER-RULED`, Decision Register §8.1; no test or eval derived in R3)* |
 
 A blocked test is not a missing implementation. It is a specification dependency.
 

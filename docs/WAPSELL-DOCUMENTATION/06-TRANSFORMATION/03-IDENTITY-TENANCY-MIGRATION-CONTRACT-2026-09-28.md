@@ -5,6 +5,22 @@
 **Tipo:** Transformation / Contract  
 **Dependencia:** 01-PHYSICAL-TARGET-MODEL-IDENTITY-TENANCY-2026-09-28.md + 02-IDENTITY-TENANCY-COEXISTENCE-MIGRATION-STRATEGY-2026-09-28.md
 
+> **Trazabilidad de rulings (R1, 2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** OR-001 (`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`, `CLOSED` 2026-09-28) y
+> OR-002-A (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`, `CLOSED` 2026-09-28). Los invariantes, criterios,
+> contratos de coexistencia y de cutover/re-login de este documento derivan de una estrategia
+> `PROPOSAL — NOT APPROVED`, no de los rulings: OR-001 deja `OPEN` el mecanismo de compatibilidad, el fin de la
+> coexistencia, el rollback, el deployment y las migraciones Prisma, y P5-B condiciona toda implementación a la
+> aprobación del Owner de la especificación. Ningún ruling autoriza implementación física.
+
+> **Propagación R3 (2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y `04-DECISIONS/00-DECISION-REGISTER.md` §8.
+> OR-002-B…F, P1-A (opción C) y P5-B fijan **dirección conceptual y orden de gobierno**
+> (`ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`), no los invariantes ni criterios físicos de este contrato.
+> Mecanismo de coexistencia, duración, criterio de fin, diseño de token/sesión, normalización de email,
+> vinculación `Customer` ↔ `User` (**"mismo email" `OPEN`**), migración, rollback y cutover siguen `OPEN`.
+> Este contrato sigue `PROPOSAL — NOT APPROVED`; implementación = `NOT AUTHORIZED`.
+
 > Este contrato traduce la estrategia de migración en invariantes y criterios verificables. No autoriza migrations Prisma ni cambios runtime.
 
 ## 1. Alcance

@@ -269,6 +269,8 @@ Therefore no invariant may state a WhatsApp prohibition/non-dependency rule as c
 
 The invariant set correctly does not currently contain such a rule.
 
+> **R3 note (2026-09-30) — additive; this section is preserved as historical audit evidence.** The authority inconsistency above is **RECONCILED**: the Owner ruled on 2026-09-30 (R2) *"Wapsell Messaging MVP no depende de WhatsApp."* and the Decision Register §8.1 records the clause as `RESOLVED — OWNER-RULED`. No invariant was added in R3; the invariant layer is not expanded by this propagation.
+
 ### D-013 — Sensitive Cash permissions
 
 The exact “sensitive operations” permission clause remains pending Owner ruling.

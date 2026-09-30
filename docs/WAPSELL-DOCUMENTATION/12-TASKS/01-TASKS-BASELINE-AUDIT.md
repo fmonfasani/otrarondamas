@@ -197,7 +197,7 @@ In particular, it must preserve the existing constraints around:
 - D-015 AP;
 - D-016 detailed Fulfillment;
 - Messaging physical/behavioral model;
-- D-003 disputed WhatsApp clause.
+- D-003 disputed WhatsApp clause. *(R3, 2026-09-30, additive: resolved — `RESOLVED — OWNER-RULED`, Decision Register §8.1; historical audit text preserved.)*
 
 **Controlled action:** document-level reconciliation may proceed.
 
@@ -232,7 +232,7 @@ This audit does not remove any existing blockers.
 Implementation remains blocked where the relevant local chain is incomplete, including:
 
 - unresolved Architecture baseline;
-- unresolved D-003 authority detail;
+- unresolved D-003 authority detail; *(R3, 2026-09-30, additive: the WhatsApp authority issue is now `RESOLVED`; other D-003 details remain open; implementation still `NOT AUTHORIZED`)*
 - unresolved D-006 authorization mechanics where implementation depends on them;
 - unresolved D-008 cancellation/reversal effects;
 - unresolved D-011 reconciliation semantics;
@@ -273,7 +273,7 @@ Based on this audit, the baseline can be divided into three controlled categorie
 - sensitive Cash authorization changes;
 - AP/Fulfillment behavioral implementation;
 - AI activation;
-- WhatsApp/channel integration while the D-003 authority issue remains unresolved;
+- WhatsApp/channel integration while the D-003 authority issue remains unresolved; *(R3, 2026-09-30, additive: the authority issue is resolved — Wapsell Messaging MVP does not depend on WhatsApp — but no integration is authorized: implementation `NOT AUTHORIZED`)*
 - infrastructure/microservices migration;
 - production deployment.
 

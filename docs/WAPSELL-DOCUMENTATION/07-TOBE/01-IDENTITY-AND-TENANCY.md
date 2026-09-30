@@ -14,6 +14,36 @@
 > - **`Business`** es el término canónico de entidad; `Tenant` nombra la función de aislamiento
 >   multi-tenant, no la entidad (D-001 `OWNER-VERBATIM`; §Terminology authority de la SPEC).
 >
+> - **Trazabilidad de rulings (R1, 2026-09-30 — nota aditiva; el texto de este documento no se modificó):**
+>   - **Source / Authority:** `04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md` — OR-001, `CLOSED`
+>     2026-09-28: `Empresa` → `Business` (P1-A), convivencia temporal (P2-C), continuidad sin downtime en
+>     Ventas, Caja, Catálogo, Compras, Tienda Online, Auth y Datos históricos (P3), `"Roonda"` →
+>     `"Otra Ronda Más"` (P4), documentar antes de implementar (P5-B). `IMPLEMENTATION DETAIL` de D-001 =
+>     `SPECIFICATION REQUIRED`.
+>   - **Source / Authority:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` — OR-002-A, `CLOSED` 2026-09-28:
+>     `CON-010` `RESOLVED` en dirección conceptual (`User` global → `Membership` N:N → `Business`;
+>     `Customer` independiente, vínculo opcional a `User`). Autoridad: D-002 + D-002-bis.
+>   - Ninguno de los dos rulings autoriza implementación física ni decide modelo físico, mecanismo de
+>     compatibilidad, fin de la coexistencia, rollback, token/guards ni catálogo de roles. `OR-002-B…F`
+>     siguen sin ruling primario y no se propagan aquí. *(Superado por la nota R3 siguiente; se conserva como evidencia histórica de R1.)*
+> - **Propagación R3 (2026-09-30 — nota aditiva; ninguna línea anterior fue borrada):**
+>   **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y
+>   `04-DECISIONS/00-DECISION-REGISTER.md` §8. El Owner confirmó el 2026-09-30, a nivel **conceptual**:
+>   - **OR-002-B:** la transición de identidad es incremental, con coexistencia temporal y acotada de ambos
+>     modelos, compatible con OR-001 P2-C; no hay coexistencia prolongada ni permanente.
+>   - **OR-002-C:** `User` es una identidad global con email único a nivel global.
+>   - **OR-002-D:** `Usuario` pasa a `User` más `Membership`; `Cliente` pasa a `Customer`, independiente de
+>     `User`, con vínculo opcional. **No** se define "mismo email = misma persona": el criterio de vinculación
+>     `Customer` ↔ `User` sigue `OPEN`.
+>   - **OR-002-E:** durante la transición hay compatibilidad temporal de sesiones y tokens legacy (respetando la
+>     continuidad de Auth de OR-001 P3); al finalizar se invalidan las sesiones y se requiere un nuevo login.
+>     Sin mecanismo técnico definido.
+>   - **OR-002-F / P5-B:** `especificación técnica → aprobación del Owner → implementación`.
+>   - **P1-A (opción C):** `Empresa` → `Business` como destino final, tanto documental/conceptual como persistente.
+>   - Siguen `OPEN`: normalización de email, duplicados, constraint, diseño de token, duración, criterio de fin de
+>     la transición, modelo físico, migración, rollback y cutover. Especificación técnica = `NOT APPROVED`;
+>     implementación = `NOT AUTHORIZED`. Sin tokens, guards, tablas ni endpoints definidos aquí.
+>
 > Este documento es **TO-BE conceptual**. No produce schema, contratos, invariantes, tests ni plan. Es
 > el escalón TO-BE de la cadena `REQUIREMENTS → DECISIONS → TO-BE → CONTRACTS → INVARIANTS → TESTS →
 > PLAN → IMPLEMENTATION`.
@@ -199,6 +229,12 @@ en contexto de `Membership` (D-005). Detalle en §11.
 
 - `Customer` es una entidad **comercial separada** de la identidad de plataforma. **CON-010 CERRADA**
   (2026-09-28): la fusión `Usuario`+`Cliente` → `User` queda **refutada de forma permanente**.
+- **Source / Authority (R1, nota aditiva):** OR-002-A (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`,
+  `CLOSED` 2026-09-28) confirma la dirección conceptual; autoridad D-002 + D-002-bis. No autoriza
+  implementación física.
+- **Source / Authority (R3, nota aditiva):** OR-002-D (Owner, 2026-09-30; `04-DECISIONS/18-…`): `Cliente` pasa
+  a `Customer`, independiente de `User`, con vínculo opcional. El criterio de vinculación (incluido "mismo
+  email") **no** está decidido y sigue `OPEN`; no se define "mismo email = misma persona".
 - **Vínculo opcional:** un `Customer` **puede** vincularse a un `User`, sin exigirlo. Compradores con
   y sin login son válidos — coherente con el alta minorista autoservicio de `Cliente`
   (`POST /auth/cliente/registro`) de `05-ASIS/07-ASIS-FLOWS.md:38-40`, que no requiere una identidad

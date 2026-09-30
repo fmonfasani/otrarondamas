@@ -230,6 +230,8 @@ The canonical Decision Register currently records the specific WhatsApp non-depe
 
 **Status:** BLOCKED.
 
+> **R3 note (2026-09-30) — additive; the text above is preserved as historical.** The authority blocker is lifted: the Decision Register (§8.1) records the D-003 WhatsApp clause as `RESOLVED — OWNER-RULED` on 2026-09-30 (*"Wapsell Messaging MVP no depende de WhatsApp."*; authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`). R3 does **not** create or formalize an invariant for it; whether and how it becomes an invariant is deferred to a later invariant-layer revision. No invariant is created for OR-002-B…F, Customer ↔ User matching, session invalidation, migration or physical rename.
+
 ### Messaging physical model
 
 Conversation, Message, Participant, realtime, notifications, attachments and retention are not sufficiently specified.

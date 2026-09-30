@@ -20,6 +20,7 @@ El canal inicial es el sistema de mensajería propio de Wapsell.
 - No debe existir dependencia arquitectónica del MVP respecto de WhatsApp.
 - Los canales adicionales permanecen abiertos para una especificación posterior.
 La ausencia de dependencia de WhatsApp no constituye una prohibición de una integración futura.
+**R3 (2026-09-30, nota aditiva):** la cláusula de no dependencia de WhatsApp está `RESOLVED — OWNER-RULED` (2026-09-30, R2): *"Wapsell Messaging MVP no depende de WhatsApp."* Ver `04-DECISIONS/00-DECISION-REGISTER.md` §8.1. No se implementa ni se remueve ninguna integración.
 
 ## 3. C-MSG-003 — Business context
 **Source:** D-001 + Messaging TO-BE.
@@ -101,6 +102,8 @@ Los asistentes de IA forman parte de la dirección de producto, pero permanecen 
 **Source:** D-003 + Messaging TO-BE.
 No debe interpretarse un campo descriptivo como Pedido.canalOrigen = WhatsApp como evidencia de una integración funcional.
 El sistema propio de Wapsell es la dirección documentada para el Messaging inicial. La cláusula específica sobre dependencia/no dependencia de WhatsApp permanece **PENDING OWNER RULING** según el Decision Register vigente; no debe utilizarse este Contract para cerrar esa cuestión. Las integraciones con proveedores externos permanecen abiertas.
+
+> **R3 (2026-09-30) — nota aditiva; el párrafo anterior se conserva como estado histórico.** Superado: la cláusula de WhatsApp quedó `RESOLVED — OWNER-RULED` el 2026-09-30 (R2): *"Wapsell Messaging MVP no depende de WhatsApp."* (`04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1; `04-DECISIONS/00-DECISION-REGISTER.md` §8.1). No prohíbe integraciones futuras; las integraciones con proveedores externos, canales adicionales y el modelo Conversation/Message permanecen `OPEN`. No se crea ni modifica ningún contrato técnico.
 
 ## 15. Domain boundaries
 | Boundary | Responsibility | Status |
@@ -186,7 +189,7 @@ El sistema propio de Wapsell es la dirección documentada para el Messaging inic
 | Conversation is the central commercial interface | DOCUMENTED — DEC-001 |
 | Messaging is active in MVP | DOCUMENTED — D-003 |
 | Initial channel is Wapsell-owned messaging | DOCUMENTED — D-003 |
-| D-003 WhatsApp non-dependency clause | **PENDING OWNER RULING — Decision Register §4.3.2** |
+| D-003 WhatsApp non-dependency clause | **PENDING OWNER RULING — Decision Register §4.3.2** *(historical; superseded by R3 2026-09-30: `RESOLVED — OWNER-RULED`, "Wapsell Messaging MVP no depende de WhatsApp", Decision Register §8.1)* |
 | Customer is separate from User | DOCUMENTED — D-002-bis |
 | Order and Sale are distinct | DOCUMENTED — D-007 |
 | Sale confirmation defines application of effects | DOCUMENTED — D-008 |

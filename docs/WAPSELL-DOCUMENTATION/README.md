@@ -27,6 +27,16 @@ La jerarquía de autoridad está en [`00-GOVERNANCE/01-SOURCE-OF-TRUTH.md`](00-G
 | [`09-ANNEXES/`](09-ANNEXES/) | Anexos, incluido el [registro de deuda técnica](09-ANNEXES/TECHNICAL-DEBT-REGISTER.md) (TD-001…TD-007) | **PARCIAL** |
 | [`10-AUDIT/`](10-AUDIT/) | Auditorías de evidencia en código (41 hallazgos sobre D-010/D-014) | **COMPLETA** para su alcance |
 
+## Owner Rulings vigentes (trazabilidad R1, 2026-09-30 — nota aditiva)
+
+- **Source / Authority: OR-001 — Owner Ruling Closure, 2026-09-28** → [`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`](04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md) (`CLOSED`). Alcance: P1-A `Empresa` → `Business`, P2-C coexistencia temporal, P3 continuidad sin downtime, P4 `"Roonda"` → `"Otra Ronda Más"`, P5-B especificar antes de implementar. Modelo físico, migraciones, compatibilidad, deploy, rollback, cutover y fin de la coexistencia siguen `OPEN`.
+- **Source / Authority: OR-002-A — Owner Ruling, 2026-09-28** → [`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`](04-DECISIONS/15-OR-002-A-OWNER-RULING.md) (`CLOSED`). Dirección conceptual `User` → `Membership` N:N → `Business`; `Customer` independiente con vínculo opcional (CON-010 `RESOLVED` en dirección conceptual). No autoriza implementación física.
+- Solo OR-002-A tiene ruling primario dentro de OR-002; OR-002-B…F no lo tienen. *(Estado R1 — reemplazado por la sección R3 de abajo; se preserva como histórico.)*
+- **R2/R3 (2026-09-30):** OR-002-B, C, D, E, F, P1-A (opción C), P5-B, CON-010/ISS-07 (conceptual), ISS-08 (precedencia) y D-003/WhatsApp (`RESOLVED`: "Wapsell Messaging MVP no depende de WhatsApp") tienen ruling del Owner. Autoridad: [`04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`](04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md) y `04-DECISIONS/00-DECISION-REGISTER.md` §8. Propagación: [`04-DECISIONS/19-R3-CANONICAL-PROPAGATION-REPORT.md`](04-DECISIONS/19-R3-CANONICAL-PROPAGATION-REPORT.md) (no normativo).
+- Siguen `OPEN`/pendientes: matching Customer↔User por "mismo email"; D-005, OR-003, OR-005, D-006, D-008, D-011, D-013, D-015, D-016, D-017 (`NO CONSULTED`); Especificación Técnica `NOT APPROVED`; implementación `NOT AUTHORIZED`; F1 no es una autorización.
+- Registro de esta reconciliación: [`04-DECISIONS/17-R1-DOCUMENTAL-RECONCILIATION-RECORD.md`](04-DECISIONS/17-R1-DOCUMENTAL-RECONCILIATION-RECORD.md) (no normativo).
+- Un ruling aprobado **no** es autorización de implementación.
+
 ## Por dónde empezar
 
 1. [`05-ASIS/00-ASIS-OVERVIEW.md`](05-ASIS/00-ASIS-OVERVIEW.md) — qué existe realmente hoy, y qué no.

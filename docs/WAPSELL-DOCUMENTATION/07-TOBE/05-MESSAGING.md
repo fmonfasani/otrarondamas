@@ -5,6 +5,7 @@
 >
 > - **DEC-001 → APPROVED** y es la autoridad principal para la dirección de producto: la conversación es la interfaz comercial central y los asistentes de IA forman parte del producto.
 > - **D-003 → APPROVED — DERIVED / RECONSTRUCTED** según el Decision Register. Define Messaging activo en el MVP inicial como sistema de mensajería propio de Wapsell; los asistentes de IA quedan preparados técnicamente para una incorporación posterior pero permanecen inactivos durante el MVP.
+> - **D-003 / WhatsApp → `RESOLVED — OWNER-RULED` (R3, 2026-09-30, nota aditiva).** Decisión del Owner (`04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1, `00-DECISION-REGISTER.md` §8.1): **"Wapsell Messaging MVP no depende de WhatsApp."** No prohíbe integraciones futuras; no se implementa ni se remueve ninguna integración. Los demás detalles de D-003 (modelo Conversation/Message, canales adicionales, activación de IA) siguen `OPEN`; el resto del texto de D-003 sigue `DERIVED / RECONSTRUCTED`.
 > - **D-001 y D-002 → APPROVED — OWNER-VERBATIM.** Se utilizan únicamente como frontera de Business, User y Membership.
 > - **D-002-bis → APPROVED — OWNER-VERBATIM.** Customer permanece separado de User y puede vincularse opcionalmente a un User.
 > - **D-005 y D-006 → APPROVED — DERIVED / RECONSTRUCTED.** Se utilizan únicamente como frontera de autorización. El catálogo concreto de roles/permisos y determinados detalles de validación permanecen OPEN.
@@ -84,7 +85,7 @@ D-003 define la dirección específica de Messaging:
 |---|---|
 | Messaging en MVP | **Activo** |
 | Sistema inicial | **Mensajería propia de Wapsell** |
-| Dependencia de WhatsApp | **No requerida para el MVP inicial** |
+| Dependencia de WhatsApp | **No requerida para el MVP inicial** — `RESOLVED — OWNER-RULED` 2026-09-30: *"Wapsell Messaging MVP no depende de WhatsApp."* (no prohíbe integraciones futuras) |
 | Asistentes de IA | Preparados técnicamente para incorporación posterior |
 | IA durante MVP inicial | **Inactiva** |
 | Funcionalidad concreta del asistente | **OPEN** |

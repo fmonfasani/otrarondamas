@@ -17,6 +17,29 @@
 
 ---
 
+> **R1 TRACEABILITY NOTE (2026-09-30) — additive. No row of the table below was modified.** This matrix stays
+> anchored on DEC-001 (*Reconciled 2026-09-28*). Later authority: D-001, D-002, D-002-bis (`OWNER-VERBATIM`,
+> `04-DECISIONS/00-DECISION-REGISTER.md` §4), OR-001 (`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`) and OR-002-A
+> (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`), both `CLOSED` 2026-09-28.
+>
+> - **Rows 4 and 5** (`CON-010 OPEN`; row 5 `NOT DECIDED`): historical record. The current canonical state, per
+>   OR-002-A, is `CON-010` `RESOLVED` in conceptual direction (`User` → `Membership` N:N → `Business`; `Customer`
+>   not merged with `User`, optional link), authority D-002 + D-002-bis; `IMPLEMENTATION DETAIL` `OPEN`; no physical
+>   implementation authorized. These `OPEN` positions were not in the `ISS-07` table and are recorded in
+>   `04-DECISIONS/17-R1-DOCUMENTAL-RECONCILIATION-RECORD.md`; `ISS-07` remains preserved.
+> - **Rows 2 and 3** (`CON-009 OPEN`; canonical term `NOT DECIDED`): historical record. Later authority: D-001
+>   `OWNER-VERBATIM` (`Business` canonical) and OR-001 P1-A (`Empresa` → `Business`; physical vs conceptual scope not
+>   defined by the ruling).
+>
+> **R3 TRACEABILITY NOTE (2026-09-30) — additive; the R1 note above is preserved.** Source / Authority: Owner rulings of
+> 2026-09-30 (R2) — `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`, Decision Register §8.1. Now ruled at the
+> conceptual level: OR-002-B, C, D, E, F; P1-A option C (`Empresa` → `Business`, terminology and persistent model as
+> final destination — the physical migration is neither designed nor authorized); P5-B; `CON-010`/`ISS-07`
+> (`RESOLVED` conceptually; implementation `OPEN`); `ISS-08` (precedence); D-003/WhatsApp (`RESOLVED`). No row of
+> this matrix was modified. Still `OPEN`: Customer↔User "same email" matching; `NO CONSULTED`: D-005, OR-003,
+> OR-005, D-006, D-008, D-011, D-013, D-015, D-016, D-017. Technical Specification `NOT APPROVED`; implementation
+> `NOT AUTHORIZED`; `F1` is not an authorization.
+
 ## 1. Decision → spec → AS-IS (the chain that can actually be traced)
 
 | # | Decision direction | Authority | Canonical SPEC | AS-IS evidence | Conflict | Verdict |

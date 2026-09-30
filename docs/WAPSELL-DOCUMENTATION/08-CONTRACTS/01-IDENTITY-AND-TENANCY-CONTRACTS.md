@@ -12,6 +12,17 @@
 >
 > **No new decisions. No new business requirements. No schema. No API implementation. No invariants.
 > No tests.**
+>
+> **R3 authority note (2026-09-30) — additive; no contract text was changed.** Later Owner rulings recorded in
+> `04-DECISIONS/00-DECISION-REGISTER.md` §8 (authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`)
+> give conceptual authority to the direction these candidates express: OR-002-C (`User` is a global identity
+> with globally unique email), OR-002-D (`Usuario` → `User` + `Membership`; `Cliente` → `Customer`, independent of
+> `User`, optional link), OR-002-B/E (incremental transition; temporary legacy session/token compatibility,
+> then invalidation and new login), OR-002-F/P5-B (specification → Owner approval → implementation) and P1-A
+> option C (`Business` as final persistent destination). These rulings do **not** define identifiers, email
+> normalization or uniqueness constraints, token/session design, guards, errors, events, the Customer ↔ User
+> linking criterion (**"mismo email" remains `OPEN`**) or any migration. Contracts touching D-005/D-006
+> (`NOT CONSULTED`) stay open. All contracts remain `CONTRACT CANDIDATE` — `DRAFT — NOT APPROVED`; no implementation is authorized.
 
 ---
 

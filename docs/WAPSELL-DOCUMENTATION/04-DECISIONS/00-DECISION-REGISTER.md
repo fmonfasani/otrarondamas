@@ -25,6 +25,15 @@
 >   historical.
 > - `DEC-001` is still the only decision with **originally authored** text. Where it answers part
 >   of a question directly, that excerpt is preserved and marked `DEC-001 DERIVED`.
+>
+> **R3 NOTE (2026-09-30) — additive; nothing above was deleted.** After this revision the Owner issued
+> further rulings (OR-001, OR-002-A on 2026-09-28; R2 confirmations on 2026-09-30) that are recorded in
+> **§8 "Owner Rulings posteriores"** at the end of this register, with authority in
+> `13-OR-001-OWNER-RULING-CLOSURE.md`, `15-OR-002-A-OWNER-RULING.md` and
+> `18-R2-OWNER-DECISION-CLOSURE-REPORT.md`. Where §8 and a cell below differ, the later Owner ruling
+> prevails (ISS-08 precedence, §8.4); the earlier text stays as historical evidence. The
+> `D-003` WhatsApp clause is `RESOLVED` by §8.1 (R2). Every other `OPEN DETAIL — PENDING OWNER RULING`
+> item in §4.3.2 (D-006, D-008, D-009, D-011, D-013, D-015, D-017) **remains pending**.
 
 
 ## 1. Decision namespaces (§4 of mandate)
@@ -94,10 +103,10 @@ governance. They are the reason D-001…D-018 existed at all.
 
 | ID | Decisión | Owner | Fecha | Evidencia | Estado | `IMPLEMENTATION DETAIL` |
 |---|---|---|---|---|---|---|
-| **D-001** | **Business = Tenant.** Empresa se transforma en Business y pasa a ser la unidad de aislamiento multi-tenant. | fmonfasani | 2026-09-28 | Owner verbatim; `WAPSELL-IDENTITY-AND-TENANCY-SPEC-v0.1-DERIVADA.md`; `v1.0-RECONSTRUIDA.md:91-95` | **APPROVED — OWNER-VERBATIM** | `OPEN` — migración y modelo físico no definidos |
-| **D-002** | **User** es la identidad global. La relación User ↔ Business se establece mediante **Membership** (N:N); un mismo User puede pertenecer a múltiples Business. Roles y permisos se determinan dentro del Membership. | fmonfasani | 2026-09-28 | Owner verbatim; `WAPSELL-IDENTITY-AND-TENANCY-SPEC-v0.1-DERIVADA.md`; `v1.0-RECONSTRUIDA.md:97-105` | **APPROVED — OWNER-VERBATIM** | `OPEN` — migración Usuario/Cliente, modelo de datos y ciclo de vida |
+| **D-001** | **Business = Tenant.** Empresa se transforma en Business y pasa a ser la unidad de aislamiento multi-tenant. | fmonfasani | 2026-09-28 | Owner verbatim; `WAPSELL-IDENTITY-AND-TENANCY-SPEC-v0.1-DERIVADA.md`; `v1.0-RECONSTRUIDA.md:91-95` | **APPROVED — OWNER-VERBATIM** | `OPEN` — migración y modelo físico no definidos. *(R3, 2026-09-30, nota aditiva: la destinación persistente `Empresa` → `Business` es P1-A opción C (§8.2) y rige `ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN` (P5-B); tablas, columnas, migración, compatibilidad, cutover y rollback siguen `OPEN`; implementación NO AUTORIZADA.)* |
+| **D-002** | **User** es la identidad global. La relación User ↔ Business se establece mediante **Membership** (N:N); un mismo User puede pertenecer a múltiples Business. Roles y permisos se determinan dentro del Membership. | fmonfasani | 2026-09-28 | Owner verbatim; `WAPSELL-IDENTITY-AND-TENANCY-SPEC-v0.1-DERIVADA.md`; `v1.0-RECONSTRUIDA.md:97-105` | **APPROVED — OWNER-VERBATIM** | `OPEN` — migración Usuario/Cliente, modelo de datos y ciclo de vida. *(R3, 2026-09-30, nota aditiva: OR-002-B…F (§8.1) fijan dirección conceptual —transición incremental con coexistencia temporal, email único global del `User`, `Usuario` → `User` + `Membership`, compatibilidad temporal de sesiones—; mecanismo, diseño físico y migración siguen `OPEN`; implementación NO AUTORIZADA.)* |
 | **D-002-bis** *(resolución posterior del Owner)* | **`Customer` NO se fusiona con `User`.** `Customer` representa la relación comercial del comprador/cliente con un `Business`. Puede vincularse opcionalmente a un `User`, sin exigir uno. Pertenece al contexto de un `Business` y puede incluir compras, pedidos, historial, cuenta corriente/deuda cuando aplique, condiciones comerciales y demás datos de Commerce. | fmonfasani | 2026-09-28 | Owner, sesión actual | **APPROVED — OWNER-VERBATIM** | `OPEN` — lifecycle de Customer, modelado de vínculo con User |
-| **D-003** | Messaging estará **activo** en el MVP inicial como sistema de mensajería propio de Wapsell. Los asistentes de IA estarán preparados técnicamente para incorporarse posteriormente, pero **permanecerán inactivos durante el MVP inicial**. El MVP inicial **no depende de WhatsApp** como canal. | fmonfasani | 2026-09-28 | `v1.0-RECONSTRUIDA.md:107-113`; `v1.1-REVISADA.md:121-127`; resumen en `03-DECISION-WORKSHOP/00` | **APPROVED — `DERIVED / RECONSTRUCTED`** | `OPEN` — modelo Conversation/Message, realtime, asignación, presencia, attachments, modelo de activación de IA |
+| **D-003** | Messaging estará **activo** en el MVP inicial como sistema de mensajería propio de Wapsell. Los asistentes de IA estarán preparados técnicamente para incorporarse posteriormente, pero **permanecerán inactivos durante el MVP inicial**. El MVP inicial **no depende de WhatsApp** como canal. | fmonfasani | 2026-09-28 | `v1.0-RECONSTRUIDA.md:107-113`; `v1.1-REVISADA.md:121-127`; resumen en `03-DECISION-WORKSHOP/00` | **APPROVED — `DERIVED / RECONSTRUCTED`**. *(R3, 2026-09-30, nota aditiva: la cláusula "no depende de WhatsApp" quedó `RESOLVED — OWNER-RULED 2026-09-30` como "Wapsell Messaging MVP no depende de WhatsApp"; ver §8.1 D-003/WhatsApp. El resto del texto sigue `DERIVED / RECONSTRUCTED`.)* | `OPEN` — modelo Conversation/Message, realtime, asignación, presencia, attachments, modelo de activación de IA |
 | **D-004** | Wapsell tendrá un **Design System canónico común**. Cada Business podrá configurar su **Brand** sobre dicho sistema. La experiencia orientada al cliente debe identificarse principalmente con la marca del Business, mientras Wapsell permanece como plataforma subyacente. | fmonfasani | 2026-09-28 | `v1.0-RECONSTRUIDA.md:115-121` | **APPROVED — `DERIVED / RECONSTRUCTED`** | `OPEN` — modelo de configuración, tokens, assets, límites de personalización |
 | **D-005** | Roles y permisos **pertenecen al Membership**. Un User puede tener diferentes roles y permisos en diferentes Business. El acceso se determina mediante el **Membership activo** y sus autorizaciones. | fmonfasani | 2026-09-28 | `v1.0-RECONSTRUIDA.md:123-129` | **APPROVED — `DERIVED / RECONSTRUCTED`** | `OPEN` — catálogo definitivo de roles y permisos, lifecycle, administración |
 | **D-006** | Todo acceso autenticado debe validarse mediante: (1) identidad global User; (2) Business objetivo; (3) Membership válido; (4) roles y permisos necesarios. **Un token válido por sí solo no autoriza** una operación sobre un Business. | fmonfasani | 2026-09-28 | `v1.0-RECONSTRUIDA.md:131-140` | **APPROVED — `DERIVED / RECONSTRUCTED`** | `OPEN` — tipos de token, guards, middleware/interceptors, errores, sesión |
@@ -165,7 +174,7 @@ promoted to a requirement, and none may be cited as approved wording.
 
 | # | ID | Clause in dispute | Present in | Status |
 |---|---|---|---|---|
-| 1 | D-003 | *"El MVP inicial no depende de WhatsApp como canal."* | v1.0 only | `OPEN DETAIL — PENDING OWNER RULING` |
+| 1 | D-003 | *"El MVP inicial no depende de WhatsApp como canal."* | v1.0 only | `OPEN DETAIL — PENDING OWNER RULING` *(historical state at 2026-09-28)* → **`RESOLVED — OWNER-RULED 2026-09-30` (R2, §8.1): "Wapsell Messaging MVP no depende de WhatsApp."** *(R3 note, additive)* |
 | 2 | D-006 | **4** authorization checks (User, Business objetivo, Membership válido, roles/permisos) vs **2** (User, Membership) | 4 checks: v1.0 · 2 checks: v1.1 + root | `OPEN DETAIL — PENDING OWNER RULING` |
 | 3 | D-008 | Whether Sale cancellation must explicitly reverse **stock, cash, payments and AR** | v1.0 (enumerated) · v1.1 (`OPEN`) | `OPEN DETAIL — PENDING OWNER RULING` |
 | 4 | D-009 | *"Ninguna funcionalidad, cambio de alcance, decisión arquitectónica o modificación relevante del comportamiento se considera requisito aprobado sin definición y aprobación documental correspondiente."* | v1.0 only | `OPEN DETAIL — PENDING OWNER RULING` — ⚠️ note: v1.1 demotes to `OPEN` the very clause that governs this register's own approval process. Self-referential; needs resolution. |
@@ -235,6 +244,9 @@ authorise a schema, a migration, an identifier name or a physical model.
   `02-COMMERCE-SPEC.md` remains **unsupported** as written. It overstates coherence: the canonical
   specs predate the reconstructed text and have not been reconciled against it line by line.
 - The four root-level artifacts (§4.1) are **not** approved documents and confer no authority.
+- *(R3, 2026-09-30, additive)* The Owner Rulings in §8 do **not** authorise implementation either:
+  `APPROVED ≠ IMPLEMENTATION AUTHORIZED`. Technical Specification = `NOT APPROVED`; Implementation =
+  `NOT AUTHORIZED`.
 
 ---
 
@@ -246,7 +258,59 @@ Two reconstructed decisions carry explicit obligations that the first pass could
 |---|---|---|---|---|
 | 1 | **D-010** | *"Los controles de integridad existentes deberán **verificarse y mantenerse** como requisito obligatorio del dominio de Inventario."* | Read the actual stock-movement code/constraints and record what exists. The decision makes existing controls a mandatory, verified requirement rather than a new build | `VERIFIED BY CODE` — pending repository inspection |
 | 2 | **D-014** | *"No se permite transferencia de stock entre Business **salvo que una operación inter-Business sea definida y autorizada explícitamente en una especificación posterior**."* | A negative requirement with a named escape hatch. It forbids a class of implementation and requires any exception to be specified and approved before it exists | `APPROVED` requirement + `OPEN` escape-hatch definition |
-| 3 | **D-003** | *"El MVP inicial **no depende de WhatsApp** como canal."* | A hard architectural constraint on the first iteration, not a preference. Any Messaging design implying a WhatsApp dependency contradicts it | `APPROVED` constraint; verify against `04-MESSAGING-SPEC.md` |
+| 3 | **D-003** | *"El MVP inicial **no depende de WhatsApp** como canal."* | A hard architectural constraint on the first iteration, not a preference. Any Messaging design implying a WhatsApp dependency contradicts it | `APPROVED` constraint; verify against `04-MESSAGING-SPEC.md`. *(R3, 2026-09-30: cláusula WhatsApp `RESOLVED — OWNER-RULED`, §8.1; no prohibe integraciones futuras; ninguna integración ni remoción implementada.)* |
 | 4 | **D-017** | *"sin requerir una migración inicial a microservicios"*, and infrastructure is added *"cuando exista un requisito concreto que los justifique"* | A prohibition on scope inflation: no Kubernetes/GraphQL/queues may be introduced without a concrete justifying requirement | `APPROVED` constraint; contradicts prior "OPEN DETAIL" framing of these technologies |
 | 5 | **D-006** | Four-point validation: User + Business objetivo + Membership válido + roles/permisos | Becomes a candidate invariant. The canonical corpus currently has **no** membership-authorization invariant | `PROPOSED` → Invariants layer |
 | 6 | **D-012** | AR is *"asociada al cliente"* | Links AR to the now-separated `Customer` entity (D-002-bis), **not** to `User`. Any AR model keyed on `User` contradicts D-002-bis | `APPROVED` constraint; constrains the AR model |
+
+---
+
+## 8. Owner Rulings posteriores a D-001…D-018 (añadido en R3, 2026-09-30)
+
+> **Sección aditiva.** No reemplaza ni borra nada de §1–§7. Registra los rulings del Owner posteriores al
+> workshop del 2026-09-28 y su autoridad. **Un ruling aprobado NO es autorización de implementación.**
+> Cada fila conserva: ID, decisión, autoridad, fecha, estado, implementación y detalles abiertos.
+> Clasificación de estado usada: `OWNER-RULED` (texto del Owner confirmado con fuente) · `RECONSTRUCTED`
+> (texto derivado, sin confirmación verbatim) · `OPEN` · `NOT CONSULTED` · `NOT AUTHORIZED`.
+
+### 8.1 Rulings registrados
+
+| ID | Decisión (texto del Owner) | Autoridad | Fecha | Estado | Implementación | Detalles abiertos |
+|---|---|---|---|---|---|---|
+| **OR-001** (P1-A, P2-C, P3, P4, P5-B) | Cierre de Owner Ruling OR-001: `Empresa` → `Business`; coexistencia temporal; continuidad sin downtime (Ventas, Caja, Catálogo, Compras, Tienda Online, Auth, datos históricos); `"Roonda"` → `"Otra Ronda Más"`; documentar antes de implementar | `13-OR-001-OWNER-RULING-CLOSURE.md` | 2026-09-28 | `OWNER-RULED` — `CLOSED` | `NOT AUTHORIZED` (ver P5-B) | Modelo físico, migraciones, compatibilidad, deploy, rollback, cutover, fin de la coexistencia |
+| **OR-002-A** | `User` global → `Membership` N:N → `Business`; `Customer` independiente de `User`, con vínculo opcional; CON-010 `RESOLVED` en dirección conceptual | `15-OR-002-A-OWNER-RULING.md` (+ D-002, D-002-bis) | 2026-09-28 | `OWNER-RULED` — `CLOSED` | `NOT AUTHORIZED` | Modelo físico, lifecycle de `Customer`, esquema de vínculo |
+| **OR-002-B** | "La transición de identidad se realiza de forma incremental, con coexistencia temporal y acotada de ambos modelos, compatible con OR-001 P2-C. No se establece una coexistencia prolongada ni permanente." | `18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 (confirmación del Owner en sesión, 2026-09-30) | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` | Mecanismo técnico, duración, criterio de fin de la transición |
+| **OR-002-C** | "`User` es una identidad global con email único a nivel global." | `18` §1 | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` | Normalización del email, duplicados actuales, constraint física |
+| **OR-002-D** | "`Usuario` pasa a `User` más `Membership`, y `Cliente` pasa a `Customer`, manteniendo `Customer` independiente de `User` con vínculo opcional (OR-002-A)." | `18` §1 | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` | Criterio de vinculación `Customer` ↔ `User` (**"mismo email" NO confirmado — `OPEN`**), destino de filas existentes |
+| **OR-002-E** | "Durante la transición existe compatibilidad temporal de sesiones y tokens legacy, respetando la continuidad de Auth de OR-001 P3. Al finalizar la transición se invalidan las sesiones y se requiere un nuevo login." | `18` §1 | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` | Diseño del token, formato, duración, momento del corte |
+| **OR-002-F** | "Para OR-002 rige `especificación técnica → aprobación del Owner → implementación`, igual que OR-001 P5-B." | `18` §1 | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` hasta que el Owner apruebe explícitamente una versión concreta de la especificación técnica (documento + fecha) | Especificación técnica (`NOT APPROVED`) |
+| **P1-A** (opción C) | "`Empresa` → `Business` aplica tanto a la terminología documental y conceptual como al modelo persistente, como destino final de la transformación." | `18` §1 sobre `13` (OR-001 P1-A) | 2026-09-30 | `OWNER-RULED` (alcance de P1-A) | `NOT AUTHORIZED` — el destino persistente final es `Business`; **no** implica que la migración física esté diseñada ni autorizada | Tablas, columnas, FK, índices, constraints, compatibilidad, coexistencia, migración, rollback, deploy, cutover |
+| **P5-B** | "Para la transformación `Empresa` → `Business` rige `ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`." | `18` §1 sobre `13` (OR-001 P5-B) | 2026-09-30 | `OWNER-RULED` | `NOT AUTHORIZED` | Especificación técnica (`NOT APPROVED`) |
+| **CON-010 / ISS-07** | "OR-002-A es la resolución normativa posterior de CON-010. Estado canónico actual: `RESOLVED` en dirección conceptual (D-002 + D-002-bis + OR-002-A). La implementación sigue `OPEN`. Las referencias históricas `OPEN` se conservan como evidencia y no se borran." | `18` §1, `15` | 2026-09-30 | `OWNER-RULED` — `RESOLVED` (conceptual) | `OPEN` | Lifecycle de `Customer`, modelado físico del vínculo |
+| **ISS-08** | Precedencia documental: 1 Owner Ruling primario; 2 Decision Register; 3 SPEC canónica; 4 TO-BE y derivados; 5 Audit (solo evidencia, no crea decisiones); 6 Workshop y preparation (no normativos); 7 Documentación histórica (solo evidencia). Entre dos rulings prevalece el posterior; un documento posterior que use una decisión no prueba su aprobación; las contradicciones no se resuelven en silencio, se registran como conflicto. | `18` §1 | 2026-09-30 | `OWNER-RULED` | n/a (regla documental) | La aprobación formal de los 7 documentos de `00-GOVERNANCE` (todavía `PROPOSED`) sigue siendo **`OWNER APPROVAL REQUIRED`** |
+| **D-003 / WhatsApp** | "Wapsell Messaging MVP no depende de WhatsApp." | `18` §1 | 2026-09-30 | `RESOLVED — OWNER-RULED` | Ninguna integración ni remoción implementada. No prohíbe integraciones futuras | Modelo Conversation/Message y demás detalles de D-003 siguen `OPEN` |
+
+### 8.2 Lo que P1-A opción C NO establece
+
+P1-A opción C fija el **destino final** (`Business` persistente). No establece cuándo, cómo, ni en qué
+orden se materializa; tampoco diseña ni autoriza migración física. Todo eso está `OPEN` y sujeto a
+P5-B/OR-002-F.
+
+### 8.3 Estados que permanecen (sin cambio por R3)
+
+| Elemento | Estado |
+|---|---|
+| Criterio "mismo email" para vincular `Customer` ↔ `User` | `OPEN` (no confirmado por el Owner) |
+| Autorización de implementación F1 | `NOT AUTHORIZED` |
+| D-005, OR-003, OR-005, D-006, D-008, D-011, D-013, D-015, D-016, D-017 | `NOT CONSULTED` |
+| Especificación técnica | `NOT APPROVED` |
+| Implementación | `NOT AUTHORIZED` |
+| Gates G5, G7, G8, G9 | `OPEN` |
+
+### 8.4 Precedencia aplicable (ISS-08)
+
+Owner Ruling primario → este Registro → SPEC canónica → TO-BE y derivados → Audit (evidencia) →
+Workshop/preparation (no normativos) → documentación histórica (evidencia). Entre dos rulings del Owner
+prevalece el posterior. Las auditorías `10-AUDIT/13` y `14` (DRAFT) que rotulan B2/C1/D1/E2/F1 como
+"decididas por el Owner" no amplían los textos R2 de §8.1: D1 ("mismo email normalizado = misma persona")
+**no** está confirmado y F1 ("implementación autorizada") **no** está confirmado.

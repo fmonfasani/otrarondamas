@@ -22,7 +22,7 @@ However, the Plan cannot currently open a general executable TASKS layer because
 - Several domain-specific Open Details remain unresolved.
 - The Contracts audit remains **CONDITIONAL PASS**, with reconciliation still required.
 - The Invariants and Tests/Evals layers are refined but remain **DRAFT / NOT APPROVED**.
-- D-003 contains a specific WhatsApp authority conflict that remains pending canonical Owner ruling.
+- D-003 contains a specific WhatsApp authority conflict that remains pending canonical Owner ruling. *(R3, 2026-09-30, additive: resolved — `RESOLVED — OWNER-RULED`, Decision Register §8.1. The other blockers listed here are unchanged; the Plan still cannot open an implementation TASKS layer: Technical Specification `NOT APPROVED`, implementation `NOT AUTHORIZED`.)*
 - Some candidate waves contain specification work that must remain separate from implementation tasks.
 - The Plan file itself contains a metadata inconsistency: its path is v0.2 while the document title still says **Implementation Plan v0.1**. This is a documentation defect, not a product decision.
 
@@ -73,7 +73,7 @@ The Plan correctly requires the chain:
 where applicable.
 
 Current blockers include:
-- D-003 specific WhatsApp clause;
+- D-003 specific WhatsApp clause; *(R3, 2026-09-30: `RESOLVED`, Register §8.1)*
 - D-006 exact authorization mechanics;
 - D-008 cancellation/reversal effects;
 - D-011 reconciliation semantics;
@@ -178,7 +178,7 @@ Domain ownership may be documented/evaluated without inventing states, tracking,
 
 No Conversation/Message physical model or realtime implementation should be created from conceptual contracts alone.
 
-D-003's pending WhatsApp clause must remain visibly unresolved.
+D-003's pending WhatsApp clause must remain visibly unresolved. *(R3, 2026-09-30, additive: the clause is now `RESOLVED — OWNER-RULED` (Register §8.1); Wave 6 remains specification-first and no integration is authorized.)*
 
 ### Wave 7 — Branding
 
@@ -235,7 +235,7 @@ The following implementation classes must remain blocked:
 - AP lifecycle implementation before D-015 specification;
 - detailed Fulfillment workflow implementation before D-016 specification;
 - AI activation;
-- WhatsApp/channel integration while the exact D-003 authority issue remains unresolved;
+- WhatsApp/channel integration while the exact D-003 authority issue remains unresolved; *(R3, 2026-09-30, additive: authority resolved — Messaging MVP does not depend on WhatsApp — but no integration is authorized; implementation `NOT AUTHORIZED`)*
 - infrastructure/microservices migration;
 - production deployment.
 

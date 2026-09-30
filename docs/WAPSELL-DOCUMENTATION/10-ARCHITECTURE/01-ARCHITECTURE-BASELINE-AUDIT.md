@@ -79,6 +79,8 @@ The Messaging contract and Messaging TO-BE must continue to use the Decision Reg
 
 No permanent WhatsApp prohibition is created by the Architecture Baseline.
 
+> **R3 note (2026-09-30) — additive; the disposition above is preserved as historical audit evidence.** The pending authority it refers to is now `RESOLVED — OWNER-RULED` (2026-09-30, R2; Decision Register §8.1). The ruling does not create a permanent prohibition on future integrations.
+
 ### ARCH-AUD-006 — Transactional integrity
 
 **Disposition:** PASS

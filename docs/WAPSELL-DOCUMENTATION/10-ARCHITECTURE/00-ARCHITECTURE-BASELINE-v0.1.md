@@ -10,6 +10,19 @@
 
 > This document is a specification baseline. It does not authorize implementation.
 
+> **R3 authority note (2026-09-30) — additive; no line of this baseline was deleted.** Owner rulings issued after
+> this baseline (`04-DECISIONS/00-DECISION-REGISTER.md` §8; authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`,
+> `13-OR-001-…`, `15-OR-002-A-…`) set the following **conceptual limits** for the architecture layer only:
+> `User` is a global identity (globally unique email); `Membership` is contextual (User ↔ Business); `Customer`
+> is independent of `User` with an optional link; `Business` is the tenancy unit and the final persistent
+> destination of the `Empresa` transformation (P1-A option C); the Messaging MVP does not depend on WhatsApp
+> (D-003 clause `RESOLVED`); the identity transition is incremental with temporary, bounded coexistence
+> (OR-002-B) and temporary legacy session/token compatibility followed by invalidation and new login (OR-002-E).
+> The architecture layer does **not** design the migration, tables, technical coexistence, token migration,
+> deployment or cutover; those stay `OPEN` under `specification → Owner approval → implementation`
+> (OR-002-F / P5-B). Technical Specification = `NOT APPROVED`; Implementation = `NOT AUTHORIZED`.
+> D-006, D-008, D-011, D-013, D-015, D-016, D-017 remain `NOT CONSULTED` / open as stated below.
+
 ---
 
 ## 1. Architectural authority and provenance
@@ -339,6 +352,8 @@ Open areas include:
 
 The exact D-003 WhatsApp non-dependency clause remains pending in the canonical Decision Register and must not be silently resolved here.
 
+> **R3 note (2026-09-30):** superseded — the clause is now `RESOLVED — OWNER-RULED` (*"Wapsell Messaging MVP no depende de WhatsApp."*, Decision Register §8.1). It does not prohibit future integrations; the architecture layer creates no integration and no removal.
+
 AI assistants remain inactive in the initial MVP.
 
 ---
@@ -534,7 +549,7 @@ The following remain explicitly OPEN and must be resolved by the relevant specif
 5. D-015 AP lifecycle.
 6. D-016 detailed Fulfillment lifecycle.
 7. Messaging physical and behavioral model.
-8. D-003 exact WhatsApp authority issue.
+8. D-003 exact WhatsApp authority issue. *(R3, 2026-09-30: authority issue `RESOLVED — OWNER-RULED`, Decision Register §8.1; other D-003 details remain OPEN.)*
 9. NFR/security concrete requirements.
 10. Persistence strategy.
 11. API boundary specification.

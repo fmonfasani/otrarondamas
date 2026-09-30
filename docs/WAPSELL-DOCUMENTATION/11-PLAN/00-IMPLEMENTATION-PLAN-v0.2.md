@@ -8,6 +8,8 @@
 
 > This plan is a planning artifact. It does not authorize code changes, schema changes, migrations, tests, commits, deployments, or product decisions.
 
+> **R3 documentary-dependency note (2026-09-30) — additive; no plan content was removed.** Owner rulings recorded in `04-DECISIONS/00-DECISION-REGISTER.md` §8 (authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`) update the dependency picture only: (a) the D-003 WhatsApp clause is `RESOLVED — OWNER-RULED` (PLAN-SPEC-001 authority dependency satisfied; other D-003 details stay OPEN); (b) OR-002-B…F, P1-A (option C) and P5-B fix conceptual direction and the order `specification → Owner approval → implementation`. This is **not** an authorization of any wave or task: the Technical Specification is `NOT APPROVED`, implementation is `NOT AUTHORIZED`, gates G5/G7/G8/G9 remain `OPEN`, F1 is not an implementation authorization, and every item depending on an approved technical specification (including Wave 1 Identity/Tenancy, User/Membership migration, `Empresa` → `Business` persistent transformation) stays blocked. D-005, D-006, D-008, D-011, D-013, D-015, D-016, D-017, OR-003 and OR-005 remain `NOT CONSULTED`.
+
 ---
 
 ## 1. Planning principles
@@ -161,7 +163,7 @@ These are planning items, not executable implementation tasks.
 
 | ID | Item | Source | Blocking scope |
 |---|---|---|---|
-| PLAN-SPEC-001 | Resolve D-003 WhatsApp clause authority | Decision Register §4.3.2 | Messaging/channel architecture |
+| PLAN-SPEC-001 | Resolve D-003 WhatsApp clause authority *(R3, 2026-09-30: authority resolved — `RESOLVED — OWNER-RULED`, Register §8.1; item retained as historical planning entry, no task opened)* | Decision Register §4.3.2 | Messaging/channel architecture |
 | PLAN-SPEC-002 | Resolve exact D-006 authorization mechanics | D-006 | Identity/Authorization implementation |
 | PLAN-SPEC-003 | Resolve D-008 cancellation/reversal matrix | D-008 | Sale/Inventory/Cash/Payments/AR |
 | PLAN-SPEC-004 | Resolve D-011 reconciliation semantics | D-011 | Payments |
@@ -342,7 +344,7 @@ The following are not authorized by this plan:
 - Conversation/Message schema;
 - payment gateway implementation before D-011/task readiness;
 - AI activation;
-- WhatsApp/channel integration while the D-003 authority detail remains unresolved;
+- WhatsApp/channel integration while the D-003 authority detail remains unresolved *(R3, 2026-09-30: the WhatsApp authority is resolved — Messaging MVP does not depend on WhatsApp — but no WhatsApp/channel integration is authorized by this plan)*;
 - Kubernetes or other infrastructure adoption;
 - microservices migration;
 - CI/CD deployment changes;

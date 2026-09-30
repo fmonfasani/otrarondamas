@@ -6,6 +6,35 @@
 
 > Este documento es un mapa de impacto. No autoriza migraciones, cambios de `schema.prisma`, cambios de guards ni cambios de datos.
 
+> **Trazabilidad de rulings (R1, 2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+>
+> - **Source / Authority:** `04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md` — OR-001, `CLOSED` 2026-09-28
+>   (P1-A rename `Empresa` → `Business`; P2-C convivencia temporal; P3 sin downtime; P4 `"Roonda"` →
+>   `"Otra Ronda Más"`; P5-B documentar antes de implementar).
+> - **Source / Authority:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` — OR-002-A, `CLOSED` 2026-09-28
+>   (`User` → `Membership` N:N → `Business`; `Customer` independiente, vínculo opcional).
+> - **Alcance de P1-A — ambigüedad preservada, contradicción no demostrada.** §3.1 (*"No conviene renombrar
+>   físicamente la tabla en el primer paso"*; *"El rename físico puede ser una fase posterior, no un requisito
+>   para conseguir el modelo conceptual"*) y §16 (*"no es un rename de `Empresa` a `Business`"*, que describe
+>   cuatro capas) son propuestas de análisis. OR-001 P1-A decide `Empresa` → `Business` como destino final y
+>   deja tablas, columnas y FKs fuera de su alcance, sin definir si el renombrado es físico o conceptual.
+>   Ninguna de las fuentes afirma que el destino no sea `Business`; lo que difieren es el cuándo y el cómo.
+>   Decisión pendiente del Owner. Este documento sigue siendo `ANALYSIS — PROPOSAL / NOT APPROVED`.
+> - Ningún ruling autoriza implementación física.
+
+> **Propagación R3 (2026-09-30) — nota aditiva; ninguna línea anterior fue modificada ni borrada.**
+> **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y `04-DECISIONS/00-DECISION-REGISTER.md` §8.
+> - **Alcance de P1-A — resuelto en destino:** P1-A opción C (Owner, 2026-09-30): `Empresa` → `Business` aplica
+>   a la terminología documental y conceptual **y** al modelo persistente, como destino final. La ambigüedad de
+>   arriba queda limitada al **cuándo y el cómo** (§3.1 y §16 siguen siendo propuestas de análisis sobre orden y
+>   fases, no contradicen el destino final `Business`). Tablas, columnas, FK, índices, constraints,
+>   compatibilidad, migración, rollback, deploy y cutover siguen `OPEN`; no se autoriza ni diseña la migración física.
+> - OR-002-B…E fijan dirección conceptual (transición incremental con coexistencia temporal y acotada; `User`
+>   global con email único global; `Usuario` → `User` + `Membership`, `Cliente` → `Customer` independiente;
+>   compatibilidad temporal de sesiones/tokens legacy, luego invalidación y nuevo login). Detalles técnicos `OPEN`.
+> - OR-002-F/P5-B: `ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`. Especificación técnica = `NOT APPROVED`;
+>   implementación = `NOT AUTHORIZED`. Este mapa sigue `ANALYSIS — PROPOSAL / NOT APPROVED`.
+
 ## 1. Base verificada
 
 La revisión se realizó sobre la rama de transformación y el código existente.

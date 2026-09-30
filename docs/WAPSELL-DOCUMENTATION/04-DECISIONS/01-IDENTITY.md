@@ -1,4 +1,4 @@
-# Identity Decisions
+# Identity Decisions
 
 > ## RECONCILED 2026-09-28 — **EMPTY**
 >
@@ -17,3 +17,5 @@
 >
 > Canonical status for all four: APPROVED — OWNER-VERBATIM (D-001, D-002) / APPROVED — DERIVED / RECONSTRUCTED (D-005, D-006).
 > See 00-DECISION-REGISTER.md and GOVERNANCE-RECONCILIATION-REPORT.md §3.
+>
+> **R3 note (2026-09-30) — additive.** The "not decided by DEC-001" list above is the historical state of DEC-001 only. Later Owner rulings (OR-001, OR-002-A…F, P1-A, P5-B; Decision Register §8.1; `18-R2-OWNER-DECISION-CLOSURE-REPORT.md`) settled, conceptually: `Business` as canonical term, `User` global with globally unique email, `Usuario`/`Cliente` split. Data model, migration plan, role/permission catalogue (D-005) and Customer↔User "same email" matching remain `OPEN`/`NO CONSULTED`; implementation `NOT AUTHORIZED`.

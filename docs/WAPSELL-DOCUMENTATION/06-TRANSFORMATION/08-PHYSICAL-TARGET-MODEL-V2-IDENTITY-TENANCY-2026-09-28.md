@@ -5,6 +5,22 @@
 **Tipo:** Physical Target Model / Design Review  
 **Base:** Identity/Tenancy Physical Target Model v1 + Authorization/Profile Ownership Contract
 
+> **Trazabilidad de rulings (R1, 2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** OR-001 (`04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md`, `CLOSED` 2026-09-28) y
+> OR-002-A (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`, `CLOSED` 2026-09-28). El modelo físico, la coexistencia
+> legacy (§9) y las FKs de este documento son propuesta `NOT APPROVED`; OR-001 deja el modelo físico y la
+> compatibilidad técnica fuera de su alcance y ninguno de los rulings autoriza implementación física.
+
+> **Propagación R3 (2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+> **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y `04-DECISIONS/00-DECISION-REGISTER.md` §8.
+> Rulings del Owner (2026-09-30) con impacto conceptual sobre este modelo: OR-002-C (`User` global, email único
+> global), OR-002-D (`Usuario` → `User` + `Membership`; `Cliente` → `Customer` independiente, vínculo opcional),
+> OR-002-B/E (transición incremental; compatibilidad temporal de sesiones/tokens legacy, luego invalidación y
+> nuevo login), P1-A opción C (`Business` como destino persistente final), OR-002-F/P5-B
+> (`ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`). **Ninguna tabla, columna, FK, índice o constraint de este
+> documento queda aprobada**; la §9 (coexistencia legacy) sigue siendo propuesta. Criterio de vinculación
+> `Customer` ↔ `User` = `OPEN`. Especificación técnica = `NOT APPROVED`; implementación = `NOT AUTHORIZED`.
+
 > Este documento reemplaza conceptualmente la propuesta anterior como base de diseño para la revisión física. No modifica `schema.prisma`, no crea migraciones y no autoriza cambios runtime.
 
 ## 1. Objetivo

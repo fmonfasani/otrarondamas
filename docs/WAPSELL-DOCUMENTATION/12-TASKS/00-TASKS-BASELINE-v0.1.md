@@ -8,6 +8,8 @@
 
 > This baseline does not authorize implementation. A task is not executable merely because it is listed here.
 
+> **R3 documentary-dependency note (2026-09-30) — additive; no task was created, changed or unblocked.** Owner rulings recorded in `04-DECISIONS/00-DECISION-REGISTER.md` §8 (authority `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`) do not authorize any task. The D-003 WhatsApp authority is `RESOLVED — OWNER-RULED` (2026-09-30), so references below to "the D-003 authority issue remaining unresolved" are historical for that clause; WhatsApp/channel integration is still not authorized. Tasks that depend on an approved technical specification (Identity/Tenancy migration, User/Membership persistence, `Empresa` → `Business` persistent transformation) stay **blocked**: Technical Specification `NOT APPROVED`, implementation `NOT AUTHORIZED`, gates G5/G7/G8/G9 `OPEN`.
+
 ---
 
 ## 1. Task governance
@@ -436,7 +438,7 @@ The following must not be created as implementation Tasks in this baseline:
 - AP lifecycle implementation before D-015 closure;
 - detailed Fulfillment workflow implementation before D-016 closure;
 - AI activation;
-- WhatsApp/channel integration while the specific D-003 authority issue remains unresolved;
+- WhatsApp/channel integration while the specific D-003 authority issue remains unresolved; *(R3, 2026-09-30, additive: authority resolved — Messaging MVP does not depend on WhatsApp — but no integration is authorized; blocked tasks stay blocked)*
 - microservices migration;
 - infrastructure migration;
 - production deployment.

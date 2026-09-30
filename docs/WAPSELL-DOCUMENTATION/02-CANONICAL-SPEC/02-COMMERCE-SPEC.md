@@ -34,6 +34,18 @@
 >
 > See `00-GOVERNANCE/GOVERNANCE-RECONCILIATION-REPORT.md`.
 
+> ### Ruling traceability (R1, 2026-09-30 — additive note; no normative text of this document was changed)
+>
+> - **Source / Authority:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` — **OR-002-A, `CLOSED` 2026-09-28**.
+>   `CON-010` is `RESOLVED` in conceptual direction (`User` → `Membership` N:N → `Business`). `Customer` is an
+>   independent commercial relationship, is not merged with `User`, and the `Customer → User` link is
+>   optional. Authority: D-002 + D-002-bis (`OWNER-VERBATIM`); neither is reopened.
+> - `Customer` lifecycle and the modelling of the `User` link remain `OPEN DETAIL` (D-002-bis). The ruling
+>   does **not** authorize physical implementation.
+> - `OR-002-B…F`, `OR-003` and `D-005` are **not** decided and are not propagated here. *(R1 statement — partially superseded by the R3 note below; preserved as historical.)*
+>
+> **R3 note (2026-09-30) — additive; no normative text of this document was changed.** `OR-002-B…F` are now ruled (Owner, 2026-09-30, R2; `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`, Decision Register §8.1). Relevant here: **OR-002-D** — `Cliente` → `Customer`, independent of `User`, optional link. `OR-003` (Customer lifecycle / link modelling) and `D-005` remain **NO CONSULTED** and `OPEN`. Whether a Customer is matched to a User by "same email" remains `OPEN`. Implementation `NOT AUTHORIZED`; Technical Specification `NOT APPROVED`.
+
 ## 1. CUSTOMERS
 
 ### 1.1. Customer (Concepto Canónico TO-BE) — `APPROVED` (D-002-bis) + `PROPOSED` (detalles)

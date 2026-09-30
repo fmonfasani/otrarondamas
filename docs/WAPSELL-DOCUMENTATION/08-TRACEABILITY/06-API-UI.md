@@ -27,3 +27,13 @@ with no hierarchy** (CON-012 **OPEN**).
 - Role-based navigation depends on the undecided role/permission catalogue. **OPEN.**
 - The anonymous-buyer AS-IS path is a hard constraint on any TO-BE identity design, and it
   directly contradicts the old Customer = User claim. CON-010 **OPEN**.
+
+> **R1 TRACEABILITY NOTE (2026-09-30) — additive; the line above was not modified.** `CON-010 OPEN` is the
+> historical state. Later authority: OR-002-A (`04-DECISIONS/15-OR-002-A-OWNER-RULING.md`, `CLOSED` 2026-09-28):
+> `CON-010` `RESOLVED` in conceptual direction; `Customer` independent of `User`, optional link. No API/UI
+> implementation is authorized. See `04-DECISIONS/17-R1-DOCUMENTAL-RECONCILIATION-RECORD.md`.
+>
+> **R3 TRACEABILITY NOTE (2026-09-30) — additive.** OR-002-B…F confirmed by the Owner on 2026-09-30 (R2;
+> `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`, Decision Register §8.1); OR-002-E covers temporary
+> compatibility of legacy sessions/tokens (conceptual only). No API, endpoint, token or UI change is defined or
+> authorized; implementation `NOT AUTHORIZED`.

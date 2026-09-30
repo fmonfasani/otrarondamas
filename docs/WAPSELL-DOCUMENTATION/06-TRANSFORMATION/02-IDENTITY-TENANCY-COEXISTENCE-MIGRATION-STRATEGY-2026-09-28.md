@@ -7,6 +7,52 @@
 
 > Documento de diseño propuesto. No modifica Prisma, runtime, datos ni contratos. No autoriza ninguna implementación.
 
+> **Trazabilidad de rulings (R1, 2026-09-30) — nota aditiva; el texto de este documento no se modificó.**
+>
+> - **Source / Authority:** `04-DECISIONS/13-OR-001-OWNER-RULING-CLOSURE.md` — OR-001, `CLOSED` 2026-09-28.
+>   P1-A: `Empresa` → `Business` (destino final). P2-C: convivencia temporal de ambos modelos. P3: continuidad
+>   sin downtime en Ventas, Caja, Catálogo, Compras, Tienda Online, Auth y Datos históricos. P4: `"Roonda"` →
+>   `"Otra Ronda Más"`. P5-B: documentar y luego implementar solo tras la aprobación del Owner de la
+>   especificación (puerta no superada).
+> - **Source / Authority:** `04-DECISIONS/15-OR-002-A-OWNER-RULING.md` — OR-002-A, `CLOSED` 2026-09-28: dirección
+>   conceptual `User` → `Membership` N:N → `Business`; `Customer` independiente con vínculo opcional. No
+>   autoriza implementación física.
+> - **Estado de este documento:** sigue siendo `PROPOSAL — NOT APPROVED`. Las fases F0–F8, los gates G0–G10,
+>   las alternativas A/B de §4 (dual-write no decidido), el rollback de §5 y el cutover son **propuesta**, no
+>   decisión del Owner. OR-001 deja explícitamente `OPEN`: criterio de finalización de la coexistencia,
+>   rollback, mecanismo técnico de compatibilidad, estrategia de deployment, migraciones Prisma, modelo físico
+>   y mecanismo de aislamiento. Ninguna duración ni orden de release se deriva del ruling.
+> - **P3 sin propagar:** este documento solo menciona *"continuidad operativa"* de forma general (§1); sus
+>   fases y gates no contienen el requisito de continuidad sin downtime sobre los 7 dominios. No se infiere
+>   aquí ningún mecanismo para cumplirlo.
+> - **Atribución sin respaldo localizado (`OWNER CONFIRMATION REQUIRED`):** §10 rotula *"Invalidación de
+>   sesiones/tokens y re-login: DOCUMENTADO / OWNER RULING"* (y §2 lo afirma como restricción). Ni OR-001 ni
+>   OR-002-A contienen esa decisión, y su relación con P3 (Auth sin downtime) no está determinada. La rotulación
+>   `Coexistencia: OWNER RULING` sí está respaldada por OR-001 P2-C. No se modificó ninguna de las dos líneas.
+> - **Alcance de P1-A no determinado:** §9 lista *"eliminación de Empresa"* como decisión no tomada. OR-001
+>   fija el destino `Business` pero no define si el renombrado es físico o conceptual. Ambigüedad preservada;
+>   requiere decisión del Owner.
+
+> **Propagación R3 (2026-09-30) — nota aditiva; ninguna línea anterior fue modificada ni borrada (se conservan como evidencia histórica de R1).**
+> **Source / Authority:** `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md` §1 y `04-DECISIONS/00-DECISION-REGISTER.md` §8.
+> - **Atribución de re-login/invalidación — respaldada desde R2:** OR-002-E (Owner, 2026-09-30) establece
+>   compatibilidad temporal de sesiones y tokens legacy, respetando la continuidad de Auth de OR-001 P3, y que
+>   al finalizar la transición se invalidan las sesiones y se requiere un nuevo login. El rótulo de §10
+>   *"DOCUMENTADO / OWNER RULING"* queda respaldado **solo en ese alcance conceptual**; diseño del token, formato,
+>   duración y momento del corte siguen `OPEN` (no se infiere ningún mecanismo).
+> - **Alcance de P1-A — determinado en destino:** P1-A opción C: `Empresa` → `Business` aplica a la terminología
+>   documental y conceptual **y** al modelo persistente, como destino final. La ambigüedad sobre "eliminación de
+>   Empresa" (§9) se limita ahora al **cuándo y el cómo**, que siguen `OPEN` (tablas, columnas, FK, índices,
+>   constraints, compatibilidad, coexistencia, migración, rollback, deploy, cutover). No se autoriza ni se diseña
+>   la migración física.
+> - **Coexistencia — determinada en dirección:** OR-002-B: transición incremental, coexistencia temporal y
+>   acotada, compatible con OR-001 P2-C; no prolongada ni permanente. Mecanismo técnico, duración y criterio de fin
+>   siguen `OPEN`. Las alternativas A/B de §4, F0–F8, G0–G10, rollback (§5) y cutover siguen siendo **propuesta**.
+> - **P3 sin propagar:** sigue sin propagarse a fases/gates de este documento; permanece como requisito de OR-001
+>   que la especificación técnica deberá satisfacer.
+> - **OR-002-F / P5-B:** `ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`. Especificación técnica = `NOT APPROVED`;
+>   implementación = `NOT AUTHORIZED`. Este documento sigue siendo `PROPOSAL — NOT APPROVED`.
+
 ## 1. Objetivo
 
 Migrar progresivamente de `Usuario → Empresa` a `User → Membership → Business`, preservando datos históricos, aislamiento por Business, continuidad operativa y trazabilidad.
