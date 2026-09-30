@@ -346,3 +346,103 @@ The next controlled evidence step is repository-wide coverage analysis of contro
 - direct/raw database access.
 
 Only after that coverage is established should the AS-IS slice be considered complete.
+
+
+## 18. Repository-wide coverage slice
+
+The repository source tree was inspected for API source files and the principal business modules were reviewed for database access and authorization usage.
+
+### VERIFIED BY CODE — principal business services
+
+The following reviewed services use `EmpresaScopedPrismaService.forEmpresa(empresaId)` rather than injecting the base `PrismaService`:
+
+- VentasService
+- CajaService
+- ComprasService
+- PedidosService
+- ClientesService
+- PagosService
+- InventarioService
+- FidelizacionService
+- TiendaService
+- AutorizacionesService
+
+The reviewed controllers also consistently obtain `user.empresaId` from `CurrentUser()` and pass it into the corresponding service or scoped Prisma factory.
+
+### VERIFIED BY CODE — controller permission surface
+
+Observed permission enforcement includes:
+
+- Catalog mutations: `productos.gestionar`.
+- Sales creation/payment: `ventas.crear`; sales reads: `ventas.ver`.
+- Inventory adjustments: `inventario.ajustes`.
+- Purchase/provider financial mutations: `compras.gestionar`.
+- Order panel access and mutations: `pedidos.gestionar`.
+- Customer mutations: `clientes.gestionar`.
+- User/invitation/legajo administrative operations: `usuarios.gestionar`.
+- Cash manual movements and closure: `caja.gastos`.
+
+Several read operations intentionally have no granular permission and rely on global authentication plus the controller's business-operation guard. This is documented in the current source comments and is AS-IS behavior, not a TO-BE recommendation.
+
+### VERIFIED BY CODE — additional business-operation guard
+
+Several business controllers apply `LegajoAprobadoGuard`, including Catalog, Sales, Cash, Inventory, Purchases, Orders, Customers, Payments and Users.
+
+This is an additional operational eligibility check distinct from `PermissionsGuard`.
+
+### VERIFIED BY CODE — direct base Prisma usage
+
+Not all repository code uses the scoped Prisma factory.
+
+Direct `PrismaService` usage was observed in:
+
+- authentication services;
+- invitation flows;
+- legajo services/controllers;
+- customer authentication/profile paths.
+
+These are not automatically classified as isolation defects. Several are authentication/public/self-service flows or explicitly add `empresaId` to their queries.
+
+However, they are outside the automatic tenant-scope extension and therefore require explicit review of their query predicates and authorization context.
+
+### VERIFIED BY CODE — legajo administrative isolation
+
+The reviewed legajo administrative endpoints using base `PrismaService` explicitly constrain queries with `empresaId: user.empresaId` when selecting users/clients and verify the document's owning user's Empresa before serving a sensitive document.
+
+This is manual tenant enforcement rather than automatic extension enforcement.
+
+### VERIFIED BY CODE — invitations
+
+Invitation creation/listing receives `user.empresaId` from the authenticated request and the controller listing explicitly filters by that Empresa.
+
+Activation endpoints are public by design because the invitation token acts as the credential before an account exists.
+
+### VERIFIED BY CODE — raw SQL
+
+The reviewed inventory service contains a parametrized `$executeRaw` operation. The source explicitly includes `empresaId` in its SQL WHERE condition rather than relying on the Prisma extension for that raw operation.
+
+No other raw SQL use was established by the inspected service set.
+
+### IMPORTANT LIMITATION
+
+The coverage analysis is strong for the inspected API surface but is not equivalent to an executable static-analysis result over every possible code path.
+
+The following remain **NOT DETERMINABLE** without automated repository-wide analysis or runtime tests:
+
+- absolute 100% coverage of every database call;
+- absence of all future direct Prisma usage;
+- absence of raw SQL outside the inspected files;
+- runtime proof that every authorization branch behaves as intended;
+- runtime proof of cross-tenant isolation.
+
+## 19. TASK-ASIS-001 assessment
+
+**Status: CONTROLLED AS-IS EVIDENCE — SUBSTANTIALLY VERIFIED / RUNTIME COVERAGE STILL OPEN.**
+
+The evidence now supports the following factual AS-IS statement:
+
+> The current system implements authentication globally with JWT, granular permission checks globally through PermissionsGuard, and application-level Empresa isolation primarily through EmpresaScopedPrismaService plus explicit empresaId propagation. Some authentication, invitation and legajo paths intentionally use the base PrismaService and implement their own context checks.
+
+This statement describes the observed implementation. It does not establish compliance with the future Wapsell Membership model.
+
+No code, schema, API or authorization implementation was modified during this task.
