@@ -237,6 +237,7 @@ SPEC
 → MSG-004 Authorization APPROVED
 → MSG-005 Search APPROVED
 → MSG-006 Notifications APPROVED
+→ Messaging Functional Owner Decision Register G001–G105 PERSISTED
 
 ## 9. Repository traceability rule
 
