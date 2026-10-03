@@ -18,6 +18,7 @@ import { ClientesModule } from './clientes/clientes.module';
 import { FidelizacionModule } from './fidelizacion/fidelizacion.module';
 import { LegajoModule } from './legajo/legajo.module';
 import { InvitacionesModule } from './invitaciones/invitaciones.module';
+import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
@@ -39,6 +40,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     FidelizacionModule,
     LegajoModule,
     InvitacionesModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
