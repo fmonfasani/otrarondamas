@@ -673,6 +673,8 @@ model Venta {
   pagos      Pago[]
   deuda      Deuda[]
   audits     AuditLog[]  @relation("VentaAudits")
+
+  @@index([empresaId, numero])
 }
 
 model VentaItem {
