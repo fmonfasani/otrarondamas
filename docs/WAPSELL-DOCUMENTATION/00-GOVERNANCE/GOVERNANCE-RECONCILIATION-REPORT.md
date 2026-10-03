@@ -267,7 +267,7 @@ deployment was touched. No commit was made.
 - `03-CONFLICTS/07-DECISION-REGISTER.md` — converted to historical
 - `03-CONFLICTS/00-CONFLICT-REGISTER.md` — reconciliation banner added
 - `00-GOVERNANCE/GOVERNANCE-RECONCILIATION-REPORT.md` — this file (revised 2026-09-28)
-- `08-TRACEABILITY/00-MASTER-TRACEABILITY.md` + `01`–`09` — rebuilt
+- `10-TRACEABILITY/00-MASTER-TRACEABILITY.md` + `01`–`09` — rebuilt
 
 **Corrected**
 - `02-CANONICAL-SPEC/00-WAPSELL-SPEC-GENERAL.md` — 28 false markers removed; **§9/§22/§23
