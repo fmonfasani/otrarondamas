@@ -50,6 +50,8 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'], // Apply React rules to both .ts and .tsx files
       rules: {
+        // La regla core `indent` no soporta decoradores TS (falsos positivos); Prettier ya formatea la indentación.
+        indent: 'off',
         'react/react-in-jsx-scope': 'off', // React 17+ doesn't require React to be in scope
       },
     },
