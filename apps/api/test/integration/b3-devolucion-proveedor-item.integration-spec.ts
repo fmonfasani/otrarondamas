@@ -58,7 +58,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaA.id,
         familiaId: familiaA.id,
         nombre: `B3 Devolucion Subfamilia A ${suffix}`,
-        prefijo: 'BDSA',
+        prefijo: 'BSA',
       },
       select: { id: true },
     });
@@ -67,7 +67,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaA.id,
         subfamiliaId: subfamiliaA.id,
         nombre: `B3 Devolucion Tipo A ${suffix}`,
-        prefijo: 'BDTA',
+        prefijo: 'BTA',
       },
       select: { id: true },
     });
@@ -76,7 +76,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaA.id,
         tipoId: tipoA.id,
         nombre: `B3 Devolucion Subtipo A ${suffix}`,
-        prefijo: 'BDXA',
+        prefijo: 'BXA',
       },
       select: { id: true },
     });
@@ -90,7 +90,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaB.id,
         familiaId: familiaB.id,
         nombre: `B3 Devolucion Subfamilia B ${suffix}`,
-        prefijo: 'BDSB',
+        prefijo: 'BSB',
       },
       select: { id: true },
     });
@@ -99,7 +99,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaB.id,
         subfamiliaId: subfamiliaB.id,
         nombre: `B3 Devolucion Tipo B ${suffix}`,
-        prefijo: 'BDTB',
+        prefijo: 'BTB',
       },
       select: { id: true },
     });
@@ -108,7 +108,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         empresaId: empresaB.id,
         tipoId: tipoB.id,
         nombre: `B3 Devolucion Subtipo B ${suffix}`,
-        prefijo: 'BDXB',
+        prefijo: 'BXB',
       },
       select: { id: true },
     });
