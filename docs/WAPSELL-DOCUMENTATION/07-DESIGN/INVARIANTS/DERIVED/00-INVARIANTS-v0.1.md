@@ -665,3 +665,28 @@ The following properties are now derived directly from the approved R8 architect
 
 These are reconciliation of approved R8 boundaries, not implementation mechanisms. They must be verified without assuming a specific ORM, API protocol, database feature or session implementation.
 \n\n## R8-INV-002 DERIVED INVARIANTS — 2026-10-03\n\n### INV-INV-008 — Reservation does not equal physical decrement\nA stock reservation established by a confirmed Order must not by itself represent physical stock exit.\n\n### INV-INV-009 — Reservation cannot exceed availability\nA successful reservation cannot cause committed reserved quantity to exceed available stock for the Business inventory context.\n\n### INV-INV-010 — Reservation concurrency integrity\nConcurrent Order confirmations cannot both consume the same available inventory capacity. A failed reservation cannot leave a partial reservation effect.\n\n### INV-INV-011 — Physical exit requires stock-out movement\nPhysical stock decrement is represented by a registered stock-out movement corresponding to actual physical stock exit.\n\n### INV-INV-012 — Reservation release\nWhen an Order is cancelled or otherwise corrected before physical stock exit, the applicable reservation is released.\n\nThese are DOCUMENTED derived invariant candidates, not implemented or tested properties.\n
+
+## R8-ORD-002 DERIVED INVARIANTS — 2026-10-03
+
+### INV-ORD-003 — Order/Sale lifecycle separation
+Order and Sale are distinct domain lifecycles. A change in Order/fulfillment state does not by itself redefine the Sale lifecycle.
+
+### INV-ORD-004 — Commercial confirmation boundary
+A Sale is created at Business-authorized commercial confirmation of an Order governed by ORDER_CONFIRM; delivery is not the Sale creation trigger.
+
+### INV-ORD-005 — Confirmed Sale immutability
+A confirmed Sale cannot be arbitrarily edited or deleted as though the original economic operation never occurred. Corrections require explicit traceable operations.
+
+### INV-ORD-006 — Payment does not define Sale state
+Payment completion, Cash closure or Accounts Receivable settlement does not determine whether the Sale exists or whether the Sale was created.
+
+### INV-ORD-007 — Cancellation before physical exit releases reservation
+When an Order is cancelled or otherwise corrected before physical stock exit, the applicable stock reservation is released and cancellation does not itself constitute a physical stock-out.
+
+### INV-ORD-008 — Delivery is fulfillment state, not Sale creation
+Order delivery/fulfillment completion does not create the Sale when the Sale was already created at commercial confirmation.
+
+### INV-ORD-009 — Terminal cancellation
+Once an Order reaches CANCELADO, the normal Order lifecycle does not reopen by a simple state toggle; subsequent correction requires an explicit traceable operation.
+
+These are DOCUMENTED derived invariant candidates. Exact technical transition enforcement and cross-domain correction effects remain OPEN.
