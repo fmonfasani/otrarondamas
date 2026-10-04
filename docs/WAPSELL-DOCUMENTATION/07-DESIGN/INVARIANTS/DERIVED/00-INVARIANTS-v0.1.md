@@ -690,3 +690,16 @@ Order delivery/fulfillment completion does not create the Sale when the Sale was
 Once an Order reaches CANCELADO, the normal Order lifecycle does not reopen by a simple state toggle; subsequent correction requires an explicit traceable operation.
 
 These are DOCUMENTED derived invariant candidates. Exact technical transition enforcement and cross-domain correction effects remain OPEN.
+
+## R8-PAY-002 INVARIANT RECONCILIATION — 2026-10-03
+
+The following conceptual invariants are derived from the Owner-approved R8-PAY-002 ruling:
+
+- **INV-PAY-001:** Payment lifecycle is independent from Sale lifecycle.
+- **INV-PAY-002:** Multiple approved/valid Payments may cumulatively settle a Sale; partial settlement is valid.
+- **INV-PAY-003:** A Payment cannot exceed the applicable outstanding amount unless a separately approved credit/surplus rule exists.
+- **INV-PAY-004:** A refund/reversal preserves traceability of the original Payment and is not equivalent to erasing the original event.
+- **INV-PAY-005:** Payment and AR application are distinct concepts.
+- **INV-PAY-006:** Payment reconciliation does not by itself constitute Cash reconciliation or AR reconciliation.
+
+These are DOCUMENTED derived invariants. Exact transition enforcement and cross-domain economic effects remain OPEN.
