@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-/**
+ /**
  * Relation isolation (B3 / T01-03): una relación persistida no puede
  * vincular recursos de empresas distintas.
  *
@@ -19,7 +19,10 @@ import { Prisma } from '@prisma/client';
  * (el FK se deriva del schema vía DMMF).
  */
 export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
-  VentaItem: ['producto'],
+  VentaItem: ['producto', 'reglaFidelizacion'],
+  PedidoItem: ['producto', 'reglaFidelizacion'],
+  CompraItem: ['producto'],
+  DevolucionProveedorItem: ['producto', 'lote'],
 };
 
 type Datos = Record<string, unknown>;
