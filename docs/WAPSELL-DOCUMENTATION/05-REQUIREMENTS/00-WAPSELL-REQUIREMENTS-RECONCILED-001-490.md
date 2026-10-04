@@ -963,3 +963,5 @@ Pendiente sin ruling que afecta a este documento: Payment (D-011, C-17), Cash (D
 Nomenclatura: **Gestor de Stock** (normativo). Repartidor: `FUTURE / OPEN`.
 
 **Estado del documento: DRAFT / NOT APPROVED (sin cambio). `TECHNICAL SPECIFICATION = NOT APPROVED` · `IMPLEMENTATION = NOT AUTHORIZED`.**
+
+> **POST-OR-B3 reconciliation (2026-10-03).** Los requisitos y estados históricos que indiquen como `OPEN OWNER DECISION` cualquiera de los temas cerrados por OR-B3 quedan superseded por los siguientes rulings: Customer/User matching y asociación controlada; SaaS Admin fuera del MVP operativo; Location genérica con MAIN mínimo y múltiples permitidas; Product global + BusinessProduct; confirmación comercial mediante `ORDER_CONFIRM`; Cart sin Customer permitido pero Customer requerido para Order; Customer sin User en Messaging; decremento físico mediante movimiento de salida; Cash sensible mediante Permissions específicas; Fulfillment dentro del MVP sin Repartidor como Membership Role; G001–G105 como fuente secundaria; MFA/2FA obligatorio para Owner/Admin. Los detalles técnicos siguen `OPEN IMPLEMENTATION DETAIL` cuando así se indica en OR-B3.
