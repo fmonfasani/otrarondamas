@@ -10,6 +10,15 @@ describe('B3 tenant isolation — execution candidates', () => {
   let usuarioB: { id: string };
   let productoA: { id: string };
   let productoB: { id: string };
+  let familiaA: { id: string };
+  let familiaB: { id: string };
+  let subfamiliaA: { id: string };
+  let subfamiliaB: { id: string };
+  let tipoA: { id: string };
+  let tipoB: { id: string };
+  let subtipoA: { id: string };
+  let subtipoB: { id: string };
+  const transientUsuarioIds: string[] = [];
 
   beforeAll(async () => {
     prisma = new PrismaService();
@@ -24,6 +33,78 @@ describe('B3 tenant isolation — execution candidates', () => {
     });
     empresaB = await prisma.empresa.create({
       data: { nombre: `B3 Exec B ${suffix}`, configuracion: {} },
+      select: { id: true },
+    });
+
+    familiaA = await prisma.familia.create({
+      data: {
+        empresaId: empresaA.id,
+        nombre: `B3 Familia A ${suffix}`,
+        prefijo: 'BFA',
+      },
+      select: { id: true },
+    });
+    subfamiliaA = await prisma.subfamilia.create({
+      data: {
+        empresaId: empresaA.id,
+        familiaId: familiaA.id,
+        nombre: `B3 Subfamilia A ${suffix}`,
+        prefijo: 'BSA',
+      },
+      select: { id: true },
+    });
+    tipoA = await prisma.tipo.create({
+      data: {
+        empresaId: empresaA.id,
+        subfamiliaId: subfamiliaA.id,
+        nombre: `B3 Tipo A ${suffix}`,
+        prefijo: 'BTA',
+      },
+      select: { id: true },
+    });
+    subtipoA = await prisma.subtipo.create({
+      data: {
+        empresaId: empresaA.id,
+        tipoId: tipoA.id,
+        nombre: `B3 Subtipo A ${suffix}`,
+        prefijo: 'BXA',
+      },
+      select: { id: true },
+    });
+
+    familiaB = await prisma.familia.create({
+      data: {
+        empresaId: empresaB.id,
+        nombre: `B3 Familia B ${suffix}`,
+        prefijo: 'BFB',
+      },
+      select: { id: true },
+    });
+    subfamiliaB = await prisma.subfamilia.create({
+      data: {
+        empresaId: empresaB.id,
+        familiaId: familiaB.id,
+        nombre: `B3 Subfamilia B ${suffix}`,
+        prefijo: 'BSB',
+      },
+      select: { id: true },
+    });
+    tipoB = await prisma.tipo.create({
+      data: {
+        empresaId: empresaB.id,
+        subfamiliaId: subfamiliaB.id,
+        nombre: `B3 Tipo B ${suffix}`,
+        prefijo: 'BTB',
+      },
+      select: { id: true },
+    });
+    subtipoB = await prisma.subtipo.create({
+      data: {
+        empresaId: empresaB.id,
+        tipoId: tipoB.id,
+        nombre: `B3 Subtipo B ${suffix}`,
+        prefijo: 'BXB',
+      },
       select: { id: true },
     });
 
@@ -48,8 +129,14 @@ describe('B3 tenant isolation — execution candidates', () => {
       data: {
         empresaId: empresaA.id,
         nombre: 'B3 Product A',
-        precio: 10,
-        stock: 10,
+        codigoInterno: `B3PA${suffix}`,
+        familiaId: familiaA.id,
+        subfamiliaId: subfamiliaA.id,
+        tipoId: tipoA.id,
+        subtipoId: subtipoA.id,
+        unidadBase: 'UNIDAD',
+        costo: 5,
+        precioMinorista: 10,
       },
       select: { id: true },
     });
@@ -57,8 +144,14 @@ describe('B3 tenant isolation — execution candidates', () => {
       data: {
         empresaId: empresaB.id,
         nombre: 'B3 Product B',
-        precio: 20,
-        stock: 10,
+        codigoInterno: `B3PB${suffix}`,
+        familiaId: familiaB.id,
+        subfamiliaId: subfamiliaB.id,
+        tipoId: tipoB.id,
+        subtipoId: subtipoB.id,
+        unidadBase: 'UNIDAD',
+        costo: 10,
+        precioMinorista: 20,
       },
       select: { id: true },
     });
@@ -79,8 +172,20 @@ describe('B3 tenant isolation — execution candidates', () => {
     await prisma.producto.deleteMany({
       where: { id: { in: [productoA.id, productoB.id] } },
     });
+    await prisma.subtipo.deleteMany({
+      where: { id: { in: [subtipoA.id, subtipoB.id] } },
+    });
+    await prisma.tipo.deleteMany({
+      where: { id: { in: [tipoA.id, tipoB.id] } },
+    });
+    await prisma.subfamilia.deleteMany({
+      where: { id: { in: [subfamiliaA.id, subfamiliaB.id] } },
+    });
+    await prisma.familia.deleteMany({
+      where: { id: { in: [familiaA.id, familiaB.id] } },
+    });
     await prisma.usuario.deleteMany({
-      where: { id: { in: [usuarioA.id, usuarioB.id] } },
+      where: { id: { in: [usuarioA.id, usuarioB.id, ...transientUsuarioIds] } },
     });
     await prisma.empresa.deleteMany({
       where: { id: { in: [empresaA.id, empresaB.id] } },
@@ -101,6 +206,7 @@ describe('B3 tenant isolation — execution candidates', () => {
     });
 
     expect(created.empresaId).toBe(empresaA.id);
+    transientUsuarioIds.push(created.id);
   });
 
   it('TE-ID-008: a Business A record is not returned through Business B context', async () => {
@@ -191,10 +297,11 @@ describe('B3 tenant isolation — execution candidates', () => {
 
     const persisted = await prisma.usuario.findUnique({
       where: { email },
-      select: { empresaId: true },
+      select: { id: true, empresaId: true },
     });
 
     expect(persisted?.empresaId).toBe(empresaA.id);
+    if (persisted) transientUsuarioIds.push(persisted.id);
   });
 
   it('TE-B3-007: unsupported persistence operations fail closed', async () => {
