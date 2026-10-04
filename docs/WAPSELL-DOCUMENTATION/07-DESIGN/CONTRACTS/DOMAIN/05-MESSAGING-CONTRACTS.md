@@ -209,3 +209,33 @@ El sistema propio de Wapsell es la dirección documentada para el Messaging inic
 The contract layer formalizes only the documented Messaging boundaries and preserves unresolved implementation and product details as OPEN.
 
 No decision, invariant, test, schema, migration or implementation change was created.
+
+---
+
+# R5 Canonical Reconciliation — 2026-10-03
+
+> Additive reconciliation against OR-B2/OR-B3 and the reconciled Messaging TO-BE. Historical contract text above is retained for traceability.
+
+## R5-MSG-001 — Business ownership of Conversation
+
+A commercial Conversation belongs exactly to one Business. Messaging operations and commercial data are contextualized to that Business.
+
+## R5-MSG-002 — Customer participation without User
+
+A Customer may participate in Messaging without a User identity. Customer↔User association remains optional and controlled; email equality alone does not auto-link.
+
+Physical participant model, anonymous-session mechanics and identity lifecycle remain OPEN.
+
+## R5-MSG-003 — Wapsell-owned MVP Messaging
+
+Wapsell Messaging is a first-class functional domain with conversation-centric UX. The MVP does not depend on WhatsApp. Future external channel integrations remain OPEN.
+
+## R5-MSG-004 — AI inactive in MVP
+
+AI assistants are a future product direction and remain inactive in the MVP. No autonomous AI execution is authorized by this reconciliation.
+
+## R5-MSG-005 — Domain authorization boundary
+
+Actions initiated from Messaging must use the authorization of the underlying domain/use case. Messaging does not replace Commerce, Inventory, Cash or other domain authorization.
+
+Physical Conversation/Message model, realtime, notifications, retention, attachments and APIs remain OPEN.
