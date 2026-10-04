@@ -283,15 +283,17 @@ A Business-scoped operation is subject to the isolation obligations regardless o
 
 # 6. Deferred and not-admitted
 
-## 6.1 Deferred — OPEN
+## 6.1 Former deferred item — CLOSED BY OWNER DECISION 49
 
-| ID | Statement | Why deferred |
+The former ISO-OPEN-001 ownership ambiguity is closed normatively by Owner Decision 49.
+
+**Canonical invariant:** ISO-009.
+
+| ID | Statement | Current state |
 |---|---|---|
-| **ISO-OPEN-001** | For an entity whose Business is not determinable from its data model without an explicit resolution, no isolation obligation is derivable until that resolution exists. | **OPEN / TECHNICAL.** Two entities in the AS-IS have two mutually exclusive optional ownership paths, so the tenant is indeterminate `[C]`. Resolving it requires a model decision, which `06-R8-ID-003` §5 does not authorize and which this document must not invent (rules 3, 5, 8). **No Owner Decision is raised:** the authority to decide already exists and is simply unexercised. |
+| **ISO-009** | For every Business-scoped operation involving Legajo or DocumentoLegajo, a single Business owner must be determinable and must correspond to the authorized Business context. Client-provided relationship identifiers cannot override that ownership. If ownership cannot be determined unambiguously, the operation fails closed. | **CLOSED FOR DERIVATION / RECONCILIATION** |
 
-**Class:** **OPEN** · **Testability:** NOT TESTABLE YET · **Duplication risk:** none.
-
-**This is a real entry, not a placeholder.** It records that ISO-003's determinacy clause has a known exception, so a future test suite does not read ISO-003 as universal.
+The decision establishes Business ownership but does not prescribe the physical schema, direct empresaId, relation traversal or ORM enforcement mechanism. Those remain downstream technical specification.
 
 ## 6.2 Not admitted as invariants
 
@@ -318,7 +320,7 @@ Required by rule 5, and the basis of ISO-003, ISO-004 and ISO-OPEN-001. Derived 
 | **DIRECT** — carries its own Business identifier | 28 | scoped | B1 `INV-TEN-001` + ISO-001/002/005/006/007/008 |
 | **DERIVED** — tenant determinable by ownership relation | 10 | derived scope | **ISO-003** |
 | **GLOBAL** — legitimately global | 2 | no scope obligation | **ISO-004** (boundary) |
-| **AMBIGUOUS** — tenant not determinable without resolution | 2 | resolution required first | **ISO-OPEN-001** |
+| **BUSINESS-OWNED / TECHNICAL MECHANISM OPEN** — former ambiguity resolved | 2 | scoped ownership required; physical mechanism downstream | **ISO-009** |
 | **UNKNOWN** | **0** | — | — |
 | **Total** | **42** | | |
 
@@ -534,3 +536,17 @@ This document creates no decision, schema, API, test or implementation. It modif
 **Next stage:** Block 3 Tests/Evals derivation, linking to the existing criteria named in §13 rather than creating a parallel family, and prioritising ISO-006 (closes the one remaining mechanism uncertainty), ISO-001 (reproduces the one recorded cross-Business persistence defect) and ISO-007 (converts the strongest AS-IS behaviour into verified evidence for the first time).
 
 **BLOCK 3 INVARIANTS: DRAFT — NOT APPROVED.**
+
+
+## 15.1 Canonical closure amendment — 2026-10-04
+
+Owner Decision 49 closes the former ownership ambiguity. The canonical Block 3 invariant set is now:
+
+- **9 active invariants:** ISO-001…ISO-009
+- **0 open invariants**
+- **1 readiness gate:** R8-ARCH-002 property 12
+- **1 process rule**
+- **1 scope clause**
+- **16 referenced B1/B2 invariants with no duplicated B3 ID**
+
+ISO-009 is the ownership invariant for Legajo/DocumentoLegajo. Its physical implementation remains downstream technical specification. The invariant set is **CLOSED FOR DERIVATION / RECONCILIATION**, but remains **NOT APPROVED / NOT VERIFIED** until the applicable approval and execution gates are satisfied.
