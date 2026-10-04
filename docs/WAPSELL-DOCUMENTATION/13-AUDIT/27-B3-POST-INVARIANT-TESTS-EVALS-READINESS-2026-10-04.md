@@ -32,7 +32,7 @@ Evidence classification is DOCUMENTED unless a finding is explicitly tagged VERI
 | **B — Invariant** | BLOCKED — "no B3 invariant file exists" | **RESOLVED FOR DERIVATION — set is DRAFT, NOT APPROVED** | `06-BLOCK-3-…` exists (9 active, 0 open). The block's cause is gone; approval of the draft is a separate step not performed here. One unmet criterion remains by design (06 §14): negative verification. |
 | **C — Test/Eval** | CONDITIONAL — criteria derivable, none written | **CONDITIONAL — derivation complete; implementation absent** | 8 B3-specific + 7 inherited rows specified (6 B3 rows SPECIFIED, 1 CONDITIONAL-specified, 1 CONDITIONAL-not-testable). Zero written. Test infrastructure absent `[C]`. |
 | **D — Evidence** | FAIL | **FAIL — unchanged** | `[T]` = 0, `[E]` = 0. P12 (negative cross-Business verification) is **NOT MET**. |
-| **E — Non-contamination** | PASS | **PASS** | No B1/B2 ID duplicated; inherited criteria referenced; ISO-OPEN-001 not given a TE; P12 kept as gate. |
+| **E — Non-contamination** | PASS | **PASS** | No B1/B2 ID duplicated; inherited criteria referenced; ISO-009 not given a TE; P12 kept as gate. |
 | **F — AS-IS / TO-BE separation** | PASS | **PASS** | Characterization vs compliance stated per row; decisions 005/021 reinforce it. |
 | **G — Owner Decision stability** | PASS | **PASS** | 25 B3 test decisions approved and recorded; Owner Decision 49 also closes ownership ambiguity; **0 pending** in the current B3 closure set. |
 
@@ -81,7 +81,7 @@ The historical label was BLOCKED. The reason has changed, not disappeared:
 ## 7. Residual contradictions
 
 1. **D-TE-01** — `TE-ID-004/005/006(/007)` carry two meanings across `00-TESTS-EVALS-v0.2.md` and the B1 baseline. Handled by source-qualified references; **requires intervention in an upstream document**.
-2. **Naming** — `ISO-OPEN-001` / `ISO-AMBIG-001` / `ISO-AMBIG` for the same item. No functional impact.
+2. **Naming** — `ISO-009` / `former ISO-AMBIG-001` / `ISO-AMBIG` for the same item. No functional impact.
 3. **Stale statements** in `13-AUDIT/24-B4-…` (B3 contract/invariants/tests "do not exist") and `13-AUDIT/26-B3-TESTS-EVALS-…` (see reconciliation §3). Left in place as historical.
 4. **`$transaction` count** — audit says 11 sites; a line count finds 18. Unreconciled (reconciliation D-TE-06).
 5. **Duplicate numbering in `13-AUDIT/`** — not renumbered.
@@ -91,7 +91,7 @@ The historical label was BLOCKED. The reason has changed, not disappeared:
 **Authorized (documentary / specification work only):**
 - review and, if the Owner chooses, approval of `06-BLOCK-3-…` and the Tests/Evals reconciliation;
 - resolving the TE-ID collision in the upstream Tests/Evals documents;
-- documentary resolution path for ISO-OPEN-001 (technical, not an Owner workshop);
+- documentary resolution path for ISO-009 (technical, not an Owner workshop);
 - a separate, explicit authorization request for B3-SLICE-001 / test infrastructure.
 
 **NOT authorized:** implementation; writing or running tests; creating `apps/api/test/`; any code, schema, migration or data change; declaring B3 READY; declaring any invariant VERIFIED; claiming `[T]` or `[E]`; B4 implementation.
