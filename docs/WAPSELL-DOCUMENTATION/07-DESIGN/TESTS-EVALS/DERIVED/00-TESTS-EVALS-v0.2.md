@@ -309,3 +309,20 @@ This document does not:
 - resolve OPEN domain decisions.
 
 **R7 TEST/EVAL DERIVATION: REVIEWED / RECONCILED — DRAFT / NOT APPROVED.**
+
+
+## R8 ARCHITECTURE CLOSURE — TEST/EVAL RECONCILIATION — 2026-10-03
+
+The verification layer must include negative tests/evals for the approved tenant/authentication boundary:
+
+- authenticated User with valid Membership in Business A cannot access Business B;
+- INACTIVE Membership cannot execute protected Business-scoped operations;
+- missing Business Context fails closed;
+- invalid Business Context fails closed;
+- client-supplied Business identifier cannot override the established Business Context;
+- a valid JWT without a valid Membership for the target Business is insufficient for authorization;
+- cross-Business create/read/update/delete is denied;
+- unique lookups cannot expose records from another Business;
+- nested/related persistence cannot escape Business ownership.
+
+These tests verify the approved properties and must remain implementation-agnostic. They do not authorize a specific JWT claim set, API, ORM, database isolation mechanism or session design.
