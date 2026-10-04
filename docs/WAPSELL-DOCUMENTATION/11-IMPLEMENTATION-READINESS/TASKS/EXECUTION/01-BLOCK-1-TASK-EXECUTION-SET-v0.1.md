@@ -310,3 +310,31 @@ Candidate "Identity/Tenancy foundation" (section 7) remains **CANDIDATE — NOT 
 **B3 TESTS/EVALS: CLOSED FOR DERIVATION / RECONCILIATION; NOT EXECUTED; NOT VERIFIED; NOT READY FOR IMPLEMENTATION.**
 
 **Implementation: NOT AUTHORIZED.**
+
+
+## 13. B3 OWNERSHIP + B4 READINESS DECISION PROPAGATION — 2026-10-04
+
+### B3
+
+Owner Decision 49 closes the former Legajo/DocumentoLegajo ownership ambiguity. ISO-009 is now the canonical B3 invariant. No implementation task is created by this propagation.
+
+### B4
+
+OD-B4-01 confirms B4 as transversal Implementation Readiness.
+
+OD-B4-02 permits verification-infrastructure work before B3 verification is complete, subject to task-local authorization.
+
+### Task consequences
+
+No existing task is promoted to implementation solely by these decisions.
+
+A future verification-infrastructure task may be derived for:
+- Jest harness/configuration repair;
+- B3/B1/B2 fixtures;
+- integration-test support;
+- smoke/regression coverage;
+- CI verification infrastructure.
+
+Such a task must specify scope, non-scope, dependencies, expected evidence and validation before execution.
+
+**Current implementation status remains NOT AUTHORIZED for product code/schema/migrations.**
