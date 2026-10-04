@@ -866,3 +866,23 @@ SPEC STATUS = DRAFT — FOR OWNER REVIEW
 TECHNICAL SPECIFICATION = NOT APPROVED
 IMPLEMENTATION = NOT AUTHORIZED
 ```
+
+## POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+Las decisiones OR-B3-001…OR-B3-014 quedan incorporadas como rulings posteriores a v0.4. Por ISS-08, cualquier referencia histórica a estos puntos como `OPEN OWNER DECISION` queda superseded.
+
+- Customer/User: matching híbrido controlado; asociación opcional y controlada.
+- SaaS Admin: conceptual, fuera del MVP operativo.
+- Locations: concepto genérico; MAIN mínimo; múltiples permitidas.
+- Product: identidad global + BusinessProduct para configuración comercial por Business.
+- Order: la confirmación comercial es una acción del Business autorizada por `ORDER_CONFIRM`; la confirmación del Customer representa intención/aceptación, no autorización del Business.
+- Cart: puede existir sin Customer; Customer requerido antes de crear Order.
+- Messaging: Customer puede participar sin User.
+- Inventory: la reserva ocurre al confirmar Order; el decremento físico ocurre mediante movimiento de salida que representa la salida real.
+- Cash: operaciones sensibles se gobiernan mediante Permissions específicas.
+- Fulfillment: incluido en MVP bajo Orders; Repartidor sigue fuera de Membership Roles MVP.
+- G001–G105: fuente funcional secundaria.
+- MFA/2FA: obligatorio para Owner/Admin; mecanismo técnico pendiente.
+- Kubernetes/GraphQL: permanecen OPEN como decisiones técnicas; no están prohibidos ni aprobados.
+
+Estos rulings no convierten la SPEC en Technical Specification aprobada ni autorizan implementación.
