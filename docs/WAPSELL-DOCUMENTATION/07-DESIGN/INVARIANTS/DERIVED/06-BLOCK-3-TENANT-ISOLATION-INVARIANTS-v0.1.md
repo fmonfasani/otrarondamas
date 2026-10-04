@@ -1,14 +1,14 @@
 # WAPSELL — BLOCK 3 TENANT ISOLATION INVARIANTS v0.1
 ## CANONICAL B3 INVARIANT SET
 
-**Status:** DRAFT — BLOCK 3 INVARIANTS / CLOSED FOR DERIVATION & RECONCILIATION — NOT APPROVED
+**Status:** OWNER-APPROVED FOR DOWNSTREAM VERIFICATION — NOT VERIFIED
 **Date:** 2026-10-04
 **Scope:** Wapsell MVP — Block 3 (Tenant Isolation), persistence-level properties only
 **Contracts source:** `07-DESIGN/CONTRACTS/DOMAIN/09-R8-ARCH-002-TENANT-ISOLATION-CONTRACT-v0.1.md`
 **Architecture source:** `07-DESIGN/ARCHITECTURE/06-BLOCK-1-ARCHITECTURE-SPEC-v0.1.md` §5.4-5.5
 **Owner authority:** R8-ARCH-002 (CLOSED — OWNER APPROVED)
 **Audit input:** `13-AUDIT/25-B3-TENANT-ISOLATION-INVARIANTS-INDEPENDENT-AUDIT-2026-10-04.md`
-**Technical Specification:** NOT APPROVED
+**Technical Specification:** NOT APPROVED — verification execution authorized
 **Implementation:** NOT AUTHORIZED
 
 **Evidence classes:** `[C]` code · `[T]` test · `[E]` execution · `[D]` documented · `[ND]` not determinable.
@@ -535,7 +535,7 @@ This document creates no decision, schema, API, test or implementation. It modif
 
 **Next stage:** Block 3 Tests/Evals derivation, linking to the existing criteria named in §13 rather than creating a parallel family, and prioritising ISO-006 (closes the one remaining mechanism uncertainty), ISO-001 (reproduces the one recorded cross-Business persistence defect) and ISO-007 (converts the strongest AS-IS behaviour into verified evidence for the first time).
 
-**BLOCK 3 INVARIANTS: DRAFT — NOT APPROVED.**
+**BLOCK 3 INVARIANTS: OWNER-APPROVED FOR DOWNSTREAM VERIFICATION — NOT VERIFIED.**
 
 
 ## 15.1 Canonical closure amendment — 2026-10-04
