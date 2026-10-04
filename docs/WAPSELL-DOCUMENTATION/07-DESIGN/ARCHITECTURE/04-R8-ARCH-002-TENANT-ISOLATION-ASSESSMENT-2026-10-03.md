@@ -152,3 +152,20 @@ Supporting canonical boundary:
 - Business isolation is mandatory.
 
 **Conclusion:** the next governance action is an explicit tenant-isolation architecture decision.
+
+
+## 11. OWNER DECISION CLOSURE — 2026-10-03
+
+Decision state is superseded by `03-DECISIONS/28-R8-ARCH-002-OWNER-DECISION-TENANT-ISOLATION-2026-10-03.md`.
+
+**CLOSED — OWNER APPROVED.** The Owner selected **application-level tenant isolation** as the primary technical direction.
+
+Approved boundary: `Authenticated User → active Business Context → Membership → authorized operation → Business-scoped persistence`.
+
+The application establishes the effective Business context. An untrusted client-supplied Business identifier cannot override it. INACTIVE Membership cannot operate. Business-scoped reads/writes, creates/deletes, unique lookups, nested/related persistence and transactions must preserve Business isolation and fail closed when context is absent or invalid.
+
+The existing `EmpresaScopedPrismaService` / `empresaScopeExtension` is **ADAPTED**, not automatically replaced.
+
+Not selected: PostgreSQL RLS, database-per-tenant, schema-per-tenant, physical tenant separation. This does not approve schema, ORM, API protocol, migration/cutover, infrastructure or implementation.
+
+**Implementation remains NOT AUTHORIZED.**
