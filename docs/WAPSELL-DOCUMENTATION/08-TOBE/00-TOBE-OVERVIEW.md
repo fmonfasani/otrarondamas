@@ -403,3 +403,9 @@ Este documento es el **primer escalón TO-BE** de la cadena
 - **Pendiente:** Contracts → Invariants → Tests → Plan → Implementation.
 - **Prohibido en este documento:** convertir AS-IS en TO-BE, convertir PROPOSED en APPROVED, convertir
   un GAP de implementación en un plan, o crear una decisión.
+
+## POST-OR-B3 — PROPAGACIÓN DE OWNER RULINGS
+
+El TO-BE debe interpretar como cerrados los siguientes puntos: Customer/User mediante asociación controlada; SaaS Admin fuera del MVP operativo; Location genérica con MAIN mínimo y múltiples permitidas; Product global + BusinessProduct; `ORDER_CONFIRM` para confirmación comercial; Cart sin Customer permitido con Customer requerido para Order; Customer sin User en Messaging; stock físico decrementado por movimiento de salida; Cash sensible por Permissions específicas; Fulfillment dentro del MVP sin Repartidor como Membership Role; G001–G105 como fuente funcional secundaria; MFA/2FA obligatorio para Owner/Admin.
+
+Kubernetes y GraphQL permanecen OPEN como decisiones técnicas. Ninguno de estos rulings autoriza implementación.
