@@ -1,7 +1,7 @@
 # B4 — VERIFICATION INFRASTRUCTURE IMPLEMENTATION REPORT
 ## 2026-10-04
 
-Status: **IMPLEMENTED — VERIFIED BY CI**
+Status: **IMPLEMENTED — AWAITING FRESH CI VERIFICATION**
 
 Task source:
 - `11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
@@ -52,30 +52,29 @@ These are verification tests of existing behavior, not implementation of new ten
 
 ## 5. Execution evidence
 
-CI workflow: `.github/workflows/b4-verification.yml`
-- GitHub Actions run: **37210436567**
-- Job: `api-verification`
-- Result: **SUCCESS**
-- `npm ci`: SUCCESS
-- Prisma client generation: SUCCESS
-- PostgreSQL disposable CI database schema preparation via `prisma db push`: SUCCESS
-- Existing Jest smoke/regression suite: SUCCESS
-- B4 PostgreSQL/Prisma integration suite: SUCCESS
-- Container teardown: SUCCESS
+The branch originally documented GitHub Actions run **37210436567** as SUCCESS. The available workflow-run retrieval surface did not independently recover that run, so that historical result is classified **[D] DOCUMENTED**, not independently established [T]/[E] evidence.
 
-Evidence classification:
-- [T] **VERIFIED BY TEST** — Jest smoke/regression and integration suites executed successfully.
-- [E] **VERIFIED BY EXECUTION** — PostgreSQL-backed integration suite executed successfully in CI against a disposable PostgreSQL 15 service.
-- [C] **VERIFIED BY CODE** — branch diff contains only the five intended files; no product source, Prisma schema, or migration files were modified.
-- [D] **DOCUMENTED** — execution result and scope reconciliation recorded in this report.
+A technical correction was applied to `.github/workflows/b4-verification.yml`:
+- removed `--accept-data-loss` from Prisma `db push`;
+- retained the disposable PostgreSQL 15 service;
+- retained Prisma generation;
+- retained unit and integration execution.
 
-The integration suite verifies:
-1. server-side Business scoping overrides a conflicting input Business ID on create;
-2. reads are constrained to the active Business;
-3. unique lookup of another Business fails closed.
+Current evidence classification:
+- [C] **VERIFIED BY CODE** — B4 implementation files were inspected; no product source, Prisma schema or migration file is part of the branch diff.
+- [D] **DOCUMENTED** — prior CI success claim is preserved as historical documentation only.
+- [T] **PENDING** — requires fresh execution of the corrected Jest workflow.
+- [E] **PENDING** — requires fresh PostgreSQL-backed integration execution of the corrected workflow.
+
+The integration suite is intended to verify infrastructure coverage for:
+1. server-side Business scoping overriding conflicting input;
+2. read filtering across two Business records;
+3. unique lookup of another Business failing closed.
+
+These checks remain smoke/regression coverage of existing behavior, not complete B3 verification.
 
 ## 6. Gate
 
-The verification-infrastructure task is **COMPLETED AND VERIFIED** for Option A.
+The verification-infrastructure task is **IMPLEMENTED AND TECHNICALLY RECONCILED; FRESH CI VERIFICATION PENDING** for Option A.
 
 This does **not** promote B3 tenant-isolation invariants to VERIFIED and does **not** authorize product implementation. It establishes the reusable verification substrate required for subsequent controlled B1/B2/B3 verification work.
