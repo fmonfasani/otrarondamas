@@ -394,3 +394,13 @@ R8-ORD-002 no longer blocks the readiness review. The current implementation nev
 R8-READY-001 remains blocked by other local specification/readiness gates.
 
 Implementation remains NOT AUTHORIZED.
+
+## 16. REASSESSMENT AFTER R8-PAY-002 CLOSURE — 2026-10-03
+
+**R8-PAY-002: CLOSED — OWNER APPROVED.**
+
+The Owner accepted A1–H1, closing the conceptual Payment lifecycle/reconciliation boundary. This unlocks the dependent **R8-PAY-003 — Payment↔Cash/AR effects** task for controlled assessment.
+
+Still open for R8-PAY-002 are exact transition enforcement, external provider/webhook/idempotency mechanics, refund persistence, Payment↔Cash economic effects, AR allocation rules, Cash reconciliation and technical contracts.
+
+The current implementation remains AS-IS evidence and is not claimed compliant with the TO-BE Payment boundary. **Implementation remains NOT AUTHORIZED.**
