@@ -202,3 +202,22 @@ This contract itself does not authorize implementation.
 **Technical session/context details: OPEN.**
 
 **Implementation: NOT AUTHORIZED.**
+
+## 18. B2 Owner Decision Propagation — 2026-10-04
+
+### Session / revocation boundary
+Protected operations must resolve authorization from current server-side state, including Membership state and applicable authorization. No fixed maximum latency/SLA for revocation propagation is established.
+
+### Business-scoped fail-closed boundary
+- Public/pre-context authentication paths may operate without Business Permission where their contract permits it.
+- Protected Business-scoped operations must fail closed when Business Context, ACTIVE Membership or applicable authorization is absent/invalid.
+
+### Membership cardinality
+- At most one ACTIVE Membership per `(User, Business)`.
+- Exactly one effective Role per Membership in the MVP.
+
+These are normative closures; session transport, revocation storage, Business Switch transport and other technical mechanisms remain OPEN.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
+
+**Implementation:** NOT AUTHORIZED.

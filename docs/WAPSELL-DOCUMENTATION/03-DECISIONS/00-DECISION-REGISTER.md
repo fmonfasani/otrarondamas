@@ -529,3 +529,27 @@ The Owner accepted all recommendations A1, B3, C1, D1, E1, F2, G1 and H1. Author
 Approved direction: Payment may affect Cash according to payment method; timing depends on method/evidence; Payment and AR application remain distinct; Payments may be allocated partially/fully across AR obligations; Payments may exist without AR; partial Payment does not automatically create AR; refunds may produce compensating Cash effects when applicable; Sale cancellation does not erase historical Payments and compensating effects belong to the respective domains.
 
 Exact Cash/AR mechanics, reconciliation, provider mechanics, refund/cancellation workflows and technical contracts remain OPEN. **Implementation remains NOT AUTHORIZED.**
+
+## 9. B2 Owner Decision Closure — 2026-10-04
+
+The Owner accepted the B2 closure recommendations recorded in:
+`03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`
+
+This is a downstream canonical addendum to the earlier register. Historical D-xxx rows are not rewritten.
+
+| ID | Direction | Status |
+|---|---|---|
+| 1 | At most one ACTIVE Membership per `(User, Business)`. | ACCEPTED |
+| 2 | Customer responses retain the cross-cutting security boundary against exposing secrets/authorization-sensitive data. | ACCEPTED |
+| 3 | Legacy retirement is a separate process/cutover gate, not a runtime invariant. | ACCEPTED |
+| 4 | Exactly one effective Role per Membership in MVP. | ACCEPTED |
+| 5 | Permission domains are conceptually approved; atomic IDs, exact matrix rows and persistence remain OPEN. | ACCEPTED |
+| 6 | Legacy `UsuarioPermiso`/`Permiso` requires explicit reviewed mapping to target Role→Permission before retirement. | ACCEPTED |
+| 7 | Legacy coexistence is bounded and temporary; exact duration/cutover mechanics remain OPEN. | ACCEPTED |
+| 8 | Protected operations revalidate current server-side authorization state; no latency SLA is fixed. | ACCEPTED |
+| 9 | Public/pre-context paths may operate without Business Permission; protected Business-scoped operations fail closed without applicable authorization. | ACCEPTED |
+| 10 | Critical-operation additional authorization control is preserved conceptually; exact design is deferred to a dedicated downstream contract. | ACCEPTED |
+
+These rulings close the corresponding B2 normative questions without authorizing implementation, schema changes, migration, deployment or legacy deletion.
+
+**Authority:** Owner acceptance, 2026-10-04.
