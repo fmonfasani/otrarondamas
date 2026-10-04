@@ -1,13 +1,27 @@
-name: B4 Verification Infrastructure
+name: B3 Tenant Isolation Candidate
 
 on:
   push:
-    branches: [main, "b4/**"]
+    branches: [main, "b3/**", "chore/**"]
+    paths:
+      - "apps/api/src/**"
+      - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
+      - "apps/api/prisma/**"
+      - "apps/api/package.json"
+      - "package-lock.json"
+      - ".github/workflows/b3-tenant-isolation-candidate.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "apps/api/src/**"
+      - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
+      - "apps/api/prisma/**"
+      - "apps/api/package.json"
+      - "package-lock.json"
+      - ".github/workflows/b3-tenant-isolation-candidate.yml"
 
 jobs:
-  api-verification:
+  b3-tenant-isolation:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -29,16 +43,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
       - run: npm ci
+
       - run: npm run prisma:generate --workspace=@otrarondamas/api
+
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
       - run: npm test --workspace=@otrarondamas/api -- --runInBand
-      - name: Run existing tenant isolation regression suite
+
+      - name: Run B3 tenant isolation candidate
         run: >-
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
-          test/integration/tenant-isolation.integration-spec.ts
+          test/integration/b3-tenant-isolation.integration-spec.ts
