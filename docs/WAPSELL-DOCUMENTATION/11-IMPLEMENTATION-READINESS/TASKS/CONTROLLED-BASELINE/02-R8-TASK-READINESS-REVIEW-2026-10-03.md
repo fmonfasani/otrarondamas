@@ -404,3 +404,14 @@ The Owner accepted A1–H1, closing the conceptual Payment lifecycle/reconciliat
 Still open for R8-PAY-002 are exact transition enforcement, external provider/webhook/idempotency mechanics, refund persistence, Payment↔Cash economic effects, AR allocation rules, Cash reconciliation and technical contracts.
 
 The current implementation remains AS-IS evidence and is not claimed compliant with the TO-BE Payment boundary. **Implementation remains NOT AUTHORIZED.**
+
+
+## 17. REASSESSMENT AFTER R8-PAY-003 CLOSURE — 2026-10-03
+
+**R8-PAY-003: CLOSED — OWNER APPROVED.**
+
+The Owner accepted A1, B3, C1, D1, E1, F2, G1 and H1, closing the conceptual Payment↔Cash/AR effect boundary.
+
+This unlocks downstream Cash/AR specification work. Exact Cash states/movements, payment-method confirmation semantics, reconciliation, AR debt creation/allocation, refund/cancellation workflows and technical contracts remain OPEN.
+
+**Implementation remains NOT AUTHORIZED.**
