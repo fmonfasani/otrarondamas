@@ -371,3 +371,16 @@ These are verification criteria only; no automated test has been created or exec
 | TE-PAY-SALE-001 | Sale cancellation does not erase historical Payments. | SPECIFIED |
 
 Verification criteria only. No automated tests are created or executed by this reconciliation.
+
+
+## R8-INV-003 TEST/EVAL RECONCILIATION — 2026-10-03
+
+| ID | Criterion | Status |
+|---|---|---|
+| TE-LOC-001 | A Location cannot belong to more than one Business. | SPECIFIED |
+| TE-LOC-002 | A Business supports a MAIN Location and may have additional Locations. | SPECIFIED |
+| TE-LOC-003 | MVP does not require separate Branch/Warehouse/Deposito entity semantics. | SPECIFIED |
+| TE-LOC-004 | MAIN is represented as a Location role rather than a separate entity type. | SPECIFIED |
+| TE-LOC-005 | Location/Inventory association is not assumed before specialized Inventory physical-model specification. | SPECIFIED |
+
+No automated tests were created or executed by this reconciliation.
