@@ -1,7 +1,7 @@
 # WAPSELL — BLOCK 3 TENANT ISOLATION INVARIANTS v0.1
 ## CANONICAL B3 INVARIANT SET
 
-**Status:** DRAFT — BLOCK 3 INVARIANTS / NOT APPROVED
+**Status:** DRAFT — BLOCK 3 INVARIANTS / CLOSED FOR DERIVATION & RECONCILIATION — NOT APPROVED
 **Date:** 2026-10-04
 **Scope:** Wapsell MVP — Block 3 (Tenant Isolation), persistence-level properties only
 **Contracts source:** `07-DESIGN/CONTRACTS/DOMAIN/09-R8-ARCH-002-TENANT-ISOLATION-CONTRACT-v0.1.md`
@@ -413,7 +413,7 @@ R8-ARCH-002 §3.12 requires cross-Business access to be covered by negative veri
 | **ISO-OPEN-001** | OPEN | NOT TESTABLE YET | none | §6 |
 | *(reference frame, §3)* | **REFERENCE** | owned by B1/B2 | **eliminated by design** | 1, 2, 3, 4, 6, 7, 8 |
 
-**Totals:** 8 active invariants — 6 STABLE, 2 CONDITIONAL · 1 OPEN · 1 readiness gate · 1 process rule · 1 scope clause · 16 referenced B1/B2 invariants with no B3 ID created.
+**Totals:** 9 active invariants — 6 STABLE, 3 CONDITIONAL · 0 OPEN · 1 readiness gate · 1 process rule · 1 scope clause · 16 referenced B1/B2 invariants with no B3 ID created.
 
 ## 10.1 Why this is minimal and sufficient
 
