@@ -65,6 +65,11 @@ describe('B3 tenant isolation — execution candidates', () => {
   });
 
   afterAll(async () => {
+    if (!empresaA || !empresaB) {
+      await prisma.$disconnect();
+      return;
+    }
+
     await prisma.ventaItem.deleteMany({
       where: { venta: { empresaId: { in: [empresaA.id, empresaB.id] } } },
     });
