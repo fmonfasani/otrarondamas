@@ -206,3 +206,16 @@ R8-AUTH-001 is closed for downstream design when:
 **Atomic technical authorization mapping: OPEN.**
 
 **Implementation: NOT AUTHORIZED.**
+
+## 16. B2 Owner Decision Propagation — 2026-10-04
+
+- A Membership has exactly one effective Role in the MVP.
+- At most one ACTIVE Membership may exist for a given `(User, Business)`.
+- Permission domains are conceptually approved; atomic IDs, exact Role→Permission rows, persistence and technical enforcement remain OPEN.
+- Legacy `UsuarioPermiso`/`Permiso` semantics remain preserved during coexistence and require an explicit reviewed mapping to target Role→Permission before the affected legacy path is retired.
+- Public/pre-context authentication paths may exist without Business Permission where their contract permits it; protected Business-scoped operations fail closed when applicable authorization is absent.
+- Critical-operation additional authorization control remains conceptually required; exact actors, triggers, states and technical enforcement remain OPEN.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
+
+**Implementation:** NOT AUTHORIZED.
