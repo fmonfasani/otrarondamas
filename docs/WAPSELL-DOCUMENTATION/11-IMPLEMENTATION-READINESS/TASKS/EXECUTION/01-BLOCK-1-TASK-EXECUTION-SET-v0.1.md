@@ -362,3 +362,35 @@ Evidence closure:
 - branch inspection confirms no product source, Prisma schema, or migration changes are part of the B4 implementation [C].
 
 The task remains bounded to verification infrastructure. It does **not** authorize B3 tenant-isolation product implementation and does **not** mark B3 invariants VERIFIED.
+
+
+## 15. B3 CONTROL POINT — 2026-10-04
+
+The B3 control point was executed after B4 Verification Infrastructure reached **COMPLETED / VERIFIED**.
+
+Result:
+
+| Gate | State |
+|---|---|
+| B3 Owner decisions | **CLOSED** — B3-TEST-001…025 |
+| B4 verification infrastructure | **PASS** |
+| B3 invariant derivation | **PASS WITH RECONCILIATION** |
+| B3 contract | **BLOCKED / NOT YET READY** |
+| B3 Tests/Evals derivation | **PASS WITH RECONCILIATION** |
+| B3 Tests/Evals execution | **NOT STARTED** — [T]=0, [E]=0 |
+| B3 implementation readiness | **BLOCKED** |
+| Product implementation | **NOT AUTHORIZED** |
+
+The exact blocker is the technical Business-scoped persistence-isolation contract (T-01), which must make the approved R8-ARCH-002 direction implementable and independently testable.
+
+Control-point record:
+
+`13-AUDIT/31-B3-CONTROL-POINT-2026-10-04.md`
+
+### Consequence for task promotion
+
+No B3 implementation task is promoted by this control point.
+
+The next controlled action is **B3 CONTRACTS — close T-01** without product code/schema/migration/data changes. After that closure, the B3 control point must be rerun before any implementation promotion.
+
+**B3 remains NOT VERIFIED and NOT READY FOR IMPLEMENTATION.**
