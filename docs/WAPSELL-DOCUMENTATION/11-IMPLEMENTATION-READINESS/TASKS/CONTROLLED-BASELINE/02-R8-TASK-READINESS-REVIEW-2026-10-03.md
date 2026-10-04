@@ -308,3 +308,23 @@ This unlocks the next identity/authorization specification chain without authori
 **Updated gate: R8 READINESS — PASS WITH LOCAL SPECIFICATION BLOCKERS.**
 
 Implementation remains NOT AUTHORIZED.
+
+
+## 12. REASSESSMENT AFTER R8-COM-004 CLOSURE — 2026-10-03
+
+R8-COM-004 is now **DONE / OWNER APPROVED** through `03-DECISIONS/34-R8-COM-004-OWNER-DECISION-CART-CUSTOMER-ORDER-2026-10-03.md`.
+
+This closes the behavioral Cart → Customer → Order boundary without deciding physical persistence or Order state-machine mechanics.
+
+The next highest-value blockers remain:
+
+1. **R8-AUTH-001** — Permission catalogue and Role→Permission matrix.
+2. **R8-COM-003** — Product/BusinessProduct physical allocation.
+3. **R8-INV-002** — reservation and stock transaction semantics.
+4. **R8-INV-003** — physical Location model.
+5. **R8-PAY-002** — Payment lifecycle/reconciliation.
+6. **R8-BRAND-001** — Brand configuration boundary.
+
+**R8-READY-001 remains blocked** until a bounded slice has all applicable local gates closed.
+
+Implementation remains NOT AUTHORIZED.
