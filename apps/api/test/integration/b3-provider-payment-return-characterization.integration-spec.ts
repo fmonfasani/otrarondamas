@@ -2,7 +2,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
 import { ComprasService } from '../../src/compras/compras.service';
 
-describe('B3 characterization — PagoProveedor / DevolucionProveedor ownership', () => {
+describe('B3 ownership — PagoProveedor / DevolucionProveedor', () => {
   let prisma: PrismaService;
   let scopedPrisma: EmpresaScopedPrismaService;
   let comprasService: ComprasService;
@@ -157,29 +157,28 @@ describe('B3 characterization — PagoProveedor / DevolucionProveedor ownership'
     await prisma.$disconnect();
   });
 
-  it('PAY-01: scoped read of PagoProveedor currently reaches Business B', async () => {
+  it('PAY-01: scoped read of PagoProveedor hides Business B', async () => {
     const record = await scopedPrisma.forEmpresa(empresaA.id).pagoProveedor.findUnique({
       where: { id: pagoB.id },
       select: { id: true, empresaId: true },
     });
 
-    expect(record).toEqual({ id: pagoB.id, empresaId: empresaB.id });
+    expect(record).toBeNull();
   });
 
-  it('PAY-02: scoped update of PagoProveedor currently mutates Business B', async () => {
-    await scopedPrisma.forEmpresa(empresaA.id).pagoProveedor.update({
-      where: { id: pagoB.id },
-      data: { notas: 'mutated through A scoped client' },
-    });
+  it('PAY-02: scoped update of PagoProveedor rejects Business B', async () => {
+    await expect(
+      scopedPrisma.forEmpresa(empresaA.id).pagoProveedor.update({
+        where: { id: pagoB.id },
+        data: { notas: 'must not mutate through A scoped client' },
+      }),
+    ).rejects.toMatchObject({ code: 'P2025' });
 
     const record = await prisma.pagoProveedor.findUnique({
       where: { id: pagoB.id },
       select: { notas: true, empresaId: true },
     });
-    expect(record).toEqual({
-      notas: 'mutated through A scoped client',
-      empresaId: empresaB.id,
-    });
+    expect(record).toEqual({ notas: null, empresaId: empresaB.id });
   });
 
   it('PAY-03: public service listing remains bounded by an A-owned Compra', async () => {
@@ -188,29 +187,28 @@ describe('B3 characterization — PagoProveedor / DevolucionProveedor ownership'
     expect(records.map((record) => record.id)).toEqual([pagoA.id]);
   });
 
-  it('DEV-01: scoped read of DevolucionProveedor currently reaches Business B', async () => {
+  it('DEV-01: scoped read of DevolucionProveedor hides Business B', async () => {
     const record = await scopedPrisma.forEmpresa(empresaA.id).devolucionProveedor.findUnique({
       where: { id: devolucionB.id },
       select: { id: true, empresaId: true },
     });
 
-    expect(record).toEqual({ id: devolucionB.id, empresaId: empresaB.id });
+    expect(record).toBeNull();
   });
 
-  it('DEV-02: scoped update of DevolucionProveedor currently mutates Business B', async () => {
-    await scopedPrisma.forEmpresa(empresaA.id).devolucionProveedor.update({
-      where: { id: devolucionB.id },
-      data: { motivo: 'mutated through A scoped client' },
-    });
+  it('DEV-02: scoped update of DevolucionProveedor rejects Business B', async () => {
+    await expect(
+      scopedPrisma.forEmpresa(empresaA.id).devolucionProveedor.update({
+        where: { id: devolucionB.id },
+        data: { motivo: 'must not mutate through A scoped client' },
+      }),
+    ).rejects.toMatchObject({ code: 'P2025' });
 
     const record = await prisma.devolucionProveedor.findUnique({
       where: { id: devolucionB.id },
       select: { motivo: true, empresaId: true },
     });
-    expect(record).toEqual({
-      motivo: 'mutated through A scoped client',
-      empresaId: empresaB.id,
-    });
+    expect(record).toEqual({ motivo: 'B original', empresaId: empresaB.id });
   });
 
   it('DEV-03: public service listing remains bounded by an A-owned Compra', async () => {
