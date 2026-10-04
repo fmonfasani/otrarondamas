@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-03  
 **Task:** R8-ORD-002  
-**Estado:** READY FOR OWNER DECISION  
+**Estado:** CLOSED — OWNER APPROVED  
 **Implementation:** NOT AUTHORIZED
 
 ## 1. Objective
@@ -36,7 +36,7 @@ The current Prisma schema contains `CONFIRMADA` and `ANULADA`. This is AS-IS evi
 ## 5. Current AS-IS effect problem
 The current implementation directly decrements stock when an Order is confirmed. The canonical TO-BE now requires `Order confirmation → stock reservation`, followed separately by `actual physical exit → stock-out movement / physical decrement`. Therefore the current Order confirmation effect is not compliant with the canonical inventory boundary.
 
-## 6. Proposed conceptual lifecycle — OWNER DECISION REQUIRED
+## 6. Proposed conceptual lifecycle — OWNER-APPROVED DIRECTION
 Recommended minimal conceptual model:
 
 ```text
@@ -73,7 +73,7 @@ Intermediate Order state labels and exact Sale state names are intentionally not
 | Payment state/effect timing | — | OPEN |
 | Fulfillment state transitions | — | OPEN |
 
-## 8. Owner decisions required
+## 8. Owner decision options — CLOSED BY OWNER ACCEPTANCE A1–L1
 ### Decision A — Order lifecycle
 Choose: **A1** retain the existing AS-IS Order state vocabulary as the starting lifecycle, with semantic reconciliation; or **A2** define a new canonical lifecycle vocabulary, leaving AS-IS states as migration evidence.
 
@@ -99,7 +99,7 @@ The direction requires traceable cancellation/reversal/refund, but cross-domain 
 - NO DETERMINABLE CON LA INFORMACIÓN DISPONIBLE: canonical exact state machine and cross-domain correction effects.
 
 ## 10. Gate
-**R8-ORD-002: READY FOR OWNER DECISION.**
+**R8-ORD-002: CLOSED — OWNER APPROVED.**
 
 No canonical state names have been invented or approved by this assessment.
 No code, schema, migration or data was modified.
