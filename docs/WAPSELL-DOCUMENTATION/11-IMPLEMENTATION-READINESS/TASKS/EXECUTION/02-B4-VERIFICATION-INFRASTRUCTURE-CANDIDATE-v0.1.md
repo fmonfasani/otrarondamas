@@ -1,6 +1,6 @@
 # B4 — VERIFICATION INFRASTRUCTURE CANDIDATE TASK v0.1
 
-**Status:** PROPOSED — NOT AUTHORIZED FOR EXECUTION
+**Status:** COMPLETED — VERIFIED BY CI
 **Class:** VERIFICATION INFRASTRUCTURE
 **Scope:** B4 Implementation Readiness
 **Owner authority:** OD-B4-02 — approved
@@ -48,7 +48,7 @@ Establish the minimum reusable verification infrastructure required to execute c
 
 ## 6. Promotion gate
 
-This candidate must remain PROPOSED until the Owner or project authority explicitly authorizes its execution. Approval of OD-B4-02 permits this class of work but does not itself constitute execution authorization for this specific task.
+This candidate required explicit task-local authorization. That authorization was granted by the Owner selecting Option A on 2026-10-04. The candidate is now promoted to COMPLETED after successful CI execution.
 
 ## 7. Success criteria
 
@@ -59,4 +59,19 @@ This candidate must remain PROPOSED until the Owner or project authority explici
 5. No product behavior, schema, migration or domain contract is changed.
 6. All execution evidence is recorded using [T]/[E] only after real execution.
 
-**Current state: PROPOSED — NOT AUTHORIZED.**
+**Current state: COMPLETED — VERIFIED BY CI.**
+
+Execution authorization:
+- Option A explicitly selected by Owner on 2026-10-04.
+- Task-local execution authorization therefore granted.
+
+Evidence:
+- [T] Jest smoke/regression suite: SUCCESS in GitHub Actions run 37210436567.
+- [E] PostgreSQL/Prisma integration suite: SUCCESS in GitHub Actions run 37210436567.
+- [C] Branch diff verified: only verification infrastructure, package script, and audit documentation changed; no product source, Prisma schema, or migration files changed.
+- [D] Implementation and execution reconciled in `13-AUDIT/29-B4-VERIFICATION-INFRASTRUCTURE-IMPLEMENTATION-2026-10-04.md`.
+
+Promotion result:
+- B4 verification infrastructure: **COMPLETED / VERIFIED**.
+- B3 tenant-isolation product implementation: **NOT AUTHORIZED**.
+- B3 invariants: **NOT VERIFIED** by this task.
