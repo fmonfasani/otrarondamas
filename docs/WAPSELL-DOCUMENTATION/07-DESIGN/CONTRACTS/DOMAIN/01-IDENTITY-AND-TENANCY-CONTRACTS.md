@@ -338,3 +338,18 @@ A normalized email identifies at most one User. Normalization rules and the phys
 Customer and User remain distinct. The system may detect/propose a possible match, but association requires controlled confirmation; email equality alone does not automatically create the link.
 
 Physical association, matching criteria, merge/lifecycle mechanics remain OPEN.
+
+
+## R8 ARCHITECTURE CLOSURE ADDENDUM — 2026-10-03
+
+This contract must preserve the approved R8 boundaries:
+
+- Business-scoped operations execute under an application-established active Business Context.
+- The effective Business Context must correspond to an ACTIVE Membership of the authenticated User.
+- A client-supplied Business identifier is untrusted input and cannot override the server-established context.
+- Missing or invalid Business context fails closed for protected Business-scoped operations.
+- JWT authenticates the global User but is not the authorization authority for Business access.
+- Role/Permission authorization is evaluated through the effective User↔Business Membership.
+- Cross-Business access is denied, including unique lookups and related/nested persistence paths.
+
+Authority: R8-ARCH-002 and R8-ARCH-003 Owner decisions. Exact protocol, schema and enforcement mechanism remain implementation detail.
