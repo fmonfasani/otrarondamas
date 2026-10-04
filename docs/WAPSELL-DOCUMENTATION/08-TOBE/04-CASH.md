@@ -417,3 +417,9 @@ con D-001/D-002 como frontera de tenancy y D-005/D-006 como frontera de autoriza
 - **No se comenzó Messaging.**
 
 **La fase se detiene aquí**, conforme al escalón TO-BE de la cadena de gobernanza.
+
+## POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+OR-B3-010 cierra el principio de autorización: las operaciones sensibles de Cash se gobiernan mediante Permissions específicas. El catálogo concreto de permisos, matriz operación→permiso, estados y enforcement técnico permanecen abiertos.
+
+Esto supersede cualquier formulación histórica que presente como abierta la elección entre Owner-only, Owner+Admin o Permissions específicas.
