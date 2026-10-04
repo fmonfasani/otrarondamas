@@ -478,3 +478,29 @@ For the complete 43-item accepted package and its implementation-boundary treatm
 
 **Evidence:** DOCUMENTADO — Owner acceptance in the 2026-10-03 working session.
 **Implementation status:** NOT AUTHORIZED.
+
+
+## R8-ORD-002 — OWNER RULING — 2026-10-03
+
+The Owner explicitly accepted all recommendations A1–L1 from the R8-ORD-002 Order/Sale States and Effects workshop. The authoritative closure is:
+
+`03-DECISIONS/38-R8-ORD-002-OWNER-DECISION-ORDER-SALE-STATES-EFFECTS-2026-10-03.md`
+
+Approved direction:
+
+- A1 — retain the AS-IS Order state vocabulary as transformation starting point, with semantic reconciliation.
+- B1 — CONFIRMADO is the commercial confirmation boundary.
+- C1 — delivery does not create the Sale or redefine its economic boundary.
+- D1 — cancellation before physical exit releases the applicable reservation without inventing a physical stock-out.
+- E1 — retain PARCIALMENTE_ENTREGADO as an operational Order state.
+- F1 — CANCELADO is terminal.
+- G1 — retain CONFIRMADA / ANULADA as conceptual Sale starting vocabulary.
+- H1 — confirmed Sale is immutable; corrections use explicit traceable operations.
+- I1 — Order and Sale have separate lifecycles.
+- J1 — Payment does not determine the Sale lifecycle state.
+- K1 — ENTREGADO represents fulfillment completion, not Sale/payment/cash completion.
+- L1 — cross-domain correction effects belong to the respective specialized domains.
+
+This ruling closes the conceptual Order/Sale lifecycle boundary. Exact technical state enforcement and cross-domain cancellation/reversal/refund effects remain OPEN in their respective specialized specifications.
+
+**Status: APPROVED — OWNER-VERIFIED — IMPLEMENTATION NOT AUTHORIZED.**
