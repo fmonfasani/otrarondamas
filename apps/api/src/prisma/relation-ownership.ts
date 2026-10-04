@@ -20,7 +20,7 @@ import { Prisma } from '@prisma/client';
  */
 export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
   VentaItem: ['producto'],
-  PedidoItem: ['producto'],
+  PedidoItem: ['producto', 'reglaFidelizacion'],
 };
 
 type Datos = Record<string, unknown>;
