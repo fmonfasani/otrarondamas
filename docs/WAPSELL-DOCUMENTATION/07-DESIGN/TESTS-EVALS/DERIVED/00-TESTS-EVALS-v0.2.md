@@ -342,3 +342,16 @@ These tests verify the approved properties and must remain implementation-agnost
 | TE-ORD-008 | Delivery/fulfillment completion does not create the Sale when commercial confirmation already created it. | SPECIFIED |
 
 These are specified verification criteria only. Exact state-transition tests and complete cancellation/reversal/refund cross-domain effect tests remain blocked until their respective specialized contracts are closed.
+
+## R8-PAY-002 TEST/EVAL RECONCILIATION — 2026-10-03
+
+| ID | Criterion | Status |
+|---|---|---|
+| TE-PAY-001 | Payment lifecycle can progress independently from Sale lifecycle. | SPECIFIED |
+| TE-PAY-002 | Multiple partial Payments can cumulatively settle a Sale without requiring one-payment settlement. | SPECIFIED |
+| TE-PAY-003 | A Payment exceeding the applicable outstanding amount is rejected unless a separate approved surplus/credit rule exists. | SPECIFIED |
+| TE-PAY-004 | Refund/reversal preserves traceability and does not erase the original Payment event. | SPECIFIED |
+| TE-PAY-005 | Payment and AR application remain distinguishable in the domain model. | SPECIFIED |
+| TE-PAY-006 | Payment reconciliation does not implicitly reconcile Cash or AR. | SPECIFIED |
+
+These are verification criteria only; no automated test has been created or executed. Exact state transitions, refund mechanics and cross-domain effects remain blocked until their specialized contracts are closed.
