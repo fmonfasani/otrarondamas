@@ -1,7 +1,7 @@
 # PedidoItem → Producto — Gate 6.1 Audit
 ## Relation Isolation Capability Expansion — 2026-10-04
 
-**Estado:** AUDIT COMPLETED — IMPLEMENTATION NOT STARTED  
+**Estado:** VERIFIED BY EXECUTION — IMPLEMENTATION COMPLETED FOR THIS SLICE  
 **Gate:** 6 — Coverage Expansion  
 **Slice:** 6.1 — PedidoItem → Producto  
 **Scope:** Wapsell Core — Multi-Tenant Persistence / Relation Isolation  
@@ -299,15 +299,22 @@ Estos puntos requieren ejecución contra PostgreSQL.
 
 ## 12. Resultado Gate 6.1 Audit
 
+**Execution evidence:** B4 Verification Infrastructure #51 — run `37217710481` — SUCCESS.
+
+**Implementation commit:** `a404eb17ac77835dfd3a3fe0e8c5b11009926ca0`.
+
+The initial execution confirmed the cross-Business gap. The corrective change registered `PedidoItem: ['producto']` in the reusable relation-ownership registry. P-01…P-07 then passed, including negative cross-Business cases, no-partial-persistence checks, and interactive transaction coverage.
+
+
 **AUDIT COMPLETED.**
 
 Clasificación de la relación:
 
 PedidoItem → Producto
         ↓
-REQUIRES TEST
+VERIFIED BY EXECUTION [E]
         ↓
-NO IMPLEMENTATION YET
+SLICE CLOSED
 
 No se modifica:
 
@@ -336,4 +343,4 @@ d03dc55808b848327376f45ba1b6ee2f32994754
 Commit:
 fix(b3): enforce nested product relation isolation
 
-Este documento no declara B3 cerrado ni declara completa la capability de relation isolation.
+Este documento no declara B3 cerrado ni declara completa la capability global de relation isolation.
