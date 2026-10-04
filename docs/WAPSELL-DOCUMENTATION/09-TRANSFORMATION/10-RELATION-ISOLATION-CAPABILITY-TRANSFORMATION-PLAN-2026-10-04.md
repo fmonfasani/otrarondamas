@@ -4,7 +4,7 @@
 **Estado:** PLAN — OWNER AUTHORIZED FOR STEPWISE EXECUTION  
 **Tipo:** Transformation / Controlled Implementation Plan  
 **Ámbito:** Wapsell Core — Multi-Tenant Persistence / Relation Isolation  
-**Implementación de producto:** NO INICIADA
+**Implementación de producto:** INCREMENTAL — GATE 4 Y GATE 6.1 COMPLETADOS PARA SUS RESPECTIVAS ARISTAS; CAPABILITY GLOBAL PENDIENTE
 
 ## 1. Objetivo
 
@@ -78,7 +78,7 @@ Primero Venta → VentaItem → Producto.
 Cross-Business rejection debe dejar Venta, VentaItem y recurso externo sin cambios.
 
 ### Gate 6 — Coverage Expansion
-Agregar solo relaciones confirmadas por la matriz.
+Agregar solo relaciones confirmadas por la matriz. Gate 6.1 (`PedidoItem → Producto`) está cerrado con evidencia de ejecución; las demás relaciones permanecen pendientes.
 
 ### Gate 7 — B3 Regression
 Reejecutar tests B3 aplicables y clasificar PASS/FAIL/CONDITIONAL/NOT TESTABLE.
@@ -147,3 +147,25 @@ Transformation layer: docs/WAPSELL-DOCUMENTATION/09-TRANSFORMATION/.
 
 - Resuelve la decisión abierta del §6/§7: registry declarativo + preflight sobre el payload de la operación de nivel superior, dentro del hook existente.
 - Gates 5–8 siguen pendientes; la capability **no** está completada y B3 **no** está VERIFIED.
+
+## 12. Registro de Gate 6.1 — 2026-10-04
+
+**Slice:** PedidoItem → Producto.
+
+- Audit inicial: `13-PEDIDOITEM-PRODUCTO-GATE-6-1-AUDIT-2026-10-04.md`.
+- Test execution candidate: PR #7 / commit `20fa3f621663eb3f49ce66eddc7f0aca439f293a`.
+- Pre-fix execution: confirmó el gap cross-Business [E].
+- Minimal fix: commit `a404eb17ac77835dfd3a3fe0e8c5b11009926ca0`, agregando `PedidoItem: ['producto']` al registry reusable.
+- Verification: B4 Verification Infrastructure #51, run `37217710481`, **SUCCESS** [E].
+- P-01…P-07: **PASS** [E].
+- No schema, migrations, auth, seed ni cambios de dominio ajenos a esta arista.
+- Persistence integrity y transaction behavior de esta slice quedan verificados por ejecución.
+
+**Gate 6.1 verdict:** VERIFIED BY EXECUTION [E].
+
+Evidence record: `14-PEDIDOITEM-PRODUCTO-GATE-6-1-EXECUTION-VERIFICATION-2026-10-04.md`.
+
+**Current Gate 6 state:** COVERAGE EXPANSION IN PROGRESS. Gate 6.2+ pending.
+**Gate 7:** pending. **Gate 8:** pending.
+
+This does not declare B3 VERIFIED or Relation Isolation capability globally complete.
