@@ -173,3 +173,19 @@ A targeted R8 downstream reconciliation is required for the newly closed archite
 - VERIFICADO POR REVISIÓN DOCUMENTAL: current canonical layer consistency.
 - NOT EXECUTED: implementation.
 - NOT AUTHORIZED: schema/migration/deployment.
+
+
+## 9. Controlled reconciliation executed
+
+Following the audit, the approved R8 architecture boundaries were propagated in a targeted manner to avoid broad textual duplication:
+
+- R8-ARCH-002 closure added to the tenant-isolation assessment.
+- R8-ARCH-003 closure added to the authentication/session assessment.
+- Identity/Tenancy Contract reconciled with application-controlled Business Context, ACTIVE Membership, fail-closed behavior and JWT-not-authorization semantics.
+- Inventory Contract reconciled with Business Context and cross-Business isolation requirements.
+- Derived Invariants extended with the approved R8 Business Context / Membership / fail-closed / JWT / isolation properties.
+- Derived Tests/Evals extended with corresponding negative verification requirements.
+
+No implementation code, schema, migration or infrastructure was changed.
+
+**Updated result: PASS WITH CONTROLLED RECONCILIATION.**
