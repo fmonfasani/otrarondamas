@@ -1,4 +1,168 @@
 # Wapsell — Commerce Specification
+**Version:** 0.3  
+**Status:** DRAFT — NOT APPROVED  
+**Reconciled:** 2026-10-03  
+**Basis:** OR-B2 + OR-B3 canonical reconciliation
+
+> **Document authority:** This section is the current reconciled interpretation of Commerce. The historical baseline is retained below for traceability. Where historical wording conflicts with this section, the later Owner rulings prevail under ISS-08.
+
+## 1. Customer
+
+- `Customer` is a Business-scoped commercial entity and is distinct from `User`.
+- A Customer may exist without a User.
+- A Customer may optionally be associated with a User.
+- The association is controlled: the system may detect/propose a match, but email equality alone does not automatically create the link.
+- Customer lifecycle, deduplication and physical association remain open.
+
+## 2. Product and BusinessProduct
+
+The canonical conceptual model is:
+
+`Product (global identity) → BusinessProduct (Business commercial configuration)`
+
+- Product provides global product identity.
+- BusinessProduct represents Business-specific commercial configuration.
+- Product does not carry Business-specific stock or price as global properties.
+- Exact allocation of fields between Product and BusinessProduct remains open where not otherwise specified.
+- Physical model remains open.
+
+## 3. Cart
+
+- A Cart may exist without a Customer.
+- A Customer is required before an Order is created.
+- The exact anonymous-cart persistence mechanism remains open.
+
+## 4. Order
+
+- `Order` and `Sale` are distinct conceptual entities.
+- Order represents commercial intent/process before commercial confirmation.
+- Customer intent/acceptance may participate in the commercial flow.
+- Commercial confirmation is a Business-authorized action governed by `ORDER_CONFIRM`.
+- Customer confirmation does not itself grant Business authorization.
+- Order states, attributes and detailed transitions remain open.
+
+## 5. Sale
+
+- A `Sale` is the confirmed economic operation derived from commercial confirmation of an Order.
+- Sale is created at commercial confirmation; delivery is not the trigger.
+- A confirmed Sale is immutable.
+- Corrections occur through cancellation, reversal or refund mechanisms with traceability.
+- Exact states and detailed correction workflows remain open.
+
+## 6. Inventory Relationship
+
+- Confirmed Order reserves stock.
+- Physical stock decrement occurs through a registered stock-out movement representing actual physical stock exit.
+- Negative stock is not allowed.
+- Products with expiry use FEFO rotation.
+- Products without expiry use FIFO rotation.
+- Inventory is Business-scoped.
+- Generic `Location` is the conceptual location model; a MAIN location is the minimum, and multiple Locations are permitted.
+- Physical inventory schema and transaction boundaries remain open.
+
+## 7. Pricing and Promotions
+
+Pricing and Promotions belong to the Commerce TO-BE.
+
+Detailed pricing rules, promotion hierarchy, discount combination/replacement, customer-specific pricing and loyalty rules remain open until the corresponding specialized specification is approved.
+
+## 8. Payments
+
+Payment remains a separate concept from Sale.
+
+Payment state modeling, payment method contracts, external integrations and detailed application rules remain open.
+
+Purchases / Accounts Payable are outside the initial MVP scope.
+
+## 9. Accounts Receivable / Cuentas Corrientes
+
+Accounts Receivable / Cuentas Corrientes is included in the MVP.
+
+- AR is associated with the Business's Customer relationship, not with User identity.
+- Detailed credit, debt, balance, payment application and financial rules remain open.
+- Existing AS-IS models do not by themselves establish the TO-BE implementation.
+
+## 10. Returns and Refunds
+
+Returns and Refunds are part of the Commerce TO-BE.
+
+Detailed state machines, eligibility rules, accounting effects and implementation are open and belong to later specialized work.
+
+## 11. Fulfillment
+
+Fulfillment is part of Orders in the MVP.
+
+It is not a top-level independent module.
+
+No `Repartidor` Membership Role is required for the MVP.
+
+Detailed fulfillment workflow remains open.
+
+## 12. Cash
+
+Sensitive Cash operations require specific Permissions.
+
+The detailed permission catalog, authorization rules and cash workflows remain open.
+
+## 13. Messaging Cross-Reference
+
+A commercial Conversation belongs to exactly one Business.
+
+A Customer may participate without a User.
+
+Messaging remains a first-class functional domain with conversation-centric UX.
+
+## 14. Business Context and Authorization
+
+Commerce resources are Business-scoped.
+
+Protected operations follow:
+
+`Membership → Role → Permission`
+
+The conceptual authorization checks are:
+
+1. authenticated User;
+2. target Business;
+3. valid Membership;
+4. Role/Permission authorization.
+
+The token alone does not authorize.
+
+Technical enforcement remains open.
+
+## 15. Explicitly Open
+
+- Order states and transitions;
+- exact Order attributes;
+- detailed `ORDER_CONFIRM` enforcement;
+- payment states and methods;
+- payment/AR application rules;
+- pricing and promotion rules;
+- returns/refunds workflows;
+- detailed fulfillment workflow;
+- cash permission catalog;
+- Product/BusinessProduct physical schema;
+- Location physical schema;
+- transaction boundaries;
+- migration mechanics;
+- Business isolation enforcement.
+
+## 16. Governance and Status
+
+This reconciled section incorporates OR-B2 and OR-B3 without approving implementation.
+
+**Technical Specification: NOT APPROVED**
+
+**Implementation: NOT AUTHORIZED**
+
+---
+
+# Historical Baseline — retained for traceability
+
+The following v0.2 material is retained as historical evidence. It is not the current canonical interpretation. Later Owner rulings and this v0.3 reconciliation supersede conflicting statements within the historical material.
+
+# Wapsell — Commerce Specification
 **Version:** 0.2 | **Status:** DRAFT — NOT APPROVED · **Reconciled:** 2026-09-28
 
 > ## Normative basis (read before using this document)
