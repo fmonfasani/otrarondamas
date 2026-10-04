@@ -327,3 +327,18 @@ The verification layer must include negative tests/evals for the approved tenant
 
 These tests verify the approved properties and must remain implementation-agnostic. They do not authorize a specific JWT claim set, API, ORM, database isolation mechanism or session design.
 \n\n## R8-INV-002 TEST/EVAL RECONCILIATION — 2026-10-03\n\n| ID | Criterion | Status |\n|---|---|---|\n| TE-INV-008 | Confirming an Order reserves stock without reducing physical on-hand stock. | SPECIFIED |\n| TE-INV-009 | A reservation cannot exceed available stock. | SPECIFIED |\n| TE-INV-010 | Concurrent confirmations cannot oversubscribe the same available stock. | SPECIFIED |\n| TE-INV-011 | A failed reservation leaves no partial reservation effect. | SPECIFIED |\n| TE-INV-012 | Physical stock exit is represented by a stock-out movement. | SPECIFIED |\n| TE-INV-013 | Cancellation before physical exit releases the applicable reservation. | SPECIFIED |\n| TE-INV-014 | Partial physical exit preserves reserved versus physically removed quantities. | SPECIFIED |\n\nThese criteria are not automated tests and have not been executed. The physical concurrency mechanism remains open; the evaluation criterion is implementation-agnostic.\n
+
+## R8-ORD-002 TEST/EVAL RECONCILIATION — 2026-10-03
+
+| ID | Criterion | Status |
+|---|---|---|
+| TE-ORD-001 | Order and Sale maintain separate lifecycles; fulfillment state changes do not by themselves redefine Sale state. | SPECIFIED |
+| TE-ORD-002 | Business-authorized ORDER_CONFIRM creates the Sale at commercial confirmation rather than at delivery. | SPECIFIED |
+| TE-ORD-003 | Customer intent/confirmation alone cannot satisfy Business authorization for commercial Order confirmation. | SPECIFIED |
+| TE-ORD-004 | Confirmed Sale cannot be arbitrarily edited/deleted as if the original operation never existed. | SPECIFIED |
+| TE-ORD-005 | Payment completion does not determine Sale creation or Sale lifecycle state. | SPECIFIED |
+| TE-ORD-006 | Cancellation before physical stock exit releases applicable reservation without inventing a physical stock-out. | SPECIFIED |
+| TE-ORD-007 | A cancelled Order does not reopen through a simple normal-state toggle. | SPECIFIED |
+| TE-ORD-008 | Delivery/fulfillment completion does not create the Sale when commercial confirmation already created it. | SPECIFIED |
+
+These are specified verification criteria only. Exact state-transition tests and complete cancellation/reversal/refund cross-domain effect tests remain blocked until their respective specialized contracts are closed.
