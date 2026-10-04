@@ -504,3 +504,19 @@ Approved direction:
 This ruling closes the conceptual Order/Sale lifecycle boundary. Exact technical state enforcement and cross-domain cancellation/reversal/refund effects remain OPEN in their respective specialized specifications.
 
 **Status: APPROVED — OWNER-VERIFIED — IMPLEMENTATION NOT AUTHORIZED.**
+
+## R8-PAY-002 — OWNER RULING — 2026-10-03
+
+The Owner explicitly accepted all recommendations A1–H1 from the R8-PAY-002 Payment Lifecycle and Reconciliation assessment. Authoritative closure: `03-DECISIONS/39-R8-PAY-002-OWNER-DECISION-PAYMENT-LIFECYCLE-RECONCILIATION-2026-10-03.md`.
+
+Approved direction:
+- A1 — retain AS-IS Payment state vocabulary as transformation starting point, with semantic reconciliation.
+- B1 — controlled manual payments may be approved at registration; external-provider payments may remain asynchronous.
+- C1 — Payment lifecycle is independent from Sale lifecycle.
+- D1 — partial payment is valid.
+- E1 — overpayment is rejected by default.
+- F1 — refund/reversal is an explicit traceable Payment operation.
+- G1 — Payment and AR application remain distinct.
+- H1 — Payment reconciliation remains distinct from Cash and AR reconciliation.
+
+Exact transition enforcement, external provider mechanics, idempotency, refund persistence, Payment↔Cash effects, AR allocation, Cash reconciliation and technical contracts remain OPEN. **Implementation remains NOT AUTHORIZED.**
