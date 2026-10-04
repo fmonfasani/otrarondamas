@@ -731,3 +731,13 @@ Antes de Contracts deben resolverse o formalizarse, en el nivel correspondiente,
 **Implementación autorizada:** NO
 
 Este artefacto constituye la expresión reconciliada del TO-BE conceptual de Identity & Tenancy y deja explícitamente separadas las decisiones cerradas de los detalles que todavía requieren resolución.
+
+## 25. POST-OR-B3 — ESTADO RECONCILIADO
+
+Los siguientes puntos dejan de ser `OPEN OWNER DECISION` en el TO-BE de Identity & Tenancy y pasan a `OWNER-RULED`: Customer/User matching híbrido y asociación controlada; SaaS Admin fuera del MVP operativo; Location genérica con MAIN mínimo y múltiples permitidas; Product global + BusinessProduct; roles MVP Owner/Admin/Vendedor/Gestor de Stock; MFA/2FA obligatorio para Owner/Admin.
+
+El mecanismo físico, enforcement técnico, contratos, invariantes, tests y migración continúan abiertos salvo cuando otra decisión explícita los haya cerrado.
+
+`Customer matching by same email` deja de ser `OPEN / NOT CONFIRMED` y pasa a **OWNER-RULED — matching híbrido controlado**.
+
+**Estado final:** DRAFT — TO-BE CONCEPTUAL / NOT APPROVED.
