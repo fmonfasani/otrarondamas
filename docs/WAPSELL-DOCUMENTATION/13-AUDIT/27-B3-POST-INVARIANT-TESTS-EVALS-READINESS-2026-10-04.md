@@ -28,13 +28,13 @@ Evidence classification is DOCUMENTED unless a finding is explicitly tagged VERI
 
 | Gate | Historical result | Current result | Basis |
 |---|---|---|---|
-| **A — Contract** | PASS WITH RECONCILIATION (document untracked; 4 reconciliations open) | **PASS WITH RECONCILIATION — documentary** | Contract committed; addendum 27 reconciles R1–R4. Residual: ISO-OPEN-001 (technical detail, deliberately open). |
-| **B — Invariant** | BLOCKED — "no B3 invariant file exists" | **RESOLVED FOR DERIVATION — set is DRAFT, NOT APPROVED** | `06-BLOCK-3-…` exists (8 active, 1 open). The block's cause is gone; approval of the draft is a separate step not performed here. Two unmet criteria remain by design (06 §14): ambiguous ownership; negative verification. |
+| **A — Contract** | PASS WITH RECONCILIATION (document untracked; 4 reconciliations open) | **PASS WITH RECONCILIATION — documentary** | Contract committed; addendum 27 reconciles R1–R4. Residual: none on normative ownership; physical ownership mechanism remains downstream technical specification. |
+| **B — Invariant** | BLOCKED — "no B3 invariant file exists" | **RESOLVED FOR DERIVATION — set is DRAFT, NOT APPROVED** | `06-BLOCK-3-…` exists (9 active, 0 open). The block's cause is gone; approval of the draft is a separate step not performed here. One unmet criterion remains by design (06 §14): negative verification. |
 | **C — Test/Eval** | CONDITIONAL — criteria derivable, none written | **CONDITIONAL — derivation complete; implementation absent** | 8 B3-specific + 7 inherited rows specified (6 B3 rows SPECIFIED, 1 CONDITIONAL-specified, 1 CONDITIONAL-not-testable). Zero written. Test infrastructure absent `[C]`. |
 | **D — Evidence** | FAIL | **FAIL — unchanged** | `[T]` = 0, `[E]` = 0. P12 (negative cross-Business verification) is **NOT MET**. |
 | **E — Non-contamination** | PASS | **PASS** | No B1/B2 ID duplicated; inherited criteria referenced; ISO-OPEN-001 not given a TE; P12 kept as gate. |
 | **F — AS-IS / TO-BE separation** | PASS | **PASS** | Characterization vs compliance stated per row; decisions 005/021 reinforce it. |
-| **G — Owner Decision stability** | PASS | **PASS** | 25 decisions approved and recorded; **0 pending**; no new Owner Decision was raised by derivation. |
+| **G — Owner Decision stability** | PASS | **PASS** | 25 B3 test decisions approved and recorded; Owner Decision 49 also closes ownership ambiguity; **0 pending** in the current B3 closure set. |
 
 **What changed since the historical verdict:** Gate B moved from BLOCKED to resolved-for-derivation; Gate A's residual shrank; the Tests/Evals set is no longer "NOT YET DEFINED". **What did not change:** Gate D (no evidence) and the absence of test infrastructure.
 
@@ -48,7 +48,7 @@ The historical label was BLOCKED. The reason has changed, not disappeared:
 |---|---|---|
 | Gate D: no `[T]` / `[E]`; P12 not met | evidence — only execution can resolve it | No |
 | No test infrastructure (`test/jest-e2e.json` absent; one spec file; no known integration DB harness `[ND]`) | technical | No |
-| ISO-OPEN-001 (Legajo/DocumentoLegajo ownership) | technical, open by Owner closure | No (authority exists, unexercised) |
+| ISO-009 (Legajo/DocumentoLegajo ownership) | normatively closed by Owner Decision 49; physical mechanism remains technical | No |
 | Invariant set is DRAFT — NOT APPROVED | documentary | Approval step, not a new decision |
 | B1 physical model absent → P2, P3 unsatisfiable; Membership-based invalidity unverifiable | cross-block dependency | No (B1/B2 own it) |
 | `R8-READY-001` (slice selection) remains BLOCKED and no slice is authorized | task gate | Authorization only |
@@ -114,3 +114,10 @@ The historical label was BLOCKED. The reason has changed, not disappeared:
 **B3 TESTS/EVALS: CLOSED FOR DERIVATION / RECONCILIATION; NOT EXECUTED; NOT VERIFIED; NOT READY FOR IMPLEMENTATION unless the existing readiness gates explicitly permit it.** They do not: `R8-READY-001` is BLOCKED and no slice is authorized.
 
 No code, schema, migration, data, test or deployment change is authorized or was made by this assessment.
+
+
+## 11. Post-Owner-Decision 49 reassessment — 2026-10-04
+
+Owner Decision 49 closes the former Legajo/DocumentoLegajo ownership ambiguity. The canonical B3 invariant set is now **9 active invariants, 0 open**. The B3 Tests/Evals reconciliation adds **TE-B3-009** for ISO-009.
+
+This does **not** change the overall readiness verdict. The remaining blockers are verification infrastructure, execution evidence, R8-ARCH-002 property 12 negative verification, and any B1 physical Membership dependency required by specific inherited criteria. No code or schema implementation is authorized by this reassessment.
