@@ -716,3 +716,13 @@ These are DOCUMENTED derived invariants. Exact transition enforcement and cross-
 - **INV-PAY-SALE-001:** Sale cancellation does not erase or directly rewrite historical Payments.
 
 These are DOCUMENTED derived invariants. Exact enforcement and cross-domain transaction boundaries remain OPEN.
+
+
+## R8-INV-003 INVARIANT RECONCILIATION — 2026-10-03
+
+- **INV-LOC-001:** A Location belongs to exactly one Business.
+- **INV-LOC-002:** A Business must support a MAIN Location as its minimum operational Location and may have additional Locations.
+- **INV-LOC-003:** Location is a generic concept in MVP; Branch/Warehouse/Deposito are not separate conceptual entity types.
+- **INV-LOC-004:** MAIN is a conceptual role of Location, not a distinct entity type.
+
+The physical association between Location and Inventory remains OPEN and is not inferred here.
