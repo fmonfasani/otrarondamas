@@ -177,3 +177,25 @@ This layer preserves the critical distinction: D-010 approved requirement ≠ cu
 No invariant, test, schema, migration, implementation change or conflict closure was created.
 
 **Next contract group:** Cash + Payments boundary, followed by Messaging and Platform contracts.
+
+---
+
+# R5 Canonical Reconciliation — 2026-10-03
+
+> Additive reconciliation against OR-B2/OR-B3 and the reconciled Inventory TO-BE. Historical contract text above is retained for traceability.
+
+## R5-INVENTORY-001 — Reservation and physical decrement
+
+A confirmed Order reserves stock. Physical stock decrement is represented by a registered stock-out movement representing actual physical stock exit.
+
+This closes the conceptual timing rule without defining reservation records, movement schema, locking, transaction boundaries or implementation mechanics.
+
+## R5-INVENTORY-002 — Stock integrity
+
+Negative stock is prohibited. Products with expiry use FEFO; products without expiry use FIFO.
+
+## R5-INVENTORY-003 — Location boundary
+
+Inventory uses a generic Location concept. A MAIN location is the minimum conceptual requirement and multiple Locations are permitted. No separate Branch/Warehouse conceptual model is introduced by this reconciliation.
+
+Physical Location model and cardinality remain OPEN.
