@@ -193,8 +193,8 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
     await prisma.lote.deleteMany({ where: { id: { in: [loteA?.id, loteB?.id].filter(Boolean) as string[] } } });
     await prisma.compra.deleteMany({ where: { id: compraA?.id } });
     await prisma.producto.deleteMany({ where: { id: { in: [productoA?.id, productoB?.id].filter(Boolean) as string[] } } });
-    await prisma.tipo.deleteMany({ where: { id: { in: IDS.tipos } } });
     await prisma.subtipo.deleteMany({ where: { id: { in: IDS.subtipos } } });
+    await prisma.tipo.deleteMany({ where: { id: { in: IDS.tipos } } });
     await prisma.subfamilia.deleteMany({ where: { id: { in: IDS.subfamilias } } });
     await prisma.familia.deleteMany({ where: { id: { in: IDS.familias } } });
     await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA?.id, proveedorB?.id].filter(Boolean) as string[] } } });
