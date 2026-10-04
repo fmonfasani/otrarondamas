@@ -206,3 +206,18 @@ This closes the conceptual authorization boundary. Exact permission names, permi
 ## R5-CASH-002 — Cash boundary remains otherwise open
 
 The following remain OPEN unless separately specified: formal Cash states, adjustment/compensation mechanics, Payment↔Cash effects, AR collection↔Cash effects, reconciliation relationships and detailed economic effects of cancellation/reversal/refund.
+
+## R8-PAY-002 — Canonical Reconciliation — 2026-10-03
+
+The Owner-approved Payment lifecycle direction is now closed conceptually:
+
+- Payment retains the AS-IS state vocabulary as transformation starting point: `PENDIENTE`, `EN_PROCESO`, `APROBADO`, `RECHAZADO`, `CANCELADO`, `REEMBOLSADO_PARCIAL`, `REEMBOLSADO_TOTAL`.
+- Manual payments may be approved at controlled registration; external-provider flows may be asynchronous.
+- Payment lifecycle is independent from Sale lifecycle.
+- Partial settlement through multiple Payments is allowed.
+- Overpayment is rejected by default; no implicit customer-credit rule is introduced.
+- Refund/reversal is an explicit traceable Payment operation.
+- Payment and AR application remain distinct.
+- Payment reconciliation is distinct from Cash reconciliation and AR reconciliation.
+
+The following remain OPEN: exact transition graph, provider/webhook/idempotency mechanics, refund persistence model, Payment↔Cash effects, AR allocation rules, Cash reconciliation and technical API/event contracts.
