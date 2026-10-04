@@ -50,6 +50,26 @@
 >
 > **Decisiones creadas: 0. Requisitos inventados: 0. Resoluciones de conflicto: 0.**
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Precedencia ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica > TO-BE. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**. Los rótulos `DERIVED / RECONSTRUCTED`, `TO-BE PROPOSED` y `OPEN DETAIL` del texto se conservan como procedencia. El AS-IS citado describe el estado verificado en su momento; no se declara nada implementado.
+>
+> | Sección / tema de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Customer / User / email | `Customer` y `User` son entidades diferentes; `Customer` puede existir sin `User`; vínculo `Customer → User` opcional (reafirma D-002-bis). Un email normalizado globalmente único identifica a un `User` (reafirma OR-002-C); reglas de normalización y mecanismo: `OPEN IMPLEMENTATION DETAIL`. Criterio de vinculación por "mismo email": `OPEN`. | OR-B2-004, 005 |
+> | Transición Empresa → Business, Usuario → User/Membership | Transición incremental con coexistencia temporal y acotada (reafirma OR-001, OR-002-B/D). Coexistencia física, mecanismo, cutover y rollback: especificación técnica posterior (`OPEN`). | OR-B2-006 |
+> | Modelo de autorización y 4 validaciones | Modelo conceptual del MVP: `Membership → Role → Permission` (no se adopta `Profile → Role → Capability → Overrides`). D-006 queda promovida a `OWNER-RULED` con **4 validaciones conceptuales** (`User` autenticado, `Business` objetivo, `Membership` válido, autorización por `Role`/`Permission`); un token válido no autoriza por sí mismo. La cláusula "4 vs. 2 validaciones" marcada `PENDING OWNER RULING` queda resuelta a favor de las 4 en ese alcance. Tipos de token, guards, middleware y enforcement: `IMPLEMENTATION DETAIL` / `OPEN`. | OR-B2-001, 002 |
+> | Membership: lifecycle y Business activo | `Membership` tiene lifecycle conceptual `ACTIVE` / `INACTIVE`; una `Membership` `INACTIVE` no permite operar. Los demás estados mencionados en el texto no quedan decididos. Un `User` puede tener múltiples `Membership`s y seleccionar/cambiar el `Business` activo; mecanismo del Business Switch: `OPEN IMPLEMENTATION DETAIL`. | OR-B2-003, 007 |
+> | §1.x árbol de roles (*"OWNER, ASISTENTE, VENDEDOR"*) y §Membership (*"Owner en un Business y Asistente en otro"*) | Ejemplos del texto original, **superados** como catálogo: ver Roles del MVP. | OR-B2-008 |
+> | Roles del MVP | Membership Roles del MVP: **Owner, Admin, Vendedor, Gestor de Stock** (nomenclatura oficial; "Operador de Stock" no es nombre normativo). `Owner` = propiedad/control máximo; `Admin` = administración delegada; son roles distintos. `Customer` y `Supplier` no son Membership Roles. `Repartidor`: fuera del MVP como Membership Role, `FUTURE / OPEN`. Catálogo de permisos y precedencia: `IMPLEMENTATION DETAIL`. El AS-IS (`RolUsuario`: `OWNER`, `ASISTENTE_LOCAL`, `PROVEEDOR`, `REPARTIDOR`) no tiene `Admin`. Nada se declara implementado. | OR-B2-008, 009 + aclaración del Owner |
+> | §8.2 *"Las cuatro validaciones obligatorias — `APPROVED` (D-006, `DERIVED`)"* | Promovida a `OWNER-RULED` en su alcance conceptual (ver Modelo de autorización). El rótulo `DERIVED` se conserva como procedencia histórica; mecanismo `OPEN`. | OR-B2-002 |
+> | SaaS Admin / superadmin | Sin cambio: `OPEN OWNER DECISION` (C-11). Fuera del catálogo de Membership Roles del MVP. | — |
+> | Gobernanza | Workshop 001–490 es fuente de discovery, no autoridad normativa (OR-B2-022). ISS-08 aprobada como regla de precedencia (OR-B2-023); los demás documentos de `00-GOVERNANCE` siguen `PROPOSED`. | OR-B2-022, 023 |
+>
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. La distinción `APPROVED` / `OWNER-RULED` / `DERIVED` / `PROPOSED` / `OPEN` / `IMPLEMENTATION DETAIL` del texto original se conserva; esta nota no convierte ningún detalle técnico en decisión. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 0. Alcance

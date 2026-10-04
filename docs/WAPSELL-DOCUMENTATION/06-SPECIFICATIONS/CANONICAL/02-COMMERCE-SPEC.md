@@ -46,6 +46,28 @@
 >
 > **R3 note (2026-09-30) — additive; no normative text of this document was changed.** `OR-002-B…F` are now ruled (Owner, 2026-09-30, R2; `04-DECISIONS/18-R2-OWNER-DECISION-CLOSURE-REPORT.md`, Decision Register §8.1). Relevant here: **OR-002-D** — `Cliente` → `Customer`, independent of `User`, optional link. `OR-003` (Customer lifecycle / link modelling) and `D-005` remain **NO CONSULTED** and `OPEN`. Whether a Customer is matched to a User by "same email" remains `OPEN`. Implementation `NOT AUTHORIZED`; Technical Specification `NOT APPROVED`.
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Autoridad ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**; el resto del párrafo no se reescribe ni se promueve. Los rótulos `DERIVED / RECONSTRUCTED` y `TO-BE PROPOSED` del texto original se conservan; no se convierten en `APPROVED` por esta nota.
+>
+> | Sección de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | §1.1 Customer | Reafirmado: `Customer` ≠ `User`; puede existir sin `User`; vínculo opcional. Lifecycle y modelado del vínculo: `OPEN DETAIL`. Criterio "mismo email": `OPEN`. | OR-B2-004 |
+> | §1 / Cart (no tratado en este documento) | El `Cart` pertenece al `Customer` cuando existe, con vínculo opcional al `User`; debe poder existir `Customer` sin `User`. Titular del `Cart` cuando no hay `Customer`: `OPEN OWNER DECISION`. | OR-B2-011 |
+> | §2 Catalog / §2.1 Product — *"Product… ofrecido por un `Tenant`" (`PROPOSED`)* | `Product` es global; los datos comerciales específicos del `Business` viven en una relación/oferta específica (conceptualmente `Product → BusinessProduct`). Modelo físico y qué campos son globales vs del `Business`: `OPEN OWNER DECISION`. La unicidad `[Tenant ID, codigoInterno]` del AS-IS no se declara decisión. | OR-B2-010 |
+> | §3 Pricing | Pricing y Promotions forman parte del Commerce TO-BE. Reglas concretas (tipos de precio, descuentos, fidelización) quedan para la especificación especializada; los rótulos `PROPOSED`/`OPEN DETAIL` de §3.1 se conservan. | OR-B2-026 |
+> | §4 Order — *"D-007 has no decision text"*, *"`Order` ≠ `Sale` es plausible pero no verificada"*, *"NO DETERMINABLE"* | **Superado en lo conceptual.** `Order` y `Sale` son entidades diferentes (D-007 promovida a `OWNER-RULED`). `Order` = intención/proceso comercial. **Siguen `OPEN`:** estados del `Order` (la lista de 10 valores AS-IS no se adopta ni se inventan estados), quién confirma el `Order`, atributos. Se conserva la nota histórica de que los 4 estados `BORRADOR/PENDIENTE/CONFIRMADO/CANCELADO` fueron retirados por falta de fuente. | OR-B2-012 |
+> | §4 / §5 — relación Order → Sale | La `Sale` nace cuando el `Order` es confirmado/aceptado comercialmente; no se espera a la entrega. Momento de descuento físico del stock: `OPEN OWNER DECISION` (el AS-IS descuenta al confirmar; no se adopta como TO-BE). | OR-B2-013, 014 |
+> | §5 Sale — *"D-008… NO DETERMINABLE"*, ciclo `CONFIRMADA → ANULADA` | Una `Sale` confirmada es inmutable; las correcciones se hacen por cancelación, reversión o refund con trazabilidad. Esto cubre la **regla de no mutación**; los mecanismos y estados concretos siguen `OPEN`. `EstadoVenta.ANULADA` y la ausencia de flujo en el AS-IS no cambian. | OR-B2-015 |
+> | §5 / §6 — Returns, Refunds | Returns y Refunds forman parte del Commerce TO-BE. Implementación en etapa posterior; sin detalle de flujo. | OR-B2-025 |
+> | §6 Payments / §7 Accounts Receivable | **Sin cambio por OR-B2.** D-011 y D-012 (AR asociada al `Customer`) se mantienen como estaban. Vocabulario de estados de Payment (D-011 vs REQ-PAY-003): `OPEN OWNER DECISION` (C-17). | — |
+> | Inventory (referencia cruzada) | Stock reservado al confirmar el `Order`; stock negativo no permitido; FEFO/FIFO; Locations/Warehouses mínimos (ver SPEC GENERAL y TO-BE Inventory). | OR-B2-014, 016, 017, 018 |
+> | Conversation comercial (referencia cruzada) | Pertenece a un `Business`; participantes `User`/`Customer`. Customer participante sin `User`: `OPEN OWNER DECISION`. | OR-B2-021 |
+> | Gobernanza | Workshop 001–490 no es autoridad normativa (OR-B2-022); ISS-08 aprobada (OR-B2-023). | OR-B2-022, 023 |
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. No se redactó la SPEC consolidada. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ## 1. CUSTOMERS
 
 ### 1.1. Customer (Concepto Canónico TO-BE) — `APPROVED` (D-002-bis) + `PROPOSED` (detalles)

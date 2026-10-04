@@ -19,6 +19,22 @@
 >
 > **Decisiones creadas: 0. Requisitos inventados: 0. Estados inventados: 0. IDs inventados: 0. Entidades físicas definidas: 0. Permisos definidos: 0. Conflictos resueltos: 0.**
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Precedencia ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica > TO-BE. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**. Los rótulos `DERIVED / RECONSTRUCTED`, `TO-BE PROPOSED` y `OPEN DETAIL` del texto se conservan como procedencia. El AS-IS citado describe el estado verificado en su momento; no se declara nada implementado.
+>
+> | Sección / tema de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Messaging / IA / WhatsApp | Messaging es dominio/módulo funcional de primera clase con UX conversation-centric (no implica módulo visual independiente). La IA forma parte de la dirección de producto, no opera en el MVP inicial y no se implementan asistentes IA ahora (condición de activación futura: no determinable). Wapsell Messaging MVP no depende de WhatsApp. Una `Conversation` comercial pertenece a un `Business`; participantes `User`/`Customer`; acciones y datos contextualizados al `Business`. `Customer` participante sin `User`: `OPEN OWNER DECISION`. | OR-B2-019, 020, 021 |
+> | Autoridad — D-003 / WhatsApp (`RESOLVED — OWNER-RULED`, R3) | Reafirmado: Wapsell Messaging MVP no depende de WhatsApp. IA: dirección de producto, inactiva en el MVP inicial. | OR-B2-019, 020 |
+> | Fronteras con Customer / User / Order / Sale (D-002-bis, D-007, D-008) | `Customer` ≠ `User`; `Order` ≠ `Sale` (OR-B2-004, 012). Estados y condiciones de conversión: `OPEN`. `Customer` participante sin `User`: `OPEN OWNER DECISION`. | OR-B2-004, 012, 021 |
+> | Referencia a repartidores (§Fulfillment) | Sin cambio: `Repartidor` queda fuera del MVP como Membership Role (`FUTURE / OPEN`); D-016 sigue `OPEN`. | Aclaración del Owner |
+> | Gobernanza | Workshop 001–490 es fuente de discovery, no autoridad normativa (OR-B2-022). ISS-08 aprobada como regla de precedencia (OR-B2-023); los demás documentos de `00-GOVERNANCE` siguen `PROPOSED`. | OR-B2-022, 023 |
+>
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. La distinción `APPROVED` / `OWNER-RULED` / `DERIVED` / `PROPOSED` / `OPEN` / `IMPLEMENTATION DETAIL` del texto original se conserva; esta nota no convierte ningún detalle técnico en decisión. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 0. Alcance

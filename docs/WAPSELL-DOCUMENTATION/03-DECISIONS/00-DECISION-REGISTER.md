@@ -314,3 +314,100 @@ Workshop/preparation (no normativos) → documentación histórica (evidencia). 
 prevalece el posterior. Las auditorías `10-AUDIT/13` y `14` (DRAFT) que rotulan B2/C1/D1/E2/F1 como
 "decididas por el Owner" no amplían los textos R2 de §8.1: D1 ("mismo email normalizado = misma persona")
 **no** está confirmado y F1 ("implementación autorizada") **no** está confirmado.
+
+---
+
+## 9. Owner Rulings OR-B2 (añadido en Block 2, 2026-10-03)
+
+> **Sección aditiva.** No reemplaza, reescribe ni elimina nada de §1–§8. Las filas D-001…D-018, DEC-001,
+> OR-001, OR-002-A…F, P1-A, P5-B, CON-010 e ISS-08 de §8.1 permanecen exactamente como estaban.
+> Registra las 26 decisiones explícitas del Owner de la sesión `OR-B2-SESSION-2026-10-03`.
+> **Un ruling aprobado NO es autorización de implementación.**
+> Texto verbatim íntegro, metadata y referencias históricas: `20-OR-B2-OWNER-DECISIONS-2026-10-03.md`.
+> Mapeo a los conflictos C-01…C-22 y lista de abiertos: `21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`.
+> Estado de cada ruling: `OWNER-RULED` a nivel conceptual. Tipos: `NUEVA` · `REAFIRMA` · `PROMUEVE`.
+> Detalles marcados `OPEN IMPLEMENTATION DETAIL` u `OPEN OWNER DECISION` no están decididos.
+
+### 9.1 Rulings registrados
+
+Autoridad de todas las filas: `20-OR-B2-OWNER-DECISIONS-2026-10-03.md` (sesión `OR-B2-SESSION-2026-10-03`). Fecha: 2026-10-03. La columna "Decisión" es una síntesis; el texto verbatim del Owner está en `20-…`. Implementación de todas las filas: `NOT AUTHORIZED`.
+
+| ID | Decisión (síntesis; verbatim en `20-…`) | Estado | Tipo / confirma o supersede | Conflicto resuelto | Detalle abierto | Implementación |
+|---|---|---|---|---|---|---|
+| **OR-B2-001** | Modelo de autorización del MVP: Membership → Role → Permission. No se adopta Profile → Role → Capability → Overrides. | `OWNER-RULED` | **NUEVA.** Extiende (no reemplaza) D-005 (DERIVED) | C-10 (RESOLVED BY OWNER) | Catálogo de Permissions y reglas de precedencia: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-002** | Un token válido no autoriza por sí mismo. Toda operación protegida valida conceptualmente: User autenticado + Business objetivo + Membership válido + autorización por Role/Permission. | `OWNER-RULED` | **PROMUEVE.** Promueve D-006 (DERIVED, cláusula pendiente de ruling) a OWNER-RULED | C-04 (RESOLVED BY OWNER: 4 validaciones conceptuales); C-02/C-03 (PARTIAL) | Mecanismo de token y de enforcement: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-003** | Membership tiene lifecycle conceptual ACTIVE / INACTIVE. Una Membership INACTIVE no permite operar sobre el Business. | `OWNER-RULED` | **NUEVA.** Cierra blocker 8 del Requirements | Blocker 8 (no es un C-xx) | Transiciones, quién desactiva y efectos sobre sesiones: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-004** | Customer y User son entidades diferentes. Customer puede existir sin User. El vínculo Customer → User es opcional. | `OWNER-RULED` | **REAFIRMA.** Reafirma D-002-bis y OR-002-D | C-01 (RESOLVED BY OWNER); C-14 (PARTIAL, junto con 011) | Criterio de vinculación Customer→User ("mismo email", D1): OPEN OWNER DECISION no resuelta por esta decisión | `NOT AUTHORIZED` |
+| **OR-B2-005** | Un email normalizado globalmente único identifica a un User. No puede haber más de un User con el mismo email normalizado. | `OWNER-RULED` | **REAFIRMA.** Reafirma OR-002-C | — (ninguno) | Algoritmo de normalización del email: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-006** | Empresa → Business y Usuario → User/Membership por transición incremental con coexistencia temporal y acotada. Coexistencia física, mecanismo, cutover y rollback quedan para la especificación técnica posterior. | `OWNER-RULED` | **REAFIRMA.** Reafirma OR-002-B, OR-001 P2-C y OR-001 P1-A | — (ninguno) | Coexistencia física, mecanismo de migración, cutover y rollback: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-007** | Un User puede tener múltiples Memberships y puede seleccionar/cambiar el Business activo. El mecanismo técnico del Business Switch queda abierto. | `OWNER-RULED` | **NUEVA.** Cierra la parte conceptual del blocker 14 | Blocker 14 (parcial; no es un C-xx) | Mecanismo técnico del Business Switch: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-008** | Membership Roles del MVP: Owner, Admin, Vendedor, Gestor de Stock (nomenclatura normalizada por el Owner; el texto original decía "Operador de Stock"). Customer y Supplier no son Membership Roles. Repartidor queda fuera del MVP: FUTURE / OPEN. | `OWNER-RULED` | **NUEVA.** Define el catálogo de Membership Roles que no estaba aprobado. Normalizada por el Owner (Gestor de Stock; Repartidor fuera del MVP) | C-10 (RESOLVED BY OWNER, junto con 001 y 009); C-11 (OPEN OWNER DECISION: Repartidor queda FUTURE / OPEN fuera del MVP; SaaS Admin sigue sin decisión) | Permisos por rol: OPEN IMPLEMENTATION DETAIL. Repartidor: FUTURE / OPEN. El AS-IS no tiene Admin y PROVEEDOR es un rol de Usuario: brecha AS-IS/TO-BE, no implementada | `NOT AUTHORIZED` |
+| **OR-B2-009** | Owner y Admin son roles distintos. Owner = propiedad/control máximo del Business. Admin = administración delegada. | `OWNER-RULED` | **NUEVA.** Separa "Owner/Admin" que figuraba fusionado | C-10 (RESOLVED BY OWNER); ambigüedad Owner/Admin | Permisos concretos de Owner y de Admin: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-010** | Product es global. Los datos comerciales específicos del Business viven en una relación/oferta específica (conceptualmente Product → BusinessProduct). Modelo físico abierto. | `OWNER-RULED` | **NUEVA.** Resuelve la tensión de REQ-CAT-002 con SPEC §3/§10 y con D-001 | C-13 (RESOLVED BY OWNER, a nivel conceptual) | Qué campos son globales y cuáles del Business: OPEN OWNER DECISION. Modelo físico de BusinessProduct: OPEN IMPLEMENTATION DETAIL. Product global no arrastra stock ni precio (D-001, D-014) | `NOT AUTHORIZED` |
+| **OR-B2-011** | El Cart pertenece al Customer cuando existe, con vínculo opcional al User. Debe poder existir Customer sin User. | `OWNER-RULED` | **NUEVA.** Resuelve REQ-CART-001 | C-14 (PARTIAL, junto con 004) | Titular del Cart cuando no existe Customer: NO DETERMINABLE CON LA INFORMACIÓN DISPONIBLE (OPEN OWNER DECISION) | `NOT AUTHORIZED` |
+| **OR-B2-012** | Order y Sale son entidades diferentes. Order = intención/proceso comercial. Sale = operación económica confirmada. | `OWNER-RULED` | **PROMUEVE.** Promueve D-007 (DERIVED) a OWNER-RULED | C-16 (base; RESOLVED BY OWNER parcialmente junto con 013 y 014) | Atributos y estados de Order y Sale: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-013** | La Sale nace cuando el Order es confirmado/aceptado comercialmente. No se espera a la entrega. | `OWNER-RULED` | **NUEVA.** Cierra BLOCK-ORD-003 y la cláusula de D-008 | C-16 (parcial); C-06 (junto con 012 y 015) | Quién confirma el Order: OPEN OWNER DECISION (REQ-ORD-002 dice "el Customer confirma"; esta decisión dice "confirmado/aceptado comercialmente") | `NOT AUTHORIZED` |
+| **OR-B2-014** | El stock se reserva al confirmar el Order. El descuento físico queda sujeto al flujo transaccional de la especificación especializada. No se inventan estados técnicos ni transaction boundaries. | `OWNER-RULED` | **NUEVA.** Cierra BLOCK-ORD-001 solo para la reserva. No altera D-010 | C-16 (parcial) | Momento y flujo del descuento físico: OPEN OWNER DECISION / especificación especializada. Estados técnicos y transaction boundaries: OPEN IMPLEMENTATION DETAIL, NO inventar | `NOT AUTHORIZED` |
+| **OR-B2-015** | Una Sale confirmada es inmutable. Las correcciones se hacen por cancelación, reversión o refund, con trazabilidad. | `OWNER-RULED` | **NUEVA.** Cierra la cláusula pendiente de D-008 y REQ-SALE-002 | C-06 (RESOLVED BY OWNER) | Mecanismos concretos de cancelación, reversión y refund: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-016** | Rotación: producto con vencimiento → FEFO; producto sin vencimiento → FIFO. | `OWNER-RULED` | **NUEVA.** Resuelve la contradicción SPEC §22 (FIFO) vs REQ-INV-005 (FEFO) | C-09 (RESOLVED BY OWNER) | Unidad de rotación (lote o fecha): OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-017** | El MVP contempla Locations/Warehouses de forma mínima, con una ubicación principal/default conceptual. Sin modelo físico todavía. | `OWNER-RULED` | **NUEVA.** Resuelve el alcance de ubicaciones del MVP | C-08 (RESOLVED BY OWNER, alcance mínimo) | Cantidad de branches/warehouses del MVP: OPEN OWNER DECISION. Modelo físico de Location: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-018** | Stock negativo no permitido. | `OWNER-RULED` | **NUEVA.** Eleva a OWNER-RULED un requisito derivado. No altera D-010 | — (ninguno directo) | Mecanismo de garantía: OPEN IMPLEMENTATION DETAIL. D-010 sigue NON-COMPLIANT/GAP en el AS-IS (p. ej. AUD-D010-G02); no se declara implementado | `NOT AUTHORIZED` |
+| **OR-B2-019** | Messaging es un dominio/módulo funcional de primera clase. UX conversation-centric. "Primera clase" no implica módulo visual independiente. | `OWNER-RULED` | **NUEVA.** Aclara DEC-001 y SPEC §20 sin alterar DEC-001 | C-12 (RESOLVED BY OWNER) | Forma visual/de navegación del módulo: OPEN IMPLEMENTATION DETAIL | `NOT AUTHORIZED` |
+| **OR-B2-020** | IA forma parte de la dirección de producto, no opera en el MVP inicial y no se implementan asistentes IA ahora. Wapsell Messaging MVP no depende de WhatsApp. | `OWNER-RULED` | **REAFIRMA + PROMUEVE.** Reafirma DEC-001 y D-003 (WhatsApp OWNER-RULED). Promueve a OWNER-RULED la cláusula "IA inactiva en el MVP inicial" (DERIVED) | — (ninguno) | Condición de activación futura de IA: NO DETERMINABLE CON LA INFORMACIÓN DISPONIBLE | `NOT AUTHORIZED` |
+| **OR-B2-021** | Una Conversation comercial pertenece a un Business. Los participantes pueden ser Users/Customers; acciones y datos comerciales quedan contextualizados al Business. | `OWNER-RULED` | **NUEVA.** Resuelve REQ-MSG-003 en el sentido de G65 | C-15 (RESOLVED BY OWNER, coincide con G65) | Customer participante sin User: NO DETERMINABLE CON LA INFORMACIÓN DISPONIBLE (OPEN OWNER DECISION) | `NOT AUTHORIZED` |
+| **OR-B2-022** | Workshop 001–490 no es autoridad normativa: es fuente de discovery y produce requisitos candidatos. Una respuesta del Workshop no se vuelve decisión aprobada automáticamente. | `OWNER-RULED` | **NUEVA.** Define el estatus del Workshop 001–490 bajo ISS-08 | C-21 (RESOLVED BY OWNER) | Ninguno propio. Cada REQ sigue siendo candidato hasta que el Owner lo apruebe | `NOT AUTHORIZED` |
+| **OR-B2-023** | ISS-08 aprobado como regla formal de precedencia: OWNER RULING > DECISION REGISTER > CANONICAL SPEC > TO-BE > AUDIT > WORKSHOP / PREPARATION > HISTORICAL. Los documentos derivados no adquieren autoridad por existir. | `OWNER-RULED` | **REAFIRMA.** Aprueba formalmente ISS-08, que figuraba OWNER-RULED en R2 y PROPOSED en Source of Truth | C-22 (PARTIAL) | Ubicación de Requirements, Specialized Specs, Contracts y AS-IS en la precedencia: OPEN OWNER DECISION. Los 7 documentos de gobernanza siguen PROPOSED | `NOT AUTHORIZED` |
+| **OR-B2-024** | Modular Monolith aprobado como dirección arquitectónica. NO aprobados: NestJS, PostgreSQL, Docker, VPS, GraphQL, Kubernetes ni otro detalle de stack. | `OWNER-RULED` | **PROMUEVE.** Promueve solo la dirección de D-017 (Modular Monolith) | C-07 (PARTIAL); C-03 (PARTIAL) | Stack: NO aprobado (NestJS, PostgreSQL, Docker, VPS, GraphQL, Kubernetes). Cláusula K8s/GraphQL de D-017: sin ruling | `NOT AUTHORIZED` |
+| **OR-B2-025** | Returns y Refunds forman parte del Commerce TO-BE. Implementación en etapa posterior. | `OWNER-RULED` | **NUEVA.** Fija el alcance TO-BE de Returns/Refunds | — (hueco del SPEC) | Implementación y reglas: etapa posterior / especificación especializada | `NOT AUTHORIZED` |
+| **OR-B2-026** | Pricing y Promotions forman parte del Commerce TO-BE. Reglas concretas para la especificación especializada correspondiente. | `OWNER-RULED` | **NUEVA.** Fija el alcance TO-BE de Pricing/Promotions | — (hueco del SPEC) | Reglas concretas: especificación especializada correspondiente | `NOT AUTHORIZED` |
+
+### 9.2 Aclaraciones del Owner que prevalecen sobre el texto original de OR-B2-008
+
+- Nomenclatura normativa: **Gestor de Stock**. "Operador de Stock" no es nombre normativo.
+- Membership Roles del MVP: Owner, Admin, Vendedor, Gestor de Stock. Customer y Supplier no son Membership Roles.
+- Repartidor queda fuera del MVP como Membership Role. Estado `FUTURE / OPEN`. No se elimina del producto futuro.
+- IDs `OR-B2-001 … OR-B2-026` y `OR-B2-SESSION-2026-10-03` aprobados por el Owner.
+
+### 9.3 Efecto sobre filas históricas (sin modificarlas)
+
+Las filas originales no se tocan. En el alcance exacto indicado, el ruling OR-B2 posterior prevalece (ISS-08). Donde §4 o §8.3 rotulan una decisión como `DERIVED` o `NOT CONSULTED`, ese rótulo se conserva como evidencia histórica; para el alcance listado rige §9.1.
+
+| Fila histórica | OR-B2 | Alcance del efecto | Lo que NO cambia |
+|---|---|---|---|
+| D-005 (roles y permisos) | 001, 008, 009 | Modelo Membership → Role → Permission y catálogo de Membership Roles del MVP | Catálogo de permisos y precedencia: `IMPLEMENTATION DETAIL` |
+| D-006 (4 validaciones) | 002 | Promovida a `OWNER-RULED`: 4 validaciones conceptuales | Mecanismo de token y enforcement |
+| D-007 (Order ≠ Sale) | 012 | Promovida a `OWNER-RULED` | Estados y atributos |
+| D-008 (Sale) | 013, 015 | Momento de nacimiento de la Sale e inmutabilidad (cláusula pendiente) | Mecanismos de cancelación/reversión/refund |
+| D-010 (integridad de Inventario) | 014, 018 | Coherente; no la altera | `NON-COMPLIANT/GAP` en el AS-IS (p. ej. AUD-D010-G02). No se declara implementado |
+| D-017 (arquitectura) | 024 | Solo la dirección Modular Monolith | Stack no aprobado. Cláusula K8s/GraphQL sin ruling |
+| D-002-bis / OR-002-D | 004 | Reafirmadas | Criterio de vinculación "mismo email" sigue `OPEN` |
+| OR-002-B / OR-002-C | 005, 006 | Reafirmadas | Normalización, coexistencia física, cutover y rollback |
+| ISS-08 | 022, 023 | Aprobada formalmente (OR-B2-023) | Los 7 documentos de `00-GOVERNANCE` siguen `PROPOSED`. Ubicación de Requirements, Specialized Specs, Contracts y AS-IS en la precedencia: `OPEN OWNER DECISION` |
+| DEC-001 / D-003 | 019, 020 | Aclara y reafirma Messaging/IA/WhatsApp | Condición de activación futura de IA: no determinable |
+
+### 9.4 Estados que permanecen (sin cambio por OR-B2)
+
+| Elemento | Estado |
+|---|---|
+| D-011, D-013, D-015, D-016 (cláusulas no cubiertas por OR-B2) | `OPEN OWNER DECISION` (en §8.3: `NOT CONSULTED`) |
+| Vocabulario de estados de Payment (D-011 vs REQ-PAY-003), C-17 | `OPEN OWNER DECISION` |
+| Operaciones sensibles de Cash (D-013), C-05 | `OPEN OWNER DECISION` |
+| SaaS Admin (C-11) | `OPEN OWNER DECISION`. Repartidor: `FUTURE / OPEN`, fuera del catálogo de Membership Roles del MVP |
+| Cantidad de branches/warehouses del MVP | `OPEN OWNER DECISION` |
+| Campos globales vs del Business en Product/BusinessProduct | `OPEN OWNER DECISION` |
+| Quién confirma el Order | `OPEN OWNER DECISION` |
+| Titular del Cart sin Customer; Customer participante de Conversation sin User | `OPEN OWNER DECISION` (no determinable con la información disponible) |
+| Criterio "mismo email" para vincular Customer ↔ User | `OPEN` |
+| Cláusula K8s/GraphQL de D-017; CON-008, CON-011, GRF-02 | `OPEN` |
+| OR-003, OR-005 | Siguen sin definir. Los IDs no se reutilizan |
+| Especificación técnica | `NOT APPROVED` |
+| Implementación | `NOT AUTHORIZED` |
+
+### 9.5 Precedencia aplicable (ISS-08, aprobada por OR-B2-023)
+
+Owner Ruling → este Registro → SPEC canónica → TO-BE → Audit → Workshop/preparation → histórico. Entre dos rulings del Owner prevalece el posterior. Las contradicciones no se resuelven en silencio: se registran como conflicto. Workshop 001–490 no es normativo (OR-B2-022).
+
+```text
+TECHNICAL SPECIFICATION = NOT APPROVED
+IMPLEMENTATION = NOT AUTHORIZED
+```

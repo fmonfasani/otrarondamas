@@ -38,6 +38,20 @@
 > Entidades físicas definidas: 0. Permisos definidos: 0. Umbrales definidos: 0.
 > Conflictos resueltos: 0.**
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Precedencia ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica > TO-BE. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**. Los rótulos `DERIVED / RECONSTRUCTED`, `TO-BE PROPOSED` y `OPEN DETAIL` del texto se conservan como procedencia. El AS-IS citado describe el estado verificado en su momento; no se declara nada implementado.
+>
+> | Sección / tema de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Autoridad y gobierno — D-013 y *"4 vs. 2 validaciones"* | La cláusula "4 vs. 2 validaciones" de D-006 queda resuelta en el alcance conceptual (OR-B2-002: 4 validaciones). **La cláusula en disputa de D-013** (*"Las operaciones sensibles están sujetas a permisos del `Membership`"*) **no fue tratada por OR-B2**: sigue `OPEN OWNER DECISION` (C-05) y no se convierte en requisito aprobado. | OR-B2-002 |
+> | Catálogo de roles y permisos (D-005) | Roles del MVP: **Owner, Admin, Vendedor, Gestor de Stock**. Permisos por rol (incluidos los de Cash): `IMPLEMENTATION DETAIL` / `OPEN`. Este documento no asigna permisos de Cash a ningún rol. | OR-B2-008, 009 |
+> | Gobernanza | Workshop 001–490 es fuente de discovery, no autoridad normativa (OR-B2-022). ISS-08 aprobada como regla de precedencia (OR-B2-023); los demás documentos de `00-GOVERNANCE` siguen `PROPOSED`. | OR-B2-022, 023 |
+>
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. La distinción `APPROVED` / `OWNER-RULED` / `DERIVED` / `PROPOSED` / `OPEN` / `IMPLEMENTATION DETAIL` del texto original se conserva; esta nota no convierte ningún detalle técnico en decisión. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 0. Correcciones de partida

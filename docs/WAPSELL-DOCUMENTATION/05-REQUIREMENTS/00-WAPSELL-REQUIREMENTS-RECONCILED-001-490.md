@@ -10,6 +10,11 @@
 > Este documento no modifica el Decision Register, las TO-BE Specs, Contracts, Invariants, Architecture, Plan ni código.  
 > Los puntos marcados OPEN/BLOCKED no deben implementarse por inferencia.
 
+> **POST-OR-B2 (2026-10-03):** las decisiones `OR-B2-001 … OR-B2-026` (`03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`, registradas en `00-DECISION-REGISTER.md` §9) son rulings del Owner de nivel 1 en ISS-08 y prevalecen sobre este documento donde lo contradicen. Las notas `POST-OR-B2` de abajo son aditivas: el texto histórico no se borra.
+> Según OR-B2-022, el Workshop 001–490 no es autoridad normativa: sus respuestas son candidatas hasta que el Owner las apruebe. **Ningún REQ de este documento pasa a ser requisito aprobado** por estas notas. Estado del documento: `DRAFT / PROCESS ARTIFACT / NOT APPROVED` (sin cambio).
+> Nomenclatura normativa: **Gestor de Stock** (no "Operador de Stock"). Repartidor queda fuera del MVP como Membership Role: `FUTURE / OPEN`.
+> `TECHNICAL SPECIFICATION = NOT APPROVED` · `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 1. Reglas de lectura
@@ -17,7 +22,7 @@
 ### 1.1 Evidencia y autoridad
 
 - **CANONICAL DECISION:** decisión existente en Decision Register.
-- **WORKSHOP DECISION:** definición dada por Owner durante el workshop 001–490.
+- **WORKSHOP CANDIDATE** (rótulo anterior: "WORKSHOP DECISION"; relabel POST-OR-B2 / OR-B2-022): definición dada por Owner durante el workshop 001–490. Es fuente de discovery y produce requisitos candidatos. No es decisión aprobada ni autoridad normativa.
 - **DERIVED REQUIREMENT:** requisito derivado de decisiones existentes o del workshop reconciliado.
 - **OPEN DETAIL:** falta definición funcional o técnica.
 - **CONFLICT/BLOCKER:** existen dos reglas que no pueden propagarse simultáneamente sin resolver su precedencia.
@@ -44,6 +49,8 @@ Un User puede relacionarse con múltiples Businesses y puede tener relaciones/ro
 
 **Estado:** DERIVED REQUIREMENT.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-005):** Reafirma OR-002-C: un email normalizado globalmente único identifica a un User; no puede haber dos Users con el mismo email normalizado. El algoritmo de normalización es `OPEN IMPLEMENTATION DETAIL`. El estado del REQ no cambia (`DERIVED REQUIREMENT`).
+
 ## REQ-ID-002 — Membership contextual
 
 **Fuente:** D-002, D-005, workshop 001, 271–306.
@@ -54,6 +61,8 @@ La autorización debe evaluarse en el contexto de esa Membership.
 
 **Estado:** DERIVED REQUIREMENT.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-001, OR-B2-002):** El modelo de autorización del MVP es Membership → Role → Permission (OR-B2-001). Un token válido no autoriza por sí mismo: se valida User autenticado + Business objetivo + Membership válido + autorización por Role/Permission (OR-B2-002, que promueve D-006 con 4 validaciones). El mecanismo de token y de enforcement es `OPEN IMPLEMENTATION DETAIL`.
+
 ## REQ-ID-003 — Membership ACTIVE/INACTIVE
 
 **Fuente:** workshop 001, 284–285, 304.
@@ -62,7 +71,9 @@ Membership puede pasar entre ACTIVA e INACTIVA y una Membership inactiva puede r
 
 **Nota:** el lifecycle técnico completo y sus actores todavía requieren Specialized Spec.
 
-**Estado:** WORKSHOP DECISION / REQUIREMENT.
+**Estado:** WORKSHOP CANDIDATE / REQUIREMENT (rótulo anterior: WORKSHOP DECISION / REQUIREMENT; relabel POST-OR-B2 / OR-B2-022).
+
+> **POST-OR-B2 (2026-10-03, OR-B2-003):** El Owner decidió el lifecycle conceptual ACTIVE / INACTIVE y que una Membership INACTIVE no permite operar sobre el Business. OR-B2-003 no decide la reactivación ni quién cambia el estado: esas cláusulas de este REQ siguen siendo candidatas y su detalle es `OPEN IMPLEMENTATION DETAIL` (Specialized Spec). Cierra el blocker 8 solo a nivel conceptual.
 
 ## REQ-ID-004 — Business como frontera
 
@@ -71,6 +82,8 @@ Membership puede pasar entre ACTIVA e INACTIVA y una Membership inactiva puede r
 Business es la unidad comercial y de aislamiento. Los recursos Business-scoped no deben cruzar Business sin una operación explícitamente definida.
 
 **Estado:** CANONICAL + WORKSHOP.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-010):** Product es global; los datos comerciales específicos del Business viven en una relación Product → BusinessProduct. La identidad canónica global no arrastra stock ni precio (D-001, D-014). Qué campos son globales y cuáles del Business: `OPEN OWNER DECISION`.
 
 ## REQ-ID-005 — Cambio de Business activo
 
@@ -81,6 +94,8 @@ Un User con Memberships válidas debe poder cambiar el Business operativo sin vo
 **Estado:** WORKSHOP REQUIREMENT.  
 **OPEN:** mecanismo técnico de Business Context.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-007):** Un User puede tener múltiples Memberships y puede seleccionar/cambiar el Business activo (conceptual). El mecanismo técnico del Business Switch es `OPEN IMPLEMENTATION DETAIL`. La condición "sin volver a autenticarse" de este REQ no está decidida por OR-B2-007 y sigue siendo candidata. Cierra el blocker 14 solo a nivel conceptual.
+
 ## REQ-ID-006 — Roles y capabilities contextualizados
 
 **Fuente:** workshop 273–306 + D-005.
@@ -88,6 +103,8 @@ Un User con Memberships válidas debe poder cambiar el Business operativo sin vo
 Las capacidades efectivas deben depender del contexto Business/Membership. El catálogo y la precedencia entre Profile, Role y Capability permanecen abiertos.
 
 **BLOCKER:** reconciliar 003/005 con 273.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-001, OR-B2-008, OR-B2-009):** Para el MVP rige Membership → Role → Permission. Profile → Role → Capability → Overrides no se adopta (no se descarta para el futuro): la precedencia entre Profile/Role/Capability/override queda superseded como modelo del MVP, y el término normativo es Permission. Roles del MVP: Owner, Admin, Vendedor, Gestor de Stock. Customer y Supplier no son Membership Roles. Owner y Admin son roles distintos. El catálogo de Permissions y sus asignaciones son `OPEN IMPLEMENTATION DETAIL`.
 
 ---
 
@@ -149,6 +166,8 @@ La experiencia debe reflejar el Business activo y sus permisos antes de exponer 
 
 Messaging debe funcionar como interfaz central para conversaciones y como superficie contextual para consultar o ejecutar operaciones comerciales autorizadas.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-019, OR-B2-020):** Messaging es un dominio/módulo funcional de primera clase con UX conversation-centric; "primera clase" no implica módulo visual independiente (cierra C-12). La IA forma parte de la dirección de producto pero no opera en el MVP inicial y no se implementan asistentes IA. Wapsell Messaging MVP no depende de WhatsApp.
+
 ## REQ-MSG-002 — Conversaciones 1:1 y Groups
 
 **Fuente:** workshop 007–018.
@@ -166,6 +185,8 @@ Un Group puede contener múltiples conversaciones, y sólo sus administradores c
 Una conversación Business puede involucrar múltiples vendedores, Owner/Admin, delivery driver y otros participantes autorizados.
 
 Las conversaciones continúan perteneciendo a sus participantes y no exclusivamente a un Business.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-021, OR-B2-009, OR-B2-008):** La frase "las conversaciones continúan perteneciendo a sus participantes y no exclusivamente a un Business" queda superseded: una Conversation comercial pertenece a un Business; los participantes pueden ser Users/Customers y las acciones y datos comerciales quedan contextualizados al Business (coincide con G65). "Owner/Admin" ya no se lee fusionado: son roles distintos. "Delivery driver" como participante no lo convierte en Membership Role: Repartidor es `FUTURE / OPEN`. Customer participante sin User: `OPEN OWNER DECISION`.
 
 ## REQ-MSG-004 — Asignación
 
@@ -223,6 +244,8 @@ El producto canónico puede ser compartido globalmente, mientras que precio, sto
 
 No debe confundirse identidad canónica con inventario comercial.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-010):** Decidido a nivel conceptual: Product es global y los datos comerciales del Business viven en Product → BusinessProduct. Modelo físico `OPEN IMPLEMENTATION DETAIL`. Qué datos son globales: `OPEN OWNER DECISION`. Cierra C-13 solo conceptualmente.
+
 ## REQ-CAT-003 — Variants
 
 **Fuente:** workshop 107, 111–112.
@@ -274,6 +297,8 @@ El cart pertenece al User en contexto Business, persiste y puede utilizarse fuer
 
 Debe poder crearse desde Messaging y desde catálogo.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-011):** La frase "el cart pertenece al User en contexto Business" queda superseded: el Cart pertenece al Customer cuando existe, con vínculo opcional al User, y debe poder existir Customer sin User. Titular del Cart cuando no hay Customer: `OPEN OWNER DECISION` (no determinable con la información disponible).
+
 ## REQ-CART-002 — Manipulación
 
 El Customer puede modificar cantidades y quitar productos.
@@ -292,11 +317,15 @@ Order y Sale son conceptos distintos.
 
 Order representa solicitud/proceso/preparación/entrega. Sale representa la operación comercial confirmada.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-012):** Order y Sale son entidades diferentes: Order = intención/proceso comercial; Sale = operación económica confirmada (promueve D-007).
+
 ## REQ-ORD-002 — Confirmación Customer
 
 **Fuente:** workshop 087.
 
 El Customer confirma el Order antes de que continúe el flujo correspondiente.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-013):** OR-B2-013 habla de Order "confirmado/aceptado comercialmente" y no dice quién confirma. Este REQ dice "el Customer confirma". Quién confirma el Order es `OPEN OWNER DECISION`; no se resuelve por inferencia.
 
 ## REQ-ORD-003 — Stock disponible
 
@@ -316,6 +345,8 @@ Existe tensión entre:
 
 La reconciliación debe definir una única semántica operacional.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-014):** Resuelto solo para la reserva: el stock se reserva al confirmar el Order. El descuento físico queda sujeto al flujo transaccional de la especificación especializada. No se inventan estados técnicos ni transaction boundaries (`OPEN IMPLEMENTATION DETAIL` / `OPEN OWNER DECISION` para el momento del descuento).
+
 ## BLOCK-ORD-002 — Payment required vs AR
 
 **Fuente:** workshop 078 + 181–230.
@@ -332,11 +363,15 @@ Debe cerrarse el estado exacto que convierte Order en Sale.
 
 La regla relevada indica conversión automática al estado de entrega correspondiente, pero la matriz completa de estados/precondiciones aún no está formalizada.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-013):** Resuelto conceptualmente: la Sale nace cuando el Order es confirmado/aceptado comercialmente; no se espera a la entrega. La regla relevada de "conversión automática al estado de entrega" queda superseded. La matriz de estados/precondiciones sigue siendo `OPEN IMPLEMENTATION DETAIL`.
+
 ## REQ-SALE-001 — Sale confirmada inmutable
 
 **Fuente:** D-008, workshop 383, 471–490.
 
 Una Sale confirmada no se edita ni elimina. Las correcciones se realizan mediante operaciones explícitas.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-015):** Ruling del Owner: una Sale confirmada es inmutable; las correcciones se hacen por cancelación, reversión o refund, con trazabilidad.
 
 ## REQ-SALE-002 — Cancellation
 
@@ -345,6 +380,8 @@ Una Sale confirmada no se edita ni elimina. Las correcciones se realizan mediant
 La cancelación debe ser una operación explícita, auditable y capaz de revertir los efectos aplicables.
 
 **BLOCKER:** reconciliar 091/092/389 y construir matriz por actor/estado.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-015):** Cierra la cláusula pendiente de D-008 (C-06) en lo conceptual. La matriz por actor/estado y los mecanismos concretos de cancelación/reversión/refund siguen siendo `OPEN IMPLEMENTATION DETAIL`; el blocker "reconciliar 091/092/389" no queda cerrado por OR-B2.
 
 ---
 
@@ -368,6 +405,8 @@ El modelo funcional distingue stock físico, disponible y reservado.
 
 Stock no debe resultar negativo.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-018):** Ruling del Owner: no se permite stock negativo. D-010 sigue `NON-COMPLIANT/GAP` en el AS-IS (p. ej. AUD-D010-G02, devolución a proveedor con stock negativo): este ruling no declara nada implementado.
+
 ## REQ-INV-004 — Traceability
 
 **Fuente:** workshop 151–155, 471–490.
@@ -385,11 +424,15 @@ Debe soportarse:
 - exclusión de vencidos del disponible;
 - FEFO.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-016):** Rotación: producto con vencimiento → FEFO; producto sin vencimiento → FIFO. Resuelve la contradicción con SPEC §22 "FIFO" (C-09). Unidad de rotación (lote o fecha): `OPEN IMPLEMENTATION DETAIL`.
+
 ## REQ-INV-006 — Locations / Warehouses
 
 **Fuente:** workshop 148, 320–350.
 
 Business puede tener múltiples branches y warehouses, con stock por ubicación y transferencias internas trazables.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-017):** El MVP contempla Locations/Warehouses de forma mínima, con una ubicación principal/default conceptual. El alcance de este REQ ("múltiples branches y warehouses, stock por ubicación, transferencias internas") no queda aprobado completo: cuántas branches/warehouses tiene el MVP es `OPEN OWNER DECISION`. Sin modelo físico.
 
 ---
 
@@ -427,6 +470,8 @@ Business puede manejar múltiples price lists, incluyendo wholesale.
 
 Debe soportarse precio por cantidad, Customer y período cuando corresponda.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-026):** Pricing forma parte del Commerce TO-BE. Las reglas concretas quedan para la especificación especializada correspondiente. El REQ sigue siendo candidato.
+
 ## REQ-PRICE-002 — Business-specific price
 
 El precio comercial puede variar por Business y por Branch según las reglas definidas.
@@ -436,6 +481,8 @@ El precio comercial puede variar por Business y por Branch según las reglas def
 Debe soportarse aplicación automática de promociones y reglas de combinación.
 
 **OPEN:** motor formal de precedencia/combinación.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-026):** Promotions forma parte del Commerce TO-BE. Las reglas concretas (incluido el motor de precedencia/combinación) quedan para la especificación especializada. El REQ sigue siendo candidato.
 
 ---
 
@@ -509,6 +556,8 @@ Business puede operar múltiples cajas y cada caja debe tener un responsable dur
 
 Customer puede existir sin User y puede vincularse posteriormente.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-004):** Reafirma D-002-bis y OR-002-D: Customer ≠ User, Customer puede existir sin User y el vínculo Customer → User es opcional.
+
 ## REQ-CUST-002 — Business relationship
 
 Los datos comerciales de Customer pertenecen al Business.
@@ -529,6 +578,8 @@ El Decision Register mantiene abierto el criterio de matching automático por em
 
 No se debe asumir como regla normativa sin promoción/confirmación correspondiente.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-004):** OR-B2-004 reafirma el vínculo opcional pero no confirma el criterio de matching por email: sigue `OPEN` (D1 de OR-002-D). No se asume como regla.
+
 ---
 
 # 15. Profiles, Roles y Capabilities
@@ -547,6 +598,8 @@ El workshop incorpora:
 
 y además overrides individuales.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-001):** "Profile → Roles atomizados → Capabilities" más overrides individuales no se adopta para el MVP; rige Membership → Role → Permission. Se conserva como evidencia del workshop y como posible evolución futura.
+
 ## BLOCK-AUTHZ-001 — Precedence
 
 Debe definirse cómo interactúan:
@@ -558,6 +611,8 @@ Debe definirse cómo interactúan:
 - Membership.
 
 No se debe implementar una precedencia por inferencia.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-001):** Para el MVP no hay Profile, Capability ni overrides individuales, por lo que la precedencia entre ellos no aplica al MVP. El blocker 7 se cierra solo a nivel de modelo; precedencia de Permissions y catálogo: `OPEN IMPLEMENTATION DETAIL`.
 
 ## REQ-AUTHZ-003 — Permission-gated ERP actions
 
@@ -595,6 +650,8 @@ Branch puede tener:
 - delivery zones;
 - permisos específicos.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-017):** Ver nota en REQ-INV-006: ubicaciones mínimas en el MVP; cantidad de branches/warehouses `OPEN OWNER DECISION`. Cash, horarios, delivery zones y permisos por Branch siguen siendo candidatos.
+
 ## REQ-BIZ-005 — Warehouses
 
 Business puede tener múltiples Warehouses asociados a Branch/Business según la estructura operativa definida.
@@ -604,6 +661,8 @@ Business puede tener múltiples Warehouses asociados a Branch/Business según la
 SaaS Admin puede administrar Businesses y consultar auditoría de Businesses bajo su ámbito.
 
 El detalle de límites, suscripción y gobernanza permanece abierto.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-008):** SaaS Admin no figura entre los Membership Roles del MVP y sigue sin decisión del Owner (C-11, `OPEN OWNER DECISION`).
 
 ---
 
@@ -627,6 +686,8 @@ El Customer puede seleccionar la modalidad pickup/delivery según disponibilidad
 
 Wapsell puede sugerir drivers disponibles; Business selecciona y el driver debe aceptar antes del viaje.
 
+> **POST-OR-B2 (2026-10-03, OR-B2-008):** Repartidor queda fuera del MVP como Membership Role: `FUTURE / OPEN`. Esto no cierra D-016 (Fulfillment, `OPEN OWNER DECISION`) ni promueve este REQ.
+
 ## REQ-FUL-004 — Tracking
 
 Customer puede visualizar el progreso de delivery y el driver actualiza estados desde su Space.
@@ -648,6 +709,8 @@ Si el driver marca delivered y Customer no confirma, existen contacto posterior 
 Return es una operación independiente de Sale.
 
 No debe editar la Sale original.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-025):** Returns forma parte del Commerce TO-BE (alcance). La implementación queda para una etapa posterior. Los REQ-RET-* siguen siendo candidatos; estados y aprobación/inspección: abiertos.
 
 ## REQ-RET-002 — Physical return
 
@@ -681,6 +744,8 @@ Los eventos de Return deben poder reflejarse en Messaging y Notifications.
 ## REQ-REF-001 — Refund distinto de Payment
 
 Refund y Payment son operaciones distintas.
+
+> **POST-OR-B2 (2026-10-03, OR-B2-025):** Refunds forma parte del Commerce TO-BE (alcance). La implementación queda para una etapa posterior. Los REQ-REF-* siguen siendo candidatos; la state machine completa sigue abierta.
 
 ## REQ-REF-002 — Refund linkage
 
@@ -869,3 +934,32 @@ Los requisitos no deben interpretarse como autorización de implementación.
 Los blockers explícitos deben resolverse en la capa funcional correspondiente antes de cerrar Contracts/Invariants.
 
 **Estado R1: REQUIREMENTS BASELINE CREADO — DRAFT / NOT APPROVED.**
+
+---
+
+# 26. Estado POST-OR-B2 (adenda, 2026-10-03)
+
+> Sección aditiva. No reemplaza ninguna sección anterior. Registra el efecto de `OR-B2-001 … OR-B2-026` sobre los blockers funcionales de la §23. No convierte ningún REQ en requisito aprobado y no autoriza implementación.
+
+| # | Blocker (§23) | Estado POST-OR-B2 | OR-B2 |
+|---|---|---|---|
+| 1 | Stock: descuento físico vs reserva | Reserva decidida al confirmar el Order. Momento/flujo del descuento físico: `OPEN OWNER DECISION` / especificación especializada | 014 |
+| 2 | Order/Payment/AR | Sin cambio. Abierto (D-011, C-17) | — |
+| 3 | Order → Sale | Resuelto conceptualmente: la Sale nace al confirmar el Order. Matriz de estados: `OPEN IMPLEMENTATION DETAIL`. Quién confirma: `OPEN OWNER DECISION` | 012, 013 |
+| 4 | Cancellation | Parcial: inmutabilidad y corrección por cancelación/reversión/refund decididas. Actores, estados y efectos: abiertos | 015 |
+| 5 | Homologation | Sin cambio | — |
+| 6 | Credit | Sin cambio | — |
+| 7 | Authorization | Resuelto a nivel de modelo (Membership → Role → Permission). Catálogo y precedencia de Permissions: `OPEN IMPLEMENTATION DETAIL` | 001, 002, 008, 009 |
+| 8 | Membership | Lifecycle conceptual ACTIVE/INACTIVE decidido. Detalle y actores: `OPEN IMPLEMENTATION DETAIL` | 003 |
+| 9 | Pickup | Sin cambio | — |
+| 10 | Delivery confirmation | Sin cambio | — |
+| 11 | Return | Alcance TO-BE decidido. Aprobación/inspección y estados: abiertos | 025 |
+| 12 | Refund | Alcance TO-BE decidido. State machine: abierta | 025 |
+| 13 | Customer ↔ User | Vínculo opcional reafirmado. Criterio de matching por email: `OPEN` | 004 |
+| 14 | Business Context | Concepto de múltiples Memberships y cambio de Business decidido. Mecanismo: `OPEN IMPLEMENTATION DETAIL` | 007 |
+
+Pendiente sin ruling que afecta a este documento: Payment (D-011, C-17), Cash (D-013, C-05), Fulfillment (D-016), SaaS Admin (C-11), cantidad de branches/warehouses, campos globales de Product, titular del Cart sin Customer, Customer participante sin User, y el rótulo "R1/R2" de este documento frente al de `03-DECISIONS` (C-20, `OPEN OWNER DECISION`).
+
+Nomenclatura: **Gestor de Stock** (normativo). Repartidor: `FUTURE / OPEN`.
+
+**Estado del documento: DRAFT / NOT APPROVED (sin cambio). `TECHNICAL SPECIFICATION = NOT APPROVED` · `IMPLEMENTATION = NOT AUTHORIZED`.**

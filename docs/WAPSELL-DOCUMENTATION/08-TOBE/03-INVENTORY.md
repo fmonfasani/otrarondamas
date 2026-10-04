@@ -30,6 +30,25 @@
 > **Decisiones creadas: 0. Requisitos inventados: 0. Estados inventados: 0. IDs inventados: 0.
 > Entidades físicas definidas: 0. Conflictos resueltos: 0.**
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Precedencia ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica > TO-BE. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**. Los rótulos `DERIVED / RECONSTRUCTED`, `TO-BE PROPOSED` y `OPEN DETAIL` del texto se conservan como procedencia. El AS-IS citado describe el estado verificado en su momento; no se declara nada implementado.
+>
+> | Sección / tema de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Inventario | El stock se reserva al confirmar el `Order`; el descuento físico queda sujeto al flujo transaccional de la especificación especializada (momento de descuento: `OPEN OWNER DECISION`; no se inventan estados técnicos ni transaction boundaries). Rotación: con vencimiento → FEFO, sin vencimiento → FIFO. Stock negativo no permitido. El MVP contempla Locations/Warehouses de forma mínima con una ubicación principal/default conceptual (cantidad de branches/warehouses: `OPEN OWNER DECISION`; sin modelo físico). D-010 sigue `NON-COMPLIANT / GAP` en el AS-IS (`AUD-D010-G01…G10`): OR-B2 no la altera ni declara nada implementado. | OR-B2-014, 016, 017, 018 |
+> | § ubicaciones (*"El MVP NO introduce ubicaciones físicas"*, SPEC general `:149` / `:244`) | **Superado en ese punto** por OR-B2-017. La calificación original (OPEN DETAIL) se conserva como historia. | OR-B2-017 |
+> | § FIFO / lotes / vencimientos (*"FIFO como política de consumo — `OPEN DETAIL`"*) | Política de rotación decidida a nivel conceptual: FEFO / FIFO. Existencia y modelado de lotes, tratamiento de vencimientos y mecanismo: `OPEN IMPLEMENTATION DETAIL`. | OR-B2-016 |
+> | §8 Reservas y disponibilidad — *"Existencia de reservas en el TO-BE: `OPEN DETAIL`"* | La existencia de la reserva queda decidida a nivel conceptual (se reserva al confirmar el `Order`). Mecanismo de reserva (retención, expiración, conversión) y momento del descuento físico: `OPEN`. | OR-B2-014 |
+> | §9 Stock insuficiente, oversell y existencias negativas | Stock negativo no permitido (decisión conceptual). Es coherente con D-010. El AS-IS tiene brechas verificadas (`AUD-D010-G02` devolución a proveedor sin guarda): `NON-COMPLIANT / GAP`; no se declara corregido. | OR-B2-018 |
+> | Autoridad y gobierno — *"4 vs. 2 validaciones de D-006 sigue `OPEN DETAIL`"* | Resuelta en el alcance conceptual: 4 validaciones (D-006 promovida a `OWNER-RULED`). | OR-B2-002 |
+> | Roles del MVP | Membership Roles del MVP: **Owner, Admin, Vendedor, Gestor de Stock** (nomenclatura oficial; "Operador de Stock" no es nombre normativo). `Owner` = propiedad/control máximo; `Admin` = administración delegada; son roles distintos. `Customer` y `Supplier` no son Membership Roles. `Repartidor`: fuera del MVP como Membership Role, `FUTURE / OPEN`. Catálogo de permisos y precedencia: `IMPLEMENTATION DETAIL`. El AS-IS (`RolUsuario`: `OWNER`, `ASISTENTE_LOCAL`, `PROVEEDOR`, `REPARTIDOR`) no tiene `Admin`. Nada se declara implementado. | OR-B2-008, 009 + aclaración del Owner |
+> | Gobernanza | Workshop 001–490 es fuente de discovery, no autoridad normativa (OR-B2-022). ISS-08 aprobada como regla de precedencia (OR-B2-023); los demás documentos de `00-GOVERNANCE` siguen `PROPOSED`. | OR-B2-022, 023 |
+>
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. La distinción `APPROVED` / `OWNER-RULED` / `DERIVED` / `PROPOSED` / `OPEN` / `IMPLEMENTATION DETAIL` del texto original se conserva; esta nota no convierte ningún detalle técnico en decisión. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 0. Corrección de partida: la SPEC canónica de Inventory no existe con ese nombre

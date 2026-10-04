@@ -21,6 +21,24 @@
 > **Decisiones creadas: 0. Requisitos inventados: 0. Estados inventados: 0. IDs inventados: 0.
 > Conflictos resueltos: 0.**
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Precedencia ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica > TO-BE. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**. Los rótulos `DERIVED / RECONSTRUCTED`, `TO-BE PROPOSED` y `OPEN DETAIL` del texto se conservan como procedencia. El AS-IS citado describe el estado verificado en su momento; no se declara nada implementado.
+>
+> | Sección / tema de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Customer / User / email | `Customer` y `User` son entidades diferentes; `Customer` puede existir sin `User`; vínculo `Customer → User` opcional (reafirma D-002-bis). Un email normalizado globalmente único identifica a un `User` (reafirma OR-002-C); reglas de normalización y mecanismo: `OPEN IMPLEMENTATION DETAIL`. Criterio de vinculación por "mismo email": `OPEN`. | OR-B2-004, 005 |
+> | Order / Sale / Cart | `Order` y `Sale` son entidades diferentes (D-007 promovida a `OWNER-RULED`). La `Sale` nace cuando el `Order` es confirmado/aceptado comercialmente, sin esperar la entrega. Una `Sale` confirmada es inmutable: correcciones por cancelación, reversión o refund con trazabilidad. El `Cart` pertenece al `Customer` cuando existe, con vínculo opcional al `User`. **Siguen `OPEN OWNER DECISION`:** quién confirma el `Order`, titular del `Cart` sin `Customer`. Estados y atributos de `Order`/`Sale`: `OPEN`. | OR-B2-011, 012, 013, 015 |
+> | Catálogo / Pricing / Returns | `Product` es global; los datos comerciales del `Business` viven en una relación/oferta específica (conceptualmente `Product → BusinessProduct`); modelo físico y campos globales vs del `Business`: `OPEN OWNER DECISION`. Returns/Refunds y Pricing/Promotions forman parte del Commerce TO-BE; implementación en etapa posterior y reglas concretas para especificaciones especializadas. | OR-B2-010, 025, 026 |
+> | Autoridad y gobierno — *"D-007, D-008… `DERIVED / RECONSTRUCTED`"* | D-007 (`Order` ≠ `Sale`) promovida a `OWNER-RULED`; D-008 en lo relativo al nacimiento e inmutabilidad de la `Sale`. El resto de D-008, D-011, D-012, D-015 y D-016 sigue como estaba. D-011/D-013/D-015/D-016 (cláusulas no cubiertas) y el vocabulario de estados de Payment (C-17): `OPEN OWNER DECISION`. | OR-B2-012, 013, 015 |
+> | §11 Fulfillment — repartidores, zonas, tarifas (D-016) | **Sin cambio.** `Repartidor` queda fuera del MVP como Membership Role (`FUTURE / OPEN`); D-016 sigue `OPEN OWNER DECISION`. El texto sobre "gestión de repartidores" por el `Business` no se promueve ni se descarta. | Aclaración del Owner (OR-B2-008) |
+> | Stock (frontera con Inventory) | Reserva al confirmar el `Order`; stock negativo no permitido; descuento físico: `OPEN OWNER DECISION`. Ver TO-BE Inventory. | OR-B2-014, 018 |
+> | Gobernanza | Workshop 001–490 es fuente de discovery, no autoridad normativa (OR-B2-022). ISS-08 aprobada como regla de precedencia (OR-B2-023); los demás documentos de `00-GOVERNANCE` siguen `PROPOSED`. | OR-B2-022, 023 |
+>
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. La distinción `APPROVED` / `OWNER-RULED` / `DERIVED` / `PROPOSED` / `OPEN` / `IMPLEMENTATION DETAIL` del texto original se conserva; esta nota no convierte ningún detalle técnico en decisión. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ---
 
 ## 0. Corrección de partida: el cuerpo de `02-COMMERCE-SPEC.md` está desactualizado

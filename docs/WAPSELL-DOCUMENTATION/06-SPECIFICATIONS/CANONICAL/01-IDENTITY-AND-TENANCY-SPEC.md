@@ -78,6 +78,25 @@
 >   - **P1-A (option C):** `Empresa` → `Business` as the final destination for documentary terminology and the persistent model. This does **not** mean the physical migration is designed or authorized.
 > - **Still `OPEN` / not authorized:** whether Customer↔User matching by "same email" applies (`OPEN`); physical model, compatibility mechanism, criteria/timing for ending the coexistence, token/session mechanics; Technical Specification `NOT APPROVED`; implementation `NOT AUTHORIZED`; `F1` is not an authorization.
 
+> ### POST-OR-B2 note (2026-10-03) — additive; no normative text of this document was changed
+>
+> - **Source / Authority:** Owner rulings `OR-B2-001 … OR-B2-026` (sesión `OR-B2-SESSION-2026-10-03`), texto verbatim en `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md`; registro en `03-DECISIONS/00-DECISION-REGISTER.md` §9; mapeo a conflictos en `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Autoridad ISS-08 (aprobada por OR-B2-023): Owner Ruling > Decision Register > SPEC canónica. Entre dos rulings prevalece el posterior.
+> - **Cómo leer este documento ahora:** el texto original se conserva como evidencia histórica. Donde abajo se indica "superado", rige el OR-B2 citado **solo en ese alcance**; el resto del párrafo no se reescribe ni se promueve. Los rótulos `DERIVED / RECONSTRUCTED` y `TO-BE PROPOSED` del texto original se conservan; no se convierten en `APPROVED` por esta nota.
+>
+> | Sección de este documento | Efecto POST-OR-B2 | Autoridad |
+> |---|---|---|
+> | Cabecera y §1.1 — unicidad *"El mecanismo de unicidad es `OPEN DETAIL`"* | Se conserva. OR-B2-005 decide a nivel conceptual: un email normalizado globalmente único identifica a un `User`; no puede haber más de un `User` con el mismo email normalizado. Reglas de normalización y mecanismo de unicidad: `OPEN IMPLEMENTATION DETAIL`. | OR-B2-005 (reafirma OR-002-C) |
+> | §1.1 Autenticación (D-006 `DERIVED`) | D-006 queda promovida a `OWNER-RULED` en el alcance de las 4 validaciones conceptuales: `User` autenticado, `Business` objetivo, `Membership` válido, autorización por `Role`/`Permission`. Un token válido no autoriza por sí mismo. Tipos de token, guards y enforcement: `IMPLEMENTATION DETAIL` / `OPEN`. | OR-B2-002 |
+> | §1.1 / §1.2 / Cabecera — `Customer` | Reafirmado: `Customer` y `User` son entidades diferentes; `Customer` puede existir sin `User`; vínculo `Customer → User` opcional. Criterio de vinculación por "mismo email": sigue `OPEN`. Ciclo de vida del `Customer` y modelado del vínculo: `OPEN DETAIL` (OR-003 sin definir). | OR-B2-004 (reafirma D-002-bis, OR-002-A/D) |
+> | §1.2 / §2 / Transformación AS-IS → TO-BE | `Empresa → Business` y `Usuario → User` + `Membership` por transición incremental con coexistencia temporal y acotada. Coexistencia física, mecanismo, cutover y rollback: especificación técnica posterior. El texto de la cabecera sobre "mecánica de rename pendiente" no se altera. | OR-B2-006 (reafirma OR-001, OR-002-B/D) |
+> | §3.1 Membership — *"Estado… `OPEN DETAIL`"* | `Membership` tiene lifecycle conceptual `ACTIVE` / `INACTIVE`; una `Membership` `INACTIVE` no permite operar sobre el `Business`. Los demás estados mencionados en el texto (pendiente, invitada, suspendida) **no** quedan decididos por OR-B2. Conflicto abierto con G44/G67/G69/G72/G74 del registro G001–G105 (ver doc 21 §4, G-N4). | OR-B2-003 |
+> | §3.1 Múltiples Memberships | Un `User` puede tener múltiples `Membership`s y seleccionar/cambiar el `Business` activo. Mecanismo técnico del Business Switch: `OPEN IMPLEMENTATION DETAIL`. | OR-B2-007 |
+> | §4 Roles / §5 Permissions | Modelo conceptual del MVP: `Membership → Role → Permission`. No se adopta `Profile → Role → Capability → Overrides`. Roles del MVP: **Owner, Admin, Vendedor, Gestor de Stock** (nomenclatura oficial; "Operador de Stock" no es normativo). `Owner` = propiedad/control máximo del `Business`; `Admin` = administración delegada. `Customer` y `Supplier` no son Membership Roles. `Repartidor`: fuera del MVP como Membership Role, `FUTURE / OPEN` (D-016 sigue `OPEN`). Catálogo de permisos, permisos por rol y precedencia: `IMPLEMENTATION DETAIL`. El ejemplo "Asistente en Business B" (§3.1) y el enum AS-IS `RolUsuario` (§4.2) describen el estado anterior; el AS-IS no tiene `Admin` y D-010 sigue `NON-COMPLIANT / GAP`. Nada de esto se declara implementado. | OR-B2-001, 008, 009 |
+> | §7.1 / §10 — super-administrador de plataforma | Sigue `OPEN DETAIL / FUTURE`. SaaS Admin (C-11): `OPEN OWNER DECISION`. | — |
+> | Gobernanza | Precedencia ISS-08 aprobada; los documentos de `00-GOVERNANCE` siguen `PROPOSED` salvo ISS-08. | OR-B2-023 |
+> - **Sigue `OPEN`:** ver `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md` §3 (`OPEN OWNER DECISION`, `OPEN IMPLEMENTATION DETAIL`, `FUTURE / OPEN`).
+> - **Estado:** este documento sigue `DRAFT — NOT APPROVED`. No se redactó la SPEC consolidada. `TECHNICAL SPECIFICATION = NOT APPROVED`. `IMPLEMENTATION = NOT AUTHORIZED`.
+
 ## 1. IDENTITY
 
 ### 1.1. User
