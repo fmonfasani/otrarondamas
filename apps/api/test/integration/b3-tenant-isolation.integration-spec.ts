@@ -12,6 +12,8 @@ describe('B3 tenant isolation — execution candidates', () => {
   let productoB: { id: string };
   let clienteA: { id: string };
   let clienteB: { id: string };
+  let reglaA: { id: string };
+  let reglaB: { id: string };
   let familiaA: { id: string };
   let familiaB: { id: string };
   let subfamiliaA: { id: string };
@@ -166,6 +168,9 @@ describe('B3 tenant isolation — execution candidates', () => {
       data: { empresaId: empresaB.id, nombre: 'B3 Cliente B', email: `b3-cliente-b-${suffix}@example.test` },
       select: { id: true },
     });
+
+    reglaA = await prisma.reglaFidelizacion.create({ data: { empresaId: empresaA.id, nombre: 'B3 Regla A', nivelRequerido: 'VIP', descuentoPorcentaje: 10 }, select: { id: true } });
+    reglaB = await prisma.reglaFidelizacion.create({ data: { empresaId: empresaB.id, nombre: 'B3 Regla B', nivelRequerido: 'VIP', descuentoPorcentaje: 20 }, select: { id: true } });
   });
 
   afterAll(async () => {
@@ -182,6 +187,7 @@ describe('B3 tenant isolation — execution candidates', () => {
     await prisma.venta.deleteMany({
       where: { empresaId: { in: [empresaA.id, empresaB.id] } },
     });
+    await prisma.reglaFidelizacion.deleteMany({ where: { id: { in: [reglaA.id, reglaB.id] } } });
     await prisma.cliente.deleteMany({ where: { id: { in: [clienteA.id, clienteB.id] } } });
     await prisma.producto.deleteMany({
       where: { id: { in: [productoA.id, productoB.id] } },
@@ -615,7 +621,55 @@ describe('B3 tenant isolation — execution candidates', () => {
       expect(persisted?.pedidoItems).toHaveLength(1);
       expect(persisted?.pedidoItems[0].productoId).toBe(productoA.id);
     });
-  });
 
+  describe('relation isolation — Pedido → PedidoItem → ReglaFidelizacion (Gate 6.2)', () => {
+    const pedidoBase = (canalOrigen: string) => ({ empresaId: empresaA.id, clienteId: clienteA.id, usuarioId: null, estado: 'RECIBIDO' as const, canalOrigen, total: 10, descuento: 0 });
+    const itemDe = (reglaFidelizacionId: string | null) => ({ productoId: productoA.id, cantidad: 1, precioUnitario: 10, descuentoFidelizacionPorcentaje: reglaFidelizacionId ? 10 : null, reglaFidelizacionId });
+    const contarPedidos = (canalOrigen: string) => prisma.pedido.count({ where: { canalOrigen } });
+    const contarItemsDePedido = (pedidoId: string) => prisma.pedidoItem.count({ where: { pedidoId } });
+    it('R-01: Business A + Rule A persists Pedido and PedidoItem', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id), canalOrigen = 'g62-positive';
+      const pedido = await db.pedido.create({ data: { ...pedidoBase(canalOrigen), pedidoItems: { create: [itemDe(reglaA.id)] } }, include: { pedidoItems: true } });
+      expect(pedido.empresaId).toBe(empresaA.id); expect(pedido.pedidoItems).toHaveLength(1); expect(pedido.pedidoItems[0].reglaFidelizacionId).toBe(reglaA.id);
+      const persisted = await prisma.pedido.findUnique({ where: { id: pedido.id }, include: { pedidoItems: true } });
+      expect(persisted?.pedidoItems[0].reglaFidelizacionId).toBe(reglaA.id);
+    });
+    it('R-02: nested Pedido.create cannot link Business A to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id), canalOrigen = 'g62-negative-nested';
+      await expect(db.pedido.create({ data: { ...pedidoBase(canalOrigen), pedidoItems: { create: [itemDe(reglaB.id)] } } })).rejects.toThrow();
+      expect(await contarPedidos(canalOrigen)).toBe(0);
+    });
+    it('R-03: direct PedidoItem.create cannot link an A Pedido to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id); const pedido = await prisma.pedido.create({ data: pedidoBase('g62-direct-create'), select: { id: true } });
+      await expect(db.pedidoItem.create({ data: { pedidoId: pedido.id, ...itemDe(reglaB.id) } })).rejects.toThrow();
+      expect(await contarItemsDePedido(pedido.id)).toBe(0);
+    });
+    it('R-04: direct PedidoItem.createMany cannot link an A Pedido to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id); const pedido = await prisma.pedido.create({ data: pedidoBase('g62-direct-create-many'), select: { id: true } });
+      await expect(db.pedidoItem.createMany({ data: [{ pedidoId: pedido.id, ...itemDe(reglaB.id) }] })).rejects.toThrow();
+      expect(await contarItemsDePedido(pedido.id)).toBe(0);
+    });
+    it('R-05: one cross-Business rule rejects the whole mixed nested Pedido', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id), canalOrigen = 'g62-mixed';
+      await expect(db.pedido.create({ data: { ...pedidoBase(canalOrigen), pedidoItems: { create: [itemDe(reglaA.id), itemDe(reglaB.id)] } } })).rejects.toThrow();
+      expect(await contarPedidos(canalOrigen)).toBe(0);
+    });
+    it('R-06: nested Pedido.update cannot add Rule B to an A Pedido', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id); const pedido = await prisma.pedido.create({ data: { ...pedidoBase('g62-update'), pedidoItems: { create: [itemDe(reglaA.id)] } }, select: { id: true } });
+      await expect(db.pedido.update({ where: { id: pedido.id }, data: { pedidoItems: { create: itemDe(reglaB.id) } } })).rejects.toThrow();
+      expect(await contarItemsDePedido(pedido.id)).toBe(1);
+    });
+    it('R-07: null reglaFidelizacionId remains valid', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id); const pedido = await db.pedido.create({ data: { ...pedidoBase('g62-null'), pedidoItems: { create: [itemDe(null)] } }, include: { pedidoItems: true } });
+      expect(pedido.pedidoItems[0].reglaFidelizacionId).toBeNull(); expect(await contarItemsDePedido(pedido.id)).toBe(1);
+    });
+    it('R-08: relation isolation applies inside an interactive transaction', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id), negative = 'g62-tx-negative', positive = 'g62-tx-positive';
+      await expect(db.$transaction(async (tx) => { await tx.pedido.create({ data: { ...pedidoBase(negative), pedidoItems: { create: [itemDe(reglaB.id)] } } }); })).rejects.toThrow();
+      expect(await contarPedidos(negative)).toBe(0);
+      await db.$transaction(async (tx) => { await tx.pedido.create({ data: { ...pedidoBase(positive), pedidoItems: { create: [itemDe(reglaA.id)] } } }); });
+      expect(await contarPedidos(positive)).toBe(1);
+    });
+  });
   });
 });
