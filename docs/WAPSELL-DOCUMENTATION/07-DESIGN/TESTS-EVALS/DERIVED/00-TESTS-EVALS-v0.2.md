@@ -384,3 +384,21 @@ Verification criteria only. No automated tests are created or executed by this r
 | TE-LOC-005 | Location/Inventory association is not assumed before specialized Inventory physical-model specification. | SPECIFIED |
 
 No automated tests were created or executed by this reconciliation.
+
+## R8-B2 OWNER CLOSURE TEST/EVAL ADDENDUM — 2026-10-04
+
+| ID | Criterion | Status |
+|---|---|---|
+| TE-B2-001 | A `(User, Business)` pair cannot have more than one ACTIVE Membership. | SPECIFIED |
+| TE-B2-002 | A Membership has exactly one effective MVP Role. | SPECIFIED |
+| TE-B2-003 | A protected Business-scoped operation fails closed when Business Context or ACTIVE Membership is absent/invalid. | SPECIFIED |
+| TE-B2-004 | Public/pre-context authentication paths are not incorrectly rejected merely because no Business Permission exists. | SPECIFIED |
+| TE-B2-005 | A protected operation evaluates current server-side Membership/authorization state rather than trusting stale token claims alone. | SPECIFIED |
+| TE-B2-006 | Legacy `UsuarioPermiso`/`Permiso` cannot be retired for an affected path without an explicit reviewed mapping to target Role→Permission. | SPECIFIED |
+| TE-B2-007 | Legacy retirement is treated as a controlled cutover/process gate rather than an implicit runtime behavior. | SPECIFIED |
+| TE-B2-008 | Customer-facing responses do not expose secrets or authorization-sensitive data. | SPECIFIED |
+| TE-B2-009 | Critical-operation additional authorization control is required at the conceptual boundary, while its exact technical mechanism remains OPEN. | SPECIFIED |
+
+No automated test is created or executed by this addendum.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
