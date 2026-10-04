@@ -238,3 +238,17 @@ It must not be marked IMPLEMENTED.
 **Migration implementation: NOT AUTHORIZED.**
 
 **Schema/runtime changes: NOT AUTHORIZED.**
+
+## 17. B2 Owner Decision Propagation — 2026-10-04
+
+1. Legacy coexistence is temporary and bounded; exact duration and cutover mechanics remain OPEN.
+2. Legacy retirement is a separate controlled cutover/process gate.
+3. Legacy `UsuarioPermiso`/`Permiso` semantics require an explicit reviewed mapping to target Role→Permission before the affected legacy authorization path is retired.
+4. The target Membership has exactly one effective Role in the MVP.
+5. At most one ACTIVE Membership exists per `(User, Business)`.
+6. Protected Business-scoped operations use current server-side authorization state; no fixed revocation latency/SLA is established.
+7. Legacy structures remain compatibility inputs only and are not promoted to a permanent parallel authorization authority.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
+
+**Migration implementation:** NOT AUTHORIZED.
