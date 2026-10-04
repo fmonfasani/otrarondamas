@@ -345,19 +345,20 @@ OD-B4-02 permitted verification-infrastructure work before B3 is fully VERIFIED.
 
 `11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
 
-**State:** COMPLETED — VERIFIED BY CI.
+**State:** RECONCILED — AWAITING FRESH CI VERIFICATION.
 
-Implemented and verified:
+Implemented and technically reconciled:
 - Jest integration configuration;
 - deterministic two-Business PostgreSQL/Prisma fixture;
-- reusable setup/teardown boundary;
+- bounded setup/teardown for the current integration suite;
 - smoke/regression execution path;
 - CI verification workflow.
 
-Execution evidence:
-- GitHub Actions run **37210436567**: SUCCESS;
-- Jest smoke/regression suite: SUCCESS [T];
-- PostgreSQL/Prisma integration suite: SUCCESS [T][E];
-- branch diff contains no product source, Prisma schema, or migration changes [C].
+Evidence correction:
+- GitHub Actions run **37210436567** remains documented in the branch as a historical result, but it could not be independently recovered through the available workflow-run retrieval surface;
+- therefore the historical result is [D], not current independently established [T]/[E] evidence;
+- the CI bootstrap was corrected to remove `--accept-data-loss`;
+- fresh CI execution is required to establish current [T] and [E];
+- branch inspection confirms no product source, Prisma schema, or migration changes are part of the B4 implementation [C].
 
-The completion of this task does **not** authorize B3 tenant-isolation product implementation and does **not** mark B3 invariants VERIFIED.
+The task remains bounded to verification infrastructure. It does **not** authorize B3 tenant-isolation product implementation and does **not** mark B3 invariants VERIFIED.
