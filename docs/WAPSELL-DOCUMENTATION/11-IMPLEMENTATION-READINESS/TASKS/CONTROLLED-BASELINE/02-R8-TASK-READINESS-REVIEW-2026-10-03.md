@@ -415,3 +415,12 @@ The Owner accepted A1, B3, C1, D1, E1, F2, G1 and H1, closing the conceptual Pay
 This unlocks downstream Cash/AR specification work. Exact Cash states/movements, payment-method confirmation semantics, reconciliation, AR debt creation/allocation, refund/cancellation workflows and technical contracts remain OPEN.
 
 **Implementation remains NOT AUTHORIZED.**
+
+
+## 18. REASSESSMENT AFTER R8-INV-003 CLOSURE — 2026-10-03
+
+**R8-INV-003: CLOSED — OWNER APPROVED.**
+
+Owner accepted A1, B1, C1, D1 and E1. Location physical persistence and Inventory association remain OPEN for the specialized Inventory model.
+
+This closes the conceptual Location boundary and removes R8-INV-003 as a decision blocker. Implementation remains NOT AUTHORIZED.
