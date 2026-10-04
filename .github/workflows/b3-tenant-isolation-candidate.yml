@@ -71,3 +71,9 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-producto-familia.integration-spec.ts
+
+      - name: Run ISO-006 candidate
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-iso-006.integration-spec.ts
