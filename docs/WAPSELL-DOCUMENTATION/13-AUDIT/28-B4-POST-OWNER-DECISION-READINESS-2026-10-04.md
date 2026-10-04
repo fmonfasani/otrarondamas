@@ -107,3 +107,20 @@ Therefore:
 - product implementation: **NOT AUTHORIZED**.
 
 The detailed implementation/execution record is `13-AUDIT/29-B4-VERIFICATION-INFRASTRUCTURE-IMPLEMENTATION-2026-10-04.md`.
+
+
+## 10. B4 verification-infrastructure technical reconciliation — 2026-10-04
+
+The existing `b4/verification-infrastructure` implementation was technically compared against the B4 candidate scope.
+
+**Reusable:** Jest integration config, additive integration test command, two-Business dynamic fixture, disposable PostgreSQL CI structure.
+
+**Corrected:** the CI bootstrap no longer uses `prisma db push --accept-data-loss`. The repository branch does not expose a committed migration surface, so the disposable CI database remains initialized through `prisma db push`, but without an unconditional destructive-change acknowledgement.
+
+**Boundary:** the integration test is B4 smoke/regression infrastructure, not full B3 verification. Its setup/teardown is locally bounded to the current suite; a shared fixture library is not introduced without demonstrated reuse need.
+
+**Evidence correction:** the previously documented run `37210436567` is retained as [D] historical documentation because it could not be independently recovered through the available workflow-run retrieval surface. Current [T]/[E] evidence is therefore **PENDING** until the corrected workflow executes successfully.
+
+**B4 state:** IMPLEMENTED / TECHNICALLY RECONCILED / AWAITING FRESH CI VERIFICATION.
+
+**B3 state:** unchanged — NOT FULLY EXECUTED, NOT VERIFIED, and product implementation NOT AUTHORIZED.
