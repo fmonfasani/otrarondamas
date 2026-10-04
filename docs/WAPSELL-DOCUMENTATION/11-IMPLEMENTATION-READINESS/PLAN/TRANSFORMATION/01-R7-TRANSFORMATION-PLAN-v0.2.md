@@ -694,3 +694,11 @@ OD-B4-02 permits task-local implementation of verification infrastructure before
 - No component is designated for deletion or replacement.
 
 **Implementation:** NOT AUTHORIZED by this plan.
+
+## R8-B4 VERIFICATION INFRASTRUCTURE CANDIDATE — 2026-10-04
+
+OD-B4-02 has been propagated into a proposed task:
+
+`11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
+
+The task is **PROPOSED — NOT AUTHORIZED FOR EXECUTION**. Its purpose is to remove the verification-infrastructure bottleneck without changing product behavior, schema, migrations or normative contracts.
