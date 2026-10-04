@@ -520,3 +520,12 @@ Approved direction:
 - H1 — Payment reconciliation remains distinct from Cash and AR reconciliation.
 
 Exact transition enforcement, external provider mechanics, idempotency, refund persistence, Payment↔Cash effects, AR allocation, Cash reconciliation and technical contracts remain OPEN. **Implementation remains NOT AUTHORIZED.**
+
+
+## R8-PAY-003 — OWNER RULING — 2026-10-03
+
+The Owner accepted all recommendations A1, B3, C1, D1, E1, F2, G1 and H1. Authoritative closure: `03-DECISIONS/41-R8-PAY-003-OWNER-DECISION-PAYMENT-CASH-AR-EFFECTS-2026-10-03.md`.
+
+Approved direction: Payment may affect Cash according to payment method; timing depends on method/evidence; Payment and AR application remain distinct; Payments may be allocated partially/fully across AR obligations; Payments may exist without AR; partial Payment does not automatically create AR; refunds may produce compensating Cash effects when applicable; Sale cancellation does not erase historical Payments and compensating effects belong to the respective domains.
+
+Exact Cash/AR mechanics, reconciliation, provider mechanics, refund/cancellation workflows and technical contracts remain OPEN. **Implementation remains NOT AUTHORIZED.**
