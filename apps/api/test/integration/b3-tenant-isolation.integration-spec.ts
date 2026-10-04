@@ -12,6 +12,8 @@ describe('B3 tenant isolation — execution candidates', () => {
   let productoB: { id: string };
   let clienteA: { id: string };
   let clienteB: { id: string };
+  let proveedorA: { id: string };
+  let proveedorB: { id: string };
   let reglaA: { id: string };
   let reglaB: { id: string };
   let familiaA: { id: string };
@@ -169,6 +171,9 @@ describe('B3 tenant isolation — execution candidates', () => {
       select: { id: true },
     });
 
+    proveedorA = await prisma.proveedor.create({ data: { empresaId: empresaA.id, nombre: `B3 Proveedor A ${suffix}` }, select: { id: true } });
+    proveedorB = await prisma.proveedor.create({ data: { empresaId: empresaB.id, nombre: `B3 Proveedor B ${suffix}` }, select: { id: true } });
+
     reglaA = await prisma.reglaFidelizacion.create({ data: { empresaId: empresaA.id, nombre: 'B3 Regla A', nivelRequerido: 'VIP', descuentoPorcentaje: 10 }, select: { id: true } });
     reglaB = await prisma.reglaFidelizacion.create({ data: { empresaId: empresaB.id, nombre: 'B3 Regla B', nivelRequerido: 'VIP', descuentoPorcentaje: 20 }, select: { id: true } });
   });
@@ -189,6 +194,9 @@ describe('B3 tenant isolation — execution candidates', () => {
     });
     await prisma.reglaFidelizacion.deleteMany({ where: { id: { in: [reglaA.id, reglaB.id] } } });
     await prisma.cliente.deleteMany({ where: { id: { in: [clienteA.id, clienteB.id] } } });
+    await prisma.compraItem.deleteMany({ where: { compra: { empresaId: { in: [empresaA.id, empresaB.id] } } } });
+    await prisma.compra.deleteMany({ where: { empresaId: { in: [empresaA.id, empresaB.id] } } });
+    await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA.id, proveedorB.id] } } });
     await prisma.producto.deleteMany({
       where: { id: { in: [productoA.id, productoB.id] } },
     });
@@ -673,6 +681,105 @@ describe('B3 tenant isolation — execution candidates', () => {
       expect(await contarPedidos(positive)).toBe(1);
     });
   });
+  });
+
+
+  describe('relation isolation — Compra → CompraItem → Producto (Gate 6.4)', () => {
+    const compraBase = (numeroFactura: string) => ({
+      empresaId: empresaA.id,
+      proveedorId: proveedorA.id,
+      usuarioId: usuarioA.id,
+      estado: 'BORRADOR' as const,
+      total: 10,
+      numeroFactura,
+    });
+    const itemDe = (productoId: string) => ({
+      productoId,
+      cantidadPedida: 1,
+      cantidadRecibida: 0,
+      costoUnitario: 10,
+    });
+    const contarCompras = (numeroFactura: string) =>
+      prisma.compra.count({ where: { numeroFactura } });
+
+    it('C-01: Business A + Product A persists Compra and CompraItem', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const compra = await db.compra.create({
+        data: { ...compraBase('g64-positive'), items: { create: [itemDe(productoA.id)] } },
+        include: { items: true },
+      });
+      expect(compra.empresaId).toBe(empresaA.id);
+      expect(compra.items).toHaveLength(1);
+      expect(compra.items[0].productoId).toBe(productoA.id);
+      const persisted = await prisma.compra.findUnique({ where: { id: compra.id }, include: { items: true } });
+      expect(persisted?.empresaId).toBe(empresaA.id);
+      expect(persisted?.items).toHaveLength(1);
+      expect(persisted?.items[0].productoId).toBe(productoA.id);
+    });
+
+    it('C-02: nested Compra.create cannot link Business A to Product B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      await expect(
+        db.compra.create({
+          data: { ...compraBase('g64-negative-nested'), items: { create: [itemDe(productoB.id)] } },
+        }),
+      ).rejects.toThrow();
+      expect(await contarCompras('g64-negative-nested')).toBe(0);
+      expect(await prisma.compraItem.count({ where: { productoId: productoB.id } })).toBe(0);
+    });
+
+    it('C-03: direct CompraItem.create and createMany cannot link an A Compra to Product B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const compra = await prisma.compra.create({ data: compraBase('g64-direct'), select: { id: true } });
+
+      await expect(
+        db.compraItem.create({ data: { compraId: compra.id, ...itemDe(productoB.id) } }),
+      ).rejects.toThrow();
+      await expect(
+        db.compraItem.createMany({ data: [{ compraId: compra.id, ...itemDe(productoB.id) }] }),
+      ).rejects.toThrow();
+
+      expect(await prisma.compraItem.count({ where: { compraId: compra.id } })).toBe(0);
+    });
+
+    it('C-05: one cross-Business item rejects the whole mixed nested Compra', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      await expect(
+        db.compra.create({
+          data: {
+            ...compraBase('g64-mixed'),
+            items: { create: [itemDe(productoA.id), itemDe(productoB.id)] },
+          },
+        }),
+      ).rejects.toThrow();
+      expect(await contarCompras('g64-mixed')).toBe(0);
+      expect(await prisma.compraItem.count({ where: { compra: { numeroFactura: 'g64-mixed' } } })).toBe(0);
+    });
+
+    it('C-06: relation isolation applies inside an interactive transaction', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      await expect(
+        db.$transaction(async (tx) => {
+          await tx.compra.create({
+            data: { ...compraBase('g64-tx-negative'), items: { create: [itemDe(productoB.id)] } },
+          });
+        }),
+      ).rejects.toThrow();
+      expect(await contarCompras('g64-tx-negative')).toBe(0);
+
+      await db.$transaction(async (tx) => {
+        await tx.compra.create({
+          data: { ...compraBase('g64-tx-positive'), items: { create: [itemDe(productoA.id)] } },
+        });
+      });
+      expect(await contarCompras('g64-tx-positive')).toBe(1);
+      const persisted = await prisma.compra.findFirst({
+        where: { numeroFactura: 'g64-tx-positive' },
+        include: { items: true },
+      });
+      expect(persisted?.items).toHaveLength(1);
+      expect(persisted?.items[0].productoId).toBe(productoA.id);
+    });
   });
 
   describe('relation isolation — Venta → VentaItem → ReglaFidelizacion (Gate 6.3)', () => {
