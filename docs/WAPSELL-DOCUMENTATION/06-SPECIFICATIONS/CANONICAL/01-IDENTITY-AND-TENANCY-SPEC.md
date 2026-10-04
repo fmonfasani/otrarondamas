@@ -1,4 +1,152 @@
 # Wapsell — Identity, Tenancy, Membership & Authorization Specification
+**Version:** 0.3  
+**Status:** DRAFT — NOT APPROVED  
+**Reconciled:** 2026-10-03  
+**Basis:** OR-B2 + OR-B3 canonical reconciliation
+
+> **Document authority:** This section is the current reconciled interpretation of Identity, Tenancy, Membership and Authorization. The historical baseline is retained below for traceability. Where historical wording conflicts with this section, the later Owner rulings prevail under ISS-08.
+
+## 1. Canonical Identity & Tenancy Model
+
+### 1.1 User
+- `User` is the global platform identity.
+- A normalized email identifies at most one `User`; duplicate normalized emails are not permitted.
+- Email normalization rules and the physical uniqueness mechanism remain implementation detail.
+- `User` is not intrinsically scoped to one Business.
+- A `User` may hold multiple `Memberships`.
+
+### 1.2 Business
+- `Business` is the canonical business/tenant entity.
+- `Business` is the unit of multi-tenant isolation.
+- `Tenant` may be used to describe the isolation function, but is not the canonical entity name.
+- Business identifiers, physical isolation mechanism and schema remain open implementation detail.
+- `Brand` belongs to the Business and represents its visible commercial identity.
+
+### 1.3 Membership
+- `Membership` is the N:N relationship between `User` and `Business`.
+- A Membership establishes the user's operating context inside a Business.
+- Conceptual Membership lifecycle is:
+  - `ACTIVE`
+  - `INACTIVE`
+- An `INACTIVE` Membership cannot operate on the Business.
+- Additional lifecycle states are not approved.
+- A User may have multiple Memberships and may change the active Business.
+- The Business Switch mechanism is implementation detail and remains open.
+
+## 2. Authorization
+
+The MVP authorization model is strictly:
+
+`Membership → Role → Permission`
+
+No `Profile → Role → Capability → Overrides` model is approved for the MVP.
+
+### 2.1 Conceptual authorization checks
+
+Every protected Business operation conceptually validates:
+
+1. authenticated `User`;
+2. target `Business`;
+3. valid `Membership` for that Business;
+4. authorization through `Role` / `Permission`.
+
+A valid token alone does not authorize an operation.
+
+Token format, claims, session mechanics, guards, middleware and enforcement are implementation detail and remain open.
+
+### 2.2 MVP Membership Roles
+
+The canonical MVP Membership Roles are:
+
+- `Owner`
+- `Admin`
+- `Vendedor`
+- `Gestor de Stock`
+
+`Owner` and `Admin` are distinct.
+
+`Customer` and `Supplier` are not Membership Roles.
+
+`Repartidor` is outside the MVP Membership Role catalog and remains `FUTURE / OPEN`.
+
+The permission catalog and permission-to-role matrix remain open implementation detail.
+
+## 3. Customer and User
+
+- `Customer` and `User` are distinct entities.
+- `Customer` represents the commercial relationship of a buyer/customer with a Business.
+- A Customer may exist without a User.
+- A Customer may optionally be associated with a User.
+- Customer/User association is controlled; the system may detect or propose a possible match, but email equality alone does not automatically create the association.
+- The exact matching criteria, association mechanism, lifecycle and physical model remain open.
+- Customer commercial data remains Business-scoped.
+
+## 4. SaaS Administration
+
+A conceptual `SaaS Admin` exists at platform level, but it is outside the operational MVP.
+
+No SaaS Admin implementation or permission model is approved by this specification.
+
+## 5. Authentication and MFA
+
+- Authentication establishes the identity of the global User.
+- The specific authentication-provider set for the TO-BE remains open; AS-IS mechanisms are evidence, not automatically TO-BE commitments.
+- MFA/2FA is mandatory for `Owner` and `Admin`.
+- The technical MFA mechanism remains open.
+
+## 6. Migration Direction
+
+The approved conceptual transformation is incremental:
+
+`Empresa → Business`
+
+`Usuario → User + Membership`
+
+`Cliente → Customer`
+
+Coexistence is temporary and bounded. Physical coexistence, compatibility mechanism, cutover, rollback and migration execution remain subject to a later approved specification.
+
+## 7. Business Context and Isolation
+
+Business operations are contextual to a Business and its Membership.
+
+Cross-Business access is not permitted without a valid Membership and corresponding authorization.
+
+The physical isolation/enforcement mechanism is not decided here.
+
+## 8. Explicitly Open
+
+The following remain open:
+
+- physical User/Business/Membership schema;
+- Customer↔User physical association;
+- exact Customer/User matching;
+- Business Switch mechanism;
+- permission catalog and role-permission matrix;
+- authentication provider set;
+- token/session design;
+- technical MFA mechanism;
+- Business isolation enforcement;
+- migration mechanics, cutover and rollback;
+- additional Membership states;
+- SaaS Admin implementation;
+- operational approval workflows not separately specified.
+
+## 9. Governance and Status
+
+This reconciled section incorporates the scope of OR-B2 and OR-B3 without approving implementation.
+
+**Technical Specification: NOT APPROVED**
+
+**Implementation: NOT AUTHORIZED**
+
+---
+
+# Historical Baseline — retained for traceability
+
+The following v0.2 material is retained as historical evidence. It is not the current canonical interpretation. Later Owner rulings and this v0.3 reconciliation supersede conflicting statements within the historical material.
+
+# Wapsell — Identity, Tenancy, Membership & Authorization Specification
 **Version:** 0.2 | **Status:** DRAFT — NOT APPROVED · **Reconciled:** 2026-09-28
 
 > ## Normative basis (read before using this document)
