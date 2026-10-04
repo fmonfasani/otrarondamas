@@ -1,8 +1,8 @@
 # B4 — POST-OWNER-DECISION READINESS REASSESSMENT — 2026-10-04
 
-**Status:** DOCUMENTARY REASSESSMENT — B4 OWNER DECISIONS CLOSED; CONTROLLED VERIFICATION WORK PERMITTED; PRODUCT IMPLEMENTATION NOT GENERALLY READY
+**Status:** DOCUMENTARY REASSESSMENT — B4 OWNER DECISIONS CLOSED; VERIFICATION INFRASTRUCTURE COMPLETED/VERIFIED; PRODUCT IMPLEMENTATION NOT GENERALLY READY
 **Scope:** B4 — transversal Implementation Readiness over B1/B2/B3
-**Evidence:** [C] code/read-only inspection, [D] documented. [T]=0, [E]=0.
+**Evidence:** [C] code/read-only inspection, [D] documented, [T] verified by CI, [E] verified by CI execution. Infrastructure task execution evidence is recorded in Audit 29.
 **Implementation:** Product code/schema/migrations NOT AUTHORIZED by this assessment.
 
 ## 1. Purpose
@@ -89,3 +89,21 @@ No execution evidence is claimed.
 ## 8. Next step
 
 Derive and explicitly authorize the first verification-infrastructure task. Do not promote a product implementation task until its local readiness gates are satisfied.
+
+## 9. Post-execution reconciliation — 2026-10-04
+
+The first verification-infrastructure candidate was explicitly authorized by the Owner through Option A and executed on branch `b4/verification-infrastructure`.
+
+GitHub Actions run **37210436567** completed successfully:
+- Jest smoke/regression suite: SUCCESS [T].
+- PostgreSQL/Prisma integration suite: SUCCESS [T][E].
+- Prisma client generation and disposable PostgreSQL schema preparation: SUCCESS.
+- No product source, Prisma schema or migration files were changed [C].
+
+Therefore:
+- verification infrastructure: **COMPLETED / VERIFIED**;
+- B3 tenant-isolation verification: **NOT YET EXECUTED AS A FULL BLOCK**;
+- R8-ARCH-002 property 12: **NOT MET** as a B3 readiness gate;
+- product implementation: **NOT AUTHORIZED**.
+
+The detailed implementation/execution record is `13-AUDIT/29-B4-VERIFICATION-INFRASTRUCTURE-IMPLEMENTATION-2026-10-04.md`.
