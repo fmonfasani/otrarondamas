@@ -199,3 +199,19 @@ Negative stock is prohibited. Products with expiry use FEFO; products without ex
 Inventory uses a generic Location concept. A MAIN location is the minimum conceptual requirement and multiple Locations are permitted. No separate Branch/Warehouse conceptual model is introduced by this reconciliation.
 
 Physical Location model and cardinality remain OPEN.
+
+
+## R8 ARCHITECTURE CLOSURE ADDENDUM — 2026-10-03
+
+Inventory persistence is subject to the approved application-level tenant boundary:
+
+- the effective Business Context is established by the application;
+- inventory operations cannot use a client-supplied Business identifier to override context;
+- inventory reads/writes must remain Business-scoped;
+- related/nested stock persistence must preserve ownership;
+- invalid or absent Business context fails closed;
+- cross-Business inventory access is a negative verification requirement.
+
+The existing Empresa-based implementation is AS-IS evidence and must be adapted incrementally; it is not the final authorization authority.
+
+Authority: R8-ARCH-002. Exact transaction, locking and persistence mechanisms remain implementation detail.
