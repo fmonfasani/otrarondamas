@@ -1269,3 +1269,9 @@ Este documento es el **escalón TO-BE** de
 
 *Fin de `07-TOBE/03-INVENTORY.md` · Fase 6.2 · `DRAFT — NOT APPROVED` · sin efecto normativo más allá
 de los grados declarados en §14.1.*
+
+## POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+Inventory queda alineado con OR-B3-009: la reserva se produce al confirmar el Order y el decremento físico se registra mediante un movimiento de salida que representa la salida real de inventario. La decisión no define todavía schema, estados técnicos, transacciones, APIs ni contratos.
+
+Locations quedan conceptualmente gobernadas por OR-B3-004: concepto genérico, MAIN mínimo y múltiples permitidas.
