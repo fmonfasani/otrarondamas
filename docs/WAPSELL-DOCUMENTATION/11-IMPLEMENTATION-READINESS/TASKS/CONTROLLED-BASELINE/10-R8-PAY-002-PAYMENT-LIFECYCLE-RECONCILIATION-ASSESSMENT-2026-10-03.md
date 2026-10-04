@@ -287,3 +287,24 @@ Even if A1–H1 are accepted, the following remain OPEN:
 **R8-PAY-002: READY FOR OWNER DECISION.**
 
 No code, schema, migration, data or infrastructure was modified.
+
+
+## 9. OWNER DECISION CLOSURE — 2026-10-03
+
+**Status: CLOSED — OWNER APPROVED.**
+
+The Owner explicitly accepted all recommendations A1–H1.
+
+Approved conceptual direction:
+- retain the AS-IS Payment state vocabulary as the transformation starting point;
+- controlled manual payments may be approved at registration;
+- Payment lifecycle is independent from Sale lifecycle;
+- partial payments are valid;
+- overpayment is rejected by default;
+- refunds/reversals are explicit and traceable Payment operations;
+- Payment remains distinct from AR application;
+- Payment reconciliation remains distinct from Cash and AR reconciliation.
+
+The following remain OPEN: exact state-transition graph, authorization mechanics, external provider/webhook/idempotency details, refund persistence model, Payment↔Cash effects, AR allocation rules, Cash reconciliation and technical contracts.
+
+**Implementation remains NOT AUTHORIZED.**
