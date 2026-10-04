@@ -1,6 +1,6 @@
 # B4 — VERIFICATION INFRASTRUCTURE CANDIDATE TASK v0.1
 
-**Status:** RECONCILED — AWAITING FRESH CI VERIFICATION
+**Status:** COMPLETED / VERIFIED — FRESH CI VERIFIED
 **Class:** VERIFICATION INFRASTRUCTURE
 **Scope:** B4 Implementation Readiness
 **Owner authority:** OD-B4-02 — approved
@@ -48,7 +48,7 @@ Establish the minimum reusable verification infrastructure required to execute c
 
 ## 6. Promotion gate
 
-This candidate required explicit task-local authorization. That authorization was granted by the Owner selecting Option A on 2026-10-04. The candidate has been technically reconciled against the repository. Fresh CI execution is required before promoting execution evidence to [T]/[E].
+This candidate required explicit task-local authorization. That authorization was granted by the Owner selecting Option A on 2026-10-04. The candidate has been technically reconciled against the repository. Fresh CI execution has established current [T]/[E] evidence.
 
 ## 7. Success criteria
 
@@ -59,17 +59,18 @@ This candidate required explicit task-local authorization. That authorization wa
 5. No product behavior, schema, migration or domain contract is changed.
 6. All execution evidence is recorded using [T]/[E] only after real execution.
 
-**Current state: RECONCILED — AWAITING FRESH CI VERIFICATION.**
+**Current state: COMPLETED / VERIFIED — FRESH CI VERIFIED.**
 
 Execution authorization:
 - Option A explicitly selected by Owner on 2026-10-04.
 - Task-local execution authorization therefore granted.
 
 Evidence:
-- [T] Jest smoke/regression suite: SUCCESS in GitHub Actions run 37210436567.
-- [E] PostgreSQL/Prisma integration suite: SUCCESS in GitHub Actions run 37210436567.
-- [C] Branch diff verified: only verification infrastructure, package script, and audit documentation changed; no product source, Prisma schema, or migration files changed.
+- [T] Jest smoke/regression suite: SUCCESS in fresh GitHub Actions run **37211384785**.
+- [E] PostgreSQL/Prisma integration suite: SUCCESS in fresh GitHub Actions run **37211384785**, using the disposable PostgreSQL 15 service.
+- [C] Branch diff verified: B4 changes are limited to verification infrastructure, package script, workflow, and audit/task documentation; no product source, Prisma schema, or migration file was changed by the B4 implementation.
 - [D] Implementation and execution reconciled in `13-AUDIT/29-B4-VERIFICATION-INFRASTRUCTURE-IMPLEMENTATION-2026-10-04.md`.
+- [D] Historical run **37210436567** is retained only as historical documentation; the fresh run above is the current independently verified execution evidence.
 
 Promotion result:
 - B4 verification infrastructure: **COMPLETED / VERIFIED**.
@@ -89,7 +90,7 @@ The existing implementation was reviewed against the task scope and the reposito
 
 ### Corrected
 
-- CI previously used `prisma db push --accept-data-loss`. The repository has no committed Prisma migration surface identified for this branch, while the CI database is disposable. The destructive-acknowledgement flag was therefore removed. CI now invokes `prisma db push` without `--accept-data-loss`, so an unexpected destructive schema transition fails instead of being silently accepted.
+- CI previously used `prisma db push --accept-data-loss`. The repository does have a committed Prisma migration surface. For this verification workflow, the target PostgreSQL instance is disposable CI infrastructure and the workflow intentionally bootstraps its schema with `prisma db push`. The destructive-acknowledgement flag was removed, so an unexpected destructive schema transition fails instead of being silently accepted.
 - The test file remains an infrastructure smoke/regression test and must not be treated as complete B3 invariant verification.
 - Setup/teardown is currently local to the integration suite. It is a valid bounded fixture boundary for the present task, but it is not yet a general shared fixture library. That generalization is deferred unless subsequent B3 tests demonstrate a concrete reuse need.
 
@@ -106,4 +107,4 @@ The existing implementation was reviewed against the task scope and the reposito
 
 The previous branch documentation recorded GitHub Actions run `37210436567` as successful. That historical claim has not been independently recoverable through the available workflow-run retrieval surface. It is therefore treated as **[D] DOCUMENTED**, not as independently established [T]/[E] evidence for this reconciliation.
 
-A fresh CI execution of the corrected workflow is required to establish current [T]/[E] evidence.
+Fresh CI execution of the corrected workflow completed successfully in run **37211384785**, establishing current [T]/[E] evidence.
