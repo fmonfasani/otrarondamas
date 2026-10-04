@@ -1,0 +1,295 @@
+# WAPSELL — Canonical Tests / Evals v0.2
+
+**Status:** DRAFT — NOT APPROVED  
+**Date:** 2026-10-03  
+**Layer:** Tests / Evals  
+**Authority:** Canonical Invariants v0.2 + reconciled Contracts  
+**Derived from:** `07-DESIGN/INVARIANTS/DERIVED/00-INVARIANTS-v0.1.md` (canonical content v0.2) + R6 Invariants Canonical Audit
+
+> This document derives verification criteria from the current canonical invariant candidates. It does not claim that tests exist, have been executed, or that implementation complies. It does not resolve OPEN specifications or define test-framework, API, schema, CI, infrastructure, or transaction mechanisms.
+
+---
+
+## 1. Derivation rule
+
+The verification chain is:
+
+`Requirement → Contract → Invariant → Test/Eval → Implementation → Evidence`
+
+A test/eval is eligible only when the behavior it verifies is sufficiently bounded by an authoritative invariant or contract.
+
+Tests must not:
+
+- infer implementation mechanisms from domain rules;
+- convert OPEN details into requirements;
+- assume a specific framework, endpoint, database constraint, JWT claim or transaction boundary;
+- use current AS-IS behavior as proof of TO-BE compliance.
+
+Historical tests remain in the R6 baseline and are not silently deleted or reclassified as canonical.
+
+---
+
+## 2. Evidence states
+
+- **SPECIFIED:** verification criterion defined.
+- **IMPLEMENTED:** test/eval exists in implementation.
+- **EXECUTED:** test/eval has been run.
+- **PASSED:** execution produced acceptable evidence.
+- **FAILED:** execution produced evidence of non-compliance.
+- **BLOCKED:** criterion cannot be meaningfully executed without an OPEN semantic/contract decision.
+- **NOT EXECUTED:** criterion is specified but no execution evidence exists.
+
+All tests/evals in this document are initially **SPECIFIED** unless explicitly marked otherwise.
+
+---
+
+## 3. Identity & Tenancy
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-ID-001 | INV-IDENT-001 | The same User identity can participate in more than one Business context without becoming separate User identities. | Functional | SPECIFIED |
+| TE-ID-002 | INV-MEM-001 | A User without Membership for Business B cannot operate in Business B solely because the User has Membership for Business A. | Isolation/Security | SPECIFIED |
+| TE-ID-003 | INV-MEM-002 | An INACTIVE Membership cannot authorize a Business-scoped operation. | Authorization | SPECIFIED |
+| TE-ID-004 | INV-IDENT-002 | Two distinct Users cannot be established with the same normalized email identity. | Integrity | SPECIFIED |
+| TE-ID-005 | INV-CUST-001 | A Customer can exist without a User association. | Domain | SPECIFIED |
+| TE-ID-006 | INV-CUST-002 | Email equality alone does not automatically create Customer↔User association. | Security/Domain | SPECIFIED |
+| TE-ID-007 | INV-CUST-003 | Customer commercial data from Business A cannot silently appear in Business B. | Isolation | SPECIFIED |
+
+**OPEN:** physical identity model, normalization algorithm, physical tenant isolation, association mechanics.
+
+---
+
+## 4. Authorization
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-AUTH-001 | INV-AUTH-001 | Authentication without a valid target Business Membership is insufficient for a Business-scoped operation. | Security | SPECIFIED |
+| TE-AUTH-002 | INV-AUTH-001 | A valid Membership alone is insufficient when the operation lacks applicable authorization. | Security | SPECIFIED |
+| TE-AUTH-003 | INV-AUTH-002 | Authorization semantics are represented by Membership→Role→Permission, without Profile/Capability/Individual Override precedence. | Architecture/Security | SPECIFIED |
+| TE-AUTH-004 | INV-AUTH-003 | Hiding an action in UI does not constitute the authorization decision for the underlying operation. | Security | SPECIFIED |
+
+**OPEN:** permission catalogue, Role→Permission matrix and technical enforcement.
+
+---
+
+## 5. Commerce — Product / Cart / Order / Sale
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-COM-001 | INV-COM-001 | Global Product identity is not silently duplicated to represent Business-specific commercial configuration. | Domain/Isolation | SPECIFIED |
+| TE-COM-002 | INV-CART-001 | A Cart can exist before Customer association. | Domain | SPECIFIED |
+| TE-COM-003 | INV-CART-001 | Order creation is rejected/blocked when the required Customer context is absent. | Domain | SPECIFIED |
+| TE-COM-004 | INV-CART-002 | A Cart cannot mix products or commercial configuration across Business contexts. | Isolation | SPECIFIED |
+| TE-COM-005 | INV-ORD-001 | Creating or maintaining an Order does not by itself create a Sale. | Domain | SPECIFIED |
+| TE-COM-006 | INV-ORD-002 | Commercial Order confirmation requires Business authorization governed by ORDER_CONFIRM. | Authorization | SPECIFIED |
+| TE-COM-007 | INV-ORD-002 | Customer confirmation/intent alone cannot satisfy Business authorization for Order confirmation. | Security | SPECIFIED |
+| TE-COM-008 | INV-SALE-001 | Sale creation occurs at commercial confirmation rather than merely at Order creation or delivery. | Domain | SPECIFIED |
+| TE-COM-009 | INV-SALE-002 | A confirmed Sale cannot be edited/deleted as if the original operation never existed. | Integrity | SPECIFIED |
+| TE-COM-010 | INV-SALE-003 | An applicable Sale operation does not leave its approved effects partially applied. | Integrity | SPECIFIED |
+
+**OPEN:** exact state machines and cancellation/reversal/refund effect matrix.
+
+---
+
+## 6. Inventory
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-INV-001 | INV-INV-001 | Inventory belonging to Business A cannot be operated on as Business B inventory. | Isolation | SPECIFIED |
+| TE-INV-002 | INV-INV-003 | A valid inventory operation cannot produce negative stock. | Integrity | SPECIFIED |
+| TE-INV-003 | INV-INV-004 | Confirmed Order causes the corresponding stock reservation required by the canonical rule. | Domain | SPECIFIED |
+| TE-INV-004 | INV-INV-005 | Physical stock decrement is represented by a stock-out movement corresponding to actual physical stock exit. | Domain/Audit | SPECIFIED |
+| TE-INV-005 | INV-INV-006 | Where expiry applies, stock selection follows FEFO. | Domain | SPECIFIED |
+| TE-INV-006 | INV-INV-006 | Where expiry does not apply, stock selection follows FIFO. | Domain | SPECIFIED |
+| TE-INV-007 | INV-INV-007 | Inventory can operate with the generic Location concept and at least one conceptual MAIN Location. | Domain | SPECIFIED |
+
+**OPEN:** reservation transaction boundaries, locking, lot/batch representation and physical Location model.
+
+---
+
+## 7. Cash / AR
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-CASH-001 | INV-CASH-001 | Cash context from Business A cannot be mixed with Business B. | Isolation | SPECIFIED |
+| TE-CASH-002 | INV-CASH-002 | Cash operations respect the conceptual Apertura→Operaciones/Movimientos→Arqueo→Cierre lifecycle. | Domain | SPECIFIED |
+| TE-CASH-003 | INV-CASH-003 | A closed Cash cannot be directly modified. | Integrity | SPECIFIED |
+| TE-CASH-004 | INV-CASH-004 | A sensitive Cash operation requires the applicable specific Permission. | Security | SPECIFIED |
+| TE-AR-001 | INV-AR-001 | A receivable remains within its Business and Customer commercial context. | Isolation | SPECIFIED |
+
+**OPEN:** exact Cash state machine, adjustment workflow, Payment↔Cash effects and AR allocation/credit formulas.
+
+---
+
+## 8. Messaging
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-MSG-001 | INV-MSG-001 | A commercial Conversation belongs to exactly one Business. | Isolation | SPECIFIED |
+| TE-MSG-002 | INV-MSG-002 | A Customer can participate in Messaging without a User identity. | Domain | SPECIFIED |
+| TE-MSG-003 | INV-MSG-003 | An action initiated from Messaging is rejected when the underlying domain authorization is absent. | Security/Integration | SPECIFIED |
+| TE-MSG-004 | INV-MSG-004 | MVP Messaging can operate without dependency on WhatsApp. | Architecture/Domain | SPECIFIED |
+| TE-MSG-005 | INV-MSG-005 | MVP does not activate autonomous AI assistant behavior. | Scope/Security | SPECIFIED |
+
+**OPEN:** physical messaging model, realtime, notifications, retention, attachments and external channels.
+
+---
+
+## 9. Fulfillment
+
+| ID | Invariant | Verification criterion | Type | Status |
+|---|---|---|---|---|
+| TE-FUL-001 | INV-FUL-001 | Fulfillment behavior is attributable to the Orders domain rather than a separate top-level domain boundary. | Architecture/Domain | SPECIFIED |
+| TE-FUL-002 | INV-FUL-002 | Repartidor is not required as an MVP Membership Role. | Scope/Authorization | SPECIFIED |
+
+**OPEN:** delivery states, tracking, zones, tariffs, evidence, timeout/escalation and future actor model.
+
+---
+
+## 10. Negative / abuse evaluation families
+
+The following evaluation families are derived from the canonical invariants and should be instantiated once their relevant implementation surfaces exist:
+
+1. cross-Business access using a Membership from another Business;
+2. operation using INACTIVE Membership;
+3. authentication without Business Membership;
+4. insufficient Role/Permission authorization;
+5. UI-hidden action invoked through another application surface;
+6. Customer/User association triggered only by equal email;
+7. cross-Business Cart contamination;
+8. Order confirmation without `ORDER_CONFIRM`;
+9. Customer confirmation treated as Business authorization;
+10. editing/deleting confirmed Sale;
+11. negative stock attempt;
+12. inventory operation against another Business;
+13. invalid stock-selection order against FEFO/FIFO;
+14. direct modification of closed Cash;
+15. sensitive Cash operation without required Permission;
+16. Messaging action bypassing domain authorization;
+17. cross-Business Conversation access.
+
+These are **evaluation families**, not claims that corresponding automated tests already exist.
+
+---
+
+## 11. Explicitly excluded / BLOCKED
+
+The following are not canonical executable tests yet because their governing semantics remain OPEN:
+
+- exact Order/Sale state-machine tests;
+- cancellation/reversal/refund effect tests;
+- Payment reconciliation lifecycle tests;
+- Payment↔Cash effect tests;
+- AR credit formula tests;
+- Cash adjustment/state-machine tests beyond the closed lifecycle boundary;
+- inventory transaction/locking/concurrency tests requiring unspecified boundaries;
+- physical Location model tests;
+- detailed Messaging realtime/retention/notification tests;
+- Return/Refund state-machine tests;
+- delivery timeout/escalation tests;
+- AI execution tests;
+- external-channel implementation tests;
+- exact Customer↔User merge/unlink mechanics;
+- JWT/session implementation tests;
+- physical tenant-isolation mechanism tests;
+- API/event contract tests where those contracts are not yet approved.
+
+A blocked test must not be made executable by inventing the missing semantic rule.
+
+---
+
+## 12. Historical baseline disposition
+
+The existing:
+
+`07-DESIGN/TESTS-EVALS/BASELINE/00-R6-TESTS-EVALS-BASELINE-001-490.md`
+
+is retained as historical baseline.
+
+The following baseline material is not promoted automatically because it conflicts with or exceeds the current canonical boundary:
+
+- Profile/Capability/Individual Override authorization tests;
+- Driver/Repartidor operational state tests;
+- Purchase/Receiving tests while Purchases/AP remain outside the initial MVP;
+- detailed Promotion precedence/combination tests;
+- detailed Refund/Return state-machine tests;
+- legacy session tests requiring technical transition semantics;
+- provider-specific notification/payment tests not bounded by current contracts.
+
+No historical baseline test is deleted.
+
+---
+
+## 13. Traceability
+
+| Test family | Invariant(s) | Contract/source | Status |
+|---|---|---|---|
+| Identity/Tenancy | INV-IDENT-001, INV-MEM-001/002, INV-IDENT-002, INV-CUST-001/002/003 | R5 Identity Contracts | SPECIFIED |
+| Authorization | INV-AUTH-001/002/003 | R5 Identity Contracts | SPECIFIED |
+| Commerce | INV-COM-001, INV-CART-001/002, INV-ORD-001/002, INV-SALE-001/002/003 | R5 Commerce Contracts | SPECIFIED |
+| Inventory | INV-INV-001..007 | R5 Inventory/Commerce Contracts | SPECIFIED |
+| Cash/AR | INV-CASH-001..004, INV-AR-001 | R5 Cash Contracts + Commerce AR boundary | SPECIFIED |
+| Messaging | INV-MSG-001..005 | R5 Messaging Contracts | SPECIFIED |
+| Fulfillment | INV-FUL-001/002 | R5 Commerce Contracts | SPECIFIED |
+
+---
+
+## 14. Evidence status
+
+No test in this document is claimed as:
+
+- IMPLEMENTED;
+- EXECUTED;
+- PASSED;
+- FAILED.
+
+Current evidence state:
+
+| Evidence | State |
+|---|---|
+| Canonical test/eval criteria | SPECIFIED |
+| Automated tests | NOT CREATED |
+| Test execution | NOT EXECUTED |
+| Coverage | NOT DETERMINABLE |
+| CI validation | NOT EXECUTED |
+| E2E validation | NOT EXECUTED |
+| Production validation | NOT EXECUTED |
+
+---
+
+## 15. Advancement gate
+
+The Tests/Evals layer is ready for controlled planning only when:
+
+- [x] canonical invariants are identified;
+- [x] stale historical test families are separated from current canonical criteria;
+- [x] each canonical invariant has a verification criterion where meaningful;
+- [x] OPEN semantics remain explicitly blocked;
+- [x] no framework or implementation mechanism is assumed;
+- [x] evidence states distinguish specification from execution;
+- [ ] Owner approval of Tests/Evals v0.2;
+- [ ] implementation test plan;
+- [ ] implementation of tests;
+- [ ] test execution and evidence.
+
+**Current status: DRAFT — DERIVED / NOT APPROVED.**
+
+---
+
+## 16. Non-actions
+
+This document does not:
+
+- modify code;
+- modify schema;
+- create migrations;
+- define APIs;
+- define event payloads;
+- define JWT/session mechanics;
+- select a test framework;
+- create automated tests;
+- execute tests;
+- claim implementation compliance;
+- resolve OPEN domain decisions.
+
+**R7 TEST/EVAL DERIVATION: COMPLETE — DRAFT / NOT APPROVED.**
