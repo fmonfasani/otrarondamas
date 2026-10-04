@@ -22,6 +22,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
   let loteA: { id: string };
   let loteB: { id: string };
   let usuarioA: { id: string };
+  let usuarioB: { id: string };
 
   const unique = () => Date.now().toString();
 
@@ -116,6 +117,15 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
       select: { id: true },
     });
 
+    usuarioB = await prisma.usuario.create({
+      data: {
+        empresaId: empresaB.id,
+        nombre: 'B3 ISO006 User B',
+        email: `b3-iso006-user-b-${suffix}@example.test`,
+      },
+      select: { id: true },
+    });
+
     loteA = await prisma.lote.create({
       data: {
         empresaId: empresaA.id,
@@ -160,7 +170,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
     await prisma.familia.deleteMany({
       where: { id: { in: [familiaA.id, familiaB.id] } },
     });
-    await prisma.usuario.delete({ where: { id: usuarioA.id } });
+    await prisma.usuario.deleteMany({ where: { id: { in: [usuarioA.id, usuarioB.id] } } });
     await prisma.empresa.deleteMany({
       where: { id: { in: [empresaA.id, empresaB.id] } },
     });
@@ -183,8 +193,14 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
 
       expect(created.empresaId).toBe(empresaA.id);
 
-      const hidden = await tx.usuario.findUnique({
+      const visible = await tx.usuario.findUnique({
         where: { id: usuarioA.id },
+        select: { id: true, empresaId: true },
+      });
+      expect(visible).toEqual({ id: usuarioA.id, empresaId: empresaA.id });
+
+      const hidden = await tx.usuario.findUnique({
+        where: { id: usuarioB.id },
         select: { id: true, empresaId: true },
       });
       expect(hidden).toBeNull();
