@@ -103,3 +103,30 @@ The direction requires traceable cancellation/reversal/refund, but cross-domain 
 
 No canonical state names have been invented or approved by this assessment.
 No code, schema, migration or data was modified.
+
+## 11. OWNER DECISION CLOSURE — 2026-10-03
+
+The Owner explicitly accepted all recommendations A1–L1.
+
+### Approved decisions
+
+- A1: retain the AS-IS Order state vocabulary as the starting lifecycle, with semantic reconciliation.
+- B1: CONFIRMADO is the commercial confirmation boundary.
+- C1: delivery does not create the Sale or redefine its economic boundary.
+- D1: cancellation before physical stock exit releases the applicable reservation without inventing a physical stock-out.
+- E1: retain PARCIALMENTE_ENTREGADO as an operational Order state.
+- F1: CANCELADO is terminal.
+- G1: retain CONFIRMADA / ANULADA as the conceptual starting Sale lifecycle.
+- H1: confirmed Sale is immutable; correction uses explicit traceable operations.
+- I1: Order and Sale have separate lifecycles.
+- J1: Payment does not determine the Sale lifecycle state.
+- K1: ENTREGADO represents fulfillment completion, not Sale/payment/cash completion.
+- L1: cross-domain correction effects are defined by the respective specialized domains.
+
+### Closure boundary
+
+R8-ORD-002 now closes the conceptual Order/Sale lifecycle direction. It does not close exact technical transition enforcement, Payment/Cash/AR mechanics, detailed Fulfillment transitions, reservation persistence/locking, or cancellation/reversal/refund implementation.
+
+**R8-ORD-002: CLOSED — OWNER APPROVED.**
+
+Implementation remains NOT AUTHORIZED.
