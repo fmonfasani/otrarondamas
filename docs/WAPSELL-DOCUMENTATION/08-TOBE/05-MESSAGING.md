@@ -614,3 +614,9 @@ No se estableció:
 **Decisiones creadas: 0. Requisitos inventados: 0. Estados inventados: 0. IDs inventados: 0. Entidades físicas definidas: 0. Conflictos resueltos: 0.**
 
 La siguiente etapa documental debe continuar con el próximo dominio TO-BE definido por el roadmap antes de pasar a Contracts, Invariants, Tests e Implementation.
+
+## POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+Messaging incorpora como decisión cerrada que un Customer puede participar en una Conversation sin tener identidad User de Wapsell. No se exige por este ruling una entidad técnica `ConversationIdentity`; la representación concreta queda para la especificación especializada/Architecture.
+
+Esto supersede cualquier referencia histórica que trate Customer sin User como `OPEN OWNER DECISION`.
