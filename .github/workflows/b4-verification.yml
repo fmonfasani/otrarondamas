@@ -1,0 +1,40 @@
+name: B4 Verification Infrastructure
+
+on:
+  push:
+    branches: [main, "b4/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api-verification:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate --workspace=@otrarondamas/api
+      - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+      - run: npm test --workspace=@otrarondamas/api -- --runInBand
+      - run: npm run test:e2e --workspace=@otrarondamas/api -- --runInBand

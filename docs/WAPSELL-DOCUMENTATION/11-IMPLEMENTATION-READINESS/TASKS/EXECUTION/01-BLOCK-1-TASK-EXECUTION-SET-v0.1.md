@@ -339,14 +339,58 @@ Such a task must specify scope, non-scope, dependencies, expected evidence and v
 
 **Current implementation status remains NOT AUTHORIZED for product code/schema/migrations.**
 
-## 14. B4 verification infrastructure candidate — 2026-10-04
+## 14. B4 verification infrastructure candidate — 2026-10-04 — CLOSED
 
-OD-B4-02 permits verification-infrastructure work before B3 is fully VERIFIED. A separate proposed task has therefore been derived:
+OD-B4-02 permitted verification-infrastructure work before B3 is fully VERIFIED. The candidate task was explicitly authorized by the Owner through **Option A** on 2026-10-04.
 
 `11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
 
-**State:** PROPOSED — NOT AUTHORIZED FOR EXECUTION.
+**State:** COMPLETED / VERIFIED — FRESH CI VERIFIED.
 
-The candidate covers Jest/test harness, deterministic two-Business fixtures, PostgreSQL/Prisma integration support, smoke/regression support and CI verification infrastructure. It does not authorize product behavior changes, schema changes, migrations or B3 tenant-isolation implementation.
+Implemented and technically reconciled:
+- Jest integration configuration;
+- deterministic two-Business PostgreSQL/Prisma fixture;
+- bounded setup/teardown for the current integration suite;
+- smoke/regression execution path;
+- CI verification workflow.
 
-The candidate must receive explicit task-local execution authorization before code changes or test execution occur.
+Evidence closure:
+- GitHub Actions run **37210436567** remains documented as a historical result only [D];
+- fresh corrected workflow run **37211384785** succeeded and establishes current [T] and [E];
+- the CI bootstrap was corrected to remove `--accept-data-loss`;
+- no product source, Prisma schema or migration file was changed by B4;
+- branch inspection confirms no product source, Prisma schema, or migration changes are part of the B4 implementation [C].
+
+The task remains bounded to verification infrastructure. It does **not** authorize B3 tenant-isolation product implementation and does **not** mark B3 invariants VERIFIED.
+
+
+## 15. B3 CONTROL POINT — 2026-10-04
+
+The B3 control point was executed after B4 Verification Infrastructure reached **COMPLETED / VERIFIED**.
+
+Result:
+
+| Gate | State |
+|---|---|
+| B3 Owner decisions | **CLOSED** — B3-TEST-001…025 |
+| B4 verification infrastructure | **PASS** |
+| B3 invariant derivation | **PASS WITH RECONCILIATION** |
+| B3 contract | **BLOCKED / NOT YET READY** |
+| B3 Tests/Evals derivation | **PASS WITH RECONCILIATION** |
+| B3 Tests/Evals execution | **NOT STARTED** — [T]=0, [E]=0 |
+| B3 implementation readiness | **BLOCKED** |
+| Product implementation | **NOT AUTHORIZED** |
+
+The exact blocker is the technical Business-scoped persistence-isolation contract (T-01), which must make the approved R8-ARCH-002 direction implementable and independently testable.
+
+Control-point record:
+
+`13-AUDIT/31-B3-CONTROL-POINT-2026-10-04.md`
+
+### Consequence for task promotion
+
+No B3 implementation task is promoted by this control point.
+
+The next controlled action is **B3 CONTRACTS — close T-01** without product code/schema/migration/data changes. After that closure, the B3 control point must be rerun before any implementation promotion.
+
+**B3 remains NOT VERIFIED and NOT READY FOR IMPLEMENTATION.**
