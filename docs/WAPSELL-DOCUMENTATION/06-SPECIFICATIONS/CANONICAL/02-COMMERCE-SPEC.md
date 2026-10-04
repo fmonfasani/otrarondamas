@@ -291,3 +291,19 @@
 - Enforcement del aislamiento por `Tenant`: row-level security, filtro obligatorio, esquema
   separado. `OPEN`.
 
+## POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+Las siguientes decisiones posteriores prevalecen sobre cualquier texto histórico contradictorio:
+
+- **Product:** identidad global + `BusinessProduct` para configuración comercial por Business.
+- **Cart:** puede existir sin Customer; Customer requerido antes de crear Order.
+- **Order confirmation:** la confirmación comercial es una acción Business-side autorizada por `ORDER_CONFIRM`. La confirmación del Customer no concede esa autorización.
+- **Order / Sale:** se mantiene la separación conceptual; la Sale nace con la confirmación comercial.
+- **Inventory:** Order confirmado reserva stock; el decremento físico se registra mediante un movimiento de salida que representa la salida real.
+- **Fulfillment:** incluido en MVP bajo Orders; Repartidor no es Membership Role MVP.
+- **Cash sensible:** autorización mediante Permissions específicas.
+- **Customer/User:** vínculo opcional y controlado; Customer puede existir sin User.
+- **AR/Cuentas Corrientes:** permanece incluido en MVP por decisión previa del Owner.
+- **Payment states, pricing detallado, refunds/returns state machines y demás contratos técnicos:** permanecen abiertos donde no fueron cerrados por estos rulings.
+
+Las secciones históricas `OPEN` no se eliminan; quedan superseded por este bloque cuando se refieren a decisiones OR-B3.
