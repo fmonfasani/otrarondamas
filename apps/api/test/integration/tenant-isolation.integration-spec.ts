@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
@@ -31,6 +30,9 @@ describe('Tenant isolation verification infrastructure', () => {
   });
 
   afterAll(async () => {
+    await prisma.usuario.deleteMany({
+      where: { empresaId: { in: [empresaA.id, empresaB.id] } },
+    });
     await prisma.empresa.deleteMany({
       where: { id: { in: [empresaA.id, empresaB.id] } },
     });
