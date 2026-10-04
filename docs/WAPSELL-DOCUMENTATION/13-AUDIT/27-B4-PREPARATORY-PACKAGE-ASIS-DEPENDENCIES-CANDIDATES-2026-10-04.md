@@ -662,3 +662,50 @@ TK-B4-C11 canonización → reevaluación del primer slice
 **B4 — PAQUETE PREPARATORIO: COMPLETO — NO CANÓNICO — NO APROBADO.**
 
 Este documento no cierra B4, no lo declara READY, no crea decisiones, no modifica artefactos existentes y no autoriza implementación. Está destinado a llevarse al contexto principal de WAPSELL para reconciliación y aprobación.
+
+
+# 17. OWNER DECISION RECONCILIATION — B4 — 2026-10-04
+
+## 17.1 OD-B4-01 — B4 scope
+
+**APPROVED — OPTION A.** B4 is the transversal Implementation Readiness stage over B1/B2/B3, not a new domain block. The package scope is confirmed as readiness, controlled implementation planning, verification infrastructure and first-slice determination.
+
+The alternative interpretation of B4 as a new domain block is closed for this project stage and must not be propagated.
+
+## 17.2 OD-B4-02 — verification infrastructure
+
+**APPROVED — OPTION B.** Verification infrastructure may be implemented before B3 is fully VERIFIED, subject to task-local authorization, provided it does not alter product behavior, schema, migrations, domain contracts or normative decisions.
+
+Permitted classes include Jest harness/configuration repair, fixtures, integration-test support, smoke tests, regression tests for already-closed B1/B2 criteria, and CI verification infrastructure.
+
+B3 product implementation remains outside this authorization. B3 tests whose criteria depend on unresolved B3 technical conditions remain conditional until those conditions are satisfied.
+
+## 17.3 Reconciliation with the earlier package
+
+The original package was explicitly **NO CANONICAL / NO APPROVED** and required Owner confirmation of OD-B4-01. That confirmation now exists in `03-DECISIONS/50-B4-IMPLEMENTATION-READINESS-OWNER-DECISIONS-2026-10-04.md`.
+
+The earlier AS-IS finding that verification infrastructure is the practical bottleneck is retained. The distinction is now explicit: infrastructure work may proceed as a controlled verification task; product implementation remains governed by the normal readiness gates.
+
+## 17.4 B3 dependency update
+
+The former B3 ownership ambiguity is normatively closed by Owner Decision 49 and ISO-009. This removes the ownership-definition blocker from B3 derivation. It does **not** satisfy execution evidence, P12 negative verification or B3 implementation readiness.
+
+## 17.5 Current B4 operational state
+
+| Workstream | State |
+|---|---|
+| B4 scope | **OWNER-APPROVED** |
+| Verification infrastructure | **AUTHORIZED IN PRINCIPLE; TASK-LOCAL AUTHORIZATION REQUIRED** |
+| B1-derived tests | **CAN ADVANCE WHEN TASK-LOCAL GATES ARE SATISFIED** |
+| B2-derived tests | **CASE-BY-CASE DEPENDENCY REVIEW** |
+| B3 product implementation | **NOT AUTHORIZED** |
+| B3 tests depending on unresolved technical conditions | **CONDITIONAL** |
+| CI | **NOT EXISTING; candidate work** |
+| [T] | **0** |
+| [E] | **0** |
+
+## 17.6 Decision authority and evidence
+
+OD-B4-01 and OD-B4-02 are Owner decisions, not execution evidence. No test, API run, build or CI run is claimed here.
+
+**B4 remains a preparatory/readiness layer; this package does not declare B4 READY or authorize a product implementation slice.**
