@@ -703,3 +703,16 @@ The following conceptual invariants are derived from the Owner-approved R8-PAY-0
 - **INV-PAY-006:** Payment reconciliation does not by itself constitute Cash reconciliation or AR reconciliation.
 
 These are DOCUMENTED derived invariants. Exact transition enforcement and cross-domain economic effects remain OPEN.
+
+
+## R8-PAY-003 INVARIANT RECONCILIATION — 2026-10-03
+
+- **INV-PAY-CASH-001:** Cash impact of a Payment is determined by the approved payment-method boundary; Payment does not imply identical Cash treatment for every method.
+- **INV-PAY-AR-001:** Payment and AR application are distinct operations.
+- **INV-PAY-AR-002:** A Payment may be applied partially or fully to applicable AR obligations.
+- **INV-PAY-AR-003:** A Payment may exist without creating an AR obligation.
+- **INV-PAY-AR-004:** Partial Payment does not by itself imply creation of an AR obligation.
+- **INV-PAY-REF-001:** Refund/correction does not erase historical Payment traceability and may require compensating Cash effects when applicable.
+- **INV-PAY-SALE-001:** Sale cancellation does not erase or directly rewrite historical Payments.
+
+These are DOCUMENTED derived invariants. Exact enforcement and cross-domain transaction boundaries remain OPEN.
