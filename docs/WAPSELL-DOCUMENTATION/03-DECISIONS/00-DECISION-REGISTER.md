@@ -432,3 +432,49 @@ IMPLEMENTATION = NOT AUTHORIZED
 | OR-B3-014 | MFA/2FA | CLOSED — obligatorio para Owner/Admin |
 
 **Límite:** estos rulings no aprueban la Technical Specification ni autorizan implementación.
+
+
+## 10. Master Owner Recommendation Package — 2026-10-03
+
+**Status:** CLOSED — OWNER ACCEPTED ALL RECOMMENDATIONS
+
+On 2026-10-03 the Owner explicitly accepted all recommendations in the Master Decision Package previously presented in the working session. The consolidated closure is recorded in:
+
+- `03-DECISIONS/30-R8-MASTER-OWNER-DECISION-CLOSURE-2026-10-03.md`
+
+This acceptance consolidates product and architectural directions across identity/tenancy, authorization, authentication/session, commerce, inventory, payments/cash, fulfillment, messaging, branding, audit/notifications, migration and implementation readiness.
+
+### Authority treatment
+
+1. Existing Owner rulings remain authoritative where they cover the same subject.
+2. The master closure does not retroactively alter historical evidence.
+3. Technical mechanisms explicitly left OPEN by a higher-authority ruling remain OPEN until separately closed.
+4. The accepted package does not authorize schema changes, migrations, destructive code changes, deployment or production cutover.
+5. Implementation remains NOT AUTHORIZED until the implementation-readiness gates are satisfied.
+
+### Consolidated accepted directions
+
+- Membership → Role → Permission is the authorization model.
+- JWT-centric authentication is the approved incremental authentication direction; JWT alone is not authorization.
+- Application-level tenant isolation is the approved tenant-isolation direction.
+- Active Business Context is server-established and must correspond to an ACTIVE Membership.
+- Owner/Admin MFA is mandatory.
+- Customer remains distinct from User; Customer↔User association is controlled.
+- Product identity is global conceptually; BusinessProduct carries Business-specific commercial configuration.
+- Cart may exist anonymously, but Customer is required before Order.
+- Order and Sale remain distinct; Sale is born at commercial confirmation.
+- Confirmed Orders reserve stock; physical decrement is represented by actual stock-out movement.
+- Negative stock is prohibited; FEFO/FIFO rules apply as approved.
+- Inventory is Business-owned; Location is generic with MAIN minimum.
+- Payment is separate from Sale; AR/Cuentas por Cobrar is in MVP; Cash is Business-scoped and sensitive operations require explicit Permissions.
+- Fulfillment remains under Orders; Repartidor is outside MVP Membership Roles.
+- Returns/Refunds and Pricing/Promotions belong to the Commerce TO-BE direction.
+- Messaging is first-class, Business-scoped and does not depend on WhatsApp for MVP; AI is inactive in MVP.
+- Business Brand is customer-facing over the common Wapsell Design System.
+- Modular Monolith is the approved architectural direction.
+- Migration remains incremental with controlled coexistence and traceability.
+
+For the complete 43-item accepted package and its implementation-boundary treatment, the master closure artifact above is authoritative for the consolidation, subject to the precedence rule in this register.
+
+**Evidence:** DOCUMENTADO — Owner acceptance in the 2026-10-03 working session.
+**Implementation status:** NOT AUTHORIZED.
