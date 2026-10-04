@@ -285,7 +285,7 @@ A Business-scoped operation is subject to the isolation obligations regardless o
 
 ## 6.1 Former deferred item — CLOSED BY OWNER DECISION 49
 
-The former ISO-OPEN-001 ownership ambiguity is closed normatively by Owner Decision 49.
+The former ISO-009 ownership ambiguity is closed normatively by Owner Decision 49.
 
 **Canonical invariant:** ISO-009.
 
@@ -311,7 +311,7 @@ The decision establishes Business ownership but does not prescribe the physical 
 
 # 7. Ownership classification
 
-Required by rule 5, and the basis of ISO-003, ISO-004 and ISO-OPEN-001. Derived from the AS-IS audit and verified against the schema `[C]`.
+Required by rule 5, and the basis of ISO-003, ISO-004 and ISO-009. Derived from the AS-IS audit and verified against the schema `[C]`.
 
 ## 7.1 Classification summary
 
@@ -412,7 +412,7 @@ R8-ARCH-002 §3.12 requires cross-Business access to be covered by negative veri
 | **ISO-006** | STABLE / AS-IS NOT VERIFIED | STABLE | LOW | 10 |
 | **ISO-007** | STABLE | STABLE | LOW | 11 |
 | **ISO-008** | CONDITIONAL | CONDITIONAL | LOW | §7 |
-| **ISO-OPEN-001** | OPEN | NOT TESTABLE YET | none | §6 |
+| **ISO-009** | CONDITIONAL | SPECIFIED | Owner Decision 49 | §6 |
 | *(reference frame, §3)* | **REFERENCE** | owned by B1/B2 | **eliminated by design** | 1, 2, 3, 4, 6, 7, 8 |
 
 **Totals:** 9 active invariants — 6 STABLE, 3 CONDITIONAL · 0 OPEN · 1 readiness gate · 1 process rule · 1 scope clause · 16 referenced B1/B2 invariants with no B3 ID created.
@@ -441,7 +441,7 @@ R8-ARCH-002 §3.12 requires cross-Business access to be covered by negative veri
 Not closed by this document, and not implicitly approved by appearing here:
 
 1. the enforcement mechanism for every invariant in this set (explicitly open upstream `[D]`);
-2. the resolution of ambiguous ownership (ISO-OPEN-001);
+2. the resolution of ambiguous ownership (ISO-009);
 3. whether a business identifier's scoped uniqueness is met by a constraint, by scoped generation or otherwise (ISO-005);
 4. the determination mechanism for derived ownership (ISO-003);
 5. whether classification becomes a system artefact, which governs ISO-004's testability;
@@ -498,7 +498,7 @@ AS-IS state per invariant, for traceability only:
 | ISO-006 | `B3-CON-020`, `B3-CON-021` | R8-ARCH-002 §3.10 | sibling B1 `INV-X-001`; adjacent `INV-X-003` | none | NOT CREATED |
 | ISO-007 | `B3-CON-003` (operation reading) | R8-ARCH-002 §3.11 | adjacent B1 `INV-CONTEXT-001`, B2 `AUT-004` (different subject) | none | NOT CREATED |
 | ISO-008 | `B3-CON-023` | R8-ARCH-002 §7, §5 | none | none | NOT CREATED |
-| ISO-OPEN-001 | `B3-CON-019` | R8-ARCH-002 §6 | none | none | NOT CREATED |
+| ISO-009 | `B3-CON-019` | R8-ARCH-002 §6 | none | none | NOT CREATED |
 
 **Contract obligations deliberately not producing a B3 invariant:** `B3-CON-001`, `002`, `005`, `007`, `008`, `009`, `010`, `011`, `013` → referenced to B1/B2 (§3). `B3-CON-004` → upstream (the persistence layer consuming the context is a B1 context property). `B3-CON-006` → absorbed (§6.2). `B3-CON-012` → covered by ISO-001/002's agnostic formulation. `B3-CON-022` → scope clause (§4). `B3-CON-024` → process rule (§6.2).
 
@@ -520,16 +520,16 @@ The Block 3 invariant set is ready to enter Tests/Evals derivation when:
 | every invariant is observable, or its non-observability is explained | **MET** — §10; two CONDITIONAL and one OPEN explained |
 | no test is declared executed | **MET** — §9, §12 |
 | test criteria linked to existing ones rather than duplicated | **PENDING** — §13 identifies the adjacent criteria; the linkage is derivation work |
-| ambiguous ownership resolved | **NOT MET** — ISO-OPEN-001, deliberately deferred |
+| ambiguous ownership resolved | **MET** — Owner Decision 49; physical mechanism remains downstream technical specification |
 | negative verification exists | **NOT MET** — §9; zero isolation tests |
 
-**Two criteria unmet, both deliberate:** ISO-OPEN-001 requires a model resolution this document must not invent, and negative verification is the next stage's work, not this one's.
+**One criterion remains unmet:** negative verification is the next stage's work, not this document's.
 
 ---
 
 # 15. Closure
 
-**Canonical Block 3 invariant set: 8 active invariants, 1 open, derived.**
+**Canonical Block 3 invariant set: 9 active invariants, 0 open, derived and reconciled.**
 
 This document creates no decision, schema, API, test or implementation. It modifies no existing document, and it creates no identifier for any property already normative in Block 1 or Block 2.
 
