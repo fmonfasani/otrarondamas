@@ -216,3 +216,14 @@ The existing Empresa-based implementation is AS-IS evidence and must be adapted 
 
 Authority: R8-ARCH-002. Exact transaction, locking and persistence mechanisms remain implementation detail.
 \n\n## R8-INV-002 RECONCILIATION — 2026-10-03\n\nReservation semantics are now conceptually closed:\n\n- confirmed Order establishes a Business-scoped stock reservation;\n- reservation does not itself represent physical stock exit;\n- available stock is conceptually on-hand minus reserved;\n- successful reservation cannot exceed available quantity;\n- concurrent confirmations must not commit the same availability twice;\n- failed reservation cannot leave a partial reservation;\n- physical decrement occurs only through a stock-out movement representing actual physical exit;\n- cancellation/correction before physical exit releases the applicable reservation;\n- partial physical exit preserves the distinction between reserved and physically removed quantity;\n- FEFO/FIFO remains the lot-selection policy.\n\nThe physical reservation model, transaction/locking mechanism, lifecycle state names and API remain OPEN.\n\nAuthority: R8-INV-002.\n
+
+## R8-INV-003 RECONCILIATION — 2026-10-03
+
+Owner-approved Location direction:
+- Location is Business-scoped.
+- Each Business has a MAIN Location as the minimum and may have multiple Locations.
+- Location remains generic; no Branch/Warehouse/Deposito conceptual split in MVP.
+- Inventory association granularity remains OPEN for the specialized physical Inventory model.
+- MAIN is a conceptual role, not a separate entity type.
+
+Physical persistence, associations, lifecycle, transfer, reservation interaction, API, migration, constraints and transaction boundaries remain OPEN.
