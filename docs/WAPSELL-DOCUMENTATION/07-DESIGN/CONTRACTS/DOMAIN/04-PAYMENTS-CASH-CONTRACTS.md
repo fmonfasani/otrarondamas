@@ -221,3 +221,19 @@ The Owner-approved Payment lifecycle direction is now closed conceptually:
 - Payment reconciliation is distinct from Cash reconciliation and AR reconciliation.
 
 The following remain OPEN: exact transition graph, provider/webhook/idempotency mechanics, refund persistence model, Payment↔Cash effects, AR allocation rules, Cash reconciliation and technical API/event contracts.
+
+
+## R8-PAY-003 — Canonical Reconciliation — 2026-10-03
+
+The Owner-approved Payment↔Cash/AR boundaries are:
+
+- approved Payment may produce a Cash effect according to payment method;
+- Cash impact timing depends on payment method and confirmation/evidence semantics;
+- Payment and AR application remain distinct;
+- a Payment may be allocated fully or partially to one or more applicable AR obligations;
+- a Payment may exist without creating AR;
+- partial Payment does not automatically create AR;
+- refunds may generate compensating Cash effects when applicable;
+- Sale cancellation does not erase historical Payments; compensating effects belong to the respective domains.
+
+Exact Cash states, movement model, confirmation rules, reconciliation, AR debt/allocation rules, refund/cancellation mechanics and technical contracts remain OPEN.
