@@ -2,7 +2,7 @@
 ## Tenant Isolation — Post-Owner Closure
 
 **Date:** 2026-10-04  
-**Status:** RECONCILED FOR DOWNSTREAM DERIVATION — NOT YET B3 READY  
+**Status:** RECONCILED FOR DOWNSTREAM DERIVATION — OWNERSHIP AMBIGUITY CLOSED — NOT YET B3 READY  
 **Scope:** Contract reconciliation only  
 **Implementation:** NOT AUTHORIZED  
 **Code/schema changes:** NONE  
@@ -35,7 +35,7 @@ B1/B2 guarantees are referenced, not duplicated.
 |---|---|
 | B3 invariant namespace | `ISO-*` retained as the working namespace |
 | Unsupported persistence operation | Fail-closed obligation retained as B3 requirement |
-| `Legajo` / `DocumentoLegajo` ownership | Remains OPEN TECHNICAL DETAIL; no User/Customer/Business ownership invented |
+| `Legajo` / `DocumentoLegajo` ownership | CLOSED NORMATIVELY by Owner Decision 49: Business-scoped with deterministic ownership; physical mechanism remains downstream technical detail |
 | ISO-008 | Retained for Business-scoped operations; pre-context paths remain separately governed |
 | R8-ARCH-002 property 12 | Verification gate, not an invariant |
 | Create ownership | No additional invariant for now; reopen only if evidence reveals a coverage gap |
@@ -63,8 +63,8 @@ The historical contract status table is not the current B3 count.
 
 Current reconciled set:
 
-- **8 active B3-specific obligations**
-- **1 OPEN TECHNICAL DETAIL**
+- **9 active B3-specific obligations**
+- **0 OPEN TECHNICAL DETAILS**
 - B1/B2 obligations referenced rather than duplicated
 - R8-ARCH-002 property 12 retained as a verification gate
 - pre-context handling retained as a scope rule
@@ -111,7 +111,7 @@ These are **working labels**, not yet final canonical invariant IDs.
 
 ## 9. OPEN TECHNICAL DETAIL
 
-### ISO-AMBIG-001 — Legajo / DocumentoLegajo ownership
+### ISO-009 — Legajo / DocumentoLegajo deterministic Business ownership
 
 The ownership path for `Legajo` and `DocumentoLegajo` remains unresolved.
 
@@ -208,8 +208,8 @@ The next artifact must:
 - R2: reconciled
 - R3: reconciled
 - R4: reconciled as a test-ID allocation rule
-- B3-specific working obligations: **8**
-- Open technical detail: **1**
+- B3-specific working obligations: **9**
+- Open technical detail: **0**
 - Property 12: **verification gate**
 - Implementation authorization: **NO**
 - Test execution claimed: **NO**
@@ -227,3 +227,10 @@ This reconciliation:
 - does not close the `Legajo` / `DocumentoLegajo` ownership question;
 - does not replace B1/B2 canonical guarantees;
 - does not silently rewrite historical documents or identifiers.
+
+
+## 19. Owner Decision 49 propagation — 2026-10-04
+
+The former Legajo/DocumentoLegajo ownership ambiguity is normatively closed by Owner Decision 49. The B3 contract now carries **9 active obligations and 0 open ownership decisions/details**. The physical ownership mechanism remains a downstream technical specification and is not prescribed here.
+
+**Implementation:** NOT AUTHORIZED. **Tests executed:** NONE.
