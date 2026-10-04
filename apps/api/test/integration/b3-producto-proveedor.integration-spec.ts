@@ -8,6 +8,8 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
   let empresaB: { id: string };
   let proveedorA: { id: string };
   let proveedorB: { id: string };
+  let proveedorA5: { id: string };
+  let proveedorA6: { id: string };
   let productoA: { id: string };
   let productoB: { id: string };
   let subfamiliaA: { id: string };
@@ -107,6 +109,14 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
       data: { empresaId: empresaB.id, nombre: `B3 PP Proveedor B ${s}` },
       select: { id: true },
     });
+    proveedorA5 = await prisma.proveedor.create({
+      data: { empresaId: empresaA.id, nombre: `B3 PP Proveedor A PP-05 ${s}` },
+      select: { id: true },
+    });
+    proveedorA6 = await prisma.proveedor.create({
+      data: { empresaId: empresaA.id, nombre: `B3 PP Proveedor A PP-06 ${s}` },
+      select: { id: true },
+    });
 
     productoA = await prisma.producto.create({
       data: baseProducto(empresaA.id, familiaA.id, subfamiliaA.id, tipoA.id, subtipoA.id, `B3PPA${s}`),
@@ -123,7 +133,9 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
       where: { OR: [{ productoId: productoA.id }, { productoId: productoB.id }] },
     });
     await prisma.producto.deleteMany({ where: { id: { in: [productoA.id, productoB.id] } } });
-    await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA.id, proveedorB.id] } } });
+    await prisma.proveedor.deleteMany({
+      where: { id: { in: [proveedorA.id, proveedorB.id, proveedorA5.id, proveedorA6.id] } },
+    });
     await prisma.subtipo.deleteMany({ where: { id: { in: [subtipoA.id, subtipoB.id] } } });
     await prisma.tipo.deleteMany({ where: { id: { in: [tipoA.id, tipoB.id] } } });
     await prisma.subfamilia.deleteMany({ where: { id: { in: [subfamiliaA.id, subfamiliaB.id] } } });
@@ -201,7 +213,7 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
   it('PP-05: update cannot switch an existing relation to another Business Producto', async () => {
     const db = scopedPrisma.forEmpresa(empresaA.id);
     const relation = await db.productoProveedor.create({
-      data: relacionData(empresaA.id, productoA.id, proveedorA.id),
+      data: relacionData(empresaA.id, productoA.id, proveedorA5.id),
       select: { id: true },
     });
 
@@ -218,13 +230,13 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
     });
 
     expect(persisted?.productoId).toBe(productoA.id);
-    expect(persisted?.proveedorId).toBe(proveedorA.id);
+    expect(persisted?.proveedorId).toBe(proveedorA5.id);
   });
 
   it('PP-06: update cannot switch an existing relation to another Business Proveedor', async () => {
     const db = scopedPrisma.forEmpresa(empresaA.id);
     const relation = await db.productoProveedor.create({
-      data: relacionData(empresaA.id, productoA.id, proveedorA.id),
+      data: relacionData(empresaA.id, productoA.id, proveedorA6.id),
       select: { id: true },
     });
 
@@ -241,6 +253,6 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
     });
 
     expect(persisted?.productoId).toBe(productoA.id);
-    expect(persisted?.proveedorId).toBe(proveedorA.id);
+    expect(persisted?.proveedorId).toBe(proveedorA6.id);
   });
 });

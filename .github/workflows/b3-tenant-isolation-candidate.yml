@@ -92,3 +92,9 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-provider-payment-return-characterization.integration-spec.ts
+
+      - name: Run DevolucionProveedorItem regression
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-devolucion-proveedor-item.integration-spec.ts
