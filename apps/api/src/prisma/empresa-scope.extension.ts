@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { recolectarReferenciasRelacionales, type ReferenciaRelacional } from './relation-ownership';
 
 /**
  * Aislamiento multiempresa (INV-01, sección 5 del SDD) implementado como
@@ -28,6 +29,12 @@ import { Prisma } from '@prisma/client';
  * decidir si se cubre con un extension aparte que haga join implícito, o
  * si alcanza con la disciplina de siempre consultarlos anidados desde su
  * padre.
+ *
+ * Excepción acotada (relation isolation, B3): las relaciones listadas en
+ * RELACIONES_CON_OWNERSHIP (hoy solo VentaItem -> Producto) se verifican
+ * antes de persistir, tanto en escrituras anidadas como directas. Ver
+ * relation-ownership.ts. El resto de las relaciones sigue como se describe
+ * arriba.
  */
 const MODELOS_CON_EMPRESA_ID = [
   'Usuario',
@@ -93,6 +100,42 @@ const OPERACIONES_CON_WHERE = new Set([
 
 const OPERACIONES_FIND_UNIQUE = new Set(['findUnique', 'findUniqueOrThrow']);
 
+type DelegadoConEmpresaId = {
+  findUnique(args: {
+    where: Record<string, unknown>;
+    select: { empresaId: true };
+  }): Promise<{ empresaId: string } | null>;
+};
+
+// Verifica que cada recurso relacionado pertenezca a la empresa efectiva
+// ANTES de persistir. Un recurso de otra empresa se trata igual que uno
+// inexistente (P2025) para no revelar su existencia. Las consultas usan
+// el cliente base en otra conexión: no ven filas aún no confirmadas de
+// la transacción en curso, en cuyo caso fallan cerrado.
+async function verificarOwnershipRelacional(
+  client: unknown,
+  empresaId: string,
+  referencias: ReferenciaRelacional[],
+): Promise<void> {
+  for (const { modelo, where } of referencias) {
+    if (!esModeloConEmpresaId(modelo)) {
+      throw new Error(
+        `empresaScopeExtension: la relación hacia '${modelo}' no tiene ownership directo por empresa verificable.`,
+      );
+    }
+    const delegado = (client as Record<string, DelegadoConEmpresaId>)[
+      modelo.charAt(0).toLowerCase() + modelo.slice(1)
+    ];
+    const encontrado = await delegado.findUnique({ where, select: { empresaId: true } });
+    if (!encontrado || encontrado.empresaId !== empresaId) {
+      throw new Prisma.PrismaClientKnownRequestError(`No ${modelo} found`, {
+        code: 'P2025',
+        clientVersion: Prisma.prismaVersion.client,
+      });
+    }
+  }
+}
+
 /**
  * Crea un extension de Prisma atado a una empresa concreta. Se instancia
  * por request (ver EmpresaScopedPrismaFactory), nunca como singleton
@@ -106,6 +149,11 @@ export function empresaScopeExtension(empresaId: string) {
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
+            const referencias = recolectarReferenciasRelacionales(model, operation, args);
+            if (referencias.length > 0) {
+              await verificarOwnershipRelacional(client, empresaId, referencias);
+            }
+
             if (!esModeloConEmpresaId(model)) {
               return query(args);
             }

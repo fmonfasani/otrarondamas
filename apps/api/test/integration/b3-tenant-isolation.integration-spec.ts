@@ -329,4 +329,203 @@ describe('B3 tenant isolation — execution candidates', () => {
       empresaId: empresaA.id,
     });
   });
+
+  describe('relation isolation — Venta → VentaItem → Producto', () => {
+    const itemDe = (productoId: string) => ({
+      productoId,
+      cantidad: 1,
+      precioUnitario: 10,
+    });
+
+    const ventaDe = (canal: string, items: ReturnType<typeof itemDe>[]) => ({
+      empresaId: empresaA.id,
+      usuarioId: usuarioA.id,
+      estado: 'CONFIRMADA' as const,
+      canal,
+      total: 10,
+      ventaItems: { create: items },
+    });
+
+    const contarVentas = (canal: string) => prisma.venta.count({ where: { canal } });
+
+    const contarItemsDeProducto = (productoId: string) =>
+      prisma.ventaItem.count({ where: { productoId } });
+
+    it('RI-03: Business A + Product A persists the Venta and its VentaItem', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'ri-positive';
+
+      const creada = await db.venta.create({
+        data: ventaDe(canal, [itemDe(productoA.id)]),
+        include: { ventaItems: true },
+      });
+
+      expect(creada.empresaId).toBe(empresaA.id);
+      const persisted = await prisma.venta.findUnique({
+        where: { id: creada.id },
+        include: { ventaItems: true },
+      });
+      expect(persisted?.empresaId).toBe(empresaA.id);
+      expect(persisted?.ventaItems).toHaveLength(1);
+      expect(persisted?.ventaItems[0].productoId).toBe(productoA.id);
+    });
+
+    it('RI-04/RI-05: Business A + Product B is rejected as not found and persists nothing', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'ri-negative';
+
+      await expect(
+        db.venta.create({ data: ventaDe(canal, [itemDe(productoB.id)]) }),
+      ).rejects.toMatchObject({
+        code: 'P2025',
+      });
+
+      expect(await contarVentas(canal)).toBe(0);
+      expect(await contarItemsDeProducto(productoB.id)).toBe(0);
+    });
+
+    it('RI-05: a cross-Business item among valid items rejects the whole Venta', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'ri-mixed';
+
+      await expect(
+        db.venta.create({ data: ventaDe(canal, [itemDe(productoA.id), itemDe(productoB.id)]) }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+
+      expect(await contarVentas(canal)).toBe(0);
+      expect(await prisma.ventaItem.count({ where: { venta: { canal } } })).toBe(0);
+    });
+
+    it('RI-04: producto.connect to a Business B product is rejected', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'ri-connect';
+
+      await expect(
+        db.venta.create({
+          data: {
+            empresaId: empresaA.id,
+            usuarioId: usuarioA.id,
+            canal,
+            total: 10,
+            ventaItems: {
+              create: {
+                cantidad: 1,
+                precioUnitario: 10,
+                producto: { connect: { id: productoB.id } },
+              },
+            },
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+
+      expect(await contarVentas(canal)).toBe(0);
+      expect(await contarItemsDeProducto(productoB.id)).toBe(0);
+    });
+
+    it('RI-06: an unverifiable nested form on the relation fails closed', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'ri-unsupported';
+
+      await expect(
+        db.venta.create({
+          data: {
+            empresaId: empresaA.id,
+            usuarioId: usuarioA.id,
+            canal,
+            total: 10,
+            ventaItems: {
+              create: {
+                cantidad: 1,
+                precioUnitario: 10,
+                producto: {
+                  connectOrCreate: {
+                    where: { id: productoB.id },
+                    create: {
+                      empresaId: empresaB.id,
+                      nombre: 'SHOULD-NOT-CREATE',
+                      codigoInterno: `B3RI${Date.now()}`,
+                      familiaId: familiaB.id,
+                      subfamiliaId: subfamiliaB.id,
+                      tipoId: tipoB.id,
+                      subtipoId: subtipoB.id,
+                      unidadBase: 'UNIDAD',
+                      costo: 1,
+                      precioMinorista: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ).rejects.toThrow(/no tiene manejo de ownership definido/);
+
+      expect(await contarVentas(canal)).toBe(0);
+    });
+
+    it('RI-02: a VentaItem cannot be created directly against a Business B product', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await prisma.venta.create({
+        data: {
+          empresaId: empresaA.id,
+          usuarioId: usuarioA.id,
+          canal: 'ri-direct-child',
+          total: 10,
+        },
+        select: { id: true },
+      });
+
+      await expect(
+        db.ventaItem.create({ data: { ventaId: venta.id, ...itemDe(productoB.id) } }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+      await expect(
+        db.ventaItem.createMany({ data: [{ ventaId: venta.id, ...itemDe(productoB.id) }] }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+      expect(await prisma.ventaItem.count({ where: { ventaId: venta.id } })).toBe(0);
+
+      await db.ventaItem.create({ data: { ventaId: venta.id, ...itemDe(productoA.id) } });
+      expect(await prisma.ventaItem.count({ where: { ventaId: venta.id } })).toBe(1);
+    });
+
+    it('RI-02: a nested create through Venta.update cannot link a Business B product', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await prisma.venta.create({
+        data: {
+          empresaId: empresaA.id,
+          usuarioId: usuarioA.id,
+          canal: 'ri-update',
+          total: 10,
+        },
+        select: { id: true },
+      });
+
+      await expect(
+        db.venta.update({
+          where: { id: venta.id },
+          data: { ventaItems: { create: itemDe(productoB.id) } },
+        }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+
+      expect(await prisma.ventaItem.count({ where: { ventaId: venta.id } })).toBe(0);
+    });
+
+    it('RI-08: the relation check applies inside an interactive transaction', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canalNegativo = 'ri-tx-negative';
+      const canalPositivo = 'ri-tx-positive';
+
+      await expect(
+        db.$transaction(async (tx) => {
+          await tx.venta.create({ data: ventaDe(canalNegativo, [itemDe(productoB.id)]) });
+        }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+      expect(await contarVentas(canalNegativo)).toBe(0);
+
+      await db.$transaction(async (tx) => {
+        await tx.venta.create({ data: ventaDe(canalPositivo, [itemDe(productoA.id)]) });
+      });
+      expect(await contarVentas(canalPositivo)).toBe(1);
+      expect(await prisma.ventaItem.count({ where: { venta: { canal: canalPositivo } } })).toBe(1);
+    });
+  });
 });

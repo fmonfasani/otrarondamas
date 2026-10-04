@@ -139,3 +139,11 @@ Trigger: TE-B3-001 + ejecución B3.
 Fuentes: empresa-scope.extension.ts, schema.prisma, EmpresaScopedPrismaService, B3 Persistence Isolation Contract T-01 y B3 Tests/Evals.
 
 Transformation layer: docs/WAPSELL-DOCUMENTATION/09-TRANSFORMATION/.
+
+
+## 11. Registro de ejecución — 2026-10-04
+
+**Gate 4 — Minimal Implementation:** completado únicamente para la arista **VentaItem → Producto** (Venta → VentaItem → Producto). Detalle, evidencia y limitaciones en `12-RELATION-ISOLATION-GATE-4-MINIMAL-IMPLEMENTATION-2026-10-04.md`.
+
+- Resuelve la decisión abierta del §6/§7: registry declarativo + preflight sobre el payload de la operación de nivel superior, dentro del hook existente.
+- Gates 5–8 siguen pendientes; la capability **no** está completada y B3 **no** está VERIFIED.
