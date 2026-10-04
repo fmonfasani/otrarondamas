@@ -37,4 +37,8 @@ jobs:
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
       - run: npm test --workspace=@otrarondamas/api -- --runInBand
-      - run: npm run test:e2e --workspace=@otrarondamas/api -- --runInBand
+      - name: Run existing tenant isolation regression suite
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/tenant-isolation.integration-spec.ts
