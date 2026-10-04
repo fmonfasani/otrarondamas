@@ -261,3 +261,18 @@ Selecting A/B/C does not authorize schema migration or code changes.
 **R8-ID-002: READY FOR OWNER DECISION.**
 
 Implementation remains NOT AUTHORIZED.
+
+
+## 15. OWNER DECISION CLOSURE — 2026-10-03
+
+The assessment is closed by:
+
+`03-DECISIONS/32-R8-ID-002-OWNER-DECISION-PHYSICAL-USER-BUSINESS-MEMBERSHIP-2026-10-03.md`
+
+**R8-ID-002: CLOSED — OWNER APPROVED.**
+
+The Owner selected **Option A — Adapt existing Empresa + introduce Membership incrementally**.
+
+This closes the physical-model direction, not the physical schema or migration implementation. Empresa is retained as the compatibility-preserved physical Business representation during transition; Membership becomes the User↔Business relationship and role moves to Membership.
+
+**Implementation remains NOT AUTHORIZED.**
