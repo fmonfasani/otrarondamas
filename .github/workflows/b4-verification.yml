@@ -35,6 +35,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate --workspace=@otrarondamas/api
+      - run: npm run build --workspace=@otrarondamas/api
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
       - run: npm test --workspace=@otrarondamas/api -- --runInBand
       - name: Run existing tenant isolation regression suite
