@@ -28,16 +28,16 @@ Supporting:
 
 | ID | Subject | Accepted direction | Classification |
 |---|---|---|---|
-| B2-DEC-001 | Membership ACTIVE uniqueness | At most one ACTIVE Membership per \`(User, Business)\`. | Normative closure |
-| B2-DEC-002 | Customer response boundary | Preserve as a cross-cutting security principle: responses must not expose secrets or authorization-sensitive data. | Cross-cutting normative closure |
-| B2-DEC-003 | Legacy retirement | Treat legacy retirement as a separate process gate/cutover task, not as a runtime invariant. | Process closure |
-| B2-DEC-004 | Membership Role cardinality | A Membership has exactly one effective Role in the MVP authorization model. | Normative closure |
-| B2-DEC-005 | Permission catalogue | Approve permission domains conceptually; keep atomic identifiers, exact Role→Permission rows and persistence open. | Normative boundary + technical OPEN |
-| B2-DEC-006 | Legacy permission mapping | Require an explicit, reviewed mapping from legacy \`UsuarioPermiso\`/\`Permiso\` semantics to target Role→Permission before the affected legacy authorization path is retired. | Normative migration closure |
-| B2-DEC-007 | Legacy coexistence window | Coexistence is bounded and temporary; final duration/cutover mechanics remain task-local technical details. | Normative boundary |
-| B2-DEC-008 | Revocation / inactive Membership | Protected operations revalidate current server-side authorization state; no fixed latency/SLA is established by this decision. | Normative boundary + technical OPEN |
-| B2-DEC-009 | Endpoints without explicit Permission | Public/pre-context authentication paths may operate without Business Permission; protected Business-scoped operations fail closed when no applicable authorization is established. | Normative boundary |
-| B2-DEC-010 | D-006 / CON-018 authorization control | Preserve the concept of additional authorization control for critical operations, but redesign and specify its exact actors, triggers, states and enforcement in a dedicated downstream contract. | Owner ruling + technical OPEN |
+| 1 | Membership ACTIVE uniqueness | At most one ACTIVE Membership per \`(User, Business)\`. | Normative closure |
+| 2 | Customer response boundary | Preserve as a cross-cutting security principle: responses must not expose secrets or authorization-sensitive data. | Cross-cutting normative closure |
+| 3 | Legacy retirement | Treat legacy retirement as a separate process gate/cutover task, not as a runtime invariant. | Process closure |
+| 4 | Membership Role cardinality | A Membership has exactly one effective Role in the MVP authorization model. | Normative closure |
+| 5 | Permission catalogue | Approve permission domains conceptually; keep atomic identifiers, exact Role→Permission rows and persistence open. | Normative boundary + technical OPEN |
+| 6 | Legacy permission mapping | Require an explicit, reviewed mapping from legacy \`UsuarioPermiso\`/\`Permiso\` semantics to target Role→Permission before the affected legacy authorization path is retired. | Normative migration closure |
+| 7 | Legacy coexistence window | Coexistence is bounded and temporary; final duration/cutover mechanics remain task-local technical details. | Normative boundary |
+| 8 | Revocation / inactive Membership | Protected operations revalidate current server-side authorization state; no fixed latency/SLA is established by this decision. | Normative boundary + technical OPEN |
+| 9 | Endpoints without explicit Permission | Public/pre-context authentication paths may operate without Business Permission; protected Business-scoped operations fail closed when no applicable authorization is established. | Normative boundary |
+| 10 | D-006 / CON-018 authorization control | Preserve the concept of additional authorization control for critical operations, but redesign and specify its exact actors, triggers, states and enforcement in a dedicated downstream contract. | Owner ruling + technical OPEN |
 
 ## 4. Interpretation rule
 
@@ -69,7 +69,7 @@ The following B2 candidate states are now resolved for downstream derivation:
 - \`AUT-005\` / \`MEM-004\`: current server-side authorization state governs protected operations; no timing SLA fixed.
 - \`AUT-004\`: Business-scoped protected operations fail closed; pre-context/public paths are separately classified.
 - \`CUS-004\`: retained as cross-cutting response-security principle.
-- \`AUT-009\`: remains dependent on \`B2-DEC-010\` and its downstream dedicated authorization contract.
+- \`AUT-009\`: remains dependent on \`item 10\` and its downstream dedicated authorization contract.
 
 ## 6. Evidence status
 
