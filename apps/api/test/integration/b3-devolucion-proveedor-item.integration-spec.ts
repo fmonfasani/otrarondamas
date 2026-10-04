@@ -1,6 +1,8 @@
 import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
+const IDS = { empresas: [] as string[], familias: [] as string[], subfamilias: [] as string[], tipos: [] as string[], subtipos: [] as string[] };
+
 describe('B3 relation isolation — DevolucionProveedorItem ownership candidate', () => {
   let prisma: PrismaService;
   let scopedPrisma: EmpresaScopedPrismaService;
@@ -62,6 +64,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.subfamilias.push(subfamiliaA.id);
     const tipoA = await prisma.tipo.create({
       data: {
         empresaId: empresaA.id,
@@ -71,6 +74,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.tipos.push(tipoA.id);
     const subtipoA = await prisma.subtipo.create({
       data: {
         empresaId: empresaA.id,
@@ -80,11 +84,14 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.subtipos.push(subtipoA.id);
 
     const familiaB = await prisma.familia.create({
       data: { empresaId: empresaB.id, nombre: `B3 Devolucion Familia B ${suffix}`, prefijo: 'BDB' },
       select: { id: true },
     });
+    IDS.familias.push(familiaB.id);
+
     const subfamiliaB = await prisma.subfamilia.create({
       data: {
         empresaId: empresaB.id,
@@ -94,6 +101,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.subfamilias.push(subfamiliaB.id);
     const tipoB = await prisma.tipo.create({
       data: {
         empresaId: empresaB.id,
@@ -103,6 +111,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.tipos.push(tipoB.id);
     const subtipoB = await prisma.subtipo.create({
       data: {
         empresaId: empresaB.id,
@@ -112,6 +121,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       },
       select: { id: true },
     });
+    IDS.subtipos.push(subtipoB.id);
 
     productoA = await prisma.producto.create({
       data: {
@@ -178,16 +188,18 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
   });
 
   afterAll(async () => {
-    await prisma.devolucionProveedorItem.deleteMany({
-      where: { devolucion: { empresaId: empresaA.id } },
-    });
+    await prisma.devolucionProveedorItem.deleteMany({ where: { devolucion: { empresaId: empresaA.id } } });
     await prisma.devolucionProveedor.deleteMany({ where: { empresaId: empresaA.id } });
-    await prisma.lote.deleteMany({ where: { id: { in: [loteA.id, loteB.id] } } });
-    await prisma.compra.deleteMany({ where: { id: compraA.id } });
-    await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA.id, proveedorB.id] } } });
-    await prisma.producto.deleteMany({ where: { id: { in: [productoA.id, productoB.id] } } });
-    await prisma.usuario.deleteMany({ where: { id: usuarioA.id } });
-    await prisma.empresa.deleteMany({ where: { id: { in: [empresaA.id, empresaB.id] } } });
+    await prisma.lote.deleteMany({ where: { id: { in: [loteA?.id, loteB?.id].filter(Boolean) as string[] } } });
+    await prisma.compra.deleteMany({ where: { id: compraA?.id } });
+    await prisma.producto.deleteMany({ where: { id: { in: [productoA?.id, productoB?.id].filter(Boolean) as string[] } } });
+    await prisma.tipo.deleteMany({ where: { id: { in: IDS.tipos } } });
+    await prisma.subtipo.deleteMany({ where: { id: { in: IDS.subtipos } } });
+    await prisma.subfamilia.deleteMany({ where: { id: { in: IDS.subfamilias } } });
+    await prisma.familia.deleteMany({ where: { id: { in: IDS.familias } } });
+    await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA?.id, proveedorB?.id].filter(Boolean) as string[] } } });
+    await prisma.usuario.deleteMany({ where: { id: usuarioA?.id } });
+    await prisma.empresa.deleteMany({ where: { id: { in: [empresaA?.id, empresaB?.id].filter(Boolean) as string[] } } });
     await prisma.$disconnect();
   });
 
