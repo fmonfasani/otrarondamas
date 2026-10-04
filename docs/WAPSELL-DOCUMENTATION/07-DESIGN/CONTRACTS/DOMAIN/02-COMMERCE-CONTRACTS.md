@@ -265,3 +265,42 @@ No decision, schema, invariant, test or implementation was created.
 
 The next contract group is **Inventory**, with special attention to D-010/D-014 because D-010 has
 verified implementation gaps that must not be silently converted into contract compliance.
+
+
+---
+
+# R5 Canonical Reconciliation — 2026-10-03
+
+> Additive reconciliation against OR-B2/OR-B3 and the reconciled Commerce Specification. Historical contract text above is retained for traceability.
+
+## R5-COMMERCE-001 — Business-authorized Order confirmation
+
+Customer intent or confirmation may participate in the flow, but commercial confirmation is a Business-authorized action governed by permission ORDER_CONFIRM. Customer confirmation does not itself authorize the Business operation.
+
+Order states, detailed transitions and technical enforcement remain OPEN.
+
+## R5-COMMERCE-002 — Sale creation and immutability
+
+A Sale is created at commercial confirmation of the Order; delivery is not the trigger. A confirmed Sale is immutable. Corrections occur through cancellation, reversal or refund mechanisms with traceability.
+
+Exact states, authorization matrix, effects and transaction boundaries remain OPEN.
+
+## R5-COMMERCE-003 — Product / BusinessProduct boundary
+
+The canonical conceptual model is Product (global identity) → BusinessProduct (Business-specific commercial configuration). Business-specific stock and price are not global Product properties.
+
+Exact field allocation and physical schema remain OPEN.
+
+## R5-COMMERCE-004 — Cart boundary
+
+A Cart may exist without a Customer. A Customer is required before an Order is created. Anonymous-cart persistence remains OPEN.
+
+## R5-COMMERCE-005 — Inventory effect boundary
+
+A confirmed Order reserves stock. Physical stock decrement is represented by a registered stock-out movement representing actual physical stock exit. Negative stock is prohibited. FEFO applies with expiry; FIFO without expiry.
+
+The reservation mechanism, movement model, transaction boundaries and enforcement remain OPEN.
+
+## R5-COMMERCE-006 — Fulfillment boundary
+
+Fulfillment remains under Orders in the MVP and is not a top-level independent module. No Repartidor Membership Role is required for the MVP. Detailed fulfillment workflow remains OPEN.
