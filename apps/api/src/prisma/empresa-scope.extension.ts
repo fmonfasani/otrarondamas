@@ -18,7 +18,7 @@ import { recolectarReferenciasRelacionales, type ReferenciaRelacional } from './
  * query de un modelo con empresaId sin ese filtro — sin depender de
  * estado de sesión de la conexión física.
  *
- * SOLO cubre los 21 modelos que tienen la columna `empresaId` de forma
+ * Cubre los modelos que tienen la columna `empresaId` de forma directa
  * directa (ver la lista MODELOS_CON_EMPRESA_ID abajo). Modelos que
  * heredan el scope a través de una relación (VentaItem -> Venta,
  * AplicacionPago -> Pago, AperturaCaja/MovimientoCaja/ArqueoCaja/
@@ -65,6 +65,8 @@ const MODELOS_CON_EMPRESA_ID = [
   'Notificacion',
   'AuditLog',
   'Autorizacion',
+  'PagoProveedor',
+  'DevolucionProveedor',
   'ReglaFidelizacion',
   // RF-17 (docs/spec-login-roles.md): Invitacion tiene empresaId
   // directo. Legajo/DocumentoLegajo NO entran acá — heredan el scope
