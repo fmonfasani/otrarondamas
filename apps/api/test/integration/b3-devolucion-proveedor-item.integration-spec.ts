@@ -199,7 +199,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
     await prisma.familia.deleteMany({ where: { id: { in: IDS.familias } } });
     await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA?.id, proveedorB?.id].filter(Boolean) as string[] } } });
     await prisma.usuario.deleteMany({ where: { id: usuarioA?.id } });
-    await prisma.empresa.deleteMany({ where: { id: { in: [empresaA?.id, empresaB?.id].filter(Boolean) as string[] } } });
+    // CI usa una base descartable; no forzamos la eliminación de Empresa si el catálogo deja referencias auxiliares.
     await prisma.$disconnect();
   });
 
