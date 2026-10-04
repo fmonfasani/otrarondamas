@@ -23,7 +23,7 @@
 
 Reconcile the Block 3 Tests/Evals layer against what has been established since the historical B3 Tests/Evals analysis was produced:
 
-1. the canonical B3 invariant set (ISO-001…ISO-008, ISO-OPEN-001) now exists;
+1. the canonical B3 invariant set (ISO-001…ISO-008, ISO-009) now exists;
 2. the B3 contract has been reconciled (addendum 27);
 3. the Owner approved 25 Tests/Evals decisions (B3-TEST-001…025).
 
@@ -62,9 +62,9 @@ The B1/B2 invariants (`INV-TEN-001`, `INV-CONTEXT-001`, `INV-X-001`, B2 `CTX-001
 |---|---|---|
 | "B3 Canonical Invariants: NO EXISTE" | `06-BLOCK-3-TENANT-ISOLATION-INVARIANTS-v0.1.md` exists and is versioned (commit `9f38aa1`) `[C]` | **STALE** |
 | Contract `09` "untracked" | Contract and addendum are committed (contract `4f35522`, addendum `ac8f3ae`) | **STALE** |
-| Gate B (invariants) BLOCKED | Invariant set exists; two criteria remain unmet by design (ISO-OPEN-001; negative verification) — `06` §14 | **PARTIALLY STALE** — the reason for the block changed |
+| Gate B (invariants) BLOCKED | Invariant set exists; two criteria remain unmet by design (ISO-009; negative verification) — `06` §14 | **PARTIALLY STALE** — the reason for the block changed |
 | Test IDs for B3 "NOT YET DEFINED" | TE-B3-001…008 allocated in §7 | **STALE** — superseded by §7 |
-| Candidate names `ISO-AMBIG` for Legajo/DocumentoLegajo | Canonical name is `ISO-OPEN-001` (06); addendum 27 uses `ISO-AMBIG-001` | **NAMING DISCREPANCY** — §10 |
+| Candidate names `ISO-AMBIG` for Legajo/DocumentoLegajo | Canonical name is `ISO-009` (06); addendum 27 uses `ISO-AMBIG-001` | **NAMING DISCREPANCY** — §10 |
 | Reconciliation of TE-ID-004/005/006/008/009/010/011 as reusable B1 criteria | Still valid; B1 baseline unchanged | **VALID** — carried into §8 |
 | AS-IS vs TO-BE separation; the three prohibited readings ("not applicable today", "passes trivially", "operation does not exist") | Still valid and reinforced by decisions 005 and 021 | **VALID** — carried into §5 |
 | Coverage by the 12 R8-ARCH-002 properties (12/12 contract, 11/12 test criterion, 0/12 execution; P12 not satisfied) | Direction still valid; counts are recomputed in §11 | **VALID IN SUBSTANCE, RECOMPUTED** |
@@ -89,7 +89,7 @@ The 25 decisions are recorded in `03-DECISIONS/48-…`. This section maps them t
 | 008, 019, 021 | update/delete: only current Business affected; final persisted state verified; operation not allowed | TE-ID-009 row; every mutating row's *persisted state* |
 | 009 | unique lookups: only mechanisms that exist in code | TE-ID-010; TE-B3-005 |
 | 010, 020 | nested/related: direct FK + nested writes + relevant indirect relations | TE-ID-011; TE-B3-001, 002, 003 |
-| 011 | Legajo/DocumentoLegajo OPEN / NOT TESTABLE | §10; ISO-OPEN-001 has **no TE row** |
+| 011 | Legajo/DocumentoLegajo OPEN / NOT TESTABLE | §10; ISO-009 has **no TE row** |
 | 012 | transactions preserve context | TE-B3-006 |
 | 013 | unsupported operations fail explicitly | TE-B3-007 |
 | 014 | raw SQL: test the currently relevant surface; do not prohibit raw SQL | TE-B3-006 |
@@ -197,7 +197,7 @@ Legend. **Type:** U unit · I integration (decision 001). **Status:** SPECIFIED 
 | **ISO-007** — a persistence operation without a defined isolation guarantee is rejected. `B3-CON-003` (operation reading). STABLE. R8 P11. Dec. 013. | **TE-B3-007** | U (stub delegate: operation rejected and the delegate is **not called**) **+** I (real DB: rejected, no row changed) | Businesses A, B; for I, rows in both. A fixed set of operations *not* given isolation handling (at minimum `upsert`, named in the mechanism's own code comment `[C]`, and `groupBy`, per audit 23 `[D]`). **Positive control:** a supported operation still executes. | Valid context A. | Invoke each unsupported operation under A. | Each is **rejected explicitly** (fail-closed); not executed unscoped. Error text/code is not imposed. | No row of A or B created, changed or deleted. | `[T]` for U and I separately; neither is `[E]`. | None upstream. Zero current uses of `upsert`/`groupBy` `[D]` — this is **not** a reason to skip (prohibited reading 3, §5.6). | SPECIFIED · NOT EXECUTED. **Priority 3** (06 §15). AS-IS: **satisfied by code reading** — `src/prisma/empresa-scope.extension.ts:160-166` throws for unlisted operations `[C]`; that reading is not `[T]`. |
 | **ISO-008** — isolation obligations are independent of the execution path (Business-scoped operations only). `B3-CON-023`. CONDITIONAL. R8 §7. | **TE-B3-008** | I | Businesses A, B; the same operation available through each **enumerable** Business-scoped path. | Valid context A; B's rows exist. | Execute the same operation through each enumerable path and compare. | Equal isolation outcome on every compared path. | Equal on every path: B's rows unchanged, A's effect identical. | `[T]` per executed comparison; completeness of "every path" **cannot be claimed**. | Surface enumerability — a **process rule, not an invariant** (06 §6.2); the scoped client is opt-in per call site and the unscoped client is injectable from any module `[D]`. Partial overlap with TE-B3-006 (raw SQL): raw-statement cases live **only** in TE-B3-006. | **CONDITIONAL** · SPECIFIED for the enumerable subset only · NOT EXECUTED. |
 
-**ISO-OPEN-001 (Legajo / DocumentoLegajo) has no row** — see §10.
+**ISO-009 (Legajo / DocumentoLegajo) has no row** — see §10.
 
 ---
 
@@ -238,12 +238,12 @@ Read-only inspection; nothing executed. `[C]` = verified by reading code; everyt
 
 # 10. Legajo / DocumentoLegajo — OPEN
 
-**ISO-OPEN-001 remains OPEN / NOT TESTABLE** (decision 011). Two entities have two mutually exclusive optional ownership paths, so their tenant is indeterminate `[D]`. Resolving it may affect Customer/User semantics and is delegated, not decided.
+**ISO-009 is NORMATIVELY CLOSED; TE-B3-009 is SPECIFIED but NOT EXECUTED** (decision 011). Two entities have two mutually exclusive optional ownership paths, so their tenant is indeterminate `[D]`. Resolving it may affect Customer/User semantics and is delegated, not decided.
 
 - No TE row, fixture, expected result or tenant rule is defined for them.
 - ISO-003's determinacy clause has a known exception here; a test suite must not read ISO-003 as universal.
 - The create-ownership reopening condition (06 §6.2) names these two entities specifically.
-- **Naming discrepancy (not corrected):** `ISO-OPEN-001` (06, canonical) · `ISO-AMBIG-001` (addendum 27) · `ISO-AMBIG` (historic 26). This document uses the canonical `ISO-OPEN-001`.
+- **Naming discrepancy (not corrected):** `ISO-009` (06, canonical) · `ISO-AMBIG-001` (addendum 27) · `ISO-AMBIG` (historic 26). This document uses the canonical `ISO-009`.
 
 ---
 
@@ -266,7 +266,7 @@ P12 is a **readiness / verification gate, not an invariant** (06 §6.2; addendum
 | 11 | Missing/invalid context fails closed | B1-BASE:TE-ID-004/005, TE-B3-007 | none | SPECIFIED |
 | 12 | Cross-Business negative verification | all rows with a negative case | **none — gate NOT MET** | **NOT VERIFIED** |
 
-**Create-ownership reopening check (06 §6.2).** Coverage of create-ownership for the two entities outside the mechanism's coverage (Legajo / DocumentoLegajo): **no criterion covers it, and none can be derived while ISO-OPEN-001 is open (decision 011).** The reopening condition is therefore **recorded as live-but-blocked**, not triggered: no new invariant is proposed and no tenant rule is invented.
+**Create-ownership reopening check (06 §6.2).** Coverage of create-ownership for the two entities outside the mechanism's coverage (Legajo / DocumentoLegajo): **no criterion covers it, and none can be derived while ISO-009 is open (decision 011).** The reopening condition is therefore **recorded as live-but-blocked**, not triggered: no new invariant is proposed and no tenant rule is invented.
 
 Recount: contract coverage 12/12 (unchanged); specified test criterion 9/12 (P2 and P3 BLOCKED on the B1 physical model; P12 is a gate, not a criterion); execution evidence **0/12**.
 
@@ -277,7 +277,7 @@ Recount: contract coverage 12/12 (unchanged); specified test criterion 9/12 (P2 
 | Item | State |
 |---|---|
 | Owner decisions B3-TEST-001…025 | **DECIDED** — 25, recorded in `03-DECISIONS/48-…` |
-| Matrix (8 B3-specific + 7 inherited rows), criteria, fixtures, coverage | **DERIVED** — rows: 6 SPECIFIED (TE-B3-001/002/003/005/006/007), 1 CONDITIONAL-specified for the enumerable subset (TE-B3-008), 1 CONDITIONAL-not-testable (TE-B3-004); inherited 7 SPECIFIED (Membership-based cases of TE-ID-005 BLOCKED) |
+| Matrix (9 B3-specific + 7 inherited rows), criteria, fixtures, coverage | **DERIVED** — rows: 6 SPECIFIED (TE-B3-001/002/003/005/006/007), 1 CONDITIONAL-specified for the enumerable subset (TE-B3-008), 1 CONDITIONAL-not-testable (TE-B3-004); inherited 7 SPECIFIED (Membership-based cases of TE-ID-005 BLOCKED) |
 | Current infrastructure, known gaps, auth/context dependence, Legajo open | **DOCUMENTED** |
 | Tests written | **NO** (0) |
 | Tests executed | **NO** (0) |
@@ -311,7 +311,7 @@ Owner Decision → Contract → Invariant → Test/Eval:
 | 012, 014 | `B3-CON-020/021` | ISO-006 | TE-B3-006 |
 | 013 | `B3-CON-003` (operation reading) | ISO-007 | TE-B3-007 (+ B1-BASE:TE-ID-004/005 for the context subject, dec. 015/016) |
 | 005, 008 | `B3-CON-023` | ISO-008 | TE-B3-008 |
-| 011 | `B3-CON-019` | ISO-OPEN-001 | — (no row) |
+| 011 | `B3-CON-019` | ISO-009 | — TE-B3-009 |
 | 021, 022, 023, 024, 025 | addendum 27 §12 (P12 gate) | — (not an invariant) | §5.3-5.5, §12 |
 
 Downstream: Readiness `13-AUDIT/27-…` → Transformation Plan v0.2 (B3 Tests/Evals propagation section) → Task Execution Set v0.1 §12 → Decision Register §10.
@@ -326,7 +326,7 @@ Downstream: Readiness `13-AUDIT/27-…` → Transformation Plan v0.2 (B3 Tests/E
 |---|---|---|---|
 | D-TE-01 | `TE-ID-004/005/006` (and `007`) mean different things in `00-TESTS-EVALS-v0.2.md` and `05-BLOCK-1-TESTS-EVALS-BASELINE-v0.1.md` | §6.2 | **Requires intervention in an upstream document**; not modified here. Inherited references are source-qualified. |
 | D-TE-02 | `TE-ORD-001…008` collision between the same two documents | out of B3 scope | noted only |
-| D-TE-03 | Legajo/DocumentoLegajo named `ISO-OPEN-001` (06), `ISO-AMBIG-001` (27), `ISO-AMBIG` (historic 26) | §10 | canonical name used; others untouched |
+| D-TE-03 | Legajo/DocumentoLegajo named `ISO-009` (06), `ISO-AMBIG-001` (27), `ISO-AMBIG` (historic 26) | §10 | canonical name used; others untouched |
 | D-TE-04 | Historical `13-AUDIT/26-B3-TESTS-EVALS-AND-READINESS` predates the invariant set; stale claims | §3 | acknowledged; file untouched |
 | D-TE-05 | `13-AUDIT/` has duplicate numbering (two `24-`, three `25-`, two `26-`) | repository | not renumbered |
 | D-TE-06 | Audit reports 11 `$transaction` call sites; a read-only line count of `$transaction` in `apps/api/src` finds 18 lines | §9 | **NOT RECONCILED** — counting method differs; to be enumerated when TE-B3-006 is implemented |
@@ -354,7 +354,7 @@ This document:
 
 # 11. Owner Decision 49 — ownership ambiguity closure
 
-Owner Decision 49-B3-LEGAJO-DOCUMENTOLEGajo-OWNER-DECISION-CLOSURE-2026-10-04 closes the former ISO-OPEN-001 / ISO-AMBIG-001 ambiguity. The canonical B3 invariant is now **ISO-009**.
+Owner Decision 49-B3-LEGAJO-DOCUMENTOLEGajo-OWNER-DECISION-CLOSURE-2026-10-04 closes the former ISO-009 / ISO-AMBIG-001 ambiguity. The canonical B3 invariant is now **ISO-009**.
 
 A new B3 verification criterion is derived:
 
