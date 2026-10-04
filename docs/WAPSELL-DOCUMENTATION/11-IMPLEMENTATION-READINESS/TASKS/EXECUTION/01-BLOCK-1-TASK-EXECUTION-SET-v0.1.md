@@ -338,3 +338,15 @@ A future verification-infrastructure task may be derived for:
 Such a task must specify scope, non-scope, dependencies, expected evidence and validation before execution.
 
 **Current implementation status remains NOT AUTHORIZED for product code/schema/migrations.**
+
+## 14. B4 verification infrastructure candidate — 2026-10-04
+
+OD-B4-02 permits verification-infrastructure work before B3 is fully VERIFIED. A separate proposed task has therefore been derived:
+
+`11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
+
+**State:** PROPOSED — NOT AUTHORIZED FOR EXECUTION.
+
+The candidate covers Jest/test harness, deterministic two-Business fixtures, PostgreSQL/Prisma integration support, smoke/regression support and CI verification infrastructure. It does not authorize product behavior changes, schema changes, migrations or B3 tenant-isolation implementation.
+
+The candidate must receive explicit task-local execution authorization before code changes or test execution occur.
