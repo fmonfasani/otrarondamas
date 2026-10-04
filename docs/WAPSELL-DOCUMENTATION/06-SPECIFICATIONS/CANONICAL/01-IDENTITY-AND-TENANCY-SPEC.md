@@ -245,3 +245,17 @@ Platform (Wapsell Global Identity Layer)
   │
   └── Other Global Platform Services (e.g., Billing, Onboarding - OPEN DETAIL)
 ```
+
+## POST-OR-B3 — OWNER RULINGS SUPERSEDING HISTORICAL OPEN ITEMS
+
+Este bloque tiene autoridad posterior sobre cualquier formulación anterior de esta SPEC que contradiga OR-B3.
+
+1. **Customer ↔ User:** asociación opcional y controlada; el sistema puede detectar/proponer coincidencias, pero no vincula automáticamente solo por email sin el control/confirmación aplicable.
+2. **SaaS Admin:** existe conceptualmente a nivel plataforma, fuera del MVP operativo.
+3. **Locations:** concepto genérico, MAIN mínimo y múltiples Locations permitidas; no se crean Branch/Warehouse como conceptos separados por este ruling.
+4. **Roles MVP:** Owner, Admin, Vendedor y Gestor de Stock. Customer/Supplier no son Membership Roles; Repartidor sigue futuro/open.
+5. **Authorization:** Membership → Role → Permission. No se autoriza Profile/Capability/Overrides en MVP.
+6. **MFA/2FA:** obligatorio para Owner y Admin; mecanismo técnico de seguridad permanece abierto.
+7. **Business Switch:** múltiples Memberships y cambio de Business siguen conceptualmente aprobados; mecanismo técnico continúa abierto.
+
+**Estado:** DRAFT — NOT APPROVED. `TECHNICAL SPECIFICATION = NOT APPROVED`; `IMPLEMENTATION = NOT AUTHORIZED`.
