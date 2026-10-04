@@ -1275,3 +1275,84 @@ de los grados declarados en §14.1.*
 Inventory queda alineado con OR-B3-009: la reserva se produce al confirmar el Order y el decremento físico se registra mediante un movimiento de salida que representa la salida real de inventario. La decisión no define todavía schema, estados técnicos, transacciones, APIs ni contratos.
 
 Locations quedan conceptualmente gobernadas por OR-B3-004: concepto genérico, MAIN mínimo y múltiples permitidas.
+
+---
+
+## R4 — RECONCILIACIÓN CANÓNICA POST-OR-B3
+
+**Fecha:** 2026-10-03  
+**Estado:** RECONCILED — CURRENT CONCEPTUAL BASELINE  
+**Autoridad:** OR-B2 + OR-B3 + 26-R4-TOBE-AUDIT-INVENTORY-CASH-MESSAGING-2026-10-03.md  
+**Alcance:** reconciliación documental conceptual. No produce schema, contracts, invariants, tests ni implementación.
+
+Esta sección establece la lectura vigente de Inventory. El contenido histórico anterior se conserva para trazabilidad; cuando exista contradicción, rige la autoridad posterior conforme a ISS-08.
+
+### R4-INV-CURRENT-01 — Propiedad y aislamiento
+
+El inventario pertenece exclusivamente a un Business. No existe stock global compartido entre Businesses. Compras, ventas, ajustes y movimientos se registran dentro del Business correspondiente.
+
+La transferencia de stock entre Businesses está prohibida. Cualquier excepción futura requiere una operación inter-Business definida y autorizada explícitamente en una especificación posterior.
+
+**Evidencia:** DOCUMENTADO — OR-B3/R4; derivado de D-014.
+
+### R4-INV-CURRENT-02 — Reserva y confirmación
+
+La confirmación comercial de un Order reserva stock.
+
+La existencia conceptual de la reserva está cerrada. El mecanismo físico de reserva, expiración, conversión y sus límites transaccionales permanecen abiertos.
+
+**Evidencia:** DOCUMENTADO — OR-B2-014 / reconciliación R4.
+
+### R4-INV-CURRENT-03 — Salida física
+
+El descuento físico de stock se representa conceptualmente mediante un movimiento de salida de stock que representa la salida física real.
+
+No se define aquí una entidad, estado, API, transacción ni momento técnico distinto del principio anterior.
+
+**Evidencia:** DOCUMENTADO — OR-B3-009.
+
+### R4-INV-CURRENT-04 — Rotación
+
+- Con vencimiento: FEFO.
+- Sin vencimiento: FIFO.
+
+El modelado físico de lotes, vencimientos y trazabilidad permanece abierto.
+
+**Evidencia:** DOCUMENTADO — OR-B2-016.
+
+### R4-INV-CURRENT-05 — Existencias negativas
+
+El stock negativo no está permitido.
+
+La forma técnica de garantizar esta regla permanece abierta.
+
+**Evidencia:** DOCUMENTADO — OR-B2-018.
+
+### R4-INV-CURRENT-06 — Locations
+
+El MVP contempla Location de forma genérica, con una ubicación principal MAIN como mínimo conceptual y posibilidad de múltiples ubicaciones.
+
+No se define aquí una entidad física Warehouse, Branch o equivalente separado, ni una cantidad máxima de ubicaciones.
+
+**Evidencia:** DOCUMENTADO — OR-B3-004.
+
+### R4-INV-CURRENT-07 — Fronteras abiertas
+
+Permanecen OPEN IMPLEMENTATION DETAIL:
+
+- modelo físico de Inventory;
+- lotes y vencimientos;
+- mecanismo de reserva;
+- momento/transaction boundary técnico de la salida física;
+- enforcement de stock negativo;
+- cardinalidad y estructura física de Locations;
+- relaciones exactas con Purchase, Order, Sale y Fulfillment;
+- contratos, invariantes y tests.
+
+No se cierran por inferencia.
+
+### R4-INV-CURRENT-08 — Estado de implementación
+
+La brecha AS-IS documentada para D-010 permanece vigente. Esta reconciliación no declara corrección ni implementación.
+
+**Conclusión:** Inventory queda reconciliado a nivel conceptual y listo para la siguiente capa documental, sin habilitar todavía Technical Specification ni Implementation.
