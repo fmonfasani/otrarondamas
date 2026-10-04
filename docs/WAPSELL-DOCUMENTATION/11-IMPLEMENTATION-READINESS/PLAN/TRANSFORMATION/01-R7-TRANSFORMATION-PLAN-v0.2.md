@@ -629,3 +629,23 @@ However, Tasks must first be derived and classified against this plan. The first
 4. only then implementation/transformation tasks whose local gates are satisfied.
 
 **R7 TRANSFORMATION PLAN v0.2: COMPLETE — DRAFT / NOT APPROVED.**
+
+## R8-B2 OWNER CLOSURE PROPAGATION — 2026-10-04
+
+The B2 Owner Decision Closure reduces the following blockers at the normative level:
+
+- ACTIVE Membership uniqueness is closed.
+- Exactly one effective Membership Role is closed for MVP.
+- Permission domains are closed conceptually; atomic catalogue/matrix/persistence remain technical blockers.
+- Legacy coexistence is bounded and temporary; cutover remains a separate task.
+- Legacy authorization mapping is mandatory before affected legacy retirement.
+- Protected Business-scoped operations use current server-side authorization state and fail closed when authorization is absent/invalid.
+- Public/pre-context paths remain separately classified.
+- Customer response security is a cross-cutting requirement.
+- Critical-operation additional authorization remains conceptually required but needs dedicated downstream contract closure.
+
+Remaining technical blockers are still valid and include exact atomic authorization mapping, enforcement, session/revocation mechanics, Business Switch, physical identity/tenant model, and the dedicated critical-operation authorization contract.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
+
+**Implementation:** NOT AUTHORIZED.
