@@ -7,6 +7,7 @@ on:
       - "apps/api/src/**"
       - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
       - "apps/api/test/integration/b3-producto-familia.integration-spec.ts"
+      - "apps/api/test/integration/b3-iso-006.integration-spec.ts"
       - "apps/api/prisma/**"
       - "apps/api/package.json"
       - "package-lock.json"
