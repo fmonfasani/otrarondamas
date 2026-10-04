@@ -578,3 +578,30 @@ This is a downstream canonical addendum to the earlier register. Historical D-xx
 These rulings close the corresponding B3 Tests/Evals method questions without authorizing implementation, schema changes, test execution or any claim of B3 readiness.
 
 **Authority:** Owner acceptance, 2026-10-04.
+
+
+## 10. B3 ownership and B4 Implementation Readiness Owner decisions — 2026-10-04
+
+### B3 — Owner Decision 49
+
+**Status:** APPROVED — PROPAGATED.
+
+Legajo and DocumentoLegajo are Business-scoped entities and must have deterministic Business ownership. This closes the former ISO-OPEN-001 / ISO-AMBIG-001 ambiguity and establishes ISO-009 as the canonical B3 invariant. The physical schema/enforcement mechanism remains technical and downstream.
+
+**Implementation:** NOT AUTHORIZED. **Verification:** pending.
+
+### B4 — OD-B4-01
+
+**Status:** APPROVED — PROPAGATED.
+
+B4 is the transversal Implementation Readiness stage over B1/B2/B3, not a new domain block.
+
+### B4 — OD-B4-02
+
+**Status:** APPROVED — PROPAGATED.
+
+Verification infrastructure may be implemented before B3 is fully VERIFIED, subject to task-local authorization, provided it does not modify product behavior, schema, migrations, domain contracts or normative decisions.
+
+References:
+- 03-DECISIONS/49-B3-LEGAJO-DOCUMENTOLEGajo-OWNER-DECISION-CLOSURE-2026-10-04.md
+- 03-DECISIONS/50-B4-IMPLEMENTATION-READINESS-OWNER-DECISIONS-2026-10-04.md
