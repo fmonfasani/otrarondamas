@@ -674,4 +674,161 @@ describe('B3 tenant isolation — execution candidates', () => {
     });
   });
   });
+
+  describe('relation isolation — Venta → VentaItem → ReglaFidelizacion (Gate 6.3)', () => {
+    const itemDe = (reglaFidelizacionId: string | null) => ({
+      productoId: productoA.id,
+      cantidad: 1,
+      precioUnitario: 10,
+      descuentoFidelizacionPorcentaje: reglaFidelizacionId ? 10 : null,
+      reglaFidelizacionId,
+    });
+
+    const ventaBase = (canal: string) => ({
+      empresaId: empresaA.id,
+      usuarioId: usuarioA.id,
+      estado: 'CONFIRMADA' as const,
+      canal,
+      total: 10,
+    });
+
+    const contarVentas = (canal: string) => prisma.venta.count({ where: { canal } });
+    const contarItemsDeVenta = (ventaId: string) => prisma.ventaItem.count({ where: { ventaId } });
+
+    it('V-01: Business A + Rule A persists Venta and VentaItem', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'g63-positive';
+      const venta = await db.venta.create({
+        data: { ...ventaBase(canal), ventaItems: { create: [itemDe(reglaA.id)] } },
+        include: { ventaItems: true },
+      });
+
+      expect(venta.empresaId).toBe(empresaA.id);
+      expect(venta.ventaItems).toHaveLength(1);
+      expect(venta.ventaItems[0].reglaFidelizacionId).toBe(reglaA.id);
+
+      const persisted = await prisma.venta.findUnique({
+        where: { id: venta.id },
+        include: { ventaItems: true },
+      });
+      expect(persisted?.ventaItems[0].reglaFidelizacionId).toBe(reglaA.id);
+    });
+
+    it('V-02: nested Venta.create cannot link Business A to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'g63-negative-nested';
+
+      await expect(
+        db.venta.create({
+          data: { ...ventaBase(canal), ventaItems: { create: [itemDe(reglaB.id)] } },
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarVentas(canal)).toBe(0);
+    });
+
+    it('V-03: direct VentaItem.create cannot link an A Venta to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await prisma.venta.create({
+        data: ventaBase('g63-direct-create'),
+        select: { id: true },
+      });
+
+      await expect(
+        db.ventaItem.create({
+          data: { ventaId: venta.id, ...itemDe(reglaB.id) },
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarItemsDeVenta(venta.id)).toBe(0);
+    });
+
+    it('V-04: direct VentaItem.createMany cannot link an A Venta to Rule B', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await prisma.venta.create({
+        data: ventaBase('g63-direct-create-many'),
+        select: { id: true },
+      });
+
+      await expect(
+        db.ventaItem.createMany({
+          data: [{ ventaId: venta.id, ...itemDe(reglaB.id) }],
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarItemsDeVenta(venta.id)).toBe(0);
+    });
+
+    it('V-05: one cross-Business rule rejects the whole mixed nested Venta', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const canal = 'g63-mixed';
+
+      await expect(
+        db.venta.create({
+          data: {
+            ...ventaBase(canal),
+            ventaItems: {
+              create: [itemDe(reglaA.id), itemDe(reglaB.id)],
+            },
+          },
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarVentas(canal)).toBe(0);
+    });
+
+    it('V-06: nested Venta.update cannot add Rule B to an A Venta', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await prisma.venta.create({
+        data: { ...ventaBase('g63-update'), ventaItems: { create: [itemDe(reglaA.id)] } },
+        select: { id: true },
+      });
+
+      await expect(
+        db.venta.update({
+          where: { id: venta.id },
+          data: { ventaItems: { create: itemDe(reglaB.id) } },
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarItemsDeVenta(venta.id)).toBe(1);
+    });
+
+    it('V-07: null reglaFidelizacionId remains valid', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const venta = await db.venta.create({
+        data: { ...ventaBase('g63-null'), ventaItems: { create: [itemDe(null)] } },
+        include: { ventaItems: true },
+      });
+
+      expect(venta.ventaItems[0].reglaFidelizacionId).toBeNull();
+      expect(await contarItemsDeVenta(venta.id)).toBe(1);
+    });
+
+    it('V-08: relation isolation applies inside an interactive transaction', async () => {
+      const db = scopedPrisma.forEmpresa(empresaA.id);
+      const negative = 'g63-tx-negative';
+      const positive = 'g63-tx-positive';
+
+      await expect(
+        db.$transaction(async (tx) => {
+          await tx.venta.create({
+            data: { ...ventaBase(negative), ventaItems: { create: [itemDe(reglaB.id)] } },
+          });
+        }),
+      ).rejects.toThrow();
+
+      expect(await contarVentas(negative)).toBe(0);
+
+      await db.$transaction(async (tx) => {
+        await tx.venta.create({
+          data: { ...ventaBase(positive), ventaItems: { create: [itemDe(reglaA.id)] } },
+        });
+      });
+
+      expect(await contarVentas(positive)).toBe(1);
+      expect(await prisma.ventaItem.count({ where: { venta: { canal: positive } } })).toBe(1);
+    });
+  });
+
 });
