@@ -411,3 +411,24 @@ Owner Ruling → este Registro → SPEC canónica → TO-BE → Audit → Worksh
 TECHNICAL SPECIFICATION = NOT APPROVED
 IMPLEMENTATION = NOT AUTHORIZED
 ```
+
+> **POST-OR-B3 — Owner Rulings posteriores (2026-10-03).** Las decisiones OR-B3-001…OR-B3-014 fueron aceptadas expresamente por el Owner el 2026-10-03 y registradas en `03-DECISIONS/22-OR-B3-OWNER-DECISIONS-2026-10-03.md`. Por ISS-08, estas decisiones posteriores prevalecen sobre cualquier texto histórico anterior que las contradiga.
+
+| ID | Área | Estado |
+|---|---|---|
+| OR-B3-001 | Customer/User matching | CLOSED — OWNER RULING |
+| OR-B3-002 | Customer/User association | CLOSED — OWNER RULING |
+| OR-B3-003 | SaaS Admin | CLOSED — fuera del MVP operativo |
+| OR-B3-004 | Locations | CLOSED — Location genérica, MAIN mínimo, múltiples permitidas |
+| OR-B3-005 | Product / BusinessProduct | CLOSED — modelo híbrido |
+| OR-B3-006 | Order confirmation | CLOSED — acción comercial autorizada por ORDER_CONFIRM |
+| OR-B3-007 | Cart sin Customer | CLOSED — permitido; Customer requerido para Order |
+| OR-B3-008 | Customer sin User en Messaging | CLOSED — permitido |
+| OR-B3-009 | Decremento físico | CLOSED — movimiento de salida físico |
+| OR-B3-010 | Cash sensible | CLOSED — permisos específicos |
+| OR-B3-011 | Fulfillment | CLOSED — MVP, sin Repartidor como Membership Role |
+| OR-B3-012 | Kubernetes / GraphQL | OPEN como decisión técnica; no prohibido ni aprobado |
+| OR-B3-013 | G001–G105 | CLOSED — fuente funcional secundaria |
+| OR-B3-014 | MFA/2FA | CLOSED — obligatorio para Owner/Admin |
+
+**Límite:** estos rulings no aprueban la Technical Specification ni autorizan implementación.
