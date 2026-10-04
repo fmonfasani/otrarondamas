@@ -358,3 +358,39 @@ Two major local blockers are now closed:
 
 Implementation remains NOT AUTHORIZED.
 \n\n## 14. REASSESSMENT AFTER R8-INV-002 CLOSURE — 2026-10-03\n\n**R8-INV-002: CLOSED — OWNER APPROVED DIRECTION.**\n\nThe conceptual inventory reservation boundary is now closed: confirmed Orders reserve Business-scoped availability; reservation does not equal physical decrement; successful reservation cannot exceed availability; concurrent confirmations cannot oversubscribe the same stock; failed reservations cannot leave partial effects; physical exit is represented by stock-out movement; cancellation/correction before physical exit releases reservation.\n\n### Newly unblocked\n- **R8-ORD-002:** READY to define Order/Sale states and effects, subject to its remaining dependency on exact authorization usage where applicable.\n- **R8-INV-003:** remains READY for the physical Location model.\n\n### Still blocked\n- R8-PAY-003 by Payment/Cash/AR semantics.\n- R8-CASH-001 by Payment effects and remaining Cash detail.\n- R8-MSG-002 by Messaging physical/API/event model.\n- R8-READY-001 until the required local gates close.\n\n### Evidence boundary\nThe current implementation remains NON-COMPLIANT with the reservation boundary because AS-IS Order confirmation directly decrements stock and no persisted reservation mechanism was evidenced. No implementation correction was performed.\n
+
+## 15. REASSESSMENT AFTER R8-ORD-002 CLOSURE — 2026-10-03
+
+R8-ORD-002: CLOSED — OWNER APPROVED through 03-DECISIONS/38-R8-ORD-002-OWNER-DECISION-ORDER-SALE-STATES-EFFECTS-2026-10-03.md.
+
+The Owner accepted A1–L1, closing the conceptual Order/Sale lifecycle direction. The following are now closed at the domain boundary:
+
+- AS-IS Order state vocabulary retained as transformation starting point, subject to semantic reconciliation.
+- CONFIRMADO is the commercial confirmation boundary.
+- commercial confirmation creates the Sale and establishes stock reservation.
+- delivery does not create the Sale.
+- PARCIALMENTE_ENTREGADO remains an operational Order state.
+- CANCELADO is terminal.
+- Sale retains CONFIRMADA / ANULADA as conceptual starting vocabulary.
+- confirmed Sale is immutable.
+- Order and Sale retain separate lifecycles.
+- Payment does not determine Sale lifecycle state.
+- ENTREGADO denotes fulfillment completion.
+- cross-domain cancellation/reversal/refund effects remain owned by specialized domains.
+
+### Remaining R8-ORD-002-adjacent OPEN details
+
+- exact technical transition authorization/enforcement;
+- exact cancellation/reversal/refund workflows;
+- Payment lifecycle and reconciliation;
+- Payment↔Cash and AR effects;
+- detailed Fulfillment transitions;
+- reservation persistence and transaction/locking mechanism.
+
+### Readiness impact
+
+R8-ORD-002 no longer blocks the readiness review. The current implementation nevertheless remains non-compliant with the reservation boundary already established by R8-INV-002, and no implementation correction is authorized.
+
+R8-READY-001 remains blocked by other local specification/readiness gates.
+
+Implementation remains NOT AUTHORIZED.
