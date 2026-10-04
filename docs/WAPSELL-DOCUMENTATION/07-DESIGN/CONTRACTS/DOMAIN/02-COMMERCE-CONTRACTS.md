@@ -304,3 +304,29 @@ The reservation mechanism, movement model, transaction boundaries and enforcemen
 ## R5-COMMERCE-006 — Fulfillment boundary
 
 Fulfillment remains under Orders in the MVP and is not a top-level independent module. No Repartidor Membership Role is required for the MVP. Detailed fulfillment workflow remains OPEN.
+
+
+## R8-ORD-002 CONTRACT RECONCILIATION — 2026-10-03
+
+### R8-COM-007 — Order lifecycle starting vocabulary
+The existing AS-IS Order state vocabulary is retained as the transformation starting lifecycle, subject to semantic reconciliation. The current vocabulary is evidence of the existing operational model and does not by itself authorize every current transition or effect.
+
+### R8-COM-008 — Commercial confirmation boundary
+CONFIRMADO is the commercial confirmation boundary. Business-authorized confirmation through ORDER_CONFIRM creates the Sale and establishes the applicable stock reservation. Delivery does not create the Sale.
+
+### R8-COM-009 — Fulfillment/Order state boundary
+PARCIALMENTE_ENTREGADO remains an operational Order state and ENTREGADO represents fulfillment completion. Fulfillment remains under Orders and does not redefine the Sale creation boundary.
+
+### R8-COM-010 — Order cancellation boundary
+CANCELADO is terminal. Cancellation before physical stock exit releases the applicable reservation and does not itself represent physical stock exit.
+
+### R8-COM-011 — Sale lifecycle boundary
+The conceptual Sale starting vocabulary remains CONFIRMADA / ANULADA. A confirmed Sale is immutable. Corrections use explicit traceable cancellation/reversal/refund operations. Order and Sale do not share one state machine.
+
+### R8-COM-012 — Payment boundary
+Payment does not determine the Sale lifecycle state. Payment, Cash and Accounts Receivable retain their specialized lifecycles and effects.
+
+### R8-COM-013 — Cross-domain correction boundary
+Order/Sale contracts define the commercial lifecycle boundary. Inventory, Payment, Cash, AR and Fulfillment define their respective correction/operational effects. The complete cancellation/reversal/refund effect matrix remains OPEN pending specialized reconciliation.
+
+These reconciliations do not define API/state-machine implementation, schema, transaction boundaries or technical enforcement.
