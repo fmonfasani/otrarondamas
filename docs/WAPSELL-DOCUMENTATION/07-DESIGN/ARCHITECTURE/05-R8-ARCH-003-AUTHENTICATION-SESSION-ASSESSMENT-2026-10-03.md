@@ -368,3 +368,18 @@ After Owner decision:
 3. reconcile affected architecture/invariants/contracts only as authorized;
 4. continue with the next controlled R8 task;
 5. keep implementation NOT AUTHORIZED until the implementation-readiness gate explicitly permits it.
+
+
+## 12. OWNER DECISION CLOSURE — 2026-10-03
+
+Decision state is superseded by `03-DECISIONS/29-R8-ARCH-003-OWNER-DECISION-AUTHENTICATION-SESSION-2026-10-03.md`.
+
+**CLOSED — OWNER APPROVED.** The Owner selected **Option A — JWT-centric authentication with application-controlled active Business context**.
+
+Approved conceptual boundary: `Authenticated User → Active Business Context → Valid ACTIVE Membership → Role → Permission → Authorized Operation → Business-scoped Persistence`.
+
+JWT may authenticate the global User, but a valid JWT alone does not authorize Business access. The current `empresaId` claim and role/permission claims are not the final authorization authority. Active Business selection must be validated against an ACTIVE Membership, and authentication/session failures must fail closed.
+
+Owner/Admin MFA remains mandatory; its technical mechanism remains open. Exact JWT claims, token lifetime, refresh mechanism, revocation, logout, Business Switch protocol, Google onboarding mechanics, session/device management and other physical implementation details remain downstream technical work unless separately closed.
+
+**Implementation remains NOT AUTHORIZED.**
