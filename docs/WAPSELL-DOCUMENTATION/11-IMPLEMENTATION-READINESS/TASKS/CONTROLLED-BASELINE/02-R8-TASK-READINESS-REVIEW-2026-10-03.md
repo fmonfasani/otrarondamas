@@ -220,3 +220,64 @@ Therefore the objective of this review is not global closure. It is **local read
 This does not upgrade the R8 baseline to APPROVED and does not authorize implementation.
 
 Next controlled activity: execute the READY documentary/evidence tasks, beginning with **R8-CAN-001**.
+
+
+## 10. REASSESSMENT AFTER MASTER OWNER CLOSURE — 2026-10-03
+
+The previous readiness review is superseded where it described R8-ARCH-001/002/003 as blocked. Those three architecture tasks now have explicit Owner decision artifacts:
+
+- R8-ARCH-001 — Owner approved.
+- R8-ARCH-002 — application-level tenant isolation approved.
+- R8-ARCH-003 — JWT-centric authentication with application-controlled Business Context approved.
+
+### Updated task states
+
+| Task | Updated state | Reason |
+|---|---|---|
+| R8-CAN-001 | DONE | Canonical input reconciliation completed. |
+| R8-CAN-002 | DONE | Traceability audit completed. |
+| R8-ARCH-001 | DONE | Explicit Owner approval exists. |
+| R8-ARCH-002 | DONE | Explicit Owner decision exists. |
+| R8-ARCH-003 | DONE | Explicit Owner decision exists. |
+| R8-ID-001 | DONE | AS-IS evidence is already incorporated in the R8 evidence pack. |
+| R8-ID-002 | READY | Architecture prerequisite is now closed; physical model remains the task's own scope. |
+| R8-ID-003 | BLOCKED | Depends on physical User/Business/Membership model. |
+| R8-AUTH-001 | BLOCKED | Exact Permission catalogue/matrix remains OPEN and depends on physical identity model. |
+| R8-AUTH-002 | BLOCKED | MFA requirement is closed, but technical MFA mechanism remains OPEN. |
+| R8-AUTH-003 | READY / EVIDENCE COMPLETE | AS-IS authorization evidence exists and must be consolidated if the task record requires a standalone artifact. |
+| R8-COM-001 | DONE | AS-IS Customer/Product/Cart evidence already exists in R8 evidence pack. |
+| R8-COM-002 | BLOCKED | Depends on physical identity model and detailed association mechanics. |
+| R8-COM-003 | BLOCKED | Physical Product/BusinessProduct allocation remains OPEN. |
+| R8-COM-004 | READY | Canonical behavioral boundary is closed and evidence can be reconciled without closing the Order state machine. |
+| R8-INV-001 | DONE | AS-IS inventory evidence already exists in R8 evidence pack. |
+| R8-INV-002 | READY | Architecture boundary is closed; task can now define reservation/transaction semantics. |
+| R8-INV-003 | READY | Architecture boundary is closed; physical Location model remains task scope. |
+| R8-ORD-001 | DONE | AS-IS Order/Sale evidence already exists in R8 evidence pack. |
+| R8-ORD-002 | BLOCKED | Depends on R8-INV-002 and R8-AUTH-001. |
+| R8-PAY-001 | DONE | AS-IS Payment/Cash/AR evidence already exists in R8 evidence pack. |
+| R8-PAY-002 | READY | Architecture prerequisite is closed; Payment lifecycle remains task scope. |
+| R8-PAY-003 | BLOCKED | Depends on R8-PAY-002. |
+| R8-CASH-001 | BLOCKED | Depends on R8-AUTH-001 and R8-PAY-003. |
+| R8-FUL-001 | BLOCKED | Depends on R8-ORD-002. |
+| R8-RET-001 | BLOCKED | Depends on R8-ORD-002 and R8-PAY-003. |
+| R8-MSG-001 | DONE | AS-IS Messaging evidence inspection is complete to the currently verified scope. |
+| R8-MSG-002 | BLOCKED | Depends on R8-AUTH-001 and Messaging physical model remains OPEN. |
+| R8-BRAND-001 | READY | Can now be evaluated as a bounded specialized-spec task without architecture blockage. |
+| R8-X-001 | BLOCKED | Requires applicable domain contracts/event boundaries. |
+| R8-READY-001 | BLOCKED | Requires one implementation slice whose local gates are closed. |
+| R8-READY-002 | BLOCKED | Depends on R8-READY-001 and local implementation gates. |
+
+### Next controlled execution set
+
+The most useful next documentary/specification tasks are:
+
+1. **R8-ID-002** — physical User/Business/Membership model.
+2. **R8-INV-002** — reservation/stock transaction semantics.
+3. **R8-INV-003** — physical Location model.
+4. **R8-PAY-002** — Payment lifecycle/reconciliation.
+5. **R8-COM-004** — Cart → Customer → Order boundary.
+6. **R8-BRAND-001** — Business Brand configuration boundary.
+
+These tasks do not authorize implementation. Their outputs will unlock downstream tasks through explicit local dependencies.
+
+**Updated gate: R8 READINESS — PASS WITH LOCAL SPECIFICATION BLOCKERS.**
