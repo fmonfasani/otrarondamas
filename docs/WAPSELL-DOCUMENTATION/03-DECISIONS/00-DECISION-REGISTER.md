@@ -539,16 +539,16 @@ This is a downstream canonical addendum to the earlier register. Historical D-xx
 
 | ID | Direction | Status |
 |---|---|---|
-| B2-DEC-001 | At most one ACTIVE Membership per `(User, Business)`. | ACCEPTED |
-| B2-DEC-002 | Customer responses retain the cross-cutting security boundary against exposing secrets/authorization-sensitive data. | ACCEPTED |
-| B2-DEC-003 | Legacy retirement is a separate process/cutover gate, not a runtime invariant. | ACCEPTED |
-| B2-DEC-004 | Exactly one effective Role per Membership in MVP. | ACCEPTED |
-| B2-DEC-005 | Permission domains are conceptually approved; atomic IDs, exact matrix rows and persistence remain OPEN. | ACCEPTED |
-| B2-DEC-006 | Legacy `UsuarioPermiso`/`Permiso` requires explicit reviewed mapping to target Role→Permission before retirement. | ACCEPTED |
-| B2-DEC-007 | Legacy coexistence is bounded and temporary; exact duration/cutover mechanics remain OPEN. | ACCEPTED |
-| B2-DEC-008 | Protected operations revalidate current server-side authorization state; no latency SLA is fixed. | ACCEPTED |
-| B2-DEC-009 | Public/pre-context paths may operate without Business Permission; protected Business-scoped operations fail closed without applicable authorization. | ACCEPTED |
-| B2-DEC-010 | Critical-operation additional authorization control is preserved conceptually; exact design is deferred to a dedicated downstream contract. | ACCEPTED |
+| 1 | At most one ACTIVE Membership per `(User, Business)`. | ACCEPTED |
+| 2 | Customer responses retain the cross-cutting security boundary against exposing secrets/authorization-sensitive data. | ACCEPTED |
+| 3 | Legacy retirement is a separate process/cutover gate, not a runtime invariant. | ACCEPTED |
+| 4 | Exactly one effective Role per Membership in MVP. | ACCEPTED |
+| 5 | Permission domains are conceptually approved; atomic IDs, exact matrix rows and persistence remain OPEN. | ACCEPTED |
+| 6 | Legacy `UsuarioPermiso`/`Permiso` requires explicit reviewed mapping to target Role→Permission before retirement. | ACCEPTED |
+| 7 | Legacy coexistence is bounded and temporary; exact duration/cutover mechanics remain OPEN. | ACCEPTED |
+| 8 | Protected operations revalidate current server-side authorization state; no latency SLA is fixed. | ACCEPTED |
+| 9 | Public/pre-context paths may operate without Business Permission; protected Business-scoped operations fail closed without applicable authorization. | ACCEPTED |
+| 10 | Critical-operation additional authorization control is preserved conceptually; exact design is deferred to a dedicated downstream contract. | ACCEPTED |
 
 These rulings close the corresponding B2 normative questions without authorizing implementation, schema changes, migration, deployment or legacy deletion.
 
