@@ -328,3 +328,32 @@ The next highest-value blockers remain:
 **R8-READY-001 remains blocked** until a bounded slice has all applicable local gates closed.
 
 Implementation remains NOT AUTHORIZED.
+
+
+## 13. REASSESSMENT AFTER R8-AUTH-001 AND R8-COM-003 CLOSURES — 2026-10-03
+
+Two major local blockers are now closed:
+
+- **R8-AUTH-001:** CLOSED — Owner approved the conceptual Permission catalogue and Role→Permission direction. Exact atomic permission rows remain downstream detail.
+- **R8-COM-003:** CLOSED — Owner approved Product global identity + BusinessProduct Business-specific commercial configuration.
+
+### Newly unblocked work
+
+- **R8-COM-002:** remains READY and can proceed with Customer↔User association mechanics.
+- **R8-ORD-002:** remains BLOCKED by Inventory transaction semantics (R8-INV-002).
+- **R8-CASH-001:** remains BLOCKED by Payment effects (R8-PAY-003), while authorization prerequisite is now satisfied.
+- **R8-MSG-002:** remains BLOCKED by Messaging physical model.
+- **R8-ID-003:** CLOSED / direction approved.
+
+### Current highest-value specification sequence
+
+1. R8-INV-002 — reservation / stock transaction semantics.
+2. R8-INV-003 — physical Location model.
+3. R8-PAY-002 — Payment lifecycle/reconciliation.
+4. R8-PAY-003 — Payment ↔ Cash / AR effects.
+5. R8-COM-002 — Customer↔User association mechanics.
+6. R8-BRAND-001 — Business Brand configuration boundary.
+
+**R8-READY-001 remains blocked.**
+
+Implementation remains NOT AUTHORIZED.
