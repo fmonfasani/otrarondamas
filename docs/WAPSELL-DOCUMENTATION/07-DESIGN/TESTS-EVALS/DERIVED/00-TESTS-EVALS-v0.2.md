@@ -54,6 +54,7 @@ All tests/evals in this document are initially **SPECIFIED** unless explicitly m
 | TE-ID-005 | INV-CUST-001 | A Customer can exist without a User association. | Domain | SPECIFIED |
 | TE-ID-006 | INV-CUST-002 | Email equality alone does not automatically create Customer↔User association. | Security/Domain | SPECIFIED |
 | TE-ID-007 | INV-CUST-003 | Customer commercial data from Business A cannot silently appear in Business B. | Isolation | SPECIFIED |
+| TE-TEN-001 | INV-TEN-001 | A Business-scoped resource remains associated with its Business context and cannot silently cross into another Business context. | Isolation | SPECIFIED |
 
 **OPEN:** physical identity model, normalization algorithm, physical tenant isolation, association mechanics.
 
@@ -65,8 +66,10 @@ All tests/evals in this document are initially **SPECIFIED** unless explicitly m
 |---|---|---|---|---|
 | TE-AUTH-001 | INV-AUTH-001 | Authentication without a valid target Business Membership is insufficient for a Business-scoped operation. | Security | SPECIFIED |
 | TE-AUTH-002 | INV-AUTH-001 | A valid Membership alone is insufficient when the operation lacks applicable authorization. | Security | SPECIFIED |
-| TE-AUTH-003 | INV-AUTH-002 | Authorization semantics are represented by Membership→Role→Permission, without Profile/Capability/Individual Override precedence. | Architecture/Security | SPECIFIED |
+| TE-AUTH-003 | INV-AUTH-002 | The canonical authorization model does not introduce Profile/Capability/Individual Override precedence and is constrained to Membership→Role→Permission. | Domain/Architecture | SPECIFIED |
 | TE-AUTH-004 | INV-AUTH-003 | Hiding an action in UI does not constitute the authorization decision for the underlying operation. | Security | SPECIFIED |
+
+**OPEN / implementation-blocked:** exact Permission catalogue, Role→Permission matrix and technical enforcement cannot yet be tested as implementation behavior.
 
 **OPEN:** permission catalogue, Role→Permission matrix and technical enforcement.
 
@@ -139,7 +142,7 @@ All tests/evals in this document are initially **SPECIFIED** unless explicitly m
 
 | ID | Invariant | Verification criterion | Type | Status |
 |---|---|---|---|---|
-| TE-FUL-001 | INV-FUL-001 | Fulfillment behavior is attributable to the Orders domain rather than a separate top-level domain boundary. | Architecture/Domain | SPECIFIED |
+| TE-FUL-001 | INV-FUL-001 | Fulfillment requirements are evaluated under the Orders domain boundary rather than against an independent Fulfillment domain specification. | Domain/Architecture | SPECIFIED |
 | TE-FUL-002 | INV-FUL-002 | Repartidor is not required as an MVP Membership Role. | Scope/Authorization | SPECIFIED |
 
 **OPEN:** delivery states, tracking, zones, tariffs, evidence, timeout/escalation and future actor model.
@@ -172,7 +175,19 @@ These are **evaluation families**, not claims that corresponding automated tests
 
 ---
 
-## 11. Explicitly excluded / BLOCKED
+## 11. Review corrections incorporated
+
+The R7 review identified and corrected three issues before advancing the gate:
+
+1. **Coverage gap closed:** `INV-TEN-001` now has dedicated criterion `TE-TEN-001`.
+2. **Authorization boundary narrowed:** the test does not assert a technical permission implementation; it verifies only the canonical conceptual model. Exact catalogue/matrix/enforcement remain OPEN.
+3. **Fulfillment criterion narrowed:** it verifies the approved domain boundary without implying a separate technical module/package architecture.
+
+No implementation detail was introduced by these corrections.
+
+---
+
+## 12. Explicitly excluded / BLOCKED
 
 The following are not canonical executable tests yet because their governing semantics remain OPEN:
 
@@ -198,7 +213,7 @@ A blocked test must not be made executable by inventing the missing semantic rul
 
 ---
 
-## 12. Historical baseline disposition
+## 13. Historical baseline disposition
 
 The existing:
 
@@ -220,7 +235,7 @@ No historical baseline test is deleted.
 
 ---
 
-## 13. Traceability
+## 14. Traceability
 
 | Test family | Invariant(s) | Contract/source | Status |
 |---|---|---|---|
@@ -234,7 +249,7 @@ No historical baseline test is deleted.
 
 ---
 
-## 14. Evidence status
+## 15. Evidence status
 
 No test in this document is claimed as:
 
@@ -257,13 +272,14 @@ Current evidence state:
 
 ---
 
-## 15. Advancement gate
+## 16. Advancement gate
 
 The Tests/Evals layer is ready for controlled planning only when:
 
 - [x] canonical invariants are identified;
 - [x] stale historical test families are separated from current canonical criteria;
 - [x] each canonical invariant has a verification criterion where meaningful;
+- [x] R7 review corrections applied for tenancy coverage, authorization scope and Fulfillment boundary;
 - [x] OPEN semantics remain explicitly blocked;
 - [x] no framework or implementation mechanism is assumed;
 - [x] evidence states distinguish specification from execution;
@@ -276,7 +292,7 @@ The Tests/Evals layer is ready for controlled planning only when:
 
 ---
 
-## 16. Non-actions
+## 17. Non-actions
 
 This document does not:
 
@@ -292,4 +308,4 @@ This document does not:
 - claim implementation compliance;
 - resolve OPEN domain decisions.
 
-**R7 TEST/EVAL DERIVATION: COMPLETE — DRAFT / NOT APPROVED.**
+**R7 TEST/EVAL DERIVATION: REVIEWED / RECONCILED — DRAFT / NOT APPROVED.**
