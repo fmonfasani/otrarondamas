@@ -1,6 +1,6 @@
 # B4 — VERIFICATION INFRASTRUCTURE CANDIDATE TASK v0.1
 
-**Status:** COMPLETED — VERIFIED BY CI
+**Status:** RECONCILED — AWAITING FRESH CI VERIFICATION
 **Class:** VERIFICATION INFRASTRUCTURE
 **Scope:** B4 Implementation Readiness
 **Owner authority:** OD-B4-02 — approved
@@ -48,7 +48,7 @@ Establish the minimum reusable verification infrastructure required to execute c
 
 ## 6. Promotion gate
 
-This candidate required explicit task-local authorization. That authorization was granted by the Owner selecting Option A on 2026-10-04. The candidate is now promoted to COMPLETED after successful CI execution.
+This candidate required explicit task-local authorization. That authorization was granted by the Owner selecting Option A on 2026-10-04. The candidate has been technically reconciled against the repository. Fresh CI execution is required before promoting execution evidence to [T]/[E].
 
 ## 7. Success criteria
 
@@ -59,7 +59,7 @@ This candidate required explicit task-local authorization. That authorization wa
 5. No product behavior, schema, migration or domain contract is changed.
 6. All execution evidence is recorded using [T]/[E] only after real execution.
 
-**Current state: COMPLETED — VERIFIED BY CI.**
+**Current state: RECONCILED — AWAITING FRESH CI VERIFICATION.**
 
 Execution authorization:
 - Option A explicitly selected by Owner on 2026-10-04.
@@ -75,3 +75,35 @@ Promotion result:
 - B4 verification infrastructure: **COMPLETED / VERIFIED**.
 - B3 tenant-isolation product implementation: **NOT AUTHORIZED**.
 - B3 invariants: **NOT VERIFIED** by this task.
+
+## 8. Technical reconciliation — 2026-10-04
+
+The existing implementation was reviewed against the task scope and the repository's actual database/bootstrap surface.
+
+### Reusable
+
+- `apps/api/test/jest-e2e.json`: reusable integration-test harness; it fills the previously missing config referenced by `test:e2e`.
+- `apps/api/package.json`: `test:integration` is a valid additive alias and does not alter the existing unit-test command.
+- `apps/api/test/integration/tenant-isolation.integration-spec.ts`: reusable as B4 smoke/regression coverage of existing Business-scoped behavior; its fixtures create two Businesses dynamically rather than depending on seed IDs.
+- `.github/workflows/b4-verification.yml`: reusable CI structure with disposable PostgreSQL service, Prisma generation and unit/integration execution.
+
+### Corrected
+
+- CI previously used `prisma db push --accept-data-loss`. The repository has no committed Prisma migration surface identified for this branch, while the CI database is disposable. The destructive-acknowledgement flag was therefore removed. CI now invokes `prisma db push` without `--accept-data-loss`, so an unexpected destructive schema transition fails instead of being silently accepted.
+- The test file remains an infrastructure smoke/regression test and must not be treated as complete B3 invariant verification.
+- Setup/teardown is currently local to the integration suite. It is a valid bounded fixture boundary for the present task, but it is not yet a general shared fixture library. That generalization is deferred unless subsequent B3 tests demonstrate a concrete reuse need.
+
+### Not incorporated
+
+- product behavior changes;
+- Prisma schema changes;
+- migrations;
+- domain contract changes;
+- ISO-009 implementation;
+- B3 invariant promotion or verification claims.
+
+### Evidence state
+
+The previous branch documentation recorded GitHub Actions run `37210436567` as successful. That historical claim has not been independently recoverable through the available workflow-run retrieval surface. It is therefore treated as **[D] DOCUMENTED**, not as independently established [T]/[E] evidence for this reconciliation.
+
+A fresh CI execution of the corrected workflow is required to establish current [T]/[E] evidence.
