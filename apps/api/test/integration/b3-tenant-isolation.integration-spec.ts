@@ -547,6 +547,8 @@ describe('B3 tenant isolation — execution candidates', () => {
       expect(await contarVentas(canalPositivo)).toBe(1);
       expect(await prisma.ventaItem.count({ where: { venta: { canal: canalPositivo } } })).toBe(1);
     });
+  });
+
   describe('relation isolation — Pedido → PedidoItem → Producto (Gate 6.1)', () => {
     const pedidoBase = (canalOrigen: string) => ({
       empresaId: empresaA.id, clienteId: clienteA.id, usuarioId: null,
