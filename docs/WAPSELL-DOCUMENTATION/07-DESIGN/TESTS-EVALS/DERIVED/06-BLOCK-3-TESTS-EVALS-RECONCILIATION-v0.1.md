@@ -1,10 +1,10 @@
 # WAPSELL — BLOCK 3 TESTS / EVALS RECONCILIATION v0.1
 ## B3 TESTS/EVALS RECONCILIATION / POST-INVARIANT READINESS
 
-**Status:** DRAFT — BLOCK 3 TESTS / EVALS — DERIVED, NOT EXECUTED, NOT APPROVED
+**Status:** DRAFT — BLOCK 3 TESTS / EVALS — DERIVED / RECONCILED, NOT EXECUTED, NOT APPROVED
 **Date:** 2026-10-04
 **Scope:** Wapsell MVP — Block 3 (Tenant Isolation), verification criteria
-**Invariants source:** `07-DESIGN/INVARIANTS/DERIVED/06-BLOCK-3-TENANT-ISOLATION-INVARIANTS-v0.1.md` (ISO-001…ISO-008, ISO-OPEN-001)
+**Invariants source:** `07-DESIGN/INVARIANTS/DERIVED/06-BLOCK-3-TENANT-ISOLATION-INVARIANTS-v0.1.md` (ISO-001…ISO-009)
 **Contract source:** `07-DESIGN/CONTRACTS/DOMAIN/27-B3-CONTRACT-RECONCILIATION-ADDENDUM-2026-10-04.md` over `09-R8-ARCH-002-TENANT-ISOLATION-CONTRACT-v0.1.md`
 **Owner decisions:** `03-DECISIONS/48-B3-TESTS-EVALS-OWNER-DECISION-CLOSURE-2026-10-04.md` (B3-TEST-001…025)
 **Historical artifact acknowledged:** `13-AUDIT/26-B3-TESTS-EVALS-AND-READINESS-2026-10-04.md` (not modified)
@@ -350,3 +350,20 @@ This document:
 - creates no identifier other than `TE-B3-001…008`.
 
 **BLOCK 3 TESTS/EVALS RECONCILIATION: DRAFT — NOT APPROVED.**
+
+
+# 11. Owner Decision 49 — ownership ambiguity closure
+
+Owner Decision 49-B3-LEGAJO-DOCUMENTOLEGajo-OWNER-DECISION-CLOSURE-2026-10-04 closes the former ISO-OPEN-001 / ISO-AMBIG-001 ambiguity. The canonical B3 invariant is now **ISO-009**.
+
+A new B3 verification criterion is derived:
+
+| Row | Covers | State | Expected verification |
+|---|---|---|---|
+| **TE-B3-009** | **ISO-009** | **SPECIFIED** | Business ownership of Legajo/DocumentoLegajo is deterministic; cross-Business ownership is rejected; unresolved ownership fails closed. |
+
+B3-specific verification coverage is therefore **TE-B3-001…TE-B3-009 (9 criteria)** plus the 7 inherited B1 criteria. No test is written or executed by this reconciliation.
+
+B3-TEST-011 remains a historical Owner decision record describing the condition before ownership closure. For downstream test derivation, Decision 49 supersedes its OPEN condition; no historical text is rewritten.
+
+**[T] = 0. [E] = 0. Implementation = NOT AUTHORIZED.**
