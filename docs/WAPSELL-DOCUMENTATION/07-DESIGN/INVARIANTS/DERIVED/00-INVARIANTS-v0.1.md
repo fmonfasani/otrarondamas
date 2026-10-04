@@ -650,3 +650,17 @@ This v0.2 reconciliation:
 - does not modify code, schema, migrations or infrastructure.
 
 **R6 CANONICAL INVARIANTS RECONCILIATION: COMPLETE — DRAFT / NOT APPROVED.**
+
+
+## R8 ARCHITECTURE CLOSURE — DERIVED INVARIANT RECONCILIATION — 2026-10-03
+
+The following properties are now derived directly from the approved R8 architecture decisions and should be treated as canonical invariant candidates:
+
+1. **Business Context is application-controlled.** A Business-scoped operation executes only under a server-established active Business Context.
+2. **Membership validity is mandatory.** The effective Business Context must correspond to an ACTIVE Membership of the authenticated User.
+3. **Client Business identifiers are non-authoritative.** An untrusted client-supplied Business identifier cannot override the established Business Context.
+4. **Fail closed.** Missing, invalid or unauthorized Business context cannot result in a protected Business-scoped operation being executed.
+5. **JWT is not authorization truth.** A valid JWT authenticates the global User but does not by itself authorize access to a Business.
+6. **Cross-Business isolation.** A Business-scoped operation in Business A must not read, create, modify or delete Business-scoped data belonging to Business B.
+
+These are reconciliation of approved R8 boundaries, not implementation mechanisms. They must be verified without assuming a specific ORM, API protocol, database feature or session implementation.
