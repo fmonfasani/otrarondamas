@@ -669,3 +669,28 @@ Remaining blockers for any B3 implementation slice, all still valid: test infras
 **B3 TESTS/EVALS: CLOSED FOR DERIVATION / RECONCILIATION; NOT EXECUTED; NOT VERIFIED; NOT READY FOR IMPLEMENTATION.**
 
 **Implementation:** NOT AUTHORIZED.
+
+
+## R8-B3 OWNERSHIP + B4 READINESS DECISION PROPAGATION — 2026-10-04
+
+### B3 ownership closure
+
+Owner Decision 49 closes the former Legajo/DocumentoLegajo ownership ambiguity. ISO-009 is now the canonical B3 invariant for deterministic Business ownership. The B3 invariant set is 9 active / 0 open at derivation level.
+
+This does not authorize schema or implementation changes. The physical ownership mechanism remains downstream technical specification.
+
+### B4 readiness decisions
+
+OD-B4-01 confirms B4 as the transversal Implementation Readiness stage over B1/B2/B3.
+
+OD-B4-02 permits task-local implementation of verification infrastructure before B3 is fully VERIFIED, provided product behavior, schema, migrations, contracts and normative decisions are not changed.
+
+### Transformation effect
+
+- B3 ownership ambiguity is removed from the normative blocker list.
+- B3 execution/evidence blockers remain.
+- Verification infrastructure may be derived as a controlled readiness task.
+- Product implementation remains governed by local task gates.
+- No component is designated for deletion or replacement.
+
+**Implementation:** NOT AUTHORIZED by this plan.
