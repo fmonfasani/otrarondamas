@@ -56,7 +56,7 @@ Aunque esté especificado o diseñado, nada de esto está implementado:
 - `Membership` (usuario ↔ negocio N:N), onboarding de negocios, gestión de Business como entidad operable.
 - Branding configurable por negocio (hoy está hardcodeado).
 - Cuenta corriente operativa, entregas, reportes reales, anulación de ventas, Mercado Pago.
-- **Tests y CI/CD** — Jest está configurado, pero actualmente no hay suites automatizadas; no hay workflows de CI/CD versionados.
+- **Cobertura de tests amplia y CD** — hay tests, pero acotados al aislamiento multi-tenant (ver "Verificación"); no hay tests de los flujos de negocio ni despliegue automatizado.
 
 Algunos modelos existen en el schema sin servicios que los usen (`CuentaCorriente`, `Deuda`, `Entrega`): el modelo de datos va por delante de la funcionalidad.
 
@@ -64,7 +64,7 @@ Algunos modelos existen en el schema sin servicios que los usen (`CuentaCorrient
 
 No son sorpresas: están registrados con evidencia en código.
 
-- **Sin tests ni CI.** Ningún cambio tiene red de seguridad automatizada.
+- **Red de seguridad parcial.** Los tests automatizados cubren solo el aislamiento por `empresaId` y un health check; el CI no ejecuta `build` ni `lint`, por lo que un error de compilación (`npm run build`) no lo detecta ningún workflow.
 - **Brechas de integridad de stock verificadas** — oversell concurrente, devolución a proveedor sin guarda, 0 `CHECK` y 0 `TRIGGER` en 17 migraciones, transacciones en `READ COMMITTED`, `Venta.numero` sin unicidad garantizada. Detalle: [`10-AUDIT/01-D010-D014-CODE-EVIDENCE-AUDIT.md`](docs/WAPSELL-DOCUMENTATION/10-AUDIT/01-D010-D014-CODE-EVIDENCE-AUDIT.md).
 - **Riesgo de autorización** — tokens de `Cliente` podrían alcanzar endpoints del panel sin type guard (CON-015).
 - **El nombre del negocio tiene un typo en el código**: `"Otra Roonda Más"` es la clave `@unique` del `upsert` de `Empresa` en el seed. Los frontends dicen "Otra Ronda Más". Reconciliar sin cuidado rompe el upsert (CON-008).
@@ -149,11 +149,29 @@ Credenciales del seed (**solo desarrollo local**): `owner@otrarondamas.com` y `s
 npm run lint    # ESLint en todos los workspaces
 ```
 
-**Tests:** actualmente no hay suites automatizadas que ejecutar. Las afirmaciones de funcionamiento deben distinguirse entre verificación por código, ejecución manual y tests automatizados.
+**Tests unitarios** (sin base de datos para la mayoría; el workflow los corre con Postgres):
+
+```bash
+npm test --workspace=@otrarondamas/api -- --runInBand
+```
+
+**Tests de integración** (`apps/api/test/integration/`): escriben y borran datos reales. Los specs usan `PrismaService` con el `DATABASE_URL` que haya en el entorno, **no** corras esto contra una base con datos que quieras conservar. Usá una base descartable en el mismo contenedor:
+
+```bash
+docker compose up -d db
+docker compose exec db psql -U user -d postgres -c "CREATE DATABASE otrarondamas_test"
+export DATABASE_URL="postgresql://user:password@localhost:5500/otrarondamas_test?schema=public"
+
+npm run prisma:generate --workspace=@otrarondamas/api
+npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+npm run test:e2e --workspace=@otrarondamas/api -- --runInBand
+```
+
+`npm run lint` ejecuta ESLint con `--fix`: puede modificar archivos. Las afirmaciones de funcionamiento deben distinguirse entre verificación por código, ejecución manual y tests automatizados.
 
 ## Despliegue
 
-Producción bajo `otrarondamas.wapsell.com` vía `docker-compose.prod.yml` e [`infra/nginx/`](infra/nginx/) — infraestructura compartida con Wapsell, sin dependencias de código ni de datos entre ambos. Migraciones y despliegues son **manuales** (no hay CI/CD).
+Producción bajo `otrarondamas.wapsell.com` vía `docker-compose.prod.yml` e [`infra/nginx/`](infra/nginx/) — infraestructura compartida con Wapsell, sin dependencias de código ni de datos entre ambos. Migraciones y despliegues son **manuales** (el único workflow, `b4-verification.yml`, solo ejecuta tests).
 
 ## Fecha objetivo de producción
 
