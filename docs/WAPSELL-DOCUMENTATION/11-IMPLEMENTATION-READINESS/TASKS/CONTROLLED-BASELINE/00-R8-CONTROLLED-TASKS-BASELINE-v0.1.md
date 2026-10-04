@@ -463,3 +463,56 @@ The next controlled action is **R8 task audit**, followed by local readiness rev
 | Implementation | NOT AUTHORIZED BY R8 |
 | Schema/Data/Deploy | NOT AUTHORIZED BY R8 |
 
+
+
+## 22. STATUS RECONCILIATION AFTER OWNER CLOSURE — 2026-10-03
+
+The task states below supersede the historical statuses in Sections 5–17 where they conflict with completed R8 evidence and Owner decisions.
+
+### Completed architectural/documentary tasks
+
+- **R8-CAN-001:** DONE.
+- **R8-CAN-002:** DONE.
+- **R8-ARCH-001:** DONE — Owner approved.
+- **R8-ARCH-002:** DONE — application-level tenant isolation approved.
+- **R8-ARCH-003:** DONE — JWT-centric authentication with application-controlled active Business Context approved.
+- **R8-ID-001:** DONE — AS-IS identity/tenancy evidence incorporated in the R8 evidence pack.
+- **R8-COM-001:** DONE — AS-IS Customer/Product/Cart evidence incorporated in the R8 evidence pack.
+- **R8-INV-001:** DONE — AS-IS inventory evidence incorporated in the R8 evidence pack.
+- **R8-ORD-001:** DONE — AS-IS Order/Sale evidence incorporated in the R8 evidence pack.
+- **R8-PAY-001:** DONE — AS-IS Payment/Cash/AR evidence incorporated in the R8 evidence pack.
+- **R8-MSG-001:** DONE — AS-IS Messaging evidence completed to the verified inspection scope.
+
+### Newly READY local specification tasks
+
+- **R8-ID-002:** READY.
+- **R8-COM-004:** READY.
+- **R8-INV-002:** READY.
+- **R8-INV-003:** READY.
+- **R8-PAY-002:** READY.
+- **R8-BRAND-001:** READY.
+
+### Remaining blockers
+
+The following remain blocked because their own normative/technical dependencies are not yet closed:
+
+- R8-ID-003
+- R8-AUTH-001
+- R8-AUTH-002
+- R8-COM-002
+- R8-COM-003
+- R8-ORD-002
+- R8-PAY-003
+- R8-CASH-001
+- R8-FUL-001
+- R8-RET-001
+- R8-MSG-002
+- R8-X-001
+- R8-READY-001
+- R8-READY-002
+
+This reconciliation does not authorize implementation.
+
+**Current R8 gate: CONTROLLED SPECIFICATION READINESS — PASS WITH LOCAL BLOCKERS.**
+
+**Evidence:** DOCUMENTADO / VERIFIED BY DOCUMENTARY REVIEW. No code, schema, migration or deployment changes were performed.
