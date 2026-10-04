@@ -726,3 +726,30 @@ These are DOCUMENTED derived invariants. Exact enforcement and cross-domain tran
 - **INV-LOC-004:** MAIN is a conceptual role of Location, not a distinct entity type.
 
 The physical association between Location and Inventory remains OPEN and is not inferred here.
+
+## R8-B2 OWNER CLOSURE ADDENDUM — 2026-10-04
+
+The Owner accepted the B2 closure recommendations. The following invariant boundaries are now closed for downstream derivation.
+
+### Identity / Membership
+- **INV-B2-MEM-001:** For a given `(User, Business)`, at most one Membership may be ACTIVE at a time.
+- **INV-B2-ROLE-001:** A Membership has exactly one effective Role in the MVP authorization model.
+
+### Authorization
+- **INV-B2-PRM-001:** The approved Permission catalogue is closed at the conceptual domain level; atomic IDs, exact Role→Permission rows and persistence remain OPEN.
+- **INV-B2-AUTH-001:** Protected Business-scoped operations must fail closed when Business Context, ACTIVE Membership or applicable authorization is absent/invalid. Public/pre-context paths are governed separately by their own contracts.
+- **INV-B2-AUTH-002:** Protected operations must use current server-side authorization state; no fixed revocation latency is specified.
+- **INV-B2-CUS-001:** Customer-facing responses must not expose secrets or authorization-sensitive data.
+
+### Legacy coexistence
+- **INV-B2-LEG-001:** Legacy coexistence is bounded and temporary; retirement/cutover is a separate controlled process gate.
+- **INV-B2-LEG-002:** Legacy `UsuarioPermiso`/`Permiso` semantics must have an explicit reviewed mapping to target Role→Permission before the affected legacy authorization path is retired.
+
+### Critical authorization
+- **INV-B2-AUTH-003:** Critical-operation additional authorization control remains a required conceptual boundary, but its exact actors, triggers, states, approval semantics and technical enforcement remain OPEN.
+
+These invariants are DOCUMENTED / OWNER-ACCEPTED. They are not verified by code, test or execution.
+
+**Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
+
+**Implementation:** NOT AUTHORIZED.
