@@ -620,3 +620,84 @@ La siguiente etapa documental debe continuar con el próximo dominio TO-BE defin
 Messaging incorpora como decisión cerrada que un Customer puede participar en una Conversation sin tener identidad User de Wapsell. No se exige por este ruling una entidad técnica `ConversationIdentity`; la representación concreta queda para la especificación especializada/Architecture.
 
 Esto supersede cualquier referencia histórica que trate Customer sin User como `OPEN OWNER DECISION`.
+
+---
+
+## R4 — RECONCILIACIÓN CANÓNICA POST-OR-B3
+
+**Fecha:** 2026-10-03  
+**Estado:** RECONCILED — CURRENT CONCEPTUAL BASELINE  
+**Autoridad:** OR-B2 + OR-B3 + 26-R4-TOBE-AUDIT-INVENTORY-CASH-MESSAGING-2026-10-03.md  
+**Alcance:** reconciliación documental conceptual. No produce schema, contracts, invariants, tests ni implementación.
+
+### R4-MSG-CURRENT-01 — Messaging como dominio de primera clase
+
+Messaging es un dominio funcional de primera clase y la conversación es la interfaz comercial central. Esto no obliga a que exista un módulo visual independiente en la navegación.
+
+**Evidencia:** DOCUMENTADO — OR-B2-019.
+
+### R4-MSG-CURRENT-02 — Canal MVP
+
+El MVP utiliza el sistema de mensajería propio de Wapsell y no depende de WhatsApp.
+
+Esto no prohíbe integraciones futuras.
+
+**Evidencia:** DOCUMENTADO — OR-B2-020 + ruling previo sobre WhatsApp.
+
+### R4-MSG-CURRENT-03 — Business y participantes
+
+Una conversación comercial pertenece exactamente a un Business.
+
+Los participantes conceptuales pueden ser User y/o Customer. Un Customer puede participar sin disponer de identidad User de Wapsell.
+
+La asociación Customer ↔ User es opcional y controlada; no se realiza auto-link únicamente por email.
+
+**Evidencia:** DOCUMENTADO — OR-B2-004, OR-B2-021, OR-B3-001/002/008.
+
+### R4-MSG-CURRENT-04 — Contexto comercial
+
+Los datos y acciones de una conversación se ejecutan dentro del contexto del Business y respetan la autorización del dominio comercial correspondiente.
+
+Messaging no redefine las reglas de Order, Sale, Inventory, Cash, Payment, AR ni Fulfillment.
+
+**Evidencia:** DOCUMENTADO — OR-B2-021 + reconciliaciones de Commerce/Identity/Inventory/Cash.
+
+### R4-MSG-CURRENT-05 — IA
+
+Los asistentes de IA forman parte de la dirección de producto, pero permanecen inactivos durante el MVP.
+
+No se fija todavía su alcance funcional, permisos, mecanismos de supervisión, activación, proveedor/modelo ni acciones permitidas.
+
+**Evidencia:** DOCUMENTADO — OR-B2-019/020.
+
+### R4-MSG-CURRENT-06 — Modelo físico
+
+Permanecen OPEN IMPLEMENTATION DETAIL:
+
+- Conversation;
+- Message;
+- Participant;
+- lifecycle;
+- lectura/no lectura;
+- attachments;
+- realtime;
+- notifications;
+- asignación a operadores humanos;
+- retención/auditoría;
+- canales adicionales;
+- permisos específicos de Messaging;
+- integración física con Commerce.
+
+No se convierten conceptos en entidades físicas por esta reconciliación.
+
+### R4-MSG-CURRENT-07 — Gap documental de SPEC especializada
+
+06-SPECIFICATIONS/CANONICAL/04-MESSAGING-SPEC.md continúa siendo un placeholder DRAFT — NOT APPROVED.
+
+Esta reconciliación no lo reemplaza ni lo eleva de estado. El desarrollo de la SPEC especializada queda como trabajo documental posterior.
+
+### R4-MSG-CURRENT-08 — Estado de implementación
+
+La ausencia de un dominio Messaging implementado en el AS-IS se conserva como evidencia. Esta reconciliación no declara funcionalidad implementada.
+
+**Conclusión:** Messaging queda reconciliado a nivel conceptual; los detalles especializados permanecen abiertos.
