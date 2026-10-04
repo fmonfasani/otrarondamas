@@ -339,14 +339,25 @@ Such a task must specify scope, non-scope, dependencies, expected evidence and v
 
 **Current implementation status remains NOT AUTHORIZED for product code/schema/migrations.**
 
-## 14. B4 verification infrastructure candidate — 2026-10-04
+## 14. B4 verification infrastructure candidate — 2026-10-04 — CLOSED
 
-OD-B4-02 permits verification-infrastructure work before B3 is fully VERIFIED. A separate proposed task has therefore been derived:
+OD-B4-02 permitted verification-infrastructure work before B3 is fully VERIFIED. The candidate task was explicitly authorized by the Owner through **Option A** on 2026-10-04.
 
 `11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
 
-**State:** PROPOSED — NOT AUTHORIZED FOR EXECUTION.
+**State:** COMPLETED — VERIFIED BY CI.
 
-The candidate covers Jest/test harness, deterministic two-Business fixtures, PostgreSQL/Prisma integration support, smoke/regression support and CI verification infrastructure. It does not authorize product behavior changes, schema changes, migrations or B3 tenant-isolation implementation.
+Implemented and verified:
+- Jest integration configuration;
+- deterministic two-Business PostgreSQL/Prisma fixture;
+- reusable setup/teardown boundary;
+- smoke/regression execution path;
+- CI verification workflow.
 
-The candidate must receive explicit task-local execution authorization before code changes or test execution occur.
+Execution evidence:
+- GitHub Actions run **37210436567**: SUCCESS;
+- Jest smoke/regression suite: SUCCESS [T];
+- PostgreSQL/Prisma integration suite: SUCCESS [T][E];
+- branch diff contains no product source, Prisma schema, or migration changes [C].
+
+The completion of this task does **not** authorize B3 tenant-isolation product implementation and does **not** mark B3 invariants VERIFIED.
