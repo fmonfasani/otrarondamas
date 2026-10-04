@@ -301,3 +301,40 @@ test or implementation.
 
 Next contract group: **Commerce**, beginning with Customer → Catalog/Pricing → Order/Sale → Payments/AR,
 while preserving the unresolved boundaries identified by the existing TO-BE documents.
+
+
+---
+
+# R5 Canonical Reconciliation — 2026-10-03
+
+> Additive reconciliation against OR-B2/OR-B3 and the reconciled Identity & Tenancy Specification. Historical contract text above is retained for traceability. No technical enforcement is defined here.
+
+## R5-IDENTITY-001 — Canonical authorization boundary
+
+The conceptual authorization checks are: authenticated User; target Business; valid Membership for that Business; Role/Permission authorization.
+
+A valid token alone does not authorize an operation. The model is strictly Membership → Role → Permission.
+
+This is a conceptual contract, not a technical four-step algorithm. Token claims, sessions, guards, middleware and enforcement remain OPEN.
+
+## R5-IDENTITY-002 — Membership lifecycle
+
+Membership is conceptually ACTIVE or INACTIVE. An INACTIVE Membership cannot operate on the Business. Additional states are not approved.
+
+## R5-IDENTITY-003 — MVP Membership Roles
+
+The canonical MVP Membership Roles are: Owner, Admin, Vendedor, Gestor de Stock.
+
+Customer and Supplier are not Membership Roles. Repartidor is FUTURE/OPEN and outside the MVP Membership Role catalog.
+
+The permission catalog and role-permission matrix remain OPEN.
+
+## R5-IDENTITY-004 — Global User uniqueness
+
+A normalized email identifies at most one User. Normalization rules and the physical uniqueness mechanism remain OPEN.
+
+## R5-IDENTITY-005 — Customer/User controlled association
+
+Customer and User remain distinct. The system may detect/propose a possible match, but association requires controlled confirmation; email equality alone does not automatically create the link.
+
+Physical association, matching criteria, merge/lifecycle mechanics remain OPEN.
