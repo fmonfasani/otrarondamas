@@ -1,14 +1,14 @@
 # WAPSELL — BLOCK 3 TESTS / EVALS RECONCILIATION v0.1
 ## B3 TESTS/EVALS RECONCILIATION / POST-INVARIANT READINESS
 
-**Status:** DRAFT — BLOCK 3 TESTS / EVALS — DERIVED / RECONCILED, NOT EXECUTED, NOT APPROVED
+**Status:** OWNER-APPROVED FOR EXECUTION — NOT EXECUTED — NOT VERIFIED
 **Date:** 2026-10-04
 **Scope:** Wapsell MVP — Block 3 (Tenant Isolation), verification criteria
 **Invariants source:** `07-DESIGN/INVARIANTS/DERIVED/06-BLOCK-3-TENANT-ISOLATION-INVARIANTS-v0.1.md` (ISO-001…ISO-009)
 **Contract source:** `07-DESIGN/CONTRACTS/DOMAIN/27-B3-CONTRACT-RECONCILIATION-ADDENDUM-2026-10-04.md` over `09-R8-ARCH-002-TENANT-ISOLATION-CONTRACT-v0.1.md`
 **Owner decisions:** `03-DECISIONS/48-B3-TESTS-EVALS-OWNER-DECISION-CLOSURE-2026-10-04.md` (B3-TEST-001…025)
 **Historical artifact acknowledged:** `13-AUDIT/26-B3-TESTS-EVALS-AND-READINESS-2026-10-04.md` (not modified)
-**Technical Specification:** NOT APPROVED
+**Technical Specification:** NOT APPROVED — verification execution authorized
 **Implementation:** NOT AUTHORIZED
 **Code / schema / migration / data changes:** NONE
 **Tests executed by this document:** NONE
@@ -349,7 +349,7 @@ This document:
 - does not modify the historical `13-AUDIT/26-…` artifact, the B1 baseline, Tests/Evals v0.2, contracts, invariants or architecture;
 - creates no identifier other than `TE-B3-001…008`.
 
-**BLOCK 3 TESTS/EVALS RECONCILIATION: DRAFT — NOT APPROVED.**
+**BLOCK 3 TESTS/EVALS RECONCILIATION: OWNER-APPROVED FOR EXECUTION — NOT EXECUTED — NOT VERIFIED.**
 
 
 # 11. Owner Decision 49 — ownership ambiguity closure
