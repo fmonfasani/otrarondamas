@@ -423,3 +423,67 @@ con D-001/D-002 como frontera de tenancy y D-005/D-006 como frontera de autoriza
 OR-B3-010 cierra el principio de autorización: las operaciones sensibles de Cash se gobiernan mediante Permissions específicas. El catálogo concreto de permisos, matriz operación→permiso, estados y enforcement técnico permanecen abiertos.
 
 Esto supersede cualquier formulación histórica que presente como abierta la elección entre Owner-only, Owner+Admin o Permissions específicas.
+
+---
+
+## R4 — RECONCILIACIÓN CANÓNICA POST-OR-B3
+
+**Fecha:** 2026-10-03  
+**Estado:** RECONCILED — CURRENT CONCEPTUAL BASELINE  
+**Autoridad:** OR-B2 + OR-B3 + 26-R4-TOBE-AUDIT-INVENTORY-CASH-MESSAGING-2026-10-03.md  
+**Alcance:** reconciliación documental conceptual. No produce schema, contracts, invariants, tests ni implementación.
+
+### R4-CASH-CURRENT-01 — Business scope
+
+Cash es una capacidad contextualizada al Business. Las operaciones de caja no se consideran globales entre Businesses.
+
+**Evidencia:** DOCUMENTADO — frontera de tenancy de D-001/OR-B2.
+
+### R4-CASH-CURRENT-02 — Operaciones sensibles
+
+Las operaciones sensibles de Cash requieren Permissions específicas.
+
+Este ruling no fija nombres concretos de permisos, roles que los reciben, umbrales, flujos de aprobación ni mecanismos técnicos.
+
+**Evidencia:** DOCUMENTADO — OR-B3-010.
+
+### R4-CASH-CURRENT-03 — Fronteras con Payment y Accounts Receivable
+
+Payment y Accounts Receivable son dominios relacionados, pero el material reconciliado no cierra todavía sus límites físicos con Cash.
+
+Por tanto permanecen abiertos:
+
+- relación exacta Payment ↔ Cash;
+- efectos sobre caja de operaciones económicas;
+- relación con AR/Cuentas Corrientes;
+- estados y lifecycle técnicos;
+- compensaciones y ajustes.
+
+No se inventa un modelo de Payment para completar el hueco documental detectado.
+
+### R4-CASH-CURRENT-04 — Estados y correcciones
+
+No existe una decisión vigente que cierre un state machine físico de Cash ni un mecanismo técnico concreto para ajustes, anulaciones o compensaciones.
+
+Estos puntos permanecen OPEN IMPLEMENTATION DETAIL.
+
+### R4-CASH-CURRENT-05 — AS-IS vs TO-BE
+
+La evidencia histórica de doble confirmación, umbrales u otras reglas observadas en AS-IS no se convierte automáticamente en TO-BE.
+
+La brecha AS-IS se conserva como evidencia y deberá reconciliarse en una especificación posterior cuando corresponda.
+
+### R4-CASH-CURRENT-06 — Fronteras abiertas
+
+Permanecen OPEN:
+
+- catálogo exacto de Permissions sensibles de Cash;
+- asignación de Permissions a Membership Roles;
+- estados/lifecycle de Cash;
+- reglas de ajuste/compensación;
+- Payment ↔ Cash;
+- Cash ↔ AR;
+- contratos, invariantes y tests;
+- enforcement técnico.
+
+**Conclusión:** Cash queda reconciliado a nivel conceptual sin cerrar detalles que todavía requieren especificación especializada o decisión del Owner.
