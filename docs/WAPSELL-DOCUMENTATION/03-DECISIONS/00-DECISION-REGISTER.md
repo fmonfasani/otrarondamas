@@ -553,3 +553,28 @@ This is a downstream canonical addendum to the earlier register. Historical D-xx
 These rulings close the corresponding B2 normative questions without authorizing implementation, schema changes, migration, deployment or legacy deletion.
 
 **Authority:** Owner acceptance, 2026-10-04.
+
+## 10. B3 Tests/Evals Owner Decision Closure — 2026-10-04
+
+The Owner accepted the 25 B3 Tests/Evals decisions (B3-TEST-001 … B3-TEST-025) recorded in:
+`03-DECISIONS/48-B3-TESTS-EVALS-OWNER-DECISION-CLOSURE-2026-10-04.md`
+
+This is a downstream canonical addendum to the earlier register. Historical D-xxx rows are not rewritten.
+
+| IDs | Direction | Status |
+|---|---|---|
+| 001 | Canonical test level: unit + PostgreSQL/Prisma integration (unit first); E2E deferred until auth/Business context is sufficiently implemented. | ACCEPTED |
+| 002-004 | Existing seed + B3 fixtures; two Businesses + users/memberships + needed entities; Businesses created inside each suite with IDs in variables. | ACCEPTED |
+| 005, 021 | Verify the observable isolation property (and the mechanism when useful); PASS requires the expected result and, for mutations, the final persisted state. | ACCEPTED |
+| 006, 017 | Server context determines the Business on creation; a client `empresaId` cannot override it. | ACCEPTED |
+| 007-009, 018, 019 | Cross-Business read never returns the other Business's record (no imposed error code); update/delete affect only the current Business and are not allowed across Businesses; unique lookups tested only through existing mechanisms. | ACCEPTED |
+| 010, 020 | Nested/related ownership: direct FK + nested writes + relevant indirect relations. | ACCEPTED |
+| 011 | Legajo/DocumentoLegajo remain OPEN / NOT TESTABLE; no tenant rule invented. | ACCEPTED |
+| 012-014 | Transactions preserve the Business context; unsupported operations fail explicitly; the currently relevant raw SQL surface is tested (raw SQL not prohibited in general). | ACCEPTED |
+| 015, 016 | Absent or invalid context fails closed. | ACCEPTED |
+| 022, 023 | `[T]` only for an executed specific test with a verifiable result; `[E]` only for real execution on target infrastructure with evidence. | ACCEPTED |
+| 024, 025 | Failures are classified before any change; B3 Tests/Evals close only with criteria derived, tests implemented and executed, evidence recorded and every failure resolved or formally open/classified. | ACCEPTED |
+
+These rulings close the corresponding B3 Tests/Evals method questions without authorizing implementation, schema changes, test execution or any claim of B3 readiness.
+
+**Authority:** Owner acceptance, 2026-10-04.

@@ -284,3 +284,29 @@ Such a task returns to SPEC-CLOSURE.
 **Implementation: NOT AUTHORIZED.**
 
 **Deployment: NOT AUTHORIZED.**
+
+
+## 12. B3 Tests/Evals reconciliation propagation — 2026-10-04
+
+The B3 Tests/Evals reconciliation (`07-DESIGN/TESTS-EVALS/DERIVED/06-BLOCK-3-TESTS-EVALS-RECONCILIATION-v0.1.md`) changes no task state in section 4.
+
+| Task | State | Effect |
+|---|---|---|
+| R8-ARCH-002 | DONE (unchanged) | Decision preserved. Its 12 properties now map to derived criteria; property 12 stays a verification gate, NOT MET. |
+| R8-READY-001 | BLOCKED (unchanged) | No slice is selected. B3 verification still lacks test infrastructure and execution evidence. |
+| R8-READY-002 | BLOCKED (unchanged) | Depends on R8-READY-001. |
+
+**No task is created, renamed, renumbered or promoted by this reconciliation.** `B3-SLICE-001` appears only as a proposal in `13-AUDIT/24-B4-IMPLEMENTATION-READINESS-ASSESSMENT-2026-10-04.md` and is not a task of this set.
+
+Task-local specification work that remains, without task identifiers (none is authorized for implementation):
+
+1. approval path for the B3 invariant set (DRAFT);
+2. resolution of the TE-ID collision in the upstream Tests/Evals documents;
+3. technical resolution of Legajo/DocumentoLegajo ownership (ISO-OPEN-001);
+4. test-infrastructure and execution tasks, which require explicit separate authorization and, per section 9, cannot be marked DONE from documentation alone.
+
+Candidate "Identity/Tenancy foundation" (section 7) remains **CANDIDATE — NOT YET IMPLEMENTATION-READY**.
+
+**B3 TESTS/EVALS: CLOSED FOR DERIVATION / RECONCILIATION; NOT EXECUTED; NOT VERIFIED; NOT READY FOR IMPLEMENTATION.**
+
+**Implementation: NOT AUTHORIZED.**

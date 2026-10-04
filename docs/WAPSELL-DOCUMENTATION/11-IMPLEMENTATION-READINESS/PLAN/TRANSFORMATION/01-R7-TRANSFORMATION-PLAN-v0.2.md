@@ -649,3 +649,23 @@ Remaining technical blockers are still valid and include exact atomic authorizat
 **Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
 
 **Implementation:** NOT AUTHORIZED.
+
+## R8-B3 TESTS/EVALS RECONCILIATION PROPAGATION — 2026-10-04
+
+The B3 Tests/Evals reconciliation does not remove any blocker; it changes where B3 stands in the verification chain.
+
+- The canonical B3 invariant set (ISO-001…ISO-008, ISO-OPEN-001; DRAFT, not approved) and the reconciled B3 contract now exist, so the Tenant Isolation row of the Identity/Tenancy workstream no longer lacks a normative model at documentary level.
+- B3 verification criteria are DERIVED: TE-B3-001…008 (one per ISO-001…008) plus the inherited B1 criteria TE-ID-004, 005, 006, 008, 009, 010, 011, all SPECIFIED. Inherited references are source-qualified because `TE-ID-004/005/006` collide with the canonical Tests/Evals v0.2.
+- The Owner approved the B3 test method: unit then PostgreSQL/Prisma integration; fixtures created per suite; PASS requires the expected result and the final persisted state; `[T]` and `[E]` only on real executed evidence.
+- `[T]` = 0 and `[E]` = 0. Nothing is written or executed. R8-ARCH-002 property 12 (cross-Business negative verification) remains a verification gate and is NOT MET.
+- Legajo/DocumentoLegajo ownership remains OPEN and NOT TESTABLE.
+
+Remaining blockers for any B3 implementation slice, all still valid: test infrastructure absent; execution evidence (including the transaction behaviour that only `[E]` can resolve); ISO-OPEN-001; approval of the invariant set; B1 physical identity/Membership model (properties 2 and 3); the upstream TE-ID collision; slice selection and Owner authorization.
+
+**Transformation-plan effect:** the B3 gate in the Identity/Tenancy block is unchanged (BLOCKED until local specification and execution-evidence gates close). No component is designated for deletion. B3 remains the critical dependency of B4.
+
+**References:** `03-DECISIONS/48-B3-TESTS-EVALS-OWNER-DECISION-CLOSURE-2026-10-04.md`; `07-DESIGN/TESTS-EVALS/DERIVED/06-BLOCK-3-TESTS-EVALS-RECONCILIATION-v0.1.md`; `13-AUDIT/27-B3-POST-INVARIANT-TESTS-EVALS-READINESS-2026-10-04.md`.
+
+**B3 TESTS/EVALS: CLOSED FOR DERIVATION / RECONCILIATION; NOT EXECUTED; NOT VERIFIED; NOT READY FOR IMPLEMENTATION.**
+
+**Implementation:** NOT AUTHORIZED.
