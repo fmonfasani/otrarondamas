@@ -159,7 +159,7 @@ B3 creates an ID only for a property that no B1/B2 criterion verifies. Where a B
 
 ## 6.1 New B3 identifiers
 
-`TE-B3-001`…`TE-B3-008` are **new**: a search of the repository found no prior occurrence. Mapping is one-to-one with ISO-001…ISO-008. Allocation follows addendum 27 §7: *assign new identifiers to genuinely new B3-specific tests; never renumber an established canonical identifier merely to make the B3 set sequential.* No identifier is allocated for ISO-OPEN-001.
+`TE-B3-001`…`TE-B3-009` are **new**: a search of the repository found no prior occurrence. Mapping is one-to-one with ISO-001…ISO-009. Allocation follows addendum 27 §7: *assign new identifiers to genuinely new B3-specific tests; never renumber an established canonical identifier merely to make the B3 set sequential.* ISO-009 covers the formerly open Legajo/DocumentoLegajo ownership property after Owner Decision 49.
 
 ## 6.2 Inherited identifiers — documentary contradiction
 
@@ -285,7 +285,7 @@ Recount: contract coverage 12/12 (unchanged); specified test criterion 9/12 (P2 
 | `[E]` | **0** |
 | Real PostgreSQL integration | **NOT EXECUTED** |
 | Implementation / code / schema change | **NOT AUTHORIZED** |
-| ISO-OPEN-001 | **OPEN — NOT TESTABLE YET** |
+| ISO-009 | **SPECIFIED — NOT EXECUTED** |
 | P12 | **VERIFICATION GATE — NOT MET** |
 | ND-01 (does scoping stay active on the transaction client) | **NOT DETERMINABLE without `[E]`** |
 
