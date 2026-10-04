@@ -273,7 +273,6 @@ describe('B3 tenant isolation — execution candidates', () => {
     await expect(
       db.venta.create({
         data: {
-          empresaId: empresaA.id,
           usuarioId: usuarioA.id,
           estado: 'CONFIRMADA',
           canal: 'b3-test',
