@@ -355,3 +355,19 @@ These are specified verification criteria only. Exact state-transition tests and
 | TE-PAY-006 | Payment reconciliation does not implicitly reconcile Cash or AR. | SPECIFIED |
 
 These are verification criteria only; no automated test has been created or executed. Exact state transitions, refund mechanics and cross-domain effects remain blocked until their specialized contracts are closed.
+
+
+## R8-PAY-003 TEST/EVAL RECONCILIATION — 2026-10-03
+
+| ID | Criterion | Status |
+|---|---|---|
+| TE-PAY-CASH-001 | Payment Cash effects respect the approved payment-method boundary. | SPECIFIED |
+| TE-PAY-CASH-002 | Cash impact timing follows the applicable payment-method confirmation/evidence semantics. | SPECIFIED |
+| TE-PAY-AR-001 | Payment and AR application remain distinguishable. | SPECIFIED |
+| TE-PAY-AR-002 | A Payment can be applied partially or fully to applicable AR obligations. | SPECIFIED |
+| TE-PAY-AR-003 | A Payment can exist without creating an AR obligation. | SPECIFIED |
+| TE-PAY-AR-004 | Partial Payment does not automatically create AR. | SPECIFIED |
+| TE-PAY-REF-001 | Refund/correction preserves historical Payment traceability and produces compensating Cash effects when applicable. | SPECIFIED |
+| TE-PAY-SALE-001 | Sale cancellation does not erase historical Payments. | SPECIFIED |
+
+Verification criteria only. No automated tests are created or executed by this reconciliation.
