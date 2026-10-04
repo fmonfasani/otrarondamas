@@ -281,3 +281,30 @@ The most useful next documentary/specification tasks are:
 These tasks do not authorize implementation. Their outputs will unlock downstream tasks through explicit local dependencies.
 
 **Updated gate: R8 READINESS — PASS WITH LOCAL SPECIFICATION BLOCKERS.**
+
+
+## 11. REASSESSMENT AFTER R8-ID-002 CLOSURE — 2026-10-03
+
+R8-ID-002 is now **DONE / OWNER APPROVED** through `03-DECISIONS/32-R8-ID-002-OWNER-DECISION-PHYSICAL-USER-BUSINESS-MEMBERSHIP-2026-10-03.md`.
+
+This unlocks the next identity/authorization specification chain without authorizing implementation:
+
+- **R8-ID-003:** READY — legacy identity coexistence can now be specified against the approved physical-model direction and R8-ARCH-003.
+- **R8-AUTH-001:** READY — the exact Permission catalogue and Role→Permission matrix can now be derived against the approved Membership physical direction.
+- **R8-COM-002:** READY — Customer↔User association mechanics can now be specified against the approved global User/Membership model.
+- **R8-COM-003:** READY — Product/BusinessProduct allocation remains its own scope but no longer lacks the identity/architecture prerequisite.
+- **R8-ORD-002:** remains BLOCKED by R8-INV-002 and R8-AUTH-001.
+- **R8-CASH-001:** remains BLOCKED by downstream Payment/Auth work.
+- **R8-MSG-002:** remains BLOCKED by R8-AUTH-001 and Messaging physical-model work.
+
+### Updated next execution order
+
+1. **R8-ID-003** — legacy identity coexistence.
+2. **R8-AUTH-001** — Permission catalogue and Role→Permission matrix.
+3. **R8-COM-002** — Customer↔User association.
+4. **R8-COM-003** — Product/BusinessProduct physical allocation.
+5. Continue Inventory/Payment/Commerce specification closures in dependency order.
+
+**Updated gate: R8 READINESS — PASS WITH LOCAL SPECIFICATION BLOCKERS.**
+
+Implementation remains NOT AUTHORIZED.
