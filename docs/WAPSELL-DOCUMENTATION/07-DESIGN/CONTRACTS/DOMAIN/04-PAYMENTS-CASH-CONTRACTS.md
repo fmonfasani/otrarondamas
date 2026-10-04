@@ -189,3 +189,20 @@ AR and Cash was introduced.
 No decision, invariant, test, schema, migration or implementation change was created.
 
 **Next contract group:** Messaging.
+
+
+---
+
+# R5 Canonical Reconciliation — 2026-10-03
+
+> Additive reconciliation against OR-B3 and the reconciled Cash TO-BE. Historical contract text above is retained for traceability.
+
+## R5-CASH-001 — Sensitive Cash authorization
+
+Sensitive Cash operations require specific Permissions.
+
+This closes the conceptual authorization boundary. Exact permission names, permission-to-role mapping, thresholds and approval workflows remain OPEN.
+
+## R5-CASH-002 — Cash boundary remains otherwise open
+
+The following remain OPEN unless separately specified: formal Cash states, adjustment/compensation mechanics, Payment↔Cash effects, AR collection↔Cash effects, reconciliation relationships and detailed economic effects of cancellation/reversal/refund.
