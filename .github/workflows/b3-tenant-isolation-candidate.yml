@@ -7,6 +7,7 @@ on:
       - "apps/api/src/**"
       - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
       - "apps/api/test/integration/b3-producto-familia.integration-spec.ts"
+      - "apps/api/test/integration/b3-producto-proveedor.integration-spec.ts"
       - "apps/api/test/integration/b3-iso-006.integration-spec.ts"
       - "apps/api/test/integration/b3-provider-payment-return-characterization.integration-spec.ts"
       - "apps/api/prisma/**"
@@ -19,6 +20,7 @@ on:
       - "apps/api/src/**"
       - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
       - "apps/api/test/integration/b3-producto-familia.integration-spec.ts"
+      - "apps/api/test/integration/b3-producto-proveedor.integration-spec.ts"
       - "apps/api/prisma/**"
       - "apps/api/package.json"
       - "package-lock.json"
@@ -72,6 +74,12 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-producto-familia.integration-spec.ts
+
+      - name: Run Producto-Proveedor candidate
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-producto-proveedor.integration-spec.ts
 
       - name: Run ISO-006 candidate
         run: >-
