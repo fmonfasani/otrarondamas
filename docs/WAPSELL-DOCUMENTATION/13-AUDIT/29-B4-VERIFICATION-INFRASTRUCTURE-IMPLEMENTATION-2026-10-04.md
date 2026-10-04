@@ -1,7 +1,7 @@
 # B4 — VERIFICATION INFRASTRUCTURE IMPLEMENTATION REPORT
 ## 2026-10-04
 
-Status: **IMPLEMENTED — AWAITING FRESH CI VERIFICATION**
+Status: **COMPLETED / VERIFIED — FRESH CI VERIFIED**
 
 Task source:
 - `11-IMPLEMENTATION-READINESS/TASKS/EXECUTION/02-B4-VERIFICATION-INFRASTRUCTURE-CANDIDATE-v0.1.md`
@@ -52,7 +52,7 @@ These are verification tests of existing behavior, not implementation of new ten
 
 ## 5. Execution evidence
 
-The branch originally documented GitHub Actions run **37210436567** as SUCCESS. The available workflow-run retrieval surface did not independently recover that run, so that historical result is classified **[D] DOCUMENTED**, not independently established [T]/[E] evidence.
+The branch originally documented GitHub Actions run **37210436567** as SUCCESS. That historical result remains classified **[D] DOCUMENTED** because it was not independently recoverable through the available workflow-run retrieval surface.
 
 A technical correction was applied to `.github/workflows/b4-verification.yml`:
 - removed `--accept-data-loss` from Prisma `db push`;
@@ -60,11 +60,13 @@ A technical correction was applied to `.github/workflows/b4-verification.yml`:
 - retained Prisma generation;
 - retained unit and integration execution.
 
+Fresh CI verification was then executed successfully in GitHub Actions run **37211384785**.
+
 Current evidence classification:
-- [C] **VERIFIED BY CODE** — B4 implementation files were inspected; no product source, Prisma schema or migration file is part of the branch diff.
-- [D] **DOCUMENTED** — prior CI success claim is preserved as historical documentation only.
-- [T] **PENDING** — requires fresh execution of the corrected Jest workflow.
-- [E] **PENDING** — requires fresh PostgreSQL-backed integration execution of the corrected workflow.
+- [C] **VERIFIED BY CODE** — B4 implementation files were inspected; no product source, Prisma schema or migration file is part of the B4 branch diff.
+- [D] **DOCUMENTED** — prior run 37210436567 is retained as historical documentation only.
+- [T] **VERIFIED BY TEST** — Jest unit/smoke/regression execution succeeded in fresh run 37211384785.
+- [E] **VERIFIED BY EXECUTION** — PostgreSQL/Prisma integration execution succeeded against the disposable PostgreSQL 15 service in fresh run 37211384785.
 
 The integration suite is intended to verify infrastructure coverage for:
 1. server-side Business scoping overriding conflicting input;
@@ -75,6 +77,6 @@ These checks remain smoke/regression coverage of existing behavior, not complete
 
 ## 6. Gate
 
-The verification-infrastructure task is **IMPLEMENTED AND TECHNICALLY RECONCILED; FRESH CI VERIFICATION PENDING** for Option A.
+The verification-infrastructure task is **COMPLETED / VERIFIED** for Option A.
 
 This does **not** promote B3 tenant-isolation invariants to VERIFIED and does **not** authorize product implementation. It establishes the reusable verification substrate required for subsequent controlled B1/B2/B3 verification work.
