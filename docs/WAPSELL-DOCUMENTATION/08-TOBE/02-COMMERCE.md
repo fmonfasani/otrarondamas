@@ -857,3 +857,9 @@ Este documento es el **escalón TO-BE** de
   migrations, refactors, cambios de API, cambios de UI.
 - **Conflicto no cerrado:** ninguno de CON-016, CON-017, CON-020, CON-021, CON-024, CON-025.
 - **Decisión creada:** 0. **Requisito inventado:** 0. **Estado inventado:** 0. **ID inventado:** 0.
+
+## 17. POST-OR-B3 — OWNER RULINGS PROPAGATED
+
+El TO-BE Commerce incorpora como decisiones cerradas: confirmación comercial de Order mediante `ORDER_CONFIRM`; Cart sin Customer con Customer requerido para Order; Product global + BusinessProduct; decremento físico mediante movimiento de salida; Fulfillment dentro del MVP bajo Orders sin Repartidor como Membership Role; Cash sensible mediante Permissions específicas.
+
+Payment state modeling y detalles de pricing, refunds/returns y Fulfillment permanecen abiertos cuando no fueron explícitamente cerrados por OR-B3.
