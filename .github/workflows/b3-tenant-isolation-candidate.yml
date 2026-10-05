@@ -135,3 +135,9 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-devolucion-proveedor-item.integration-spec.ts
+
+      - name: Run MovimientoStock-Producto candidate
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-movimientostock-producto.integration-spec.ts
