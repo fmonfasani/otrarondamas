@@ -1,28 +1,33 @@
 name: B3 Tenant Isolation Candidate
 
 on:
+  # The push and pull_request path lists MUST stay identical. When they
+  # diverge, a change can trigger the workflow on push but skip it on the
+  # pull request (or the reverse) — and a skipped workflow is visually
+  # indistinguishable from a passing one, so the candidate suites can
+  # silently disappear from a PR. `apps/api/test/integration/**` covers
+  # every current and future integration spec, so adding a suite cannot
+  # leave it unmatched here.
   push:
     branches: [main, "b3/**", "chore/**"]
     paths:
       - "apps/api/src/**"
-      - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
-      - "apps/api/test/integration/b3-producto-familia.integration-spec.ts"
-      - "apps/api/test/integration/b3-producto-proveedor.integration-spec.ts"
-      - "apps/api/test/integration/b3-iso-006.integration-spec.ts"
-      - "apps/api/test/integration/b3-provider-payment-return-characterization.integration-spec.ts"
+      - "apps/api/test/integration/**"
       - "apps/api/prisma/**"
       - "apps/api/package.json"
+      - "apps/api/tsconfig.json"
+      - "apps/api/tsconfig.build.json"
       - "package-lock.json"
       - ".github/workflows/b3-tenant-isolation-candidate.yml"
   pull_request:
     branches: [main]
     paths:
       - "apps/api/src/**"
-      - "apps/api/test/integration/b3-tenant-isolation.integration-spec.ts"
-      - "apps/api/test/integration/b3-producto-familia.integration-spec.ts"
-      - "apps/api/test/integration/b3-producto-proveedor.integration-spec.ts"
+      - "apps/api/test/integration/**"
       - "apps/api/prisma/**"
       - "apps/api/package.json"
+      - "apps/api/tsconfig.json"
+      - "apps/api/tsconfig.build.json"
       - "package-lock.json"
       - ".github/workflows/b3-tenant-isolation-candidate.yml"
 
@@ -58,6 +63,14 @@ jobs:
       - run: npm ci
 
       - run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      # Build gate: `nest build` compiles src/ via tsconfig.build.json and
+      # fails on any TypeScript error. It runs BEFORE db push and the test
+      # suites so a compile error fails fast, without spending database
+      # time. Non-mutating: output goes to the gitignored dist/ and no
+      # source file is rewritten (unlike `npm run lint`, which is
+      # `eslint --fix` and is deliberately NOT part of this gate).
+      - run: npm run build --workspace=@otrarondamas/api
 
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
