@@ -27,6 +27,7 @@ export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]
   ProductoProveedor: ['producto', 'proveedor'],
   Lote: ['producto'],
   MovimientoStock: ['producto'],
+  ReglaFidelizacion: ['subtipo'],
 };
 
 type Datos = Record<string, unknown>;
