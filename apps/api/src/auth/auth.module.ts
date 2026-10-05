@@ -10,10 +10,12 @@ import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { PrismaModule } from '../prisma/prisma.module';
+import { MembershipModule } from '../membership/membership.module';
 
 @Module({
   imports: [
     PrismaModule,
+    MembershipModule,
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,

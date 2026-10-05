@@ -15,6 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthGoogleService } from './auth.google.service';
+import { MembershipService } from '../membership/membership.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
@@ -28,6 +29,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authGoogleService: AuthGoogleService,
+    private readonly membershipService: MembershipService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -74,6 +76,18 @@ export class AuthController {
       estadoLegajo: usuario.estadoLegajo,
       type: 'usuario' as const,
     };
+  }
+
+  // S-V1-01: pertenencias del usuario autenticado (read-only). Usa el
+  // Usuario.id de la sesión para resolver el User canónico vía el vínculo
+  // explícito del backfill; sin vínculo devuelve lista vacía (cuenta aún
+  // sin migrar). No toca login, JWT, /auth/me ni permisos.
+  @ApiBearerAuth()
+  @Get('memberships')
+  async memberships(@CurrentUser() user: AuthenticatedUser) {
+    const canonical = await this.membershipService.findUserByLegacyUsuarioId(user.id);
+    if (!canonical) return [];
+    return this.membershipService.getMembershipsForUser(canonical.id);
   }
 
   // Dispara el redirect a la pantalla de consentimiento de Google.

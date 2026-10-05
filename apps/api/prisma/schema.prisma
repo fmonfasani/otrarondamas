@@ -142,6 +142,9 @@ model Empresa {
   notificaciones     Notificacion[]      @relation("EmpresaNotificaciones")
   reglasFidelizacion ReglaFidelizacion[]
   invitaciones       Invitacion[]
+  // S-V1-01: back-relation aditiva (sin columna física, sin impacto en
+  // migración de datos). Empresa sigue siendo el tenant físico.
+  memberships        Membership[]
 }
 
 model Usuario {
@@ -216,6 +219,58 @@ model UsuarioPermiso {
   updatedAt DateTime @updatedAt
 
   @@unique([usuarioId, permisoId])
+}
+
+// S-V1-01 (Wapsell V1, dirección B+D+E aprobada por el Owner): identidad
+// global futura. User es la persona, independiente del Business; NO lleva
+// empresaId, rol, permisos ni estadoLegajo (eso vive en Membership o sigue
+// en el legacy). `usuarioId` es el vínculo explícito y estable con el
+// Usuario legacy (columna escalar, SIN @relation: el modelo Usuario no se
+// toca en este slice); nullable para futuros Users sin contraparte legacy.
+// Los ids son independientes (NO se reutiliza Usuario.id como User.id).
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  nombre       String
+  // Credenciales de identidad global (mismo criterio que Usuario: password
+  // local y/o Google; null cuando no aplica, nunca se infiere).
+  passwordHash String?
+  googleId     String?  @unique
+  fotoUrl      String?
+  // Vínculo estable con el legacy. Único cuando está presente; null solo
+  // para Users creados fuera del backfill legacy (futuro, no V1).
+  usuarioId    String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+// S-V1-01: pertenencia User ↔ Business. Business físico = Empresa
+// existente (NO se crea tabla Business: businessId referencia Empresa.id).
+// `role` se copia de Usuario.rol en el backfill pero el runtime source of
+// truth sigue siendo Usuario.rol (no se usa Membership.role para autorizar
+// en este slice). `status` deriva de Usuario.activo (false → SUSPENDED).
+model Membership {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  businessId String
+  business   Empresa          @relation(fields: [businessId], references: [id])
+  role       RolUsuario
+  status     MembershipStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([userId, businessId])
+}
+
+// S-V1-01: estados mínimos. ACTIVE = pertenencia válida; SUSPENDED =
+// no válida (en el backfill: Usuario.activo = false). No agregar estados
+// sin decisión del Owner.
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 // RF-17: alta por invitación, nunca auto-registro público (decisión
