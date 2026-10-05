@@ -23,7 +23,7 @@ export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]
   PedidoItem: ['producto', 'reglaFidelizacion'],
   CompraItem: ['producto'],
   DevolucionProveedorItem: ['producto', 'lote'],
-  Producto: ['familia', 'subfamilia', 'tipo'],
+  Producto: ['familia', 'subfamilia', 'tipo', 'subtipo'],
   ProductoProveedor: ['producto', 'proveedor'],
   Lote: ['producto'],
 };
