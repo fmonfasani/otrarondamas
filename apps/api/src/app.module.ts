@@ -20,6 +20,7 @@ import { LegajoModule } from './legajo/legajo.module';
 import { InvitacionesModule } from './invitaciones/invitaciones.module';
 import { HealthModule } from './health/health.module';
 import { MembershipModule } from './membership/membership.module';
+import { BusinessContextModule } from './business-context/business-context.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 
@@ -44,6 +45,8 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     HealthModule,
     // S-V1-01: lectura de pertenencias (sin controllers propios).
     MembershipModule,
+    // S-V1-02: resolución de contexto + adapter (sin controllers).
+    BusinessContextModule,
   ],
   controllers: [AppController],
   providers: [
