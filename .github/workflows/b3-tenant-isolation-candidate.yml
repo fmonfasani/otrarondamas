@@ -147,3 +147,9 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-reglafidelizacion-subtipo.integration-spec.ts
+
+      - name: Run ReglaFidelizacion-Familia candidate
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-reglafidelizacion-familia.integration-spec.ts
