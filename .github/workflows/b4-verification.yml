@@ -43,3 +43,13 @@ jobs:
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/tenant-isolation.integration-spec.ts
+      - name: Run S-V1 verification suites
+        env:
+          JWT_SECRET: s-v1-ci-only-jwt-secret
+          GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+          GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+          GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          'test/integration/s-v1-.*\.integration-spec\.ts'
