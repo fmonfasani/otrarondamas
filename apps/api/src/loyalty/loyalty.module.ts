@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { LoyaltyController } from './loyalty.controller';
 import { LoyaltyService } from './loyalty.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BusinessContextModule } from '../business-context/business-context.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, BusinessContextModule],
   controllers: [LoyaltyController],
   providers: [LoyaltyService],
   // Phase 5 of the roadmap (automatic application in sales/orders) will need

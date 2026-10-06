@@ -6,6 +6,7 @@ import { UpdateLoyaltyRuleDto } from './dto/update-loyalty-rule.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -22,33 +23,41 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @Controller('reglas-fidelizacion')
 @UseGuards(ApprovedDossierGuard) // RF-17: real business operation, see cash-register.controller.ts
 export class LoyaltyController {
-  constructor(private readonly loyaltyService: LoyaltyService) {}
+  constructor(
+    private readonly loyaltyService: LoyaltyService,
+    private readonly businessContext: BusinessContextService,
+  ) {}
+
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   @RequirePermission('fidelizacion.gestionar')
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.loyaltyService.list(user.empresaId);
+  async list(@CurrentUser() user: AuthenticatedUser) {
+    return this.loyaltyService.list(await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('fidelizacion.gestionar')
   @Get(':id')
-  get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.loyaltyService.get(user.empresaId, id);
+  async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.loyaltyService.get(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('fidelizacion.gestionar')
   @Post()
-  create(@Body() dto: CreateLoyaltyRuleDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.loyaltyService.create(user.empresaId, dto);
+  async create(@Body() dto: CreateLoyaltyRuleDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.loyaltyService.create(await this.resolveCompanyIdFromContext(user), dto);
   }
 
   @RequirePermission('fidelizacion.gestionar')
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateLoyaltyRuleDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.loyaltyService.update(user.empresaId, id, dto);
+    return this.loyaltyService.update(await this.resolveCompanyIdFromContext(user), id, dto);
   }
 }
