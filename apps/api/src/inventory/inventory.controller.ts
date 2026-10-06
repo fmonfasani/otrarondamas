@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
+import { BusinessContextService } from '../business-context/business-context.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
@@ -34,7 +35,13 @@ export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,
     private readonly prismaFactory: CompanyScopedPrismaService,
+    private readonly businessContext: BusinessContextService,
   ) {}
+
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   // INV-CONS-01 / INV-CONS-04: consolidated stock per product, with the same
   // search/pagination contract as GET /catalogo/productos (see
@@ -46,14 +53,18 @@ export class InventoryController {
     @Query('search') search?: string,
     @Query('soloConStockBajo') onlyLowStock?: string,
   ) {
-    return this.inventoryService.consolidatedStock(user.empresaId, search, onlyLowStock === 'true');
+    return this.inventoryService.consolidatedStock(
+      await this.resolveCompanyIdFromContext(user),
+      search,
+      onlyLowStock === 'true',
+    );
   }
 
   // INV-CONS-02: batch detail of a product — where the total shown by
   // GET /inventario/stock comes from.
   @Get('productos/:id/lotes')
   async batchesForProduct(@Param('id') productId: string, @CurrentUser() user: AuthenticatedUser) {
-    const db = this.prismaFactory.forCompany(user.empresaId);
+    const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
     const product = await db.producto.findUnique({ where: { id: productId } });
     if (!product) {
       throw new NotFoundException('Producto no encontrado');
@@ -72,7 +83,7 @@ export class InventoryController {
     @Param('id') productId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const db = this.prismaFactory.forCompany(user.empresaId);
+    const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
     const product = await db.producto.findUnique({ where: { id: productId } });
     if (!product) {
       throw new NotFoundException('Producto no encontrado');
@@ -94,7 +105,11 @@ export class InventoryController {
     @Body() dto: RegisterAdjustmentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.inventoryService.registerAdjustment(user.empresaId, dto, user.id);
+    return this.inventoryService.registerAdjustment(
+      await this.resolveCompanyIdFromContext(user),
+      dto,
+      user.id,
+    );
   }
 
   // INV-AL-01/02/03: low-stock products and batches about to expire, in a
@@ -103,6 +118,6 @@ export class InventoryController {
   // GET /inventario/stock.
   @Get('alertas')
   async alerts(@CurrentUser() user: AuthenticatedUser) {
-    return this.inventoryService.alerts(user.empresaId);
+    return this.inventoryService.alerts(await this.resolveCompanyIdFromContext(user));
   }
 }

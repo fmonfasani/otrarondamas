@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PurchasesService } from './purchases.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -37,17 +38,25 @@ import { CreateSupplierReturnDto } from './dto/create-supplier-return.dto';
 @Controller()
 @UseGuards(ApprovedDossierGuard) // RF-17: real business operation, see cash-register.controller.ts
 export class PurchasesController {
-  constructor(private readonly purchasesService: PurchasesService) {}
+  constructor(
+    private readonly purchasesService: PurchasesService,
+    private readonly businessContext: BusinessContextService,
+  ) {}
+
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   @Get('proveedores')
   async listSuppliers(@CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.listSuppliers(user.empresaId);
+    return this.purchasesService.listSuppliers(await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('compras.gestionar')
   @Post('proveedores')
   async createSupplier(@Body() dto: CreateSupplierDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.createSupplier(user.empresaId, dto);
+    return this.purchasesService.createSupplier(await this.resolveCompanyIdFromContext(user), dto);
   }
 
   @RequirePermission('compras.gestionar')
@@ -57,30 +66,38 @@ export class PurchasesController {
     @Body() dto: UpdateSupplierDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.purchasesService.updateSupplier(user.empresaId, id, dto);
+    return this.purchasesService.updateSupplier(
+      await this.resolveCompanyIdFromContext(user),
+      id,
+      dto,
+    );
   }
 
   @Get('compras')
   async listPurchases(@CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.listPurchases(user.empresaId);
+    return this.purchasesService.listPurchases(await this.resolveCompanyIdFromContext(user));
   }
 
   @Get('compras/:id')
   async getPurchase(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.getPurchase(user.empresaId, id);
+    return this.purchasesService.getPurchase(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('compras.gestionar')
   @Post('compras')
   async createPurchase(@Body() dto: CreatePurchaseDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.createPurchase(user.empresaId, dto, user.id);
+    return this.purchasesService.createPurchase(
+      await this.resolveCompanyIdFromContext(user),
+      dto,
+      user.id,
+    );
   }
 
   @RequirePermission('compras.gestionar')
   @Post('compras/:id/emitir')
   @HttpCode(HttpStatus.OK)
   async issuePurchase(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.issuePurchase(user.empresaId, id);
+    return this.purchasesService.issuePurchase(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('compras.gestionar')
@@ -91,12 +108,17 @@ export class PurchasesController {
     @Body() dto: ReceivePurchaseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.purchasesService.receivePurchase(user.empresaId, id, dto, user.id);
+    return this.purchasesService.receivePurchase(
+      await this.resolveCompanyIdFromContext(user),
+      id,
+      dto,
+      user.id,
+    );
   }
 
   @Get('compras/:id/pagos')
   async listPayments(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.listPayments(user.empresaId, id);
+    return this.purchasesService.listPayments(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('compras.gestionar')
@@ -107,12 +129,17 @@ export class PurchasesController {
     @Body() dto: CreateSupplierPaymentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.purchasesService.createPayment(user.empresaId, id, dto, user.id);
+    return this.purchasesService.createPayment(
+      await this.resolveCompanyIdFromContext(user),
+      id,
+      dto,
+      user.id,
+    );
   }
 
   @Get('compras/:id/devoluciones')
   async listReturns(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.purchasesService.listReturns(user.empresaId, id);
+    return this.purchasesService.listReturns(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('compras.gestionar')
@@ -123,6 +150,11 @@ export class PurchasesController {
     @Body() dto: CreateSupplierReturnDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.purchasesService.createReturn(user.empresaId, id, dto, user.id);
+    return this.purchasesService.createReturn(
+      await this.resolveCompanyIdFromContext(user),
+      id,
+      dto,
+      user.id,
+    );
   }
 }
