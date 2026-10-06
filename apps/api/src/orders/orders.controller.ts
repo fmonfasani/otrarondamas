@@ -5,6 +5,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -22,27 +23,40 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @Controller('pedidos')
 @UseGuards(ApprovedDossierGuard) // RF-17: real business operation, see cash-register.controller.ts
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly businessContext: BusinessContextService,
+  ) {}
+
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   @RequirePermission('pedidos.gestionar')
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser, @Query('estado') status?: string) {
-    return this.ordersService.list(user.empresaId, status);
+  async list(@CurrentUser() user: AuthenticatedUser, @Query('estado') status?: string) {
+    return this.ordersService.list(await this.resolveCompanyIdFromContext(user), status);
   }
 
   @RequirePermission('pedidos.gestionar')
   @Get(':id')
-  get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.ordersService.get(id, user.empresaId);
+  async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.ordersService.get(id, await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('pedidos.gestionar')
   @Patch(':id/estado')
-  updateStatus(
+  async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.ordersService.updateStatus(id, user.empresaId, dto, user.id);
+    return this.ordersService.updateStatus(
+      id,
+      await this.resolveCompanyIdFromContext(user),
+      dto,
+      user.id,
+    );
   }
 }
