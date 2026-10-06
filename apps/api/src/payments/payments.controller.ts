@@ -5,6 +5,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -18,7 +19,15 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @Controller('ventas/:ventaId/pagos')
 @UseGuards(ApprovedDossierGuard) // RF-17: real business operation, see cash-register.controller.ts
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly businessContext: BusinessContextService,
+  ) {}
+
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   // The 'ventas.crear' permission is reused (no 'pagos.crear' is invented):
   // the seed's permission catalog does not have that permission, and creating
@@ -27,16 +36,21 @@ export class PaymentsController {
   // treated, in this increment, as part of the same sale operation.
   @RequirePermission('ventas.crear')
   @Post()
-  create(
+  async create(
     @Param('ventaId') saleId: string,
     @Body() dto: CreatePaymentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.paymentsService.create(saleId, dto, user.empresaId, user.id);
+    return this.paymentsService.create(
+      saleId,
+      dto,
+      await this.resolveCompanyIdFromContext(user),
+      user.id,
+    );
   }
 
   @Get()
-  findAll(@Param('ventaId') saleId: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.findBySale(saleId, user.empresaId);
+  async findAll(@Param('ventaId') saleId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.paymentsService.findBySale(saleId, await this.resolveCompanyIdFromContext(user));
   }
 }
