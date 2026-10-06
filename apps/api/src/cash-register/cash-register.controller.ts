@@ -8,6 +8,7 @@ import { AuthorizeCashCountDto } from './dto/authorize-cash-count.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
@@ -37,16 +38,31 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 // ApprovedDossierGuard.
 @UseGuards(ApprovedDossierGuard)
 export class CashRegisterController {
-  constructor(private readonly cashRegisterService: CashRegisterService) {}
+  constructor(
+    private readonly cashRegisterService: CashRegisterService,
+    private readonly businessContext: BusinessContextService,
+  ) {}
+
+  // S-V1-13: the tenant comes from the ACTIVE Membership (BusinessContext),
+  // not from the legacy `empresaId` claim of the JWT. user.id stays the
+  // legacy Usuario id: the cash FKs (usuarioId, ...) point to Usuario.
+  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    return this.businessContext.resolveCompanyId(context.businessId);
+  }
 
   @Get('estado')
-  status(@CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.status(user.empresaId);
+  async status(@CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.status(await this.resolveCompanyIdFromContext(user));
   }
 
   @Post('apertura')
-  open(@Body() dto: OpenCashRegisterDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.open(dto, user.empresaId, user.id);
+  async open(@Body() dto: OpenCashRegisterDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.open(
+      dto,
+      await this.resolveCompanyIdFromContext(user),
+      user.id,
+    );
   }
 
   // RF-09: 'expenses and withdrawals only by the owner or authorized users'
@@ -57,37 +73,50 @@ export class CashRegisterController {
   // on which role holds it would be an unauthorized business rule.
   @RequirePermission('caja.gastos')
   @Post('movimientos')
-  registerMovement(@Body() dto: RegisterMovementDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.registerMovement(dto, user.empresaId, user.id);
+  async registerMovement(@Body() dto: RegisterMovementDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.registerMovement(
+      dto,
+      await this.resolveCompanyIdFromContext(user),
+      user.id,
+    );
   }
 
   @Get('movimientos')
-  listMovements(@CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.listMovements(user.empresaId);
+  async listMovements(@CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.listMovements(await this.resolveCompanyIdFromContext(user));
   }
 
   @Post('arqueo')
-  countCash(@Body() dto: RegisterCashCountDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.countCash(dto, user.empresaId, user.id);
+  async countCash(@Body() dto: RegisterCashCountDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.countCash(
+      dto,
+      await this.resolveCompanyIdFromContext(user),
+      user.id,
+    );
   }
 
   // D-06: no @RequirePermission of its own — the real restriction is in the
   // credentials of the body (who authorizes), not in who requests. See
   // authorizations.service.ts.
   @Patch('arqueo/:id/autorizar')
-  authorizeCashCount(
+  async authorizeCashCount(
     @Param('id') id: string,
     @Body() dto: AuthorizeCashCountDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.cashRegisterService.authorizeCashCount(user.empresaId, id, dto, user.id);
+    return this.cashRegisterService.authorizeCashCount(
+      await this.resolveCompanyIdFromContext(user),
+      id,
+      dto,
+      user.id,
+    );
   }
 
   // Closes the shift irreversibly (no reopen endpoint) — same permission as
   // expenses/withdrawals, see the controller comment.
   @RequirePermission('caja.gastos')
   @Post('cierre')
-  close(@CurrentUser() user: AuthenticatedUser) {
-    return this.cashRegisterService.close(user.empresaId, user.id);
+  async close(@CurrentUser() user: AuthenticatedUser) {
+    return this.cashRegisterService.close(await this.resolveCompanyIdFromContext(user), user.id);
   }
 }
