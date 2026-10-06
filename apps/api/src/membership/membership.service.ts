@@ -1,30 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-// S-V1-01 — Lectura de pertenencias (read-only).
+// S-V1-01 — Memberships read (read-only).
 //
-// Este servicio NUNCA crea, actualiza ni elimina Users/Memberships (eso
-// lo hacen la migración y el backfill, fuera del runtime). Solo resuelve
-// qué memberships corresponden a una identidad autenticada.
+// This service NEVER creates, updates or deletes Users/Memberships (that is
+// done by the migration and the backfill, outside the runtime). It only
+// resolves which memberships correspond to an authenticated identity.
 //
-// Regla de aislamiento: el caller pasa el id de la SESIÓN (Usuario.id del
-// JWT), nunca un userId arbitrario. El vínculo Usuario → User es el
-// `usuarioId` explícito del backfill; sin vínculo no hay memberships.
-// Así es imposible que el User A vea memberships del User B por input.
+// Isolation rule: the caller passes the SESSION id (Usuario.id from the
+// JWT), never an arbitrary userId. The Usuario → User link is the explicit
+// `usuarioId` from the backfill; without a link there are no memberships.
+// This makes it impossible for User A to see User B's memberships through
+// input.
 @Injectable()
 export class MembershipService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Resuelve el User canónico a partir del Usuario legacy de la sesión.
-  // null = identidad aún sin backfill (pre-migración o cuenta nueva sin
-  // correr el script): el caller devuelve lista vacía, nunca inventa.
-  async findUserByLegacyUsuarioId(usuarioId: string) {
-    return this.prisma.user.findUnique({ where: { usuarioId } });
+  // Resolves the canonical User from the session's legacy Usuario.
+  // null = identity not yet backfilled (pre-migration or new account without
+  // running the script): the caller returns an empty list, never invents.
+  async findUserByLegacyUserId(userId: string) {
+    return this.prisma.user.findUnique({ where: { usuarioId: userId } });
   }
 
-  // Memberships propias del User indicado, con el Business resuelto.
-  // No acepta businessId: no filtra ni salta tenancy, devuelve TODO lo
-  // propio (el aislamiento vive en que el userId viene de la sesión).
+  // Own memberships of the given User, with the Business resolved.
+  // It does not accept businessId: it neither filters nor skips tenancy, it
+  // returns EVERYTHING that is its own (isolation lives in the userId coming
+  // from the session).
   async getMembershipsForUser(userId: string) {
     const memberships = await this.prisma.membership.findMany({
       where: { userId },

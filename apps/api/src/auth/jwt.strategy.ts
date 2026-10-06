@@ -8,8 +8,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      // Falla rápido en el arranque si falta la config, en vez de emitir
-      // tokens firmados con un secreto vacío/adivinable.
+      // Fail fast at startup if the config is missing, instead of issuing
+      // tokens signed with an empty/guessable secret.
       throw new Error('JWT_SECRET no está configurado (ver apps/api/.env)');
     }
     super({
@@ -19,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // El retorno de validate() es lo que Nest inyecta como request.user.
+  // The return value of validate() is what Nest injects as request.user.
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     return {
       id: payload.sub,

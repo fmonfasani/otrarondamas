@@ -1,51 +1,51 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { BusinessContextService } from '../../src/business-context/business-context.service';
-import { ClientesController } from '../../src/clientes/clientes.controller';
-import { ClientesService } from '../../src/clientes/clientes.service';
-import type { CreateClienteDto } from '../../src/clientes/dto/create-cliente.dto';
+import { CustomersController } from '../../src/customers/customers.controller';
+import { CustomersService } from '../../src/customers/customers.service';
+import type { CreateCustomerDto } from '../../src/customers/dto/create-customer.dto';
 import { MembershipService } from '../../src/membership/membership.service';
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import type { AuthenticatedUser } from '../../src/auth/auth.types';
 
-// S-V1-03 — Primera integración de BusinessContext en una superficie real
-// (CLIENTES). Todo contra BD descartable; sin mocks de Prisma.
+// S-V1-03 — First integration of BusinessContext in a real surface
+// (CLIENTES). All against a disposable DB; no Prisma mocks.
 //
-// Se ejercita el ClientesController REAL (mismo constructor que producción)
-// con el BusinessContextService REAL sobre MembershipService REAL. Los
-// guards no se ejecutan acá — esa es la responsabilidad del spec HTTP
-// s-v1-03-clientes-http.integration-spec.ts, que corre contra el stack
-// compilado.
+// The REAL CustomersController (same constructor as production) is
+// exercised with the REAL BusinessContextService over the REAL
+// MembershipService. Guards are not executed here — that is the
+// responsibility of the HTTP spec s-v1-03-clientes-http.integration-spec.ts,
+// which runs against the compiled stack.
 //
-// Cadena probada en cada llamada:
-//   AuthenticatedUser → BusinessContextService → User → Membership ACTIVE
-//   → businessId → resolveEmpresaId() → ClientesService
-//   → EmpresaScopedPrismaService.forEmpresa() → empresaScopeExtension
+// Chain tested on each call:
+//   AuthenticatedUser → BusinessContextService → User → ACTIVE Membership
+//   → businessId → resolveCompanyId() → CustomersService
+//   → CompanyScopedPrismaService.forCompany() → companyScopeExtension
 describe('S-V1-03 — BusinessContext en Clientes (integración, BD real)', () => {
   let prisma: PrismaService;
-  let prismaFactory: EmpresaScopedPrismaService;
-  let clientesService: ClientesService;
+  let prismaFactory: CompanyScopedPrismaService;
+  let customersService: CustomersService;
   let businessContext: BusinessContextService;
-  let controller: ClientesController;
+  let controller: CustomersController;
   let suffix: number;
 
-  let empresaA: { id: string };
-  let empresaB: { id: string };
-  let usuarioA: { id: string };
-  let usuarioB: { id: string };
-  let usuarioSinMembership: { id: string };
-  let usuarioSinMembresias: { id: string };
-  let usuarioSuspendido: { id: string };
-  let clienteA: { id: string };
-  let clienteB: { id: string };
+  let companyA: { id: string };
+  let companyB: { id: string };
+  let userA: { id: string };
+  let userB: { id: string };
+  let userWithoutMembership: { id: string };
+  let userWithoutMemberships: { id: string };
+  let suspendedUser: { id: string };
+  let customerA: { id: string };
+  let customerB: { id: string };
 
-  // Sesión con la forma LEGACY del JWT. `empresaId` viene del token y es
-  // knowledge del cliente HTTP, no una autoridad: T8 lo prueba.
-  const sesionDe = (usuarioId: string, empresaIdDelToken: string): AuthenticatedUser => ({
-    id: usuarioId,
-    email: `s-v1-03-${usuarioId}@example.test`,
+  // Session with the LEGACY JWT shape. `empresaId` comes from the token and
+  // is knowledge of the HTTP client, not an authority: T8 proves it.
+  const sessionOf = (userId: string, tokenCompanyId: string): AuthenticatedUser => ({
+    id: userId,
+    email: `s-v1-03-${userId}@example.test`,
     nombre: 'S V1-03',
-    empresaId: empresaIdDelToken,
+    empresaId: tokenCompanyId,
     permisos: ['clientes.gestionar'],
     rol: 'OWNER',
     estadoLegajo: 'APROBADO',
@@ -55,25 +55,25 @@ describe('S-V1-03 — BusinessContext en Clientes (integración, BD real)', () =
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    prismaFactory = new EmpresaScopedPrismaService(prisma);
-    clientesService = new ClientesService(prismaFactory);
+    prismaFactory = new CompanyScopedPrismaService(prisma);
+    customersService = new CustomersService(prismaFactory);
     businessContext = new BusinessContextService(new MembershipService(prisma), prisma);
-    controller = new ClientesController(clientesService, businessContext);
+    controller = new CustomersController(customersService, businessContext);
     suffix = Date.now();
 
-    empresaA = await prisma.empresa.create({
+    companyA = await prisma.empresa.create({
       data: { nombre: `S-V1-03 A ${suffix}`, configuracion: {} },
       select: { id: true },
     });
-    empresaB = await prisma.empresa.create({
+    companyB = await prisma.empresa.create({
       data: { nombre: `S-V1-03 B ${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
-    const mkUsuario = (empresaId: string, tag: string) =>
+    const mkUser = (companyId: string, tag: string) =>
       prisma.usuario.create({
         data: {
-          empresaId,
+          empresaId: companyId,
           nombre: `S-V1-03 ${tag} ${suffix}`,
           email: `s-v1-03-${tag}-${suffix}@example.test`,
           activo: true,
@@ -82,20 +82,20 @@ describe('S-V1-03 — BusinessContext en Clientes (integración, BD real)', () =
         select: { id: true },
       });
 
-    usuarioA = await mkUsuario(empresaA.id, 'a');
-    usuarioB = await mkUsuario(empresaB.id, 'b');
-    usuarioSinMembership = await mkUsuario(empresaA.id, 'sinmemb');
-    usuarioSinMembresias = await mkUsuario(empresaA.id, 'sinnmemb');
-    usuarioSuspendido = await mkUsuario(empresaA.id, 'susp');
+    userA = await mkUser(companyA.id, 'a');
+    userB = await mkUser(companyB.id, 'b');
+    userWithoutMembership = await mkUser(companyA.id, 'sinmemb');
+    userWithoutMemberships = await mkUser(companyA.id, 'sinnmemb');
+    suspendedUser = await mkUser(companyA.id, 'susp');
 
-    // User + Membership ACTIVE explícitos (no se depende del backfill):
-    // el slice prueba la resolución, no el script de migración.
-    const mkUserConMembership = async (usuarioId: string, businessId: string, status: string) => {
+    // Explicit User + ACTIVE Membership (not relying on the backfill): the
+    // slice tests the resolution, not the migration script.
+    const mkUserWithMembership = async (userId: string, businessId: string, status: string) => {
       const user = await prisma.user.create({
         data: {
-          email: `s-v1-03-user-${suffix}-${usuarioId}@example.test`,
-          nombre: `S V1-03 ${usuarioId}`,
-          usuarioId,
+          email: `s-v1-03-user-${suffix}-${userId}@example.test`,
+          nombre: `S V1-03 ${userId}`,
+          usuarioId: userId,
         },
         select: { id: true },
       });
@@ -105,242 +105,238 @@ describe('S-V1-03 — BusinessContext en Clientes (integración, BD real)', () =
       return user;
     };
 
-    await mkUserConMembership(usuarioA.id, empresaA.id, 'ACTIVE');
-    await mkUserConMembership(usuarioB.id, empresaB.id, 'ACTIVE');
-    await mkUserConMembership(usuarioSuspendido.id, empresaA.id, 'SUSPENDED');
+    await mkUserWithMembership(userA.id, companyA.id, 'ACTIVE');
+    await mkUserWithMembership(userB.id, companyB.id, 'ACTIVE');
+    await mkUserWithMembership(suspendedUser.id, companyA.id, 'SUSPENDED');
 
-    // User canónico SIN ninguna Membership: existe identidad, no
-    // pertenencia → fail-closed por Membership (distinto del caso
-    // anterior, donde ni siquiera hay User).
+    // Canonical User WITHOUT any Membership: identity exists, membership does
+    // not → fail-closed by Membership (different from the previous case,
+    // where there is not even a User).
     await prisma.user.create({
       data: {
         email: `s-v1-03-user-sinnmemb-${suffix}@example.test`,
         nombre: 'S V1-03 sin membresias',
-        usuarioId: usuarioSinMembresias.id,
+        usuarioId: userWithoutMemberships.id,
       },
       select: { id: true },
     });
 
-    // Un Cliente por Empresa, creados por la infraestructura legacy.
-    clienteA = await prismaFactory
-      .forEmpresa(empresaA.id)
+    // One Cliente per Empresa, created by the legacy infrastructure.
+    customerA = await prismaFactory
+      .forCompany(companyA.id)
       .cliente.create({ data: { nombre: `S-V1-03 Cliente A ${suffix}` }, select: { id: true } });
-    clienteB = await prismaFactory
-      .forEmpresa(empresaB.id)
+    customerB = await prismaFactory
+      .forCompany(companyB.id)
       .cliente.create({ data: { nombre: `S-V1-03 Cliente B ${suffix}` }, select: { id: true } });
   });
 
   afterAll(async () => {
-    const empresas = [empresaA.id, empresaB.id];
-    await prisma.cliente.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.membership.deleteMany({ where: { businessId: { in: empresas } } });
+    const companies = [companyA.id, companyB.id];
+    await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `${suffix}` } } });
-    await prisma.usuario.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.empresa.deleteMany({ where: { id: { in: empresas } } });
+    await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
   });
 
   it('T1: User + Membership ACTIVE → Clientes usa la Empresa correcta', async () => {
-    const spy = jest.spyOn(prismaFactory, 'forEmpresa');
-    const listados = await controller.listar(sesionDe(usuarioA.id, empresaA.id));
+    const spy = jest.spyOn(prismaFactory, 'forCompany');
+    const listings = await controller.list(sessionOf(userA.id, companyA.id));
 
-    expect(listados.map((c) => c.id)).toContain(clienteA.id);
-    expect(listados.every((c) => c.empresaId === empresaA.id)).toBe(true);
-    expect(listados.some((c) => c.id === clienteB.id)).toBe(false);
-    expect(spy).toHaveBeenCalledWith(empresaA.id);
-    // El empresaId entregado al dominio es el derivado del contexto,
-    // no el que venía en la sesión.
-    const ctx = await businessContext.resolveForAuthenticatedUser(
-      sesionDe(usuarioA.id, empresaA.id),
-    );
-    expect(ctx.businessId).toBe(empresaA.id);
-    expect(await businessContext.resolveEmpresaId(ctx.businessId)).toBe(empresaA.id);
+    expect(listings.map((c) => c.id)).toContain(customerA.id);
+    expect(listings.every((c) => c.empresaId === companyA.id)).toBe(true);
+    expect(listings.some((c) => c.id === customerB.id)).toBe(false);
+    expect(spy).toHaveBeenCalledWith(companyA.id);
+    // The empresaId handed to the domain is the one derived from the context,
+    // not the one that came in the session.
+    const ctx = await businessContext.resolveForAuthenticatedUser(sessionOf(userA.id, companyA.id));
+    expect(ctx.businessId).toBe(companyA.id);
+    expect(await businessContext.resolveCompanyId(ctx.businessId)).toBe(companyA.id);
     spy.mockRestore();
   });
 
   it('T2: User sin Membership → fail-closed explícito', async () => {
-    // (a) User canónico sin ninguna Membership → sin contexto activo.
-    await expect(controller.listar(sesionDe(usuarioSinMembresias.id, empresaA.id))).rejects.toThrow(
-      ForbiddenException,
-    );
+    // (a) Canonical User without any Membership → no active context.
     await expect(
-      controller.crear({ nombre: 'x' }, sesionDe(usuarioSinMembresias.id, empresaA.id)),
+      controller.list(sessionOf(userWithoutMemberships.id, companyA.id)),
     ).rejects.toThrow(ForbiddenException);
-    // Tampoco alcanza el Cliente de A por id directo.
     await expect(
-      controller.obtener(clienteA.id, sesionDe(usuarioSinMembresias.id, empresaA.id)),
+      controller.create({ nombre: 'x' }, sessionOf(userWithoutMemberships.id, companyA.id)),
+    ).rejects.toThrow(ForbiddenException);
+    // A's Cliente is not reachable by direct id either.
+    await expect(
+      controller.get(customerA.id, sessionOf(userWithoutMemberships.id, companyA.id)),
     ).rejects.toThrow(ForbiddenException);
 
-    // (b) Usuario sin User vinculado (backfill pendiente) → también falla
-    //     cerrado, antes de tocar el dominio.
-    await expect(controller.listar(sesionDe(usuarioSinMembership.id, empresaA.id))).rejects.toThrow(
+    // (b) Usuario without a linked User (pending backfill) → also fails
+    //     closed, before touching the domain.
+    await expect(controller.list(sessionOf(userWithoutMembership.id, companyA.id))).rejects.toThrow(
       NotFoundException,
     );
     await expect(
-      controller.crear({ nombre: 'x' }, sesionDe(usuarioSinMembership.id, empresaA.id)),
+      controller.create({ nombre: 'x' }, sessionOf(userWithoutMembership.id, companyA.id)),
     ).rejects.toThrow();
 
-    // Ninguno de los dos intentos alcanzó a escribir nada.
-    const nombres = await prisma.cliente.findMany({
-      where: { empresaId: { in: [empresaA.id, empresaB.id] } },
+    // Neither of the two attempts managed to write anything.
+    const names = await prisma.cliente.findMany({
+      where: { empresaId: { in: [companyA.id, companyB.id] } },
       select: { nombre: true },
     });
-    expect(nombres.filter((n) => n.nombre === 'x')).toEqual([]);
+    expect(names.filter((n) => n.nombre === 'x')).toEqual([]);
   });
 
   it('T3: User A no puede resolver ni usar el Business de User B', async () => {
-    // A resuelve SU contexto (Business A), nunca el de B.
+    // A resolves THEIR context (Business A), never B's.
     const ctxA = await businessContext.resolveForAuthenticatedUser(
-      sesionDe(usuarioA.id, empresaA.id),
+      sessionOf(userA.id, companyA.id),
     );
-    expect(ctxA.businessId).toBe(empresaA.id);
+    expect(ctxA.businessId).toBe(companyA.id);
 
-    // Y la superficie de A no puede alcanzar el Cliente de B, ni por
-    // listado ni por id directo.
-    await expect(
-      controller.obtener(clienteB.id, sesionDe(usuarioA.id, empresaA.id)),
-    ).rejects.toThrow(NotFoundException);
-    // Simétrico para B.
-    const ctxB = await businessContext.resolveForAuthenticatedUser(
-      sesionDe(usuarioB.id, empresaB.id),
+    // And A's surface cannot reach B's Cliente, neither by listing nor by
+    // direct id.
+    await expect(controller.get(customerB.id, sessionOf(userA.id, companyA.id))).rejects.toThrow(
+      NotFoundException,
     );
-    expect(ctxB.businessId).toBe(empresaB.id);
-    expect((await controller.listar(sesionDe(usuarioB.id, empresaB.id))).map((c) => c.id)).toEqual([
-      clienteB.id,
+    // Symmetric for B.
+    const ctxB = await businessContext.resolveForAuthenticatedUser(
+      sessionOf(userB.id, companyB.id),
+    );
+    expect(ctxB.businessId).toBe(companyB.id);
+    expect((await controller.list(sessionOf(userB.id, companyB.id))).map((c) => c.id)).toEqual([
+      customerB.id,
     ]);
-    // I-SV3-05: la Membership de B pertenece al User de B — A no puede
-    // producir contexto a partir de ella aunque la fila exista en la BD.
+    // I-SV3-05: B's Membership belongs to B's User — A cannot produce a
+    // context from it even though the row exists in the DB.
     const ctxA2 = await businessContext.resolveForAuthenticatedUser(
-      sesionDe(usuarioA.id, empresaA.id),
+      sessionOf(userA.id, companyA.id),
     );
     expect(ctxA2.membershipId).not.toBe(ctxB.membershipId);
     expect(ctxA2.userId).not.toBe(ctxB.userId);
-    await expect(
-      controller.obtener(clienteA.id, sesionDe(usuarioB.id, empresaB.id)),
-    ).rejects.toThrow(NotFoundException);
+    await expect(controller.get(customerA.id, sessionOf(userB.id, companyB.id))).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('T4: Membership SUSPENDED → acceso rechazado', async () => {
-    await expect(controller.listar(sesionDe(usuarioSuspendido.id, empresaA.id))).rejects.toThrow(
+    await expect(controller.list(sessionOf(suspendedUser.id, companyA.id))).rejects.toThrow(
       ForbiddenException,
     );
     await expect(
-      controller.obtener(clienteA.id, sesionDe(usuarioSuspendido.id, empresaA.id)),
+      controller.get(customerA.id, sessionOf(suspendedUser.id, companyA.id)),
     ).rejects.toThrow(ForbiddenException);
   });
 
   it('T5: businessId resuelve correctamente a Empresa.id', async () => {
-    const ctx = await businessContext.resolveForAuthenticatedUser(
-      sesionDe(usuarioA.id, empresaA.id),
-    );
-    const empresaId = await businessContext.resolveEmpresaId(ctx.businessId);
-    expect(ctx.businessId).toBe(empresaA.id);
-    expect(empresaId).toBe(ctx.businessId);
-    const empresa = await prisma.empresa.findUniqueOrThrow({ where: { id: empresaId } });
-    expect(empresa.id).toBe(empresaA.id);
+    const ctx = await businessContext.resolveForAuthenticatedUser(sessionOf(userA.id, companyA.id));
+    const companyId = await businessContext.resolveCompanyId(ctx.businessId);
+    expect(ctx.businessId).toBe(companyA.id);
+    expect(companyId).toBe(ctx.businessId);
+    const company = await prisma.empresa.findUniqueOrThrow({ where: { id: companyId } });
+    expect(company.id).toBe(companyA.id);
   });
 
   it('T6: Cliente de Empresa B no aparece para Empresa A (persistencia/query)', async () => {
-    // Ambas filas existen realmente, cada una bajo su empresa.
-    const todas = await prisma.cliente.findMany({
-      where: { id: { in: [clienteA.id, clienteB.id] } },
+    // Both rows really exist, each under its company.
+    const all = await prisma.cliente.findMany({
+      where: { id: { in: [customerA.id, customerB.id] } },
       select: { id: true, empresaId: true },
       orderBy: { id: 'asc' },
     });
-    expect(todas).toHaveLength(2);
-    expect(todas.find((c) => c.id === clienteA.id)?.empresaId).toBe(empresaA.id);
-    expect(todas.find((c) => c.id === clienteB.id)?.empresaId).toBe(empresaB.id);
+    expect(all).toHaveLength(2);
+    expect(all.find((c) => c.id === customerA.id)?.empresaId).toBe(companyA.id);
+    expect(all.find((c) => c.id === customerB.id)?.empresaId).toBe(companyB.id);
 
-    // Evidencia a nivel de query: el scope de A no devuelve la fila de B.
-    const desdeA = await prismaFactory.forEmpresa(empresaA.id).cliente.findMany({
-      where: { id: { in: [clienteA.id, clienteB.id] } },
+    // Query-level evidence: A's scope does not return B's row.
+    const fromA = await prismaFactory.forCompany(companyA.id).cliente.findMany({
+      where: { id: { in: [customerA.id, customerB.id] } },
       select: { id: true },
     });
-    expect(desdeA.map((c) => c.id)).toEqual([clienteA.id]);
+    expect(fromA.map((c) => c.id)).toEqual([customerA.id]);
 
-    // Y por la superficie de dominio.
-    const listados = await controller.listar(sesionDe(usuarioA.id, empresaA.id));
-    expect(listados.map((c) => c.id)).toContain(clienteA.id);
-    expect(listados.every((c) => c.empresaId === empresaA.id)).toBe(true);
-    expect(listados.some((c) => c.id === clienteB.id)).toBe(false);
+    // And through the domain surface.
+    const listings = await controller.list(sessionOf(userA.id, companyA.id));
+    expect(listings.map((c) => c.id)).toContain(customerA.id);
+    expect(listings.every((c) => c.empresaId === companyA.id)).toBe(true);
+    expect(listings.some((c) => c.id === customerB.id)).toBe(false);
   });
 
   it('T7: Crear Cliente persiste bajo la Empresa correcta', async () => {
-    const creado = await controller.crear(
+    const created = await controller.create(
       { nombre: `S-V1-03 Nuevo A ${suffix}`, email: `s-v1-03-nuevo-a-${suffix}@example.test` },
-      sesionDe(usuarioA.id, empresaA.id),
+      sessionOf(userA.id, companyA.id),
     );
 
-    expect(creado.empresaId).toBe(empresaA.id);
-    // Lectura directa (sin scope) para probar la fila real en la BD.
-    const fila = await prisma.cliente.findUniqueOrThrow({
-      where: { id: creado.id },
+    expect(created.empresaId).toBe(companyA.id);
+    // Direct read (without scope) to prove the real row in the DB.
+    const row = await prisma.cliente.findUniqueOrThrow({
+      where: { id: created.id },
       select: { id: true, empresaId: true, nombre: true },
     });
-    expect(fila.empresaId).toBe(empresaA.id);
-    // No se coló nada en B.
-    const enB = await prismaFactory.forEmpresa(empresaB.id).cliente.findUnique({
-      where: { id: creado.id },
+    expect(row.empresaId).toBe(companyA.id);
+    // Nothing leaked into B.
+    const inB = await prismaFactory.forCompany(companyB.id).cliente.findUnique({
+      where: { id: created.id },
     });
-    expect(enB).toBeNull();
+    expect(inB).toBeNull();
   });
 
   it('T8: un empresaId arbitrario del caller no cambia el tenant efectivo', async () => {
-    // (a) La sesión declara empresaB, pero la Membership del actor es de
-    //     empresaA: gana la Membership.
-    const listados = await controller.listar(sesionDe(usuarioA.id, empresaB.id));
-    expect(listados.map((c) => c.id)).toContain(clienteA.id);
-    expect(listados.every((c) => c.empresaId === empresaA.id)).toBe(true);
-    expect(listados.some((c) => c.id === clienteB.id)).toBe(false);
-    await expect(
-      controller.obtener(clienteB.id, sesionDe(usuarioA.id, empresaB.id)),
-    ).rejects.toThrow(NotFoundException);
+    // (a) The session declares empresaB, but the actor's Membership is from
+    //     empresaA: the Membership wins.
+    const listings = await controller.list(sessionOf(userA.id, companyB.id));
+    expect(listings.map((c) => c.id)).toContain(customerA.id);
+    expect(listings.every((c) => c.empresaId === companyA.id)).toBe(true);
+    expect(listings.some((c) => c.id === customerB.id)).toBe(false);
+    await expect(controller.get(customerB.id, sessionOf(userA.id, companyB.id))).rejects.toThrow(
+      NotFoundException,
+    );
 
-    // (b) El DTO intenta inyectar empresaId: la fila sigue yendo a A.
-    const dtoConEmpresa = {
+    // (b) The DTO tries to inject empresaId: the row still goes to A.
+    const dtoWithCompany = {
       nombre: `S-V1-03 Inyectado ${suffix}`,
-      empresaId: empresaB.id,
-    } as unknown as CreateClienteDto;
-    const creado = await controller.crear(dtoConEmpresa, sesionDe(usuarioA.id, empresaA.id));
-    const fila = await prisma.cliente.findUniqueOrThrow({
-      where: { id: creado.id },
+      empresaId: companyB.id,
+    } as unknown as CreateCustomerDto;
+    const created = await controller.create(dtoWithCompany, sessionOf(userA.id, companyA.id));
+    const row = await prisma.cliente.findUniqueOrThrow({
+      where: { id: created.id },
       select: { empresaId: true },
     });
-    expect(fila.empresaId).toBe(empresaA.id);
+    expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('T9: EmpresaScopedPrismaService sigue siendo el aislamiento final', async () => {
-    const spy = jest.spyOn(prismaFactory, 'forEmpresa');
+  it('T9: CompanyScopedPrismaService sigue siendo el aislamiento final', async () => {
+    const spy = jest.spyOn(prismaFactory, 'forCompany');
 
-    await controller.listar(sesionDe(usuarioA.id, empresaA.id));
+    await controller.list(sessionOf(userA.id, companyA.id));
     expect(spy).toHaveBeenCalled();
     expect(spy.mock.calls.every(([id]) => typeof id === 'string')).toBe(true);
-    // Todos los usos de esta superficie fueron con el empresaId de A.
-    expect(new Set(spy.mock.calls.map(([id]) => id))).toEqual(new Set([empresaA.id]));
+    // All uses of this surface were with A's empresaId.
+    expect(new Set(spy.mock.calls.map(([id]) => id))).toEqual(new Set([companyA.id]));
 
-    // Y el enforcement sigue negando el acceso directo a la fila ajena.
+    // And the enforcement still denies direct access to the foreign row.
     expect(
       await prismaFactory
-        .forEmpresa(empresaA.id)
-        .cliente.findUnique({ where: { id: clienteB.id } }),
+        .forCompany(companyA.id)
+        .cliente.findUnique({ where: { id: customerB.id } }),
     ).toBeNull();
     await expect(
       prismaFactory
-        .forEmpresa(empresaA.id)
-        .cliente.findUniqueOrThrow({ where: { id: clienteB.id } }),
+        .forCompany(companyA.id)
+        .cliente.findUniqueOrThrow({ where: { id: customerB.id } }),
     ).rejects.toThrow();
     spy.mockRestore();
   });
 
-  it('I-SV3-07: ClientesService mantiene su firma legacy para ventas/tienda', async () => {
-    // ventas.service.ts y tienda.service.ts siguen llamando
-    // clientesService.obtener(empresaId, id) / calcularNivel(empresaId, id)
-    // con un empresaId legacy: esa vía no se tocó en esta slice.
-    const nivel = await clientesService.calcularNivel(empresaA.id, clienteA.id);
-    expect(['NUEVO', 'FRECUENTE', 'VIP']).toContain(nivel);
-    const obtenido = await clientesService.obtener(empresaA.id, clienteA.id);
-    expect(obtenido.id).toBe(clienteA.id);
-    await expect(clientesService.obtener(empresaB.id, clienteA.id)).rejects.toThrow(
+  it('I-SV3-07: CustomersService mantiene su firma legacy para ventas/tienda', async () => {
+    // sales.service.ts and store.service.ts keep calling
+    // customersService.get(companyId, id) / calculateLevel(companyId, id)
+    // with a legacy empresaId: that path was not touched in this slice.
+    const level = await customersService.calculateLevel(companyA.id, customerA.id);
+    expect(['NUEVO', 'FRECUENTE', 'VIP']).toContain(level);
+    const obtained = await customersService.get(companyA.id, customerA.id);
+    expect(obtained.id).toBe(customerA.id);
+    await expect(customersService.get(companyB.id, customerA.id)).rejects.toThrow(
       NotFoundException,
     );
   });

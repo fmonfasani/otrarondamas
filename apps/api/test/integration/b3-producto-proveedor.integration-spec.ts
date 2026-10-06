@@ -1,198 +1,224 @@
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('B3 relation isolation — ProductoProveedor ownership candidate', () => {
   let prisma: PrismaService;
-  let scopedPrisma: EmpresaScopedPrismaService;
-  let empresaA: { id: string };
-  let empresaB: { id: string };
-  let proveedorA: { id: string };
-  let proveedorB: { id: string };
-  let proveedorA5: { id: string };
-  let proveedorA6: { id: string };
-  let productoA: { id: string };
-  let productoB: { id: string };
-  let subfamiliaA: { id: string };
-  let tipoA: { id: string };
-  let subtipoA: { id: string };
-  let familiaA: { id: string };
-  let familiaB: { id: string };
-  let subfamiliaB: { id: string };
-  let tipoB: { id: string };
-  let subtipoB: { id: string };
+  let scopedPrisma: CompanyScopedPrismaService;
+  let companyA: { id: string };
+  let companyB: { id: string };
+  let supplierA: { id: string };
+  let supplierB: { id: string };
+  let supplierA5: { id: string };
+  let supplierA6: { id: string };
+  let productA: { id: string };
+  let productB: { id: string };
+  let subfamilyA: { id: string };
+  let typeA: { id: string };
+  let subtypeA: { id: string };
+  let familyA: { id: string };
+  let familyB: { id: string };
+  let subfamilyB: { id: string };
+  let typeB: { id: string };
+  let subtypeB: { id: string };
 
-  const baseProducto = (
-    empresaId: string,
-    familiaId: string,
-    subfamiliaId: string,
-    tipoId: string,
-    subtipoId: string,
-    codigoInterno: string,
+  const baseProduct = (
+    companyId: string,
+    familyId: string,
+    subfamilyId: string,
+    typeId: string,
+    subtypeId: string,
+    internalCode: string,
   ) => ({
-    empresaId,
-    nombre: `B3 PP ${codigoInterno}`,
-    codigoInterno,
-    familiaId,
-    subfamiliaId,
-    tipoId,
-    subtipoId,
+    empresaId: companyId,
+    nombre: `B3 PP ${internalCode}`,
+    codigoInterno: internalCode,
+    familiaId: familyId,
+    subfamiliaId: subfamilyId,
+    tipoId: typeId,
+    subtipoId: subtypeId,
     unidadBase: 'UNIDAD' as const,
     costo: 5,
     precioMinorista: 10,
   });
 
-  const relacionData = (
-    empresaId: string,
-    productoId: string,
-    proveedorId: string,
-  ) => ({
-    empresaId,
-    productoId,
-    proveedorId,
+  const relationData = (companyId: string, productId: string, supplierId: string) => ({
+    empresaId: companyId,
+    productoId: productId,
+    proveedorId: supplierId,
   });
 
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    scopedPrisma = new EmpresaScopedPrismaService(prisma);
+    scopedPrisma = new CompanyScopedPrismaService(prisma);
     const s = Date.now();
 
-    empresaA = await prisma.empresa.create({
+    companyA = await prisma.empresa.create({
       data: { nombre: `B3 PP A ${s}`, configuracion: {} },
       select: { id: true },
     });
-    empresaB = await prisma.empresa.create({
+    companyB = await prisma.empresa.create({
       data: { nombre: `B3 PP B ${s}`, configuracion: {} },
       select: { id: true },
     });
 
-    familiaA = await prisma.familia.create({
-      data: { empresaId: empresaA.id, nombre: `B3 PP Familia A ${s}`, prefijo: 'PPA' },
+    familyA = await prisma.familia.create({
+      data: { empresaId: companyA.id, nombre: `B3 PP Familia A ${s}`, prefijo: 'PPA' },
       select: { id: true },
     });
-    familiaB = await prisma.familia.create({
-      data: { empresaId: empresaB.id, nombre: `B3 PP Familia B ${s}`, prefijo: 'PPB' },
-      select: { id: true },
-    });
-
-    subfamiliaA = await prisma.subfamilia.create({
-      data: { empresaId: empresaA.id, familiaId: familiaA.id, nombre: `B3 PP Sub A ${s}`, prefijo: 'PSA' },
-      select: { id: true },
-    });
-    tipoA = await prisma.tipo.create({
-      data: { empresaId: empresaA.id, subfamiliaId: subfamiliaA.id, nombre: `B3 PP Tipo A ${s}`, prefijo: 'PTA' },
-      select: { id: true },
-    });
-    subtipoA = await prisma.subtipo.create({
-      data: { empresaId: empresaA.id, tipoId: tipoA.id, nombre: `B3 PP Subtipo A ${s}`, prefijo: 'PXA' },
+    familyB = await prisma.familia.create({
+      data: { empresaId: companyB.id, nombre: `B3 PP Familia B ${s}`, prefijo: 'PPB' },
       select: { id: true },
     });
 
-    subfamiliaB = await prisma.subfamilia.create({
-      data: { empresaId: empresaB.id, familiaId: familiaB.id, nombre: `B3 PP Sub B ${s}`, prefijo: 'PSB' },
+    subfamilyA = await prisma.subfamilia.create({
+      data: {
+        empresaId: companyA.id,
+        familiaId: familyA.id,
+        nombre: `B3 PP Sub A ${s}`,
+        prefijo: 'PSA',
+      },
       select: { id: true },
     });
-    tipoB = await prisma.tipo.create({
-      data: { empresaId: empresaB.id, subfamiliaId: subfamiliaB.id, nombre: `B3 PP Tipo B ${s}`, prefijo: 'PTB' },
+    typeA = await prisma.tipo.create({
+      data: {
+        empresaId: companyA.id,
+        subfamiliaId: subfamilyA.id,
+        nombre: `B3 PP Tipo A ${s}`,
+        prefijo: 'PTA',
+      },
       select: { id: true },
     });
-    subtipoB = await prisma.subtipo.create({
-      data: { empresaId: empresaB.id, tipoId: tipoB.id, nombre: `B3 PP Subtipo B ${s}`, prefijo: 'PXB' },
+    subtypeA = await prisma.subtipo.create({
+      data: {
+        empresaId: companyA.id,
+        tipoId: typeA.id,
+        nombre: `B3 PP Subtipo A ${s}`,
+        prefijo: 'PXA',
+      },
       select: { id: true },
     });
 
-    proveedorA = await prisma.proveedor.create({
-      data: { empresaId: empresaA.id, nombre: `B3 PP Proveedor A ${s}` },
+    subfamilyB = await prisma.subfamilia.create({
+      data: {
+        empresaId: companyB.id,
+        familiaId: familyB.id,
+        nombre: `B3 PP Sub B ${s}`,
+        prefijo: 'PSB',
+      },
       select: { id: true },
     });
-    proveedorB = await prisma.proveedor.create({
-      data: { empresaId: empresaB.id, nombre: `B3 PP Proveedor B ${s}` },
+    typeB = await prisma.tipo.create({
+      data: {
+        empresaId: companyB.id,
+        subfamiliaId: subfamilyB.id,
+        nombre: `B3 PP Tipo B ${s}`,
+        prefijo: 'PTB',
+      },
       select: { id: true },
     });
-    proveedorA5 = await prisma.proveedor.create({
-      data: { empresaId: empresaA.id, nombre: `B3 PP Proveedor A PP-05 ${s}` },
-      select: { id: true },
-    });
-    proveedorA6 = await prisma.proveedor.create({
-      data: { empresaId: empresaA.id, nombre: `B3 PP Proveedor A PP-06 ${s}` },
+    subtypeB = await prisma.subtipo.create({
+      data: {
+        empresaId: companyB.id,
+        tipoId: typeB.id,
+        nombre: `B3 PP Subtipo B ${s}`,
+        prefijo: 'PXB',
+      },
       select: { id: true },
     });
 
-    productoA = await prisma.producto.create({
-      data: baseProducto(empresaA.id, familiaA.id, subfamiliaA.id, tipoA.id, subtipoA.id, `B3PPA${s}`),
+    supplierA = await prisma.proveedor.create({
+      data: { empresaId: companyA.id, nombre: `B3 PP Proveedor A ${s}` },
       select: { id: true },
     });
-    productoB = await prisma.producto.create({
-      data: baseProducto(empresaB.id, familiaB.id, subfamiliaB.id, tipoB.id, subtipoB.id, `B3PPB${s}`),
+    supplierB = await prisma.proveedor.create({
+      data: { empresaId: companyB.id, nombre: `B3 PP Proveedor B ${s}` },
+      select: { id: true },
+    });
+    supplierA5 = await prisma.proveedor.create({
+      data: { empresaId: companyA.id, nombre: `B3 PP Proveedor A PP-05 ${s}` },
+      select: { id: true },
+    });
+    supplierA6 = await prisma.proveedor.create({
+      data: { empresaId: companyA.id, nombre: `B3 PP Proveedor A PP-06 ${s}` },
+      select: { id: true },
+    });
+
+    productA = await prisma.producto.create({
+      data: baseProduct(companyA.id, familyA.id, subfamilyA.id, typeA.id, subtypeA.id, `B3PPA${s}`),
+      select: { id: true },
+    });
+    productB = await prisma.producto.create({
+      data: baseProduct(companyB.id, familyB.id, subfamilyB.id, typeB.id, subtypeB.id, `B3PPB${s}`),
       select: { id: true },
     });
   });
 
   afterAll(async () => {
     await prisma.productoProveedor.deleteMany({
-      where: { OR: [{ productoId: productoA.id }, { productoId: productoB.id }] },
+      where: { OR: [{ productoId: productA.id }, { productoId: productB.id }] },
     });
-    await prisma.producto.deleteMany({ where: { id: { in: [productoA.id, productoB.id] } } });
+    await prisma.producto.deleteMany({ where: { id: { in: [productA.id, productB.id] } } });
     await prisma.proveedor.deleteMany({
-      where: { id: { in: [proveedorA.id, proveedorB.id, proveedorA5.id, proveedorA6.id] } },
+      where: { id: { in: [supplierA.id, supplierB.id, supplierA5.id, supplierA6.id] } },
     });
-    await prisma.subtipo.deleteMany({ where: { id: { in: [subtipoA.id, subtipoB.id] } } });
-    await prisma.tipo.deleteMany({ where: { id: { in: [tipoA.id, tipoB.id] } } });
-    await prisma.subfamilia.deleteMany({ where: { id: { in: [subfamiliaA.id, subfamiliaB.id] } } });
-    await prisma.familia.deleteMany({ where: { id: { in: [familiaA.id, familiaB.id] } } });
-    await prisma.empresa.deleteMany({ where: { id: { in: [empresaA.id, empresaB.id] } } });
+    await prisma.subtipo.deleteMany({ where: { id: { in: [subtypeA.id, subtypeB.id] } } });
+    await prisma.tipo.deleteMany({ where: { id: { in: [typeA.id, typeB.id] } } });
+    await prisma.subfamilia.deleteMany({ where: { id: { in: [subfamilyA.id, subfamilyB.id] } } });
+    await prisma.familia.deleteMany({ where: { id: { in: [familyA.id, familyB.id] } } });
+    await prisma.empresa.deleteMany({ where: { id: { in: [companyA.id, companyB.id] } } });
     await prisma.$disconnect();
   });
 
   it('PP-01: same-Business Producto + Proveedor reference persists', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
     const created = await db.productoProveedor.create({
-      data: relacionData(empresaA.id, productoA.id, proveedorA.id),
+      data: relationData(companyA.id, productA.id, supplierA.id),
       select: { empresaId: true, productoId: true, proveedorId: true },
     });
 
-    expect(created.empresaId).toBe(empresaA.id);
-    expect(created.productoId).toBe(productoA.id);
-    expect(created.proveedorId).toBe(proveedorA.id);
+    expect(created.empresaId).toBe(companyA.id);
+    expect(created.productoId).toBe(productA.id);
+    expect(created.proveedorId).toBe(supplierA.id);
   });
 
   it('PP-02: cross-Business Producto reference rejects without persistence', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
     await expect(
       db.productoProveedor.create({
-        data: relacionData(empresaA.id, productoB.id, proveedorA.id),
+        data: relationData(companyA.id, productB.id, supplierA.id),
       }),
     ).rejects.toThrow();
 
     expect(
       await prisma.productoProveedor.count({
-        where: { empresaId: empresaA.id, productoId: productoB.id, proveedorId: proveedorA.id },
+        where: { empresaId: companyA.id, productoId: productB.id, proveedorId: supplierA.id },
       }),
     ).toBe(0);
   });
 
   it('PP-03: cross-Business Proveedor reference rejects without persistence', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
     await expect(
       db.productoProveedor.create({
-        data: relacionData(empresaA.id, productoA.id, proveedorB.id),
+        data: relationData(companyA.id, productA.id, supplierB.id),
       }),
     ).rejects.toThrow();
 
     expect(
       await prisma.productoProveedor.count({
-        where: { empresaId: empresaA.id, productoId: productoA.id, proveedorId: proveedorB.id },
+        where: { empresaId: companyA.id, productoId: productA.id, proveedorId: supplierB.id },
       }),
     ).toBe(0);
   });
 
   it('PP-04: cross-Business references reject inside an interactive transaction', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     await expect(
       db.$transaction(async (tx) => {
         await tx.productoProveedor.create({
-          data: relacionData(empresaA.id, productoB.id, proveedorA.id),
+          data: relationData(companyA.id, productB.id, supplierA.id),
         });
       }),
     ).rejects.toThrow();
@@ -200,27 +226,25 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
     await expect(
       db.$transaction(async (tx) => {
         await tx.productoProveedor.create({
-          data: relacionData(empresaA.id, productoA.id, proveedorB.id),
+          data: relationData(companyA.id, productA.id, supplierB.id),
         });
       }),
     ).rejects.toThrow();
 
-    expect(
-      await prisma.productoProveedor.count({ where: { empresaId: empresaA.id } }),
-    ).toBe(1);
+    expect(await prisma.productoProveedor.count({ where: { empresaId: companyA.id } })).toBe(1);
   });
 
   it('PP-05: update cannot switch an existing relation to another Business Producto', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
     const relation = await db.productoProveedor.create({
-      data: relacionData(empresaA.id, productoA.id, proveedorA5.id),
+      data: relationData(companyA.id, productA.id, supplierA5.id),
       select: { id: true },
     });
 
     await expect(
       db.productoProveedor.update({
         where: { id: relation.id },
-        data: { productoId: productoB.id },
+        data: { productoId: productB.id },
       }),
     ).rejects.toThrow();
 
@@ -229,21 +253,21 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
       select: { productoId: true, proveedorId: true },
     });
 
-    expect(persisted?.productoId).toBe(productoA.id);
-    expect(persisted?.proveedorId).toBe(proveedorA5.id);
+    expect(persisted?.productoId).toBe(productA.id);
+    expect(persisted?.proveedorId).toBe(supplierA5.id);
   });
 
   it('PP-06: update cannot switch an existing relation to another Business Proveedor', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
     const relation = await db.productoProveedor.create({
-      data: relacionData(empresaA.id, productoA.id, proveedorA6.id),
+      data: relationData(companyA.id, productA.id, supplierA6.id),
       select: { id: true },
     });
 
     await expect(
       db.productoProveedor.update({
         where: { id: relation.id },
-        data: { proveedorId: proveedorB.id },
+        data: { proveedorId: supplierB.id },
       }),
     ).rejects.toThrow();
 
@@ -252,7 +276,7 @@ describe('B3 relation isolation — ProductoProveedor ownership candidate', () =
       select: { productoId: true, proveedorId: true },
     });
 
-    expect(persisted?.productoId).toBe(productoA.id);
-    expect(persisted?.proveedorId).toBe(proveedorA6.id);
+    expect(persisted?.productoId).toBe(productA.id);
+    expect(persisted?.proveedorId).toBe(supplierA6.id);
   });
 });

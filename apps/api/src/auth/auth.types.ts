@@ -1,37 +1,39 @@
 /**
- * Payload embebido en el JWT emitido por /auth/login.
- * `permisos` viaja como lista de nombres (ej. 'caja.gastos') para que
- * PermissionsGuard no necesite volver a consultar la base en cada request.
- * Nota: si un permiso se revoca, el cambio no se refleja hasta que el
- * usuario vuelva a loguearse (el token no se invalida en el acto). Es una
- * limitación conocida del enfoque "permisos en el token", aceptable para
- * este incremento; no hay mecanismo de revocación todavía.
+ * Payload embedded in the JWT issued by /auth/login.
+ * `permisos` travels as a list of names (e.g. 'caja.gastos') so that
+ * PermissionsGuard does not need to query the database again on every
+ * request.
+ * Note: if a permission is revoked, the change is not reflected until
+ * the user logs in again (the token is not invalidated immediately).
+ * It is a known limitation of the 'permissions in the token' approach,
+ * acceptable for this increment; there is no revocation mechanism yet.
  */
-// RF-17 (docs/spec-login-roles.md): mismos valores que el enum Prisma
-// RolUsuario — repetido acá en vez de importar @prisma/client para no
-// atar auth.types.ts (consumido también fuera del contexto de request)
-// a la generación del cliente Prisma.
-export type RolUsuario = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
-export type EstadoLegajo = 'PENDIENTE' | 'APROBADO';
+// RF-17 (docs/spec-login-roles.md): same values as the Prisma enum
+// UserRole — repeated here instead of importing @prisma/client so as
+// not to tie auth.types.ts (also consumed outside the request context)
+// to the Prisma client generation.
+export type UserRole = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
+export type DossierStatus = 'PENDIENTE' | 'APROBADO';
 
 export interface JwtPayload {
-  sub: string; // Usuario.id o Cliente.id según `type`
+  sub: string; // Usuario.id or Cliente.id depending on `type`
   email: string;
   nombre: string;
   empresaId: string;
   permisos: string[];
-  // RF-17: viajan en el token por el mismo motivo que `permisos` —
-  // LegajoAprobadoGuard necesita `estadoLegajo` sin volver a consultar
-  // la base en cada request protegido. Misma limitación ya documentada
-  // para `permisos`: si el dueño aprueba un legajo, el cambio no se
-  // refleja hasta que esa persona vuelva a loguearse.
-  rol: RolUsuario;
-  estadoLegajo: EstadoLegajo;
-  // RF-17 cliente: distingue si el sub es un Usuario o un Cliente —
-  // el mismo JWT_SECRET firma ambos para no necesitar dos estrategias
-  // Passport; los guards leen este campo para saber qué tabla consultar.
+  // RF-17: they travel in the token for the same reason as `permisos` —
+  // ApprovedDossierGuard needs `estadoLegajo` without querying the
+  // database again on every protected request. Same limitation already
+  // documented for `permisos`: if the owner approves a dossier, the
+  // change is not reflected until that person logs in again.
+  rol: UserRole;
+  estadoLegajo: DossierStatus;
+  // RF-17 customer: distinguishes whether the sub is a Usuario or a
+  // Cliente — the same JWT_SECRET signs both so that two Passport
+  // strategies are not needed; the guards read this field to know which
+  // table to query.
   type: 'usuario' | 'cliente';
-  // Solo presente cuando type === 'cliente'
+  // Only present when type === 'cliente'
   esMayorista?: boolean;
 }
 
@@ -41,21 +43,21 @@ export interface AuthenticatedUser {
   nombre: string;
   empresaId: string;
   permisos: string[];
-  rol: RolUsuario;
-  estadoLegajo: EstadoLegajo;
+  rol: UserRole;
+  estadoLegajo: DossierStatus;
   // RF-17 cliente
   type: 'usuario' | 'cliente';
   esMayorista?: boolean;
 }
 
 /**
- * Shape de GET /auth/me — a diferencia de AuthenticatedUser (que sale
- * del JWT, sin volver a tocar la base en cada request protegido), este
- * sí consulta Prisma fresco: incluye datos de perfil (foto, nombre de
- * empresa) que no tiene sentido embeber en el token firmado porque
- * pueden cambiar sin que el usuario vuelva a loguearse.
+ * Shape of GET /auth/me — unlike AuthenticatedUser (which comes from
+ * the JWT, without touching the database again on every protected
+ * request), this one does query Prisma fresh: it includes profile data
+ * (photo, company name) that makes no sense to embed in the signed
+ * token because it can change without the user logging in again.
  */
-export interface PerfilUsuario extends AuthenticatedUser {
+export interface UserProfile extends AuthenticatedUser {
   empresaNombre: string;
   fotoUrl: string | null;
   metodoLogin: 'google' | 'password';

@@ -7,9 +7,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // CORS_ORIGINS es una lista separada por comas de orígenes permitidos
-  // (ej. "https://otrarondamas.wapsell.com"). Sin configurar, cae a los
-  // puertos de Vite en desarrollo local.
+  // CORS_ORIGINS is a comma-separated list of allowed origins (e.g.
+  // 'https://otrarondamas.wapsell.com'). If not configured, it falls back to
+  // the Vite ports in local development.
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
     : ['http://localhost:5173', 'http://localhost:5174'];

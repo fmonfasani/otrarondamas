@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
-import { GooglePerfil } from './google.strategy';
+import { GoogleProfile } from './google.strategy';
 
 @Injectable()
 export class AuthGoogleService {
@@ -11,66 +11,68 @@ export class AuthGoogleService {
   ) {}
 
   /**
-   * Resuelve el perfil de Google a un Usuario y emite la misma sesión que
-   * el login por password.
+   * Resolves the Google profile to a Usuario and issues the same session
+   * as the password login.
    *
-   * Alcance actual (decisión explícita, no definitiva — ver
-   * docs/scaffolding-notas.md): el usuario auto-creado no recibe ningún
-   * permiso; alguien con `usuarios.gestionar` se los asigna a mano después.
-   * El modelo de roles (cliente/proveedor/repartidor/vendedor) todavía no
-   * existe — cuando se defina, este alta automática debería revisarse para
-   * asignar el rol correcto en vez de "usuario interno sin permisos".
+   * Current scope (explicit decision, not definitive — see
+   * docs/scaffolding-notas.md): the auto-created user receives no
+   * permission; someone with `usuarios.gestionar` assigns them by hand
+   * afterwards. The role model (customer/supplier/delivery/seller) does
+   * not exist yet — when it is defined, this automatic sign-up should be
+   * reviewed to assign the right role instead of 'internal user without
+   * permissions'.
    *
-   * ⚠️ TODO DE SEGURIDAD (preexistente, no introducido acá, pero agravado
-   * por este alta automática — detectado en auditoría previa a este push):
-   * caja.controller.ts expone `estado`, `apertura`, `listarMovimientos`,
-   * `arqueo` y `cierre` sin @RequierePermiso, solo exige estar logueado.
-   * Un usuario recién creado por Google (permisos = []) puede abrir/cerrar
-   * caja real hoy mismo. Antes, todo alta pasaba por un humano con
-   * usuarios.gestionar; con Google login, cualquiera con cuenta de Google
-   * llega al mismo punto sin ese filtro. Pendiente de arreglar en
-   * caja.controller.ts — no se tocó en este cambio para no mezclar un
-   * fix de permisos de caja con la feature de login (ver conversación).
+   * ⚠️ SECURITY TODO (pre-existing, not introduced here, but aggravated
+   * by this automatic sign-up — detected in the audit prior to this
+   * push): cash-register.controller.ts exposes `estado`, `apertura`,
+   * `listarMovimientos`, `arqueo` and `cierre` without @RequirePermission,
+   * it only requires being logged in. A user just created by Google
+   * (permisos = []) can open/close the real cash register right now.
+   * Before, every sign-up went through a human with usuarios.gestionar;
+   * with Google login, anyone with a Google account reaches the same
+   * point without that filter. Pending fix in cash-register.controller.ts
+   * — not touched in this change so as not to mix a cash register
+   * permission fix with the login feature (see conversation).
    */
-  async loginConGoogle(perfil: GooglePerfil) {
-    let usuario = await this.prisma.usuario.findUnique({
-      where: { googleId: perfil.googleId },
+  async loginWithGoogle(profile: GoogleProfile) {
+    let user = await this.prisma.usuario.findUnique({
+      where: { googleId: profile.googleId },
       include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
     });
 
-    if (!usuario) {
-      // ¿Ya existe un Usuario con este email (creado antes por alguien con
-      // password)? Si es así, vinculamos la cuenta de Google a ese usuario
-      // en vez de crear un duplicado — mismo email, misma persona.
-      const existente = await this.prisma.usuario.findUnique({
-        where: { email: perfil.email },
+    if (!user) {
+      // Does a Usuario with this email already exist (created earlier by
+      // someone with a password)? If so, we link the Google account to that
+      // user instead of creating a duplicate — same email, same person.
+      const existing = await this.prisma.usuario.findUnique({
+        where: { email: profile.email },
         include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
       });
 
-      if (existente) {
-        usuario = await this.prisma.usuario.update({
-          where: { id: existente.id },
-          data: { googleId: perfil.googleId, fotoUrl: perfil.fotoUrl },
+      if (existing) {
+        user = await this.prisma.usuario.update({
+          where: { id: existing.id },
+          data: { googleId: profile.googleId, fotoUrl: profile.fotoUrl },
           include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
         });
       } else {
-        const empresaId = process.env.GOOGLE_SIGNUP_EMPRESA_ID;
-        if (!empresaId) {
-          // No inventamos a qué empresa asignar un usuario nuevo — sin
-          // esta variable, el alta automática está deshabilitada de hecho
-          // (falla en vez de asignar una empresa adivinada).
+        const companyId = process.env.GOOGLE_SIGNUP_EMPRESA_ID;
+        if (!companyId) {
+          // We do not invent which company to assign a new user to — without
+          // this variable, automatic sign-up is effectively disabled (it fails
+          // instead of assigning a guessed company).
           throw new InternalServerErrorException(
             'GOOGLE_SIGNUP_EMPRESA_ID no configurado: no se puede crear el usuario automáticamente',
           );
         }
 
-        usuario = await this.prisma.usuario.create({
+        user = await this.prisma.usuario.create({
           data: {
-            empresaId,
-            nombre: perfil.nombre,
-            email: perfil.email,
-            googleId: perfil.googleId,
-            fotoUrl: perfil.fotoUrl,
+            empresaId: companyId,
+            nombre: profile.nombre,
+            email: profile.email,
+            googleId: profile.googleId,
+            fotoUrl: profile.fotoUrl,
             passwordHash: null,
             activo: true,
           },
@@ -79,11 +81,11 @@ export class AuthGoogleService {
       }
     }
 
-    if (!usuario.activo) {
+    if (!user.activo) {
       throw new InternalServerErrorException('Usuario deshabilitado');
     }
 
-    const permisos = usuario.usuarioPermisos.map((up) => up.permiso.nombre);
-    return this.authService.emitirSesion(usuario, permisos);
+    const permissions = user.usuarioPermisos.map((up) => up.permiso.nombre);
+    return this.authService.issueSession(user, permissions);
   }
 }

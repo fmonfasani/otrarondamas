@@ -1,152 +1,158 @@
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
-const IDS = { empresas: [] as string[], familias: [] as string[], subfamilias: [] as string[], tipos: [] as string[], subtipos: [] as string[] };
+const IDS = {
+  empresas: [] as string[],
+  familias: [] as string[],
+  subfamilias: [] as string[],
+  tipos: [] as string[],
+  subtipos: [] as string[],
+};
 
 describe('B3 relation isolation — DevolucionProveedorItem ownership candidate', () => {
   let prisma: PrismaService;
-  let scopedPrisma: EmpresaScopedPrismaService;
-  let empresaA: { id: string };
-  let empresaB: { id: string };
-  let usuarioA: { id: string };
-  let proveedorA: { id: string };
-  let proveedorB: { id: string };
-  let compraA: { id: string };
-  let productoA: { id: string };
-  let productoB: { id: string };
-  let loteA: { id: string };
-  let loteB: { id: string };
+  let scopedPrisma: CompanyScopedPrismaService;
+  let companyA: { id: string };
+  let companyB: { id: string };
+  let userA: { id: string };
+  let supplierA: { id: string };
+  let supplierB: { id: string };
+  let purchaseA: { id: string };
+  let productA: { id: string };
+  let productB: { id: string };
+  let batchA: { id: string };
+  let batchB: { id: string };
 
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    scopedPrisma = new EmpresaScopedPrismaService(prisma);
+    scopedPrisma = new CompanyScopedPrismaService(prisma);
 
     const suffix = Date.now();
 
-    empresaA = await prisma.empresa.create({
+    companyA = await prisma.empresa.create({
       data: { nombre: `B3 Devolucion A ${suffix}`, configuracion: {} },
       select: { id: true },
     });
-    empresaB = await prisma.empresa.create({
+    companyB = await prisma.empresa.create({
       data: { nombre: `B3 Devolucion B ${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
-    usuarioA = await prisma.usuario.create({
+    userA = await prisma.usuario.create({
       data: {
-        empresaId: empresaA.id,
+        empresaId: companyA.id,
         nombre: 'B3 Devolucion User A',
         email: `b3-devolucion-user-a-${suffix}@example.test`,
       },
       select: { id: true },
     });
 
-    proveedorA = await prisma.proveedor.create({
-      data: { empresaId: empresaA.id, nombre: `B3 Devolucion Proveedor A ${suffix}` },
+    supplierA = await prisma.proveedor.create({
+      data: { empresaId: companyA.id, nombre: `B3 Devolucion Proveedor A ${suffix}` },
       select: { id: true },
     });
-    proveedorB = await prisma.proveedor.create({
-      data: { empresaId: empresaB.id, nombre: `B3 Devolucion Proveedor B ${suffix}` },
+    supplierB = await prisma.proveedor.create({
+      data: { empresaId: companyB.id, nombre: `B3 Devolucion Proveedor B ${suffix}` },
       select: { id: true },
     });
 
-    const familiaA = await prisma.familia.create({
-      data: { empresaId: empresaA.id, nombre: `B3 Devolucion Familia A ${suffix}`, prefijo: 'BDA' },
+    const familyA = await prisma.familia.create({
+      data: { empresaId: companyA.id, nombre: `B3 Devolucion Familia A ${suffix}`, prefijo: 'BDA' },
       select: { id: true },
     });
-    const subfamiliaA = await prisma.subfamilia.create({
+    const subfamilyA = await prisma.subfamilia.create({
       data: {
-        empresaId: empresaA.id,
-        familiaId: familiaA.id,
+        empresaId: companyA.id,
+        familiaId: familyA.id,
         nombre: `B3 Devolucion Subfamilia A ${suffix}`,
         prefijo: 'BSA',
       },
       select: { id: true },
     });
-    IDS.subfamilias.push(subfamiliaA.id);
-    const tipoA = await prisma.tipo.create({
+    IDS.subfamilias.push(subfamilyA.id);
+    const typeA = await prisma.tipo.create({
       data: {
-        empresaId: empresaA.id,
-        subfamiliaId: subfamiliaA.id,
+        empresaId: companyA.id,
+        subfamiliaId: subfamilyA.id,
         nombre: `B3 Devolucion Tipo A ${suffix}`,
         prefijo: 'BTA',
       },
       select: { id: true },
     });
-    IDS.tipos.push(tipoA.id);
-    const subtipoA = await prisma.subtipo.create({
+    IDS.tipos.push(typeA.id);
+    const subtypeA = await prisma.subtipo.create({
       data: {
-        empresaId: empresaA.id,
-        tipoId: tipoA.id,
+        empresaId: companyA.id,
+        tipoId: typeA.id,
         nombre: `B3 Devolucion Subtipo A ${suffix}`,
         prefijo: 'BXA',
       },
       select: { id: true },
     });
-    IDS.subtipos.push(subtipoA.id);
+    IDS.subtipos.push(subtypeA.id);
 
-    const familiaB = await prisma.familia.create({
-      data: { empresaId: empresaB.id, nombre: `B3 Devolucion Familia B ${suffix}`, prefijo: 'BDB' },
+    const familyB = await prisma.familia.create({
+      data: { empresaId: companyB.id, nombre: `B3 Devolucion Familia B ${suffix}`, prefijo: 'BDB' },
       select: { id: true },
     });
-    IDS.familias.push(familiaB.id);
+    IDS.familias.push(familyB.id);
 
-    const subfamiliaB = await prisma.subfamilia.create({
+    const subfamilyB = await prisma.subfamilia.create({
       data: {
-        empresaId: empresaB.id,
-        familiaId: familiaB.id,
+        empresaId: companyB.id,
+        familiaId: familyB.id,
         nombre: `B3 Devolucion Subfamilia B ${suffix}`,
         prefijo: 'BSB',
       },
       select: { id: true },
     });
-    IDS.subfamilias.push(subfamiliaB.id);
-    const tipoB = await prisma.tipo.create({
+    IDS.subfamilias.push(subfamilyB.id);
+    const typeB = await prisma.tipo.create({
       data: {
-        empresaId: empresaB.id,
-        subfamiliaId: subfamiliaB.id,
+        empresaId: companyB.id,
+        subfamiliaId: subfamilyB.id,
         nombre: `B3 Devolucion Tipo B ${suffix}`,
         prefijo: 'BTB',
       },
       select: { id: true },
     });
-    IDS.tipos.push(tipoB.id);
-    const subtipoB = await prisma.subtipo.create({
+    IDS.tipos.push(typeB.id);
+    const subtypeB = await prisma.subtipo.create({
       data: {
-        empresaId: empresaB.id,
-        tipoId: tipoB.id,
+        empresaId: companyB.id,
+        tipoId: typeB.id,
         nombre: `B3 Devolucion Subtipo B ${suffix}`,
         prefijo: 'BXB',
       },
       select: { id: true },
     });
-    IDS.subtipos.push(subtipoB.id);
+    IDS.subtipos.push(subtypeB.id);
 
-    productoA = await prisma.producto.create({
+    productA = await prisma.producto.create({
       data: {
-        empresaId: empresaA.id,
+        empresaId: companyA.id,
         nombre: 'B3 Devolucion Product A',
         codigoInterno: `B3DPA${suffix}`,
-        familiaId: familiaA.id,
-        subfamiliaId: subfamiliaA.id,
-        tipoId: tipoA.id,
-        subtipoId: subtipoA.id,
+        familiaId: familyA.id,
+        subfamiliaId: subfamilyA.id,
+        tipoId: typeA.id,
+        subtipoId: subtypeA.id,
         unidadBase: 'UNIDAD',
         costo: 5,
         precioMinorista: 10,
       },
       select: { id: true },
     });
-    productoB = await prisma.producto.create({
+    productB = await prisma.producto.create({
       data: {
-        empresaId: empresaB.id,
+        empresaId: companyB.id,
         nombre: 'B3 Devolucion Product B',
         codigoInterno: `B3DPB${suffix}`,
-        familiaId: familiaB.id,
-        subfamiliaId: subfamiliaB.id,
-        tipoId: tipoB.id,
-        subtipoId: subtipoB.id,
+        familiaId: familyB.id,
+        subfamiliaId: subfamilyB.id,
+        tipoId: typeB.id,
+        subtipoId: subtypeB.id,
         unidadBase: 'UNIDAD',
         costo: 10,
         precioMinorista: 20,
@@ -154,31 +160,31 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       select: { id: true },
     });
 
-    compraA = await prisma.compra.create({
+    purchaseA = await prisma.compra.create({
       data: {
-        empresaId: empresaA.id,
-        proveedorId: proveedorA.id,
-        usuarioId: usuarioA.id,
+        empresaId: companyA.id,
+        proveedorId: supplierA.id,
+        usuarioId: userA.id,
         estado: 'BORRADOR',
         total: 10,
       },
       select: { id: true },
     });
 
-    loteA = await prisma.lote.create({
+    batchA = await prisma.lote.create({
       data: {
-        empresaId: empresaA.id,
-        productoId: productoA.id,
+        empresaId: companyA.id,
+        productoId: productA.id,
         numeroLote: `B3DLA${suffix}`,
         vencimiento: new Date('2030-01-01T00:00:00.000Z'),
         cantidad: 10,
       },
       select: { id: true },
     });
-    loteB = await prisma.lote.create({
+    batchB = await prisma.lote.create({
       data: {
-        empresaId: empresaB.id,
-        productoId: productoB.id,
+        empresaId: companyB.id,
+        productoId: productB.id,
         numeroLote: `B3DLB${suffix}`,
         vencimiento: new Date('2030-01-01T00:00:00.000Z'),
         cantidad: 10,
@@ -188,135 +194,140 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
   });
 
   afterAll(async () => {
-    await prisma.devolucionProveedorItem.deleteMany({ where: { devolucion: { empresaId: empresaA.id } } });
-    await prisma.devolucionProveedor.deleteMany({ where: { empresaId: empresaA.id } });
-    await prisma.lote.deleteMany({ where: { id: { in: [loteA?.id, loteB?.id].filter(Boolean) as string[] } } });
-    await prisma.compra.deleteMany({ where: { id: compraA?.id } });
-    await prisma.producto.deleteMany({ where: { id: { in: [productoA?.id, productoB?.id].filter(Boolean) as string[] } } });
+    await prisma.devolucionProveedorItem.deleteMany({
+      where: { devolucion: { empresaId: companyA.id } },
+    });
+    await prisma.devolucionProveedor.deleteMany({ where: { empresaId: companyA.id } });
+    await prisma.lote.deleteMany({
+      where: { id: { in: [batchA?.id, batchB?.id].filter(Boolean) as string[] } },
+    });
+    await prisma.compra.deleteMany({ where: { id: purchaseA?.id } });
+    await prisma.producto.deleteMany({
+      where: { id: { in: [productA?.id, productB?.id].filter(Boolean) as string[] } },
+    });
     await prisma.subtipo.deleteMany({ where: { id: { in: IDS.subtipos } } });
     await prisma.tipo.deleteMany({ where: { id: { in: IDS.tipos } } });
     await prisma.subfamilia.deleteMany({ where: { id: { in: IDS.subfamilias } } });
     await prisma.familia.deleteMany({ where: { id: { in: IDS.familias } } });
-    await prisma.proveedor.deleteMany({ where: { id: { in: [proveedorA?.id, proveedorB?.id].filter(Boolean) as string[] } } });
-    await prisma.usuario.deleteMany({ where: { id: usuarioA?.id } });
-    // CI usa una base descartable; no forzamos la eliminación de Empresa si el catálogo deja referencias auxiliares.
+    await prisma.proveedor.deleteMany({
+      where: { id: { in: [supplierA?.id, supplierB?.id].filter(Boolean) as string[] } },
+    });
+    await prisma.usuario.deleteMany({ where: { id: userA?.id } });
+    // CI uses a disposable database; we do not force deletion of Empresa if
+    // the catalog leaves auxiliary references.
     await prisma.$disconnect();
   });
 
-  const devolucionBase = (motivo: string) => ({
-    empresaId: empresaA.id,
-    compraId: compraA.id,
-    proveedorId: proveedorA.id,
-    usuarioId: usuarioA.id,
-    motivo,
+  const baseReturn = (reason: string) => ({
+    empresaId: companyA.id,
+    compraId: purchaseA.id,
+    proveedorId: supplierA.id,
+    usuarioId: userA.id,
+    motivo: reason,
   });
 
-  const itemDe = (productoId: string, loteId: string | null = null) => ({
-    productoId,
-    loteId,
+  const itemOf = (productId: string, batchId: string | null = null) => ({
+    productoId: productId,
+    loteId: batchId,
     cantidad: 1,
     costoUnitario: 10,
   });
 
   it('D-01: same-Business product and lote persist through nested DevolucionProveedor.create', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     const created = await db.devolucionProveedor.create({
       data: {
-        ...devolucionBase('gdp-positive'),
-        items: { create: [itemDe(productoA.id, loteA.id)] },
+        ...baseReturn('gdp-positive'),
+        items: { create: [itemOf(productA.id, batchA.id)] },
       },
       include: { items: true },
     });
 
-    expect(created.empresaId).toBe(empresaA.id);
+    expect(created.empresaId).toBe(companyA.id);
     expect(created.items).toHaveLength(1);
-    expect(created.items[0].productoId).toBe(productoA.id);
-    expect(created.items[0].loteId).toBe(loteA.id);
+    expect(created.items[0].productoId).toBe(productA.id);
+    expect(created.items[0].loteId).toBe(batchA.id);
   });
 
   it('D-02: nested create cannot link Business A to Product B', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     await expect(
       db.devolucionProveedor.create({
         data: {
-          ...devolucionBase('gdp-product-b'),
-          items: { create: [itemDe(productoB.id)] },
+          ...baseReturn('gdp-product-b'),
+          items: { create: [itemOf(productB.id)] },
         },
       }),
     ).rejects.toThrow();
 
-    expect(
-      await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-product-b' } }),
-    ).toBe(0);
+    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-product-b' } })).toBe(0);
   });
 
   it('D-03: nested create cannot link Business A to Lote B', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     await expect(
       db.devolucionProveedor.create({
         data: {
-          ...devolucionBase('gdp-lote-b'),
-          items: { create: [itemDe(productoA.id, loteB.id)] },
+          ...baseReturn('gdp-lote-b'),
+          items: { create: [itemOf(productA.id, batchB.id)] },
         },
       }),
     ).rejects.toThrow();
 
-    expect(
-      await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-lote-b' } }),
-    ).toBe(0);
+    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-lote-b' } })).toBe(0);
   });
 
   it('D-04: direct DevolucionProveedorItem.create cannot link Product B', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const devolucion = await prisma.devolucionProveedor.create({
-      data: devolucionBase('gdp-direct-product'),
+    const db = scopedPrisma.forCompany(companyA.id);
+    const returnRecord = await prisma.devolucionProveedor.create({
+      data: baseReturn('gdp-direct-product'),
       select: { id: true },
     });
 
     await expect(
       db.devolucionProveedorItem.create({
         data: {
-          devolucionId: devolucion.id,
-          ...itemDe(productoB.id),
+          devolucionId: returnRecord.id,
+          ...itemOf(productB.id),
         },
       }),
     ).rejects.toThrow();
 
     expect(
-      await prisma.devolucionProveedorItem.count({ where: { devolucionId: devolucion.id } }),
+      await prisma.devolucionProveedorItem.count({ where: { devolucionId: returnRecord.id } }),
     ).toBe(0);
   });
 
   it('D-05: direct DevolucionProveedorItem.createMany cannot link Lote B', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const devolucion = await prisma.devolucionProveedor.create({
-      data: devolucionBase('gdp-direct-lote'),
+    const db = scopedPrisma.forCompany(companyA.id);
+    const returnRecord = await prisma.devolucionProveedor.create({
+      data: baseReturn('gdp-direct-lote'),
       select: { id: true },
     });
 
     await expect(
       db.devolucionProveedorItem.createMany({
-        data: [{ devolucionId: devolucion.id, ...itemDe(productoA.id, loteB.id) }],
+        data: [{ devolucionId: returnRecord.id, ...itemOf(productA.id, batchB.id) }],
       }),
     ).rejects.toThrow();
 
     expect(
-      await prisma.devolucionProveedorItem.count({ where: { devolucionId: devolucion.id } }),
+      await prisma.devolucionProveedorItem.count({ where: { devolucionId: returnRecord.id } }),
     ).toBe(0);
   });
 
   it('D-06: one cross-Business item rejects the whole mixed nested DevolucionProveedor', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     await expect(
       db.devolucionProveedor.create({
         data: {
-          ...devolucionBase('gdp-mixed'),
+          ...baseReturn('gdp-mixed'),
           items: {
-            create: [itemDe(productoA.id, loteA.id), itemDe(productoB.id)],
+            create: [itemOf(productA.id, batchA.id), itemOf(productB.id)],
           },
         },
       }),
@@ -326,30 +337,34 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
   });
 
   it('D-07: relation isolation applies inside an interactive transaction', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
+    const db = scopedPrisma.forCompany(companyA.id);
 
     await expect(
       db.$transaction(async (tx) => {
         await tx.devolucionProveedor.create({
           data: {
-            ...devolucionBase('gdp-tx-negative'),
-            items: { create: [itemDe(productoB.id)] },
+            ...baseReturn('gdp-tx-negative'),
+            items: { create: [itemOf(productB.id)] },
           },
         });
       }),
     ).rejects.toThrow();
 
-    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-tx-negative' } })).toBe(0);
+    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-tx-negative' } })).toBe(
+      0,
+    );
 
     await db.$transaction(async (tx) => {
       await tx.devolucionProveedor.create({
         data: {
-          ...devolucionBase('gdp-tx-positive'),
-          items: { create: [itemDe(productoA.id, loteA.id)] },
+          ...baseReturn('gdp-tx-positive'),
+          items: { create: [itemOf(productA.id, batchA.id)] },
         },
       });
     });
 
-    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-tx-positive' } })).toBe(1);
+    expect(await prisma.devolucionProveedor.count({ where: { motivo: 'gdp-tx-positive' } })).toBe(
+      1,
+    );
   });
 });

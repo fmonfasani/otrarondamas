@@ -1,208 +1,220 @@
-import { FidelizacionService } from '../../src/fidelizacion/fidelizacion.service';
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { LoyaltyService } from '../../src/loyalty/loyalty.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('B3 relation isolation — ReglaFidelizacion.familia ownership candidate', () => {
   let prisma: PrismaService;
-  let scopedPrisma: EmpresaScopedPrismaService;
-  let fidelizacion: FidelizacionService;
+  let scopedPrisma: CompanyScopedPrismaService;
+  let loyalty: LoyaltyService;
   let suffix: number;
-  let secuencia = 0;
+  let sequence = 0;
 
-  let empresaA: { id: string };
-  let empresaB: { id: string };
-  let familiaA: { id: string };
-  let familiaB: { id: string };
+  let companyA: { id: string };
+  let companyB: { id: string };
+  let familyA: { id: string };
+  let familyB: { id: string };
 
-  const nombreUnico = (id: string) => `B3RF-${id}-${suffix}-${++secuencia}`;
+  const uniqueName = (id: string) => `B3RF-${id}-${suffix}-${++sequence}`;
 
-  const codigoDeRechazo = async (operacion: Promise<unknown>): Promise<string> => {
+  const rejectionCode = async (operation: Promise<unknown>): Promise<string> => {
     try {
-      await operacion;
+      await operation;
       return 'RESOLVED';
     } catch (error) {
       return (error as { code?: string }).code ?? 'NO_CODE';
     }
   };
 
-  const crearJerarquia = async (etiqueta: 'A' | 'B', s: number, prefijo: string) => {
-    const empresa = await prisma.empresa.create({
-      data: { nombre: `B3 RFF ${etiqueta} ${s}`, configuracion: {} },
+  const createHierarchy = async (label: 'A' | 'B', s: number, prefix: string) => {
+    const company = await prisma.empresa.create({
+      data: { nombre: `B3 RFF ${label} ${s}`, configuracion: {} },
       select: { id: true },
     });
-    const familia = await prisma.familia.create({
-      data: { empresaId: empresa.id, nombre: `B3 RFF Familia ${etiqueta} ${s}`, prefijo: `${prefijo}F` },
-      select: { id: true },
-    });
-    const subfamilia = await prisma.subfamilia.create({
+    const family = await prisma.familia.create({
       data: {
-        empresaId: empresa.id,
-        familiaId: familia.id,
-        nombre: `B3 RFF Sub ${etiqueta} ${s}`,
-        prefijo: `${prefijo}S`,
+        empresaId: company.id,
+        nombre: `B3 RFF Familia ${label} ${s}`,
+        prefijo: `${prefix}F`,
       },
       select: { id: true },
     });
-    const tipo = await prisma.tipo.create({
+    const subfamily = await prisma.subfamilia.create({
       data: {
-        empresaId: empresa.id,
-        subfamiliaId: subfamilia.id,
-        nombre: `B3 RFF Tipo ${etiqueta} ${s}`,
-        prefijo: `${prefijo}T`,
+        empresaId: company.id,
+        familiaId: family.id,
+        nombre: `B3 RFF Sub ${label} ${s}`,
+        prefijo: `${prefix}S`,
       },
       select: { id: true },
     });
-    const subtipo = await prisma.subtipo.create({
+    const type = await prisma.tipo.create({
       data: {
-        empresaId: empresa.id,
-        tipoId: tipo.id,
-        nombre: `B3 RFF Subtipo ${etiqueta} ${s}`,
-        prefijo: `${prefijo}X`,
+        empresaId: company.id,
+        subfamiliaId: subfamily.id,
+        nombre: `B3 RFF Tipo ${label} ${s}`,
+        prefijo: `${prefix}T`,
       },
       select: { id: true },
     });
-    return { empresa, familia, subfamilia, tipo, subtipo };
+    const subtype = await prisma.subtipo.create({
+      data: {
+        empresaId: company.id,
+        tipoId: type.id,
+        nombre: `B3 RFF Subtipo ${label} ${s}`,
+        prefijo: `${prefix}X`,
+      },
+      select: { id: true },
+    });
+    return {
+      empresa: company,
+      familia: family,
+      subfamilia: subfamily,
+      tipo: type,
+      subtipo: subtype,
+    };
   };
 
-  const reglaData = (empresaId: string, familiaId: string | undefined, nombre: string) => ({
-    empresaId,
-    nombre,
+  const ruleData = (companyId: string, familyId: string | undefined, name: string) => ({
+    empresaId: companyId,
+    nombre: name,
     nivelRequerido: 'NUEVO' as const,
     descuentoPorcentaje: 10,
-    familiaId,
+    familiaId: familyId,
   });
 
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    scopedPrisma = new EmpresaScopedPrismaService(prisma);
-    fidelizacion = new FidelizacionService(scopedPrisma);
+    scopedPrisma = new CompanyScopedPrismaService(prisma);
+    loyalty = new LoyaltyService(scopedPrisma);
     suffix = Date.now();
-    const jerA = await crearJerarquia('A', suffix, 'E');
-    const jerB = await crearJerarquia('B', suffix, 'R');
-    empresaA = jerA.empresa;
-    empresaB = jerB.empresa;
-    familiaA = jerA.familia;
-    familiaB = jerB.familia;
+    const hierA = await createHierarchy('A', suffix, 'E');
+    const hierB = await createHierarchy('B', suffix, 'R');
+    companyA = hierA.empresa;
+    companyB = hierB.empresa;
+    familyA = hierA.familia;
+    familyB = hierB.familia;
   });
 
   afterAll(async () => {
-    const empresas = [empresaA.id, empresaB.id];
-    await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.subtipo.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.tipo.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.subfamilia.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.familia.deleteMany({ where: { empresaId: { in: empresas } } });
-    await prisma.empresa.deleteMany({ where: { id: { in: empresas } } });
+    const companies = [companyA.id, companyB.id];
+    await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.subtipo.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.tipo.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.subfamilia.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
   });
 
   it('RF-F-01: same-Business Familia reference persists', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const nombre = nombreUnico('01');
+    const db = scopedPrisma.forCompany(companyA.id);
+    const name = uniqueName('01');
     const created = await db.reglaFidelizacion.create({
-      data: reglaData(empresaA.id, familiaA.id, nombre),
+      data: ruleData(companyA.id, familyA.id, name),
       select: { empresaId: true, familiaId: true },
     });
 
-    expect(created.empresaId).toBe(empresaA.id);
-    expect(created.familiaId).toBe(familiaA.id);
+    expect(created.empresaId).toBe(companyA.id);
+    expect(created.familiaId).toBe(familyA.id);
   });
 
   it('RF-F-02: cross-Business Familia create rejects with P2025 and no persistence', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const nombre = nombreUnico('02');
+    const db = scopedPrisma.forCompany(companyA.id);
+    const name = uniqueName('02');
 
     expect(
-      await codigoDeRechazo(
-        db.reglaFidelizacion.create({ data: reglaData(empresaA.id, familiaB.id, nombre) }),
+      await rejectionCode(
+        db.reglaFidelizacion.create({ data: ruleData(companyA.id, familyB.id, name) }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.reglaFidelizacion.count({ where: { nombre } })).toBe(0);
+    expect(await prisma.reglaFidelizacion.count({ where: { nombre: name } })).toBe(0);
   });
 
   it('RF-F-03: cross-Business Familia update rejects with P2025 and preserves the relation', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const regla = await prisma.reglaFidelizacion.create({
-      data: reglaData(empresaA.id, familiaA.id, nombreUnico('03-base')),
+    const db = scopedPrisma.forCompany(companyA.id);
+    const rule = await prisma.reglaFidelizacion.create({
+      data: ruleData(companyA.id, familyA.id, uniqueName('03-base')),
       select: { id: true },
     });
 
     expect(
-      await codigoDeRechazo(
-        db.reglaFidelizacion.update({ where: { id: regla.id }, data: { familiaId: familiaB.id } }),
+      await rejectionCode(
+        db.reglaFidelizacion.update({ where: { id: rule.id }, data: { familiaId: familyB.id } }),
       ),
     ).toBe('P2025');
 
     const persisted = await prisma.reglaFidelizacion.findUnique({
-      where: { id: regla.id },
+      where: { id: rule.id },
       select: { familiaId: true },
     });
-    expect(persisted?.familiaId).toBe(familiaA.id);
+    expect(persisted?.familiaId).toBe(familyA.id);
   });
 
   it('RF-F-04: nonexistent Familia fails closed with P2025 and no persistence', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const nombre = nombreUnico('04');
+    const db = scopedPrisma.forCompany(companyA.id);
+    const name = uniqueName('04');
 
     expect(
-      await codigoDeRechazo(
+      await rejectionCode(
         db.reglaFidelizacion.create({
-          data: reglaData(empresaA.id, `no-existe-${suffix}`, nombre),
+          data: ruleData(companyA.id, `no-existe-${suffix}`, name),
         }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.reglaFidelizacion.count({ where: { nombre } })).toBe(0);
+    expect(await prisma.reglaFidelizacion.count({ where: { nombre: name } })).toBe(0);
   });
 
   it('RF-F-05: rejected cross-Business create rolls back the valid Regla of the same transaction', async () => {
-    const db = scopedPrisma.forEmpresa(empresaA.id);
-    const valido = nombreUnico('05-OK');
-    const invalido = nombreUnico('05-BAD');
+    const db = scopedPrisma.forCompany(companyA.id);
+    const valid = uniqueName('05-OK');
+    const invalid = uniqueName('05-BAD');
 
     expect(
-      await codigoDeRechazo(
+      await rejectionCode(
         db.$transaction(async (tx) => {
-          await tx.reglaFidelizacion.create({ data: reglaData(empresaA.id, familiaA.id, valido) });
-          await tx.reglaFidelizacion.create({ data: reglaData(empresaA.id, familiaB.id, invalido) });
+          await tx.reglaFidelizacion.create({ data: ruleData(companyA.id, familyA.id, valid) });
+          await tx.reglaFidelizacion.create({ data: ruleData(companyA.id, familyB.id, invalid) });
         }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.reglaFidelizacion.count({ where: { nombre: { in: [valido, invalido] } } })).toBe(0);
+    expect(
+      await prisma.reglaFidelizacion.count({ where: { nombre: { in: [valid, invalid] } } }),
+    ).toBe(0);
   });
 
-  it('RF-F-06: control — service crear() with cross-Business Familia keeps rejecting without persistence', async () => {
-    const nombre = nombreUnico('06');
+  it('RF-F-06: control — service create() with cross-Business Familia keeps rejecting without persistence', async () => {
+    const name = uniqueName('06');
 
     await expect(
-      fidelizacion.crear(empresaA.id, {
-        nombre,
+      loyalty.create(companyA.id, {
+        nombre: name,
         nivelRequerido: 'NUEVO',
         descuentoPorcentaje: 10,
-        familiaId: familiaB.id,
+        familiaId: familyB.id,
       }),
     ).rejects.toThrow('Familia no encontrada');
 
-    expect(await prisma.reglaFidelizacion.count({ where: { nombre } })).toBe(0);
+    expect(await prisma.reglaFidelizacion.count({ where: { nombre: name } })).toBe(0);
   });
 
-  it('RF-F-07: control — service actualizar() with cross-Business Familia keeps rejecting and preserves the relation', async () => {
-    const regla = await prisma.reglaFidelizacion.create({
-      data: reglaData(empresaA.id, familiaA.id, nombreUnico('07-base')),
+  it('RF-F-07: control — service update() with cross-Business Familia keeps rejecting and preserves the relation', async () => {
+    const rule = await prisma.reglaFidelizacion.create({
+      data: ruleData(companyA.id, familyA.id, uniqueName('07-base')),
       select: { id: true },
     });
 
-    await expect(
-      fidelizacion.actualizar(empresaA.id, regla.id, { familiaId: familiaB.id }),
-    ).rejects.toThrow('Familia no encontrada');
+    await expect(loyalty.update(companyA.id, rule.id, { familiaId: familyB.id })).rejects.toThrow(
+      'Familia no encontrada',
+    );
 
     const persisted = await prisma.reglaFidelizacion.findUnique({
-      where: { id: regla.id },
+      where: { id: rule.id },
       select: { familiaId: true },
     });
-    expect(persisted?.familiaId).toBe(familiaA.id);
+    expect(persisted?.familiaId).toBe(familyA.id);
   });
 });

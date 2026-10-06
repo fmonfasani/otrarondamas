@@ -1,20 +1,21 @@
-// S-V1-02 — Contrato conceptual de BusinessContext (lectura, sin persistencia).
+// S-V1-02 — Conceptual contract of BusinessContext (read-only, no
+// persistence).
 //
-// BusinessContext responde: ¿quién actúa, en qué Business, con qué
-// Membership/rol/permisos? En V1 solo existe el actor autenticado
-// (USER); ANON/CUSTOMER quedan reservados para Conversation/mensajería
-// futura y no se construyen en este slice.
+// BusinessContext answers: who acts, in which Business, with which
+// Membership/role/permissions? In V1 only the authenticated actor exists
+// (USER); ANON/CUSTOMER are reserved for future Conversation/messaging and
+// are not built in this slice.
 export type BusinessActorType = 'USER';
 
 export interface BusinessContext {
-  // Concepto Business. En V1 == Empresa.id física (ver adapter en
-  // business-context.service.ts). Nunca aceptado crudo del input.
+  // Business concept. In V1 == physical Empresa.id (see the adapter in
+  // business-context.service.ts). Never accepted raw from input.
   businessId: string;
   userId: string;
   membershipId: string;
   role: string;
-  // Fuente legacy (UsuarioPermiso del Usuario de la sesión), misma que
-  // usa PermissionsGuard al login. NO migrado: solo lectura.
+  // Legacy source (UsuarioPermiso of the session's Usuario), the same one
+  // PermissionsGuard uses at login. NOT migrated: read-only.
   permissions: string[];
   actorType: BusinessActorType;
 }

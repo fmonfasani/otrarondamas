@@ -2,26 +2,26 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Resend } from 'resend';
 
 /**
- * RF-17 (docs/spec-login-roles.md, decisión D-20 resuelta): Resend para
- * el link de invitación y las alertas de vencimiento de legajo — no se
- * diseña un sistema de notificaciones general todavía (D-13 del SDD
- * sigue sin definir canal/proveedor para el resto de eventos), este
- * service es de uso acotado a esos dos casos.
+ * RF-17 (docs/spec-login-roles.md, resolved decision D-20): Resend for the
+ * invitation link and dossier expiry alerts — no general notification
+ * system is designed yet (D-13 of the SDD still leaves the channel/provider
+ * undefined for the rest of the events), this service is of limited use
+ * for those two cases.
  *
- * `RESEND_API_KEY`/`RESEND_FROM_EMAIL` ausentes: no falla el arranque
- * del servidor entero (a diferencia de JWT_SECRET) — el envío de
- * emails es un complemento, no algo que deba tumbar toda la API si
- * falta. En su lugar, cada intento de envío sin la config completa
- * loguea el error y devuelve `enviado: false`, para que el caller
- * (InvitacionesService) decida cómo reaccionar (ej. igual crear la
- * invitación y mostrar el link en el panel para copiar a mano).
+ * `RESEND_API_KEY`/`RESEND_FROM_EMAIL` missing: it does not fail the whole
+ * server startup (unlike JWT_SECRET) — sending emails is an add-on, not
+ * something that should take down the whole API if it is missing. Instead,
+ * each send attempt without the complete config logs the error and returns
+ * `enviado: false`, so the caller (InvitationsService) decides how to
+ * react (e.g. still create the invitation and show the link in the panel to
+ * copy by hand).
  */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private resend: Resend | null = null;
 
-  private cliente(): Resend | null {
+  private customer(): Resend | null {
     if (this.resend) return this.resend;
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
@@ -32,28 +32,28 @@ export class EmailService {
     return this.resend;
   }
 
-  async enviar(destinatario: string, asunto: string, html: string): Promise<boolean> {
-    const cliente = this.cliente();
+  async send(recipient: string, subject: string, html: string): Promise<boolean> {
+    const customer = this.customer();
     const from = process.env.RESEND_FROM_EMAIL;
-    if (!cliente || !from) {
+    if (!customer || !from) {
       if (!from) this.logger.warn('RESEND_FROM_EMAIL no configurado — no se pueden enviar emails.');
       return false;
     }
 
     try {
-      const { error } = await cliente.emails.send({
+      const { error } = await customer.emails.send({
         from,
-        to: destinatario,
-        subject: asunto,
+        to: recipient,
+        subject: subject,
         html,
       });
       if (error) {
-        this.logger.error(`Error enviando email a ${destinatario}: ${error.message}`);
+        this.logger.error(`Error enviando email a ${recipient}: ${error.message}`);
         return false;
       }
       return true;
     } catch (err) {
-      this.logger.error(`Excepción enviando email a ${destinatario}`, err as Error);
+      this.logger.error(`Excepción enviando email a ${recipient}`, err as Error);
       return false;
     }
   }

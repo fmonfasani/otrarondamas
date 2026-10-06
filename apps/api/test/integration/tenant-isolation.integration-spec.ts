@@ -1,18 +1,18 @@
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('Tenant isolation verification infrastructure', () => {
   let prisma: PrismaService;
-  let scopedPrisma: EmpresaScopedPrismaService;
-  let empresaA: { id: string };
-  let empresaB: { id: string };
+  let scopedPrisma: CompanyScopedPrismaService;
+  let companyA: { id: string };
+  let companyB: { id: string };
 
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    scopedPrisma = new EmpresaScopedPrismaService(prisma);
+    scopedPrisma = new CompanyScopedPrismaService(prisma);
 
-    empresaA = await prisma.empresa.create({
+    companyA = await prisma.empresa.create({
       data: {
         nombre: `B4 Test A ${Date.now()}`,
         configuracion: {},
@@ -20,7 +20,7 @@ describe('Tenant isolation verification infrastructure', () => {
       select: { id: true },
     });
 
-    empresaB = await prisma.empresa.create({
+    companyB = await prisma.empresa.create({
       data: {
         nombre: `B4 Test B ${Date.now()}`,
         configuracion: {},
@@ -31,35 +31,35 @@ describe('Tenant isolation verification infrastructure', () => {
 
   afterAll(async () => {
     await prisma.usuario.deleteMany({
-      where: { empresaId: { in: [empresaA.id, empresaB.id] } },
+      where: { empresaId: { in: [companyA.id, companyB.id] } },
     });
     await prisma.empresa.deleteMany({
-      where: { id: { in: [empresaA.id, empresaB.id] } },
+      where: { id: { in: [companyA.id, companyB.id] } },
     });
     await prisma.$disconnect();
   });
 
   it('creates deterministic records for two Business contexts', async () => {
-    const userA = await scopedPrisma.forEmpresa(empresaA.id).usuario.create({
+    const userA = await scopedPrisma.forCompany(companyA.id).usuario.create({
       data: {
-        empresaId: empresaB.id,
+        empresaId: companyB.id,
         nombre: 'B4 User A',
         email: `b4-a-${Date.now()}@example.test`,
       },
       select: { id: true, empresaId: true },
     });
 
-    const userB = await scopedPrisma.forEmpresa(empresaB.id).usuario.create({
+    const userB = await scopedPrisma.forCompany(companyB.id).usuario.create({
       data: {
-        empresaId: empresaA.id,
+        empresaId: companyA.id,
         nombre: 'B4 User B',
         email: `b4-b-${Date.now()}@example.test`,
       },
       select: { id: true, empresaId: true },
     });
 
-    expect(userA.empresaId).toBe(empresaA.id);
-    expect(userB.empresaId).toBe(empresaB.id);
+    expect(userA.empresaId).toBe(companyA.id);
+    expect(userB.empresaId).toBe(companyB.id);
   });
 
   it('reads only records belonging to the active Business context', async () => {
@@ -69,27 +69,25 @@ describe('Tenant isolation verification infrastructure', () => {
     await prisma.usuario.createMany({
       data: [
         {
-          empresaId: empresaA.id,
+          empresaId: companyA.id,
           nombre: 'B4 Read A',
           email: markerA,
         },
         {
-          empresaId: empresaB.id,
+          empresaId: companyB.id,
           nombre: 'B4 Read B',
           email: markerB,
         },
       ],
     });
 
-    const fromA = await scopedPrisma.forEmpresa(empresaA.id).usuario.findMany({
+    const fromA = await scopedPrisma.forCompany(companyA.id).usuario.findMany({
       where: { email: { in: [markerA, markerB] } },
       orderBy: { email: 'asc' },
       select: { email: true, empresaId: true },
     });
 
-    expect(fromA).toEqual([
-      { email: markerA, empresaId: empresaA.id },
-    ]);
+    expect(fromA).toEqual([{ email: markerA, empresaId: companyA.id }]);
   });
 
   it('fails closed for a unique lookup that resolves to another Business', async () => {
@@ -97,13 +95,13 @@ describe('Tenant isolation verification infrastructure', () => {
 
     await prisma.usuario.create({
       data: {
-        empresaId: empresaB.id,
+        empresaId: companyB.id,
         nombre: 'B4 Unique B',
         email,
       },
     });
 
-    const fromA = await scopedPrisma.forEmpresa(empresaA.id).usuario.findUnique({
+    const fromA = await scopedPrisma.forCompany(companyA.id).usuario.findUnique({
       where: { email },
       select: { id: true, empresaId: true },
     });

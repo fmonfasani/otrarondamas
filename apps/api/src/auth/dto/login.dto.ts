@@ -1,8 +1,8 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
-// La regla `indent` base de ESLint no reconoce correctamente propiedades
-// de clase precedidas por un decorador (falso positivo conocido); se
-// desactiva puntualmente en este archivo, no en la config global.
+// ESLint's base `indent` rule does not correctly recognise class properties
+// preceded by a decorator (known false positive); it is disabled locally in
+// this file, not in the global config.
 /* eslint-disable indent */
 export class LoginDto {
   @IsEmail()

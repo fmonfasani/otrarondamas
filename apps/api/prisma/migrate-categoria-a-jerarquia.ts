@@ -1,23 +1,23 @@
 /**
- * Migración de DATOS (no de schema) para producción: reasigna cada
- * Producto EXISTENTE de su Categoria vieja (plana) a la jerarquía nueva
- * (Familia/Subfamilia/Tipo/Subtipo), y genera su SKU nuevo — sin tocar
- * nombre/precio/stock/Lote/VentaItem/nada más del producto.
+ * DATA migration (not schema) for production: reassigns every EXISTING
+ * Producto from its old (flat) Categoria to the new hierarchy
+ * (Familia/Subfamilia/Tipo/Subtipo), and generates its new SKU — without
+ * touching the product's name/price/stock/Lote/VentaItem/anything else.
  *
- * Distinto de seed.ts: ese script asume una base VACÍA y crea productos
- * desde cero (createMany). Este script asume productos que YA EXISTEN
- * (con historial real: ventas, lotes, pedidos) y los actualiza en el
- * lugar (update), preservando su id y todas sus relaciones.
+ * Different from seed.ts: that script assumes an EMPTY database and
+ * creates products from scratch (createMany). This script assumes
+ * products that ALREADY exist (with real history: sales, batches,
+ * orders) and updates them in place (update), preserving their id and
+ * all their relations.
  *
- * Requiere que las 4 columnas de jerarquía en Producto sigan siendo
- * nullable en el schema al momento de correr esto (paso 1 de la
- * migración de 2 pasos, ver
+ * Requires the 4 hierarchy columns on Producto to still be nullable in
+ * the schema at the time this runs (step 1 of the 2-step migration, see
  * prisma/migrations/20260922090000_catalogo_jerarquia_familia_subfamilia_tipo_subtipo/)
- * — recién después de correr este script se aplica la migración que
- * las vuelve NOT NULL y borra Categoria
+ * — only after running this script is the migration applied that makes
+ * them NOT NULL and drops Categoria
  * (20260922090002_catalogo_jerarquia_fk_not_null_y_drop_categoria).
  *
- * Uso: npx ts-node prisma/migrate-categoria-a-jerarquia.ts
+ * Usage: npx ts-node prisma/migrate-categoria-a-jerarquia.ts
  */
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
@@ -25,271 +25,281 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-interface JerarquiaFamilia {
+interface FamilyHierarchy {
   prefijo: string;
   nombre: string;
 }
 
-interface JerarquiaSubfamilia {
+interface SubfamilyHierarchy {
   familiaPrefijo: string;
   nombre: string;
   prefijo: string;
   rubroOriginalCategoria: string;
 }
 
-const PREFIJO_GEN = 'GEN';
-const NOMBRE_GEN = 'Genérico';
-const SKU_CORRELATIVO_DIGITOS = 8;
+const PREFIX_GEN = 'GEN';
+const NAME_GEN = 'Genérico';
+const SKU_SEQUENCE_DIGITS = 8;
 
-function construirSku(
-  familiaPrefijo: string,
-  subfamiliaPrefijo: string,
-  tipoPrefijo: string,
-  subtipoPrefijo: string,
-  correlativo: number,
+function buildSku(
+  familyPrefix: string,
+  subfamilyPrefix: string,
+  typePrefix: string,
+  subtypePrefix: string,
+  sequentialNumber: number,
 ): string {
-  const num = String(correlativo).padStart(SKU_CORRELATIVO_DIGITOS, '0');
-  return `${familiaPrefijo}-${subfamiliaPrefijo}-${tipoPrefijo}-${subtipoPrefijo}-${num}`;
+  const num = String(sequentialNumber).padStart(SKU_SEQUENCE_DIGITS, '0');
+  return `${familyPrefix}-${subfamilyPrefix}-${typePrefix}-${subtypePrefix}-${num}`;
 }
 
-async function crearFamiliaSubfamiliaGen(empresaId: string, nombreCategoriaVieja: string) {
-  // Camino de "categorías base del piloto" sin mapeo real (Almacén,
-  // Bebidas, General, Kiosco, Snacks) — mismo patrón que la Familia
-  // "General" de la empresa de aislamiento en seed.ts: se crea una
-  // Familia/Subfamilia con el mismo nombre de la Categoria vieja, sin
-  // intentar mapearla al árbol de 187 Subfamilias (esas categorías
-  // están vacías o casi vacías, no forman parte del catálogo real
-  // consolidado).
-  const familia = await prisma.familia.upsert({
-    where: { empresaId_nombre: { empresaId, nombre: nombreCategoriaVieja } },
+async function createFamilySubfamilyGen(companyId: string, oldCategoryName: string) {
+  // Path for the 'pilot base categories' without a real mapping (Almacén,
+  // Bebidas, General, Kiosco, Snacks) — same pattern as the 'General'
+  // Familia of the isolation company in seed.ts: a Familia/Subfamilia is
+  // created with the same name as the old Categoria, without trying to
+  // map it into the tree of 187 Subfamilias (those categories are empty
+  // or almost empty, they are not part of the consolidated real catalog).
+  const family = await prisma.familia.upsert({
+    where: { empresaId_nombre: { empresaId: companyId, nombre: oldCategoryName } },
     update: {},
-    create: { nombre: nombreCategoriaVieja, prefijo: PREFIJO_GEN, empresaId },
+    create: { nombre: oldCategoryName, prefijo: PREFIX_GEN, empresaId: companyId },
   });
-  const subfamilia = await prisma.subfamilia.upsert({
-    where: { familiaId_nombre: { familiaId: familia.id, nombre: nombreCategoriaVieja } },
+  const subfamily = await prisma.subfamilia.upsert({
+    where: { familiaId_nombre: { familiaId: family.id, nombre: oldCategoryName } },
     update: {},
     create: {
-      nombre: nombreCategoriaVieja,
-      prefijo: PREFIJO_GEN,
-      empresaId,
-      familiaId: familia.id,
+      nombre: oldCategoryName,
+      prefijo: PREFIX_GEN,
+      empresaId: companyId,
+      familiaId: family.id,
     },
   });
-  const tipo = await prisma.tipo.upsert({
-    where: { subfamiliaId_nombre: { subfamiliaId: subfamilia.id, nombre: NOMBRE_GEN } },
+  const type = await prisma.tipo.upsert({
+    where: { subfamiliaId_nombre: { subfamiliaId: subfamily.id, nombre: NAME_GEN } },
     update: {},
-    create: { nombre: NOMBRE_GEN, prefijo: PREFIJO_GEN, empresaId, subfamiliaId: subfamilia.id },
+    create: {
+      nombre: NAME_GEN,
+      prefijo: PREFIX_GEN,
+      empresaId: companyId,
+      subfamiliaId: subfamily.id,
+    },
   });
-  const subtipo = await prisma.subtipo.upsert({
-    where: { tipoId_nombre: { tipoId: tipo.id, nombre: NOMBRE_GEN } },
+  const subtype = await prisma.subtipo.upsert({
+    where: { tipoId_nombre: { tipoId: type.id, nombre: NAME_GEN } },
     update: {},
-    create: { nombre: NOMBRE_GEN, prefijo: PREFIJO_GEN, empresaId, tipoId: tipo.id },
+    create: { nombre: NAME_GEN, prefijo: PREFIX_GEN, empresaId: companyId, tipoId: type.id },
   });
-  return { familia, subfamilia, tipo, subtipo };
+  return { familia: family, subfamilia: subfamily, tipo: type, subtipo: subtype };
 }
 
 async function main() {
-  const jerarquiaPath = path.join(__dirname, 'seed-data-jerarquia-catalogo.json');
-  const jerarquiaData: { familias: JerarquiaFamilia[]; subfamilias: JerarquiaSubfamilia[] } =
-    JSON.parse(fs.readFileSync(jerarquiaPath, 'utf-8'));
+  const hierarchyPath = path.join(__dirname, 'seed-data-jerarquia-catalogo.json');
+  const hierarchyData: { familias: FamilyHierarchy[]; subfamilias: SubfamilyHierarchy[] } =
+    JSON.parse(fs.readFileSync(hierarchyPath, 'utf-8'));
 
-  // Todas las empresas reales (no solo "Otra Roonda Más") — el script
-  // tiene que cubrir cualquier empresa que tenga productos con
-  // categoriaId todavía, sin asumir cuál es la principal.
-  const empresas = await prisma.empresa.findMany();
-  console.log(`Empresas encontradas: ${empresas.length}`);
+  // All real companies (not only 'Otra Roonda Más') — the script has to
+  // cover any company that still has products with a categoriaId,
+  // without assuming which one is the main one.
+  const companies = await prisma.empresa.findMany();
+  console.log(`Empresas encontradas: ${companies.length}`);
 
-  let totalMigrados = 0;
-  let totalSinCategoria = 0;
+  let totalMigrated = 0;
+  let totalWithoutCategory = 0;
 
-  for (const empresa of empresas) {
-    console.log(`\n=== Empresa: ${empresa.nombre} (${empresa.id}) ===`);
+  for (const company of companies) {
+    console.log(`\n=== Empresa: ${company.nombre} (${company.id}) ===`);
 
-    // 1) Familias/Subfamilias/GEN del catálogo real (187 rubros
-    // consolidados) — igual que seed.ts, reusa vía skipDuplicates.
+    // 1) Familias/Subfamilias/GEN of the real catalog (187 consolidated
+    // departments) — same as seed.ts, reuses them via skipDuplicates.
     await prisma.familia.createMany({
-      data: jerarquiaData.familias.map((f) => ({
+      data: hierarchyData.familias.map((f) => ({
         nombre: f.nombre,
         prefijo: f.prefijo,
-        empresaId: empresa.id,
+        empresaId: company.id,
       })),
       skipDuplicates: true,
     });
-    const familias = await prisma.familia.findMany({ where: { empresaId: empresa.id } });
-    const familiaIdPorPrefijo = new Map(familias.map((f) => [f.prefijo, f.id]));
+    const families = await prisma.familia.findMany({ where: { empresaId: company.id } });
+    const familyIdByPrefix = new Map(families.map((f) => [f.prefijo, f.id]));
 
     await prisma.subfamilia.createMany({
-      data: jerarquiaData.subfamilias.map((s) => ({
+      data: hierarchyData.subfamilias.map((s) => ({
         nombre: s.nombre,
         prefijo: s.prefijo,
-        empresaId: empresa.id,
-        familiaId: familiaIdPorPrefijo.get(s.familiaPrefijo)!,
+        empresaId: company.id,
+        familiaId: familyIdByPrefix.get(s.familiaPrefijo)!,
       })),
       skipDuplicates: true,
     });
-    const subfamilias = await prisma.subfamilia.findMany({
-      where: { empresaId: empresa.id, familiaId: { in: [...familiaIdPorPrefijo.values()] } },
+    const subfamilies = await prisma.subfamilia.findMany({
+      where: { empresaId: company.id, familiaId: { in: [...familyIdByPrefix.values()] } },
     });
-    const subfamiliaIdPorRubro = new Map(
-      jerarquiaData.subfamilias.map((s) => [
+    const subfamilyIdByDepartment = new Map(
+      hierarchyData.subfamilias.map((s) => [
         s.rubroOriginalCategoria,
-        subfamilias.find(
-          (row) => row.nombre === s.nombre && row.familiaId === familiaIdPorPrefijo.get(s.familiaPrefijo),
+        subfamilies.find(
+          (row) =>
+            row.nombre === s.nombre && row.familiaId === familyIdByPrefix.get(s.familiaPrefijo),
         )!.id,
       ]),
     );
 
     await prisma.tipo.createMany({
-      data: subfamilias.map((s) => ({
-        nombre: NOMBRE_GEN,
-        prefijo: PREFIJO_GEN,
-        empresaId: empresa.id,
+      data: subfamilies.map((s) => ({
+        nombre: NAME_GEN,
+        prefijo: PREFIX_GEN,
+        empresaId: company.id,
         subfamiliaId: s.id,
       })),
       skipDuplicates: true,
     });
-    const tipos = await prisma.tipo.findMany({
-      where: { subfamiliaId: { in: subfamilias.map((s) => s.id) }, nombre: NOMBRE_GEN },
+    const types = await prisma.tipo.findMany({
+      where: { subfamiliaId: { in: subfamilies.map((s) => s.id) }, nombre: NAME_GEN },
     });
-    const tipoIdPorSubfamiliaId = new Map(tipos.map((t) => [t.subfamiliaId, t.id]));
+    const typeIdBySubfamilyId = new Map(types.map((t) => [t.subfamiliaId, t.id]));
 
     await prisma.subtipo.createMany({
-      data: tipos.map((t) => ({
-        nombre: NOMBRE_GEN,
-        prefijo: PREFIJO_GEN,
-        empresaId: empresa.id,
+      data: types.map((t) => ({
+        nombre: NAME_GEN,
+        prefijo: PREFIX_GEN,
+        empresaId: company.id,
         tipoId: t.id,
       })),
       skipDuplicates: true,
     });
-    const subtipos = await prisma.subtipo.findMany({
-      where: { tipoId: { in: tipos.map((t) => t.id) }, nombre: NOMBRE_GEN },
+    const subtypes = await prisma.subtipo.findMany({
+      where: { tipoId: { in: types.map((t) => t.id) }, nombre: NAME_GEN },
     });
-    const subtipoIdPorTipoId = new Map(subtipos.map((s) => [s.tipoId, s.id]));
+    const subtypeIdByTypeId = new Map(subtypes.map((s) => [s.tipoId, s.id]));
 
     console.log(
-      `  Jerarquía lista: ${familias.length} Familias, ${subfamilias.length} Subfamilias.`,
+      `  Jerarquía lista: ${families.length} Familias, ${subfamilies.length} Subfamilias.`,
     );
 
-    // 2) Productos EXISTENTES de esta empresa con categoriaId todavía
-    // seteado (todavía no migrados) — join manual porque el modelo
-    // Categoria/Producto.categoriaId sigue existiendo en este punto de
-    // la migración (paso 1 de 2, ver comentario de arriba del archivo).
-    const productos = await prisma.$queryRawUnsafe<
+    // 2) EXISTING Productos of this company with categoriaId still set
+    // (not yet migrated) — manual join because the Categoria model /
+    // Producto.categoriaId still exists at this point of the migration
+    // (step 1 of 2, see the comment at the top of the file).
+    const products = await prisma.$queryRawUnsafe<
       { id: string; categoriaId: string; categoriaNombre: string }[]
     >(
       `SELECT p.id, p."categoriaId", c.nombre AS "categoriaNombre"
        FROM "Producto" p
        JOIN "Categoria" c ON c.id = p."categoriaId"
        WHERE p."empresaId" = $1 AND p."familiaId" IS NULL`,
-      empresa.id,
+      company.id,
     );
-    console.log(`  Productos a migrar: ${productos.length}`);
-    if (productos.length === 0) {
+    console.log(`  Productos a migrar: ${products.length}`);
+    if (products.length === 0) {
       continue;
     }
 
-    // Categorías sin mapeo en el catálogo real (base del piloto,
-    // vacías o casi vacías) — se resuelven creando una Familia/
-    // Subfamilia propia con ese mismo nombre, no se descartan ni se
-    // fuerzan al árbol de 187 rubros reales.
-    const nombresSinMapeo = new Set(
-      productos.map((p) => p.categoriaNombre).filter((n) => !subfamiliaIdPorRubro.has(n)),
+    // Categories without a mapping in the real catalog (pilot base, empty
+    // or almost empty) — resolved by creating a Familia/Subfamilia of
+    // their own with that same name; they are neither discarded nor forced
+    // into the tree of 187 real departments.
+    const namesWithoutMapping = new Set(
+      products.map((p) => p.categoriaNombre).filter((n) => !subfamilyIdByDepartment.has(n)),
     );
-    const nodosPorNombreSinMapeo = new Map<
+    const nodesByNameWithoutMapping = new Map<
       string,
-      Awaited<ReturnType<typeof crearFamiliaSubfamiliaGen>>
+      Awaited<ReturnType<typeof createFamilySubfamilyGen>>
     >();
-    for (const nombre of nombresSinMapeo) {
-      console.log(`  Categoria sin mapeo al catálogo real: "${nombre}" — creando Familia propia.`);
-      nodosPorNombreSinMapeo.set(nombre, await crearFamiliaSubfamiliaGen(empresa.id, nombre));
+    for (const name of namesWithoutMapping) {
+      console.log(`  Categoria sin mapeo al catálogo real: "${name}" — creando Familia propia.`);
+      nodesByNameWithoutMapping.set(name, await createFamilySubfamilyGen(company.id, name));
     }
 
-    // 3) Correlativo de SKU: continúa desde el máximo correlativo ya
-    // usado por esta empresa (no reinicia en 1 — evita colisión con
-    // SKUs que ya pudieran existir de una corrida previa de seed.ts en
-    // esta misma empresa, aunque en producción no debería haber
-    // ninguno todavía).
-    const ultimoProducto = await prisma.producto.findFirst({
-      where: { empresaId: empresa.id },
+    // 3) SKU sequence: continues from the maximum sequence already used by
+    // this company (does not restart at 1 — avoids collisions with SKUs
+    // that may already exist from a previous seed.ts run in this same
+    // company, although in production there should be none yet).
+    const lastProduct = await prisma.producto.findFirst({
+      where: { empresaId: company.id },
       orderBy: { codigoInterno: 'desc' },
       select: { codigoInterno: true },
     });
-    let correlativo = 1;
-    if (ultimoProducto?.codigoInterno) {
-      const match = ultimoProducto.codigoInterno.match(/-(\d{8})$/);
-      if (match) correlativo = parseInt(match[1], 10) + 1;
+    let sequentialNumber = 1;
+    if (lastProduct?.codigoInterno) {
+      const match = lastProduct.codigoInterno.match(/-(\d{8})$/);
+      if (match) sequentialNumber = parseInt(match[1], 10) + 1;
     }
 
-    let migrados = 0;
-    for (const producto of productos) {
-      let subfamiliaId = subfamiliaIdPorRubro.get(producto.categoriaNombre);
-      let familiaId: string | undefined;
-      let tipoId: string | undefined;
-      let subtipoId: string | undefined;
+    let migrated = 0;
+    for (const product of products) {
+      let subfamilyId = subfamilyIdByDepartment.get(product.categoriaNombre);
+      let familyId: string | undefined;
+      let typeId: string | undefined;
+      let subtypeId: string | undefined;
 
-      if (subfamiliaId) {
-        const subfamilia = subfamilias.find((s) => s.id === subfamiliaId)!;
-        familiaId = subfamilia.familiaId;
-        tipoId = tipoIdPorSubfamiliaId.get(subfamiliaId);
-        subtipoId = tipoId ? subtipoIdPorTipoId.get(tipoId) : undefined;
+      if (subfamilyId) {
+        const subfamily = subfamilies.find((s) => s.id === subfamilyId)!;
+        familyId = subfamily.familiaId;
+        typeId = typeIdBySubfamilyId.get(subfamilyId);
+        subtypeId = typeId ? subtypeIdByTypeId.get(typeId) : undefined;
       } else {
-        const nodos = nodosPorNombreSinMapeo.get(producto.categoriaNombre)!;
-        familiaId = nodos.familia.id;
-        subfamiliaId = nodos.subfamilia.id;
-        tipoId = nodos.tipo.id;
-        subtipoId = nodos.subtipo.id;
+        const nodes = nodesByNameWithoutMapping.get(product.categoriaNombre)!;
+        familyId = nodes.familia.id;
+        subfamilyId = nodes.subfamilia.id;
+        typeId = nodes.tipo.id;
+        subtypeId = nodes.subtipo.id;
       }
 
-      if (!familiaId || !subfamiliaId || !tipoId || !subtipoId) {
+      if (!familyId || !subfamilyId || !typeId || !subtypeId) {
         throw new Error(
-          `No se pudo resolver la jerarquía completa para producto ${producto.id} (categoría "${producto.categoriaNombre}")`,
+          `No se pudo resolver la jerarquía completa para producto ${product.id} (categoría "${product.categoriaNombre}")`,
         );
       }
 
-      const familiaPrefijo = familias.find((f) => f.id === familiaId)?.prefijo ?? PREFIJO_GEN;
-      const subfamiliaPrefijo =
-        subfamilias.find((s) => s.id === subfamiliaId)?.prefijo ??
-        [...nodosPorNombreSinMapeo.values()].find((n) => n.subfamilia.id === subfamiliaId)
+      const familyPrefix = families.find((f) => f.id === familyId)?.prefijo ?? PREFIX_GEN;
+      const subfamilyPrefix =
+        subfamilies.find((s) => s.id === subfamilyId)?.prefijo ??
+        [...nodesByNameWithoutMapping.values()].find((n) => n.subfamilia.id === subfamilyId)
           ?.subfamilia.prefijo ??
-        PREFIJO_GEN;
-      const sku = construirSku(familiaPrefijo, subfamiliaPrefijo, PREFIJO_GEN, PREFIJO_GEN, correlativo++);
+        PREFIX_GEN;
+      const sku = buildSku(
+        familyPrefix,
+        subfamilyPrefix,
+        PREFIX_GEN,
+        PREFIX_GEN,
+        sequentialNumber++,
+      );
 
       await prisma.producto.update({
-        where: { id: producto.id },
+        where: { id: product.id },
         data: {
-          familiaId,
-          subfamiliaId,
-          tipoId,
-          subtipoId,
+          familiaId: familyId,
+          subfamiliaId: subfamilyId,
+          tipoId: typeId,
+          subtipoId: subtypeId,
           codigoInterno: sku,
         },
       });
-      migrados++;
-      if (migrados % 500 === 0) {
-        console.log(`    Migrados: ${migrados}/${productos.length}`);
+      migrated++;
+      if (migrated % 500 === 0) {
+        console.log(`    Migrados: ${migrated}/${products.length}`);
       }
     }
-    console.log(`  Migrados: ${migrados}/${productos.length}`);
-    totalMigrados += migrados;
+    console.log(`  Migrados: ${migrated}/${products.length}`);
+    totalMigrated += migrated;
   }
 
-  // 4) Verificación final: no debería quedar ningún producto sin los 4
-  // niveles asignados en ninguna empresa. $queryRaw (no
-  // prisma.producto.count) porque el Prisma Client generado en este
-  // punto de la migración de 2 pasos todavía no tipa familiaId como
-  // nullable de forma consistente para un filtro `{ familiaId: null }`.
+  // 4) Final verification: no product should be left without the 4 levels
+  // assigned in any company. $queryRaw (not prisma.producto.count)
+  // because the Prisma Client generated at this point of the 2-step
+  // migration does not yet type familiaId as nullable consistently for
+  // a `{ familiaId: null }` filter.
   const [{ count }] = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-    `SELECT count(*) AS count FROM "Producto" WHERE "familiaId" IS NULL`,
+    'SELECT count(*) AS count FROM "Producto" WHERE "familiaId" IS NULL',
   );
-  totalSinCategoria = Number(count);
+  totalWithoutCategory = Number(count);
 
-  console.log(`\n=== RESUMEN ===`);
-  console.log(`Productos migrados: ${totalMigrados}`);
-  console.log(`Productos SIN familiaId tras la migración: ${totalSinCategoria}`);
-  if (totalSinCategoria > 0) {
+  console.log('\n=== RESUMEN ===');
+  console.log(`Productos migrados: ${totalMigrated}`);
+  console.log(`Productos SIN familiaId tras la migración: ${totalWithoutCategory}`);
+  if (totalWithoutCategory > 0) {
     throw new Error(
-      `Quedaron ${totalSinCategoria} productos sin migrar — revisar antes de aplicar la migración NOT NULL.`,
+      `Quedaron ${totalWithoutCategory} productos sin migrar — revisar antes de aplicar la migración NOT NULL.`,
     );
   }
 }

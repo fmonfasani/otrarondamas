@@ -20,8 +20,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { AuthenticatedUser, PerfilUsuario } from './auth.types';
-import { GooglePerfil } from './google.strategy';
+import { AuthenticatedUser, UserProfile } from './auth.types';
+import { GoogleProfile } from './google.strategy';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -40,92 +40,92 @@ export class AuthController {
     return this.authService.login(dto.email, dto.password);
   }
 
-  // A diferencia del resto de /auth, consulta la DB en cada llamada (no
-  // solo lo que ya viene en el JWT) — el módulo de perfil necesita datos
-  // que pueden cambiar sin relogin (foto, nombre de empresa) y que no
-  // tiene sentido embeber en el token firmado.
+  // Unlike the rest of /auth, it queries the DB on every call (not only
+  // what already comes in the JWT) — the profile module needs data that
+  // can change without a re-login (photo, company name) and that makes
+  // no sense to embed in the signed token.
   @ApiBearerAuth()
   @Get('me')
-  async me(@CurrentUser() user: AuthenticatedUser): Promise<PerfilUsuario> {
-    const usuario = await this.prisma.usuario.findUnique({
+  async me(@CurrentUser() user: AuthenticatedUser): Promise<UserProfile> {
+    const userRecord = await this.prisma.usuario.findUnique({
       where: { id: user.id },
       include: { empresa: true },
     });
-    if (!usuario) {
-      // El JWT sigue siendo válido pero el usuario ya no existe en la
-      // base (borrado entre el login y esta request) — caso raro, pero
-      // no hay que asumir que CurrentUser() siempre tiene un registro
-      // vivo detrás.
+    if (!userRecord) {
+      // The JWT is still valid but the user no longer exists in the database
+      // (deleted between login and this request) — rare case, but we must
+      // not assume CurrentUser() always has a live record behind it.
       throw new NotFoundException('Usuario no encontrado');
     }
 
     return {
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      empresaId: usuario.empresaId,
-      empresaNombre: usuario.empresa.nombre,
+      id: userRecord.id,
+      email: userRecord.email,
+      nombre: userRecord.nombre,
+      empresaId: userRecord.empresaId,
+      empresaNombre: userRecord.empresa.nombre,
       permisos: user.permisos,
-      fotoUrl: usuario.fotoUrl,
-      metodoLogin: usuario.googleId ? 'google' : 'password',
-      createdAt: usuario.createdAt.toISOString(),
-      // Frescos de la base, no del JWT — GET /auth/me existe justamente
-      // para reflejar cambios sin esperar a un nuevo login (ver
-      // comentario de la clase JwtPayload sobre esta limitación).
-      rol: usuario.rol,
-      estadoLegajo: usuario.estadoLegajo,
+      fotoUrl: userRecord.fotoUrl,
+      metodoLogin: userRecord.googleId ? 'google' : 'password',
+      createdAt: userRecord.createdAt.toISOString(),
+      // Fresh from the database, not from the JWT — GET /auth/me exists
+      // precisely to reflect changes without waiting for a new login (see
+      // the JwtPayload class comment about this limitation).
+      rol: userRecord.rol,
+      estadoLegajo: userRecord.estadoLegajo,
       type: 'usuario' as const,
     };
   }
 
-  // S-V1-01: pertenencias del usuario autenticado (read-only). Usa el
-  // Usuario.id de la sesión para resolver el User canónico vía el vínculo
-  // explícito del backfill; sin vínculo devuelve lista vacía (cuenta aún
-  // sin migrar). No toca login, JWT, /auth/me ni permisos.
+  // S-V1-01: memberships of the authenticated user (read-only). Uses the
+  // session's Usuario.id to resolve the canonical User through the
+  // explicit link created by the backfill; without a link it returns an
+  // empty list (account not yet migrated). Does not touch login, JWT,
+  // /auth/me or permissions.
   @ApiBearerAuth()
   @Get('memberships')
   async memberships(@CurrentUser() user: AuthenticatedUser) {
-    const canonical = await this.membershipService.findUserByLegacyUsuarioId(user.id);
+    const canonical = await this.membershipService.findUserByLegacyUserId(user.id);
     if (!canonical) return [];
     return this.membershipService.getMembershipsForUser(canonical.id);
   }
 
-  // Dispara el redirect a la pantalla de consentimiento de Google.
-  // AuthGuard('google') hace todo el trabajo: no hay handler propio que
-  // ejecutar, Passport intercepta la request antes de llegar acá.
+  // Triggers the redirect to the Google consent screen. AuthGuard('google')
+  // does all the work: there is no handler of its own to run, Passport
+  // intercepts the request before it gets here.
   @Public()
   @UseGuards(AuthGuard('google'))
   @Get('google')
-  @ApiExcludeEndpoint() // no es un endpoint JSON, no tiene sentido en Swagger
+  @ApiExcludeEndpoint() // not a JSON endpoint, makes no sense in Swagger
   googleLogin() {}
 
-  // Google redirige acá después del consentimiento, con el código ya
-  // canjeado por Passport (GoogleStrategy.validate ya corrió). No devuelve
-  // JSON: esta es una navegación del navegador, no un fetch del frontend,
-  // así que la única forma de pasarle el token es un redirect con el
-  // token en la URL. FRONTEND_URL nunca debe apuntar a un dominio no
-  // controlado — si un atacante lograra cambiar esa env var tendría el
-  // token de cualquiera que loguee en ese momento, de ahí que no se derive
-  // de un header de la request (Origin/Referer son falsificables).
+  // Google redirects here after consent, with the code already exchanged
+  // by Passport (GoogleStrategy.validate has already run). It does not
+  // return JSON: this is a browser navigation, not a frontend fetch, so
+  // the only way to hand over the token is a redirect with the token in
+  // the URL. FRONTEND_URL must never point to an uncontrolled domain — if
+  // an attacker managed to change that env var they would get the token
+  // of anyone logging in at that moment, hence it is not derived from a
+  // request header (Origin/Referer can be forged).
   @Public()
   @UseGuards(AuthGuard('google'))
   @Get('google/callback')
   @ApiExcludeEndpoint()
-  async googleCallback(@Req() req: { user: GooglePerfil }, @Res() res: Response) {
+  async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
     const frontendUrl = process.env.FRONTEND_URL;
     if (!frontendUrl) {
       throw new Error('FRONTEND_URL no configurado (ver apps/api/.env)');
     }
 
     try {
-      const sesion = await this.authGoogleService.loginConGoogle(req.user);
+      const session = await this.authGoogleService.loginWithGoogle(req.user);
       const redirectUrl = new URL('/auth/google/callback', frontendUrl);
-      redirectUrl.searchParams.set('token', sesion.accessToken);
+      redirectUrl.searchParams.set('token', session.accessToken);
       res.redirect(redirectUrl.toString());
     } catch {
-      // No se filtra el motivo exacto al navegador (mismo criterio que
-      // login por password): la pantalla de login del frontend interpreta
-      // ?error=google y muestra un mensaje genérico.
+      // The exact reason is not leaked to the browser (same criterion as
+      // password login): the frontend login screen interprets ?error=google
+      // and shows a generic message.
       const redirectUrl = new URL('/login', frontendUrl);
       redirectUrl.searchParams.set('error', 'google');
       res.redirect(redirectUrl.toString());

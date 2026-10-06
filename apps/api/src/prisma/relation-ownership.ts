@@ -1,24 +1,23 @@
 import { Prisma } from '@prisma/client';
 
- /**
- * Relation isolation (B3 / T01-03): una relación persistida no puede
- * vincular recursos de empresas distintas.
+/**
+ * Relation isolation (B3 / T01-03): a persisted relation cannot link
+ * resources from different companies.
  *
- * Prisma no ejecuta los hooks de `query` para operaciones anidadas por
- * separado, pero el hook de la operación de nivel superior sí recibe el
- * payload completo. Este módulo recorre ese payload y extrae las
- * referencias a recursos relacionados cuyo ownership debe verificarse
- * antes de persistir. La verificación contra la base la hace
- * empresa-scope.extension.ts.
+ * Prisma does not run the `query` hooks for nested operations separately,
+ * but the top-level operation hook does receive the full payload. This
+ * module walks that payload and extracts the references to related
+ * resources whose ownership must be verified before persisting. The
+ * verification against the database is done by company-scope.extension.ts.
  *
- * Registro declarativo y opt-in: solo las relaciones listadas acá se
- * validan. Agregar una relación es agregar una entrada; no cambia el
- * comportamiento del resto del sistema.
+ * Declarative and opt-in registry: only the relations listed here are
+ * validated. Adding a relation means adding an entry; it does not change
+ * the behavior of the rest of the system.
  *
- * Clave: modelo dueño de la relación. Valor: nombres de campo-relación
- * (el FK se deriva del schema vía DMMF).
+ * Key: model that owns the relation. Value: relation field names (the FK is
+ * derived from the schema via DMMF).
  */
-export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
+export const RELATIONS_WITH_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
   VentaItem: ['producto', 'reglaFidelizacion'],
   PedidoItem: ['producto', 'reglaFidelizacion'],
   CompraItem: ['producto'],
@@ -30,125 +29,125 @@ export const RELACIONES_CON_OWNERSHIP: Readonly<Record<string, readonly string[]
   ReglaFidelizacion: ['subtipo', 'familia', 'subfamilia'],
 };
 
-type Datos = Record<string, unknown>;
+type Data = Record<string, unknown>;
 
-export interface ReferenciaRelacional {
-  modelo: string;
-  where: Datos;
+export interface RelationalReference {
+  model: string;
+  where: Data;
 }
 
-const camposPorModelo = new Map<string, Map<string, Prisma.DMMF.Field>>();
+const fieldsByModel = new Map<string, Map<string, Prisma.DMMF.Field>>();
 
-function camposDe(modelo: string): Map<string, Prisma.DMMF.Field> {
-  let campos = camposPorModelo.get(modelo);
-  if (!campos) {
-    const definicion = Prisma.dmmf.datamodel.models.find((m) => m.name === modelo);
-    campos = new Map((definicion?.fields ?? []).map((f) => [f.name, f]));
-    camposPorModelo.set(modelo, campos);
+function fieldsOf(model: string): Map<string, Prisma.DMMF.Field> {
+  let fields = fieldsByModel.get(model);
+  if (!fields) {
+    const definition = Prisma.dmmf.datamodel.models.find((m) => m.name === model);
+    fields = new Map((definition?.fields ?? []).map((f) => [f.name, f]));
+    fieldsByModel.set(model, fields);
   }
-  return campos;
+  return fields;
 }
 
-function esObjeto(valor: unknown): valor is Datos {
-  return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
+function isObject(value: unknown): value is Data {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function lista(valor: unknown): unknown[] {
-  if (Array.isArray(valor)) return valor;
-  return valor === undefined || valor === null ? [] : [valor];
+function toList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
 }
 
-function relacionesRegistradas(modelo: string): Map<string, Prisma.DMMF.Field> {
-  const resultado = new Map<string, Prisma.DMMF.Field>();
-  for (const nombre of RELACIONES_CON_OWNERSHIP[modelo] ?? []) {
-    const campo = camposDe(modelo).get(nombre);
+function registeredRelations(model: string): Map<string, Prisma.DMMF.Field> {
+  const result = new Map<string, Prisma.DMMF.Field>();
+  for (const name of RELATIONS_WITH_OWNERSHIP[model] ?? []) {
+    const field = fieldsOf(model).get(name);
     if (
-      !campo ||
-      campo.kind !== 'object' ||
-      campo.relationFromFields?.length !== 1 ||
-      campo.relationToFields?.length !== 1
+      !field ||
+      field.kind !== 'object' ||
+      field.relationFromFields?.length !== 1 ||
+      field.relationToFields?.length !== 1
     ) {
       throw new Error(
-        `relation-ownership: '${modelo}.${nombre}' no es una relación con FK simple; no se puede verificar su ownership.`,
+        `relation-ownership: '${model}.${name}' no es una relación con FK simple; no se puede verificar su ownership.`,
       );
     }
-    resultado.set(nombre, campo);
+    result.set(name, field);
   }
-  return resultado;
+  return result;
 }
 
-export function modeloTieneRelacionesConOwnership(modelo: string): boolean {
-  return (RELACIONES_CON_OWNERSHIP[modelo] ?? []).length > 0;
+export function modelHasRelationsWithOwnership(model: string): boolean {
+  return (RELATIONS_WITH_OWNERSHIP[model] ?? []).length > 0;
 }
 
-function valorFk(modelo: string, fk: string, valor: unknown): string | null {
-  if (valor === null || valor === undefined) return null;
-  if (typeof valor === 'string') return valor;
-  if (esObjeto(valor) && Object.keys(valor).length === 1 && 'set' in valor) {
-    return valorFk(modelo, fk, valor.set);
+function fkValue(model: string, fk: string, value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (isObject(value) && Object.keys(value).length === 1 && 'set' in value) {
+    return fkValue(model, fk, value.set);
   }
   throw new Error(
-    `relation-ownership: forma de valor no soportada para '${modelo}.${fk}'; no se puede verificar su ownership.`,
+    `relation-ownership: forma de valor no soportada para '${model}.${fk}'; no se puede verificar su ownership.`,
   );
 }
 
-function referenciaDeFk(campo: Prisma.DMMF.Field, valor: string): ReferenciaRelacional {
-  return { modelo: campo.type, where: { [campo.relationToFields![0]]: valor } };
+function referenceFromFk(field: Prisma.DMMF.Field, value: string): RelationalReference {
+  return { model: field.type, where: { [field.relationToFields![0]]: value } };
 }
 
-function referenciasDeConnect(
-  modelo: string,
-  campo: Prisma.DMMF.Field,
-  operaciones: unknown,
-  refs: ReferenciaRelacional[],
+function referencesFromConnect(
+  model: string,
+  field: Prisma.DMMF.Field,
+  operations: unknown,
+  refs: RelationalReference[],
 ): void {
-  if (!esObjeto(operaciones)) return;
-  for (const [operacion, payload] of Object.entries(operaciones)) {
-    if (operacion !== 'connect') {
+  if (!isObject(operations)) return;
+  for (const [operation, payload] of Object.entries(operations)) {
+    if (operation !== 'connect') {
       throw new Error(
-        `relation-ownership: la operación anidada '${operacion}' sobre '${modelo}.${campo.name}' no tiene manejo de ownership definido. Solo se admite 'connect' o el FK escalar.`,
+        `relation-ownership: la operación anidada '${operation}' sobre '${model}.${field.name}' no tiene manejo de ownership definido. Solo se admite 'connect' o el FK escalar.`,
       );
     }
-    for (const where of lista(payload)) {
-      if (esObjeto(where)) refs.push({ modelo: campo.type, where });
+    for (const where of toList(payload)) {
+      if (isObject(where)) refs.push({ model: field.type, where });
     }
   }
 }
 
-function datosDeUpdate(hijo: string, item: unknown): unknown {
-  if (esObjeto(item) && esObjeto(item.data) && !camposDe(hijo).has('data')) return item.data;
+function updateData(child: string, item: unknown): unknown {
+  if (isObject(item) && isObject(item.data) && !fieldsOf(child).has('data')) return item.data;
   return item;
 }
 
-function visitarRelacionNoRegistrada(
-  campo: Prisma.DMMF.Field,
-  operaciones: unknown,
-  refs: ReferenciaRelacional[],
+function visitUnregisteredRelation(
+  field: Prisma.DMMF.Field,
+  operations: unknown,
+  refs: RelationalReference[],
 ): void {
-  if (!esObjeto(operaciones)) return;
-  const hijo = campo.type;
-  for (const [operacion, payload] of Object.entries(operaciones)) {
-    switch (operacion) {
+  if (!isObject(operations)) return;
+  const child = field.type;
+  for (const [operation, payload] of Object.entries(operations)) {
+    switch (operation) {
       case 'create':
-        lista(payload).forEach((d) => visitarDatos(hijo, d, refs));
+        toList(payload).forEach((d) => visitData(child, d, refs));
         break;
       case 'createMany':
-        if (esObjeto(payload)) lista(payload.data).forEach((d) => visitarDatos(hijo, d, refs));
+        if (isObject(payload)) toList(payload.data).forEach((d) => visitData(child, d, refs));
         break;
       case 'connectOrCreate':
-        lista(payload).forEach((i) => esObjeto(i) && visitarDatos(hijo, i.create, refs));
+        toList(payload).forEach((i) => isObject(i) && visitData(child, i.create, refs));
         break;
       case 'update':
-        lista(payload).forEach((i) => visitarDatos(hijo, datosDeUpdate(hijo, i), refs));
+        toList(payload).forEach((i) => visitData(child, updateData(child, i), refs));
         break;
       case 'updateMany':
-        lista(payload).forEach((i) => esObjeto(i) && visitarDatos(hijo, i.data, refs));
+        toList(payload).forEach((i) => isObject(i) && visitData(child, i.data, refs));
         break;
       case 'upsert':
-        lista(payload).forEach((i) => {
-          if (!esObjeto(i)) return;
-          visitarDatos(hijo, i.create, refs);
-          visitarDatos(hijo, i.update, refs);
+        toList(payload).forEach((i) => {
+          if (!isObject(i)) return;
+          visitData(child, i.create, refs);
+          visitData(child, i.update, refs);
         });
         break;
       default:
@@ -157,75 +156,75 @@ function visitarRelacionNoRegistrada(
   }
 }
 
-function visitarDatos(modelo: string, datos: unknown, refs: ReferenciaRelacional[]): void {
-  if (!esObjeto(datos)) return;
-  const campos = camposDe(modelo);
-  const registradas = relacionesRegistradas(modelo);
-  const relacionPorFk = new Map<string, Prisma.DMMF.Field>();
-  for (const campo of registradas.values()) {
-    relacionPorFk.set(campo.relationFromFields![0], campo);
+function visitData(model: string, data: unknown, refs: RelationalReference[]): void {
+  if (!isObject(data)) return;
+  const fields = fieldsOf(model);
+  const registered = registeredRelations(model);
+  const relationByFk = new Map<string, Prisma.DMMF.Field>();
+  for (const field of registered.values()) {
+    relationByFk.set(field.relationFromFields![0], field);
   }
 
-  for (const [clave, valor] of Object.entries(datos)) {
-    if (valor === undefined) continue;
-    const campo = campos.get(clave);
-    if (!campo) continue;
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    const field = fields.get(key);
+    if (!field) continue;
 
-    const relacionDelFk = relacionPorFk.get(clave);
-    if (relacionDelFk) {
-      const id = valorFk(modelo, clave, valor);
-      if (id !== null) refs.push(referenciaDeFk(relacionDelFk, id));
+    const fkRelation = relationByFk.get(key);
+    if (fkRelation) {
+      const id = fkValue(model, key, value);
+      if (id !== null) refs.push(referenceFromFk(fkRelation, id));
       continue;
     }
 
-    if (campo.kind !== 'object') continue;
+    if (field.kind !== 'object') continue;
 
-    const registrada = registradas.get(clave);
-    if (registrada) {
-      referenciasDeConnect(modelo, registrada, valor, refs);
+    const isRegistered = registered.get(key);
+    if (isRegistered) {
+      referencesFromConnect(model, isRegistered, value, refs);
     } else {
-      visitarRelacionNoRegistrada(campo, valor, refs);
+      visitUnregisteredRelation(field, value, refs);
     }
   }
 }
 
 /**
- * Devuelve las referencias a recursos relacionados que la operación
- * (incluyendo sus escrituras anidadas) pretende vincular y que están
- * registradas en RELACIONES_CON_OWNERSHIP. Lanza si una relación
- * registrada se usa de una forma cuyo ownership no se puede verificar.
+ * Returns the references to related resources that the operation (including
+ * its nested writes) intends to link and that are registered in
+ * RELATIONS_WITH_OWNERSHIP. Throws if a registered relation is used in a
+ * way whose ownership cannot be verified.
  */
-export function recolectarReferenciasRelacionales(
-  modelo: string,
-  operacion: string,
+export function collectRelationalReferences(
+  model: string,
+  operation: string,
   args: unknown,
-): ReferenciaRelacional[] {
-  if (!esObjeto(args)) return [];
-  const refs: ReferenciaRelacional[] = [];
+): RelationalReference[] {
+  if (!isObject(args)) return [];
+  const refs: RelationalReference[] = [];
 
-  switch (operacion) {
+  switch (operation) {
     case 'create':
     case 'update':
     case 'updateMany':
-      visitarDatos(modelo, args.data, refs);
+      visitData(model, args.data, refs);
       break;
     case 'createMany':
     case 'createManyAndReturn':
-      lista(args.data).forEach((d) => visitarDatos(modelo, d, refs));
+      toList(args.data).forEach((d) => visitData(model, d, refs));
       break;
     case 'upsert':
-      visitarDatos(modelo, args.create, refs);
-      visitarDatos(modelo, args.update, refs);
+      visitData(model, args.create, refs);
+      visitData(model, args.update, refs);
       break;
     default:
       break;
   }
 
-  const vistas = new Set<string>();
+  const seen = new Set<string>();
   return refs.filter((ref) => {
-    const clave = `${ref.modelo}:${JSON.stringify(ref.where)}`;
-    if (vistas.has(clave)) return false;
-    vistas.add(clave);
+    const key = `${ref.model}:${JSON.stringify(ref.where)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }

@@ -1,7 +1,7 @@
-import { EmpresaScopedPrismaService } from '../../src/prisma/empresa-scoped-prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
-type Jerarquia = {
+type Hierarchy = {
   empresaId: string;
   familiaId: string;
   subfamiliaId: string;
@@ -11,200 +11,226 @@ type Jerarquia = {
 
 describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
   let prisma: PrismaService;
-  let scopedPrisma: EmpresaScopedPrismaService;
+  let scopedPrisma: CompanyScopedPrismaService;
   let suffix: number;
-  let secuencia = 0;
-  let jerA: Jerarquia;
-  let jerB: Jerarquia;
+  let sequence = 0;
+  let hierA: Hierarchy;
+  let hierB: Hierarchy;
 
-  // Cada test pide su propio codigoInterno: ningún test depende de filas de otro
-  // ni puede colisionar con el @@unique([empresaId, codigoInterno]) (P2002).
-  const codigoUnico = (id: string) => `B3TP-${id}-${suffix}-${++secuencia}`;
+  // Each test asks for its own codigoInterno: no test depends on rows from
+  // another nor can it collide with @@unique([empresaId, codigoInterno])
+  // (P2002).
+  const uniqueCode = (id: string) => `B3TP-${id}-${suffix}-${++sequence}`;
 
-  const productoData = (jer: Jerarquia, tipoId: string, codigoInterno: string) => ({
-    empresaId: jer.empresaId,
-    nombre: `B3 TP ${codigoInterno}`,
-    codigoInterno,
-    familiaId: jer.familiaId,
-    subfamiliaId: jer.subfamiliaId,
-    tipoId,
-    subtipoId: jer.subtipoId,
+  const productData = (hier: Hierarchy, typeId: string, internalCode: string) => ({
+    empresaId: hier.empresaId,
+    nombre: `B3 TP ${internalCode}`,
+    codigoInterno: internalCode,
+    familiaId: hier.familiaId,
+    subfamiliaId: hier.subfamiliaId,
+    tipoId: typeId,
+    subtipoId: hier.subtipoId,
     unidadBase: 'UNIDAD' as const,
     costo: 5,
     precioMinorista: 10,
   });
 
-  const codigoDeRechazo = async (operacion: Promise<unknown>): Promise<string> => {
+  const rejectionCode = async (operation: Promise<unknown>): Promise<string> => {
     try {
-      await operacion;
+      await operation;
       return 'RESOLVED';
     } catch (error) {
       return (error as { code?: string }).code ?? 'NO_CODE';
     }
   };
 
-  const crearJerarquia = async (etiqueta: 'A' | 'B', s: number): Promise<Jerarquia> => {
-    const empresa = await prisma.empresa.create({
-      data: { nombre: `B3 TP ${etiqueta} ${s}`, configuracion: {} },
+  const createHierarchy = async (label: 'A' | 'B', s: number): Promise<Hierarchy> => {
+    const company = await prisma.empresa.create({
+      data: { nombre: `B3 TP ${label} ${s}`, configuracion: {} },
       select: { id: true },
     });
-    const familia = await prisma.familia.create({
-      data: { empresaId: empresa.id, nombre: `B3 TP Familia ${etiqueta} ${s}`, prefijo: `F${etiqueta}Q` },
+    const family = await prisma.familia.create({
+      data: { empresaId: company.id, nombre: `B3 TP Familia ${label} ${s}`, prefijo: `F${label}Q` },
       select: { id: true },
     });
-    const subfamilia = await prisma.subfamilia.create({
-      data: { empresaId: empresa.id, familiaId: familia.id, nombre: `B3 TP Sub ${etiqueta} ${s}`, prefijo: `S${etiqueta}Q` },
+    const subfamily = await prisma.subfamilia.create({
+      data: {
+        empresaId: company.id,
+        familiaId: family.id,
+        nombre: `B3 TP Sub ${label} ${s}`,
+        prefijo: `S${label}Q`,
+      },
       select: { id: true },
     });
-    const tipo = await prisma.tipo.create({
-      data: { empresaId: empresa.id, subfamiliaId: subfamilia.id, nombre: `B3 TP Tipo ${etiqueta} ${s}`, prefijo: `T${etiqueta}Q` },
+    const type = await prisma.tipo.create({
+      data: {
+        empresaId: company.id,
+        subfamiliaId: subfamily.id,
+        nombre: `B3 TP Tipo ${label} ${s}`,
+        prefijo: `T${label}Q`,
+      },
       select: { id: true },
     });
-    const subtipo = await prisma.subtipo.create({
-      data: { empresaId: empresa.id, tipoId: tipo.id, nombre: `B3 TP Subtipo ${etiqueta} ${s}`, prefijo: `X${etiqueta}Q` },
+    const subtype = await prisma.subtipo.create({
+      data: {
+        empresaId: company.id,
+        tipoId: type.id,
+        nombre: `B3 TP Subtipo ${label} ${s}`,
+        prefijo: `X${label}Q`,
+      },
       select: { id: true },
     });
     return {
-      empresaId: empresa.id,
-      familiaId: familia.id,
-      subfamiliaId: subfamilia.id,
-      tipoId: tipo.id,
-      subtipoId: subtipo.id,
+      empresaId: company.id,
+      familiaId: family.id,
+      subfamiliaId: subfamily.id,
+      tipoId: type.id,
+      subtipoId: subtype.id,
     };
   };
 
   beforeAll(async () => {
     prisma = new PrismaService();
     await prisma.$connect();
-    scopedPrisma = new EmpresaScopedPrismaService(prisma);
+    scopedPrisma = new CompanyScopedPrismaService(prisma);
     suffix = Date.now();
-    jerA = await crearJerarquia('A', suffix);
-    jerB = await crearJerarquia('B', suffix);
+    hierA = await createHierarchy('A', suffix);
+    hierB = await createHierarchy('B', suffix);
   });
 
   afterAll(async () => {
-    const jerarquias = [jerA, jerB];
-    await prisma.producto.deleteMany({ where: { empresaId: { in: jerarquias.map((j) => j.empresaId) } } });
-    await prisma.subtipo.deleteMany({ where: { id: { in: jerarquias.map((j) => j.subtipoId) } } });
-    await prisma.tipo.deleteMany({ where: { id: { in: jerarquias.map((j) => j.tipoId) } } });
-    await prisma.subfamilia.deleteMany({ where: { id: { in: jerarquias.map((j) => j.subfamiliaId) } } });
-    await prisma.familia.deleteMany({ where: { id: { in: jerarquias.map((j) => j.familiaId) } } });
-    await prisma.empresa.deleteMany({ where: { id: { in: jerarquias.map((j) => j.empresaId) } } });
+    const hierarchies = [hierA, hierB];
+    await prisma.producto.deleteMany({
+      where: { empresaId: { in: hierarchies.map((j) => j.empresaId) } },
+    });
+    await prisma.subtipo.deleteMany({ where: { id: { in: hierarchies.map((j) => j.subtipoId) } } });
+    await prisma.tipo.deleteMany({ where: { id: { in: hierarchies.map((j) => j.tipoId) } } });
+    await prisma.subfamilia.deleteMany({
+      where: { id: { in: hierarchies.map((j) => j.subfamiliaId) } },
+    });
+    await prisma.familia.deleteMany({ where: { id: { in: hierarchies.map((j) => j.familiaId) } } });
+    await prisma.empresa.deleteMany({ where: { id: { in: hierarchies.map((j) => j.empresaId) } } });
     await prisma.$disconnect();
   });
 
   it('TP-01: same-Business Tipo reference persists', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
+    const db = scopedPrisma.forCompany(hierA.empresaId);
     const created = await db.producto.create({
-      data: productoData(jerA, jerA.tipoId, codigoUnico('01')),
+      data: productData(hierA, hierA.tipoId, uniqueCode('01')),
       select: { empresaId: true, tipoId: true },
     });
 
-    expect(created.empresaId).toBe(jerA.empresaId);
-    expect(created.tipoId).toBe(jerA.tipoId);
+    expect(created.empresaId).toBe(hierA.empresaId);
+    expect(created.tipoId).toBe(hierA.tipoId);
   });
 
   it('TP-02: cross-Business Tipo create rejects with P2025 and no persistence', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const codigo = codigoUnico('02');
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const code = uniqueCode('02');
 
     expect(
-      await codigoDeRechazo(db.producto.create({ data: productoData(jerA, jerB.tipoId, codigo) })),
+      await rejectionCode(db.producto.create({ data: productData(hierA, hierB.tipoId, code) })),
     ).toBe('P2025');
 
-    expect(await prisma.producto.count({ where: { codigoInterno: codigo } })).toBe(0);
+    expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
   it('TP-03: cross-Business Tipo update rejects with P2025 and preserves the relation', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const producto = await prisma.producto.create({
-      data: productoData(jerA, jerA.tipoId, codigoUnico('03')),
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const product = await prisma.producto.create({
+      data: productData(hierA, hierA.tipoId, uniqueCode('03')),
       select: { id: true },
     });
 
     expect(
-      await codigoDeRechazo(
-        db.producto.update({ where: { id: producto.id }, data: { tipoId: jerB.tipoId } }),
+      await rejectionCode(
+        db.producto.update({ where: { id: product.id }, data: { tipoId: hierB.tipoId } }),
       ),
     ).toBe('P2025');
 
     const persisted = await prisma.producto.findUnique({
-      where: { id: producto.id },
+      where: { id: product.id },
       select: { tipoId: true },
     });
-    expect(persisted?.tipoId).toBe(jerA.tipoId);
+    expect(persisted?.tipoId).toBe(hierA.tipoId);
   });
 
   it('TP-04: same-Business Tipo reference commits inside an interactive transaction', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const codigo = codigoUnico('04');
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const code = uniqueCode('04');
 
     await db.$transaction(async (tx) => {
-      await tx.producto.create({ data: productoData(jerA, jerA.tipoId, codigo) });
+      await tx.producto.create({ data: productData(hierA, hierA.tipoId, code) });
     });
 
-    expect(await prisma.producto.count({ where: { codigoInterno: codigo } })).toBe(1);
+    expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(1);
   });
 
   it('TP-05: rejected cross-Business create rolls back the valid Producto of the same transaction', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const valido = codigoUnico('05-OK');
-    const invalido = codigoUnico('05-BAD');
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const valid = uniqueCode('05-OK');
+    const invalid = uniqueCode('05-BAD');
 
     expect(
-      await codigoDeRechazo(
+      await rejectionCode(
         db.$transaction(async (tx) => {
-          await tx.producto.create({ data: productoData(jerA, jerA.tipoId, valido) });
-          await tx.producto.create({ data: productoData(jerA, jerB.tipoId, invalido) });
+          await tx.producto.create({ data: productData(hierA, hierA.tipoId, valid) });
+          await tx.producto.create({ data: productData(hierA, hierB.tipoId, invalid) });
         }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.producto.count({ where: { codigoInterno: { in: [valido, invalido] } } })).toBe(0);
+    expect(
+      await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
+    ).toBe(0);
   });
 
   it('TP-06: nonexistent Tipo fails closed with P2025 and no persistence', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const codigo = codigoUnico('06');
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const code = uniqueCode('06');
 
     expect(
-      await codigoDeRechazo(
-        db.producto.create({ data: productoData(jerA, `no-existe-${suffix}`, codigo) }),
+      await rejectionCode(
+        db.producto.create({ data: productData(hierA, `no-existe-${suffix}`, code) }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.producto.count({ where: { codigoInterno: codigo } })).toBe(0);
+    expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
   it('TP-07: mixed createMany rejects with P2025 without partial persistence', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const valido = codigoUnico('07-OK');
-    const invalido = codigoUnico('07-BAD');
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const valid = uniqueCode('07-OK');
+    const invalid = uniqueCode('07-BAD');
 
     expect(
-      await codigoDeRechazo(
+      await rejectionCode(
         db.producto.createMany({
           data: [
-            productoData(jerA, jerA.tipoId, valido),
-            productoData(jerA, jerB.tipoId, invalido),
+            productData(hierA, hierA.tipoId, valid),
+            productData(hierA, hierB.tipoId, invalid),
           ],
         }),
       ),
     ).toBe('P2025');
 
-    expect(await prisma.producto.count({ where: { codigoInterno: { in: [valido, invalido] } } })).toBe(0);
+    expect(
+      await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
+    ).toBe(0);
   });
 
   it('TP-08: control — duplicate codigoInterno is P2002, distinguishable from the ownership rejection P2025', async () => {
-    const db = scopedPrisma.forEmpresa(jerA.empresaId);
-    const codigo = codigoUnico('08');
-    await db.producto.create({ data: productoData(jerA, jerA.tipoId, codigo) });
+    const db = scopedPrisma.forCompany(hierA.empresaId);
+    const code = uniqueCode('08');
+    await db.producto.create({ data: productData(hierA, hierA.tipoId, code) });
 
     expect(
-      await codigoDeRechazo(db.producto.create({ data: productoData(jerA, jerA.tipoId, codigo) })),
+      await rejectionCode(db.producto.create({ data: productData(hierA, hierA.tipoId, code) })),
     ).toBe('P2002');
     expect(
-      await codigoDeRechazo(db.producto.create({ data: productoData(jerA, jerB.tipoId, codigoUnico('08-X')) })),
+      await rejectionCode(
+        db.producto.create({ data: productData(hierA, hierB.tipoId, uniqueCode('08-X')) }),
+      ),
     ).toBe('P2025');
   });
 });

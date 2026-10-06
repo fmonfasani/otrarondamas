@@ -2,58 +2,60 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Gap del seed (ver docs/scaffolding-notas.md): prisma.usuario.upsert()
-// solo asigna usuarioPermisos en la rama `create` — si el usuario ya
-// existe, `update: {}` no le toca los permisos. Cuando se agrega un
-// permiso nuevo al catálogo (array `permissions` de seed.ts) y se
-// re-corre el seed sobre una base que ya tenía al dueño creado, ese
-// permiso nuevo queda en la tabla Permiso pero nunca asignado.
+// Seed gap (see docs/scaffolding-notas.md): prisma.usuario.upsert()
+// only assigns usuarioPermisos in the `create` branch — if the user
+// already exists, `update: {}` does not touch its permissions. When a
+// new permission is added to the catalog (`permissions` array of
+// seed.ts) and the seed is re-run on a database that already had the
+// owner created, that new permission stays in the Permiso table but is
+// never assigned.
 //
-// Este script es el mecanismo separado para ese caso: agrega SOLO los
-// permisos que falten a los usuarios "dueño" conocidos (los que en
-// seed.ts reciben la lista completa `ownerPermissions`, no la lista
-// acotada de sellerUser). Es aditivo puro — nunca hace deleteMany ni
-// toca permisos ya asignados, para no pisar una edición manual que el
-// dueño real haya hecho desde el panel de usuarios en producción.
+// This script is the separate mechanism for that case: it adds ONLY the
+// missing permissions to the known 'owner' users (those that in seed.ts
+// receive the full `ownerPermissions` list, not the restricted list of
+// sellerUser). It is purely additive — it never does deleteMany nor
+// touches already assigned permissions, so as not to overwrite a manual
+// edit that the real owner may have made from the users panel in
+// production.
 //
-// Uso: npm run prisma:sync-permisos (ver package.json de apps/api).
+// Usage: npm run prisma:sync-permisos (see package.json of apps/api).
 async function main() {
-  // Mismos emails que en seed.ts para los usuarios que reciben TODOS
-  // los permisos del catálogo. sellerUser (seller@otrarondamas.com)
-  // queda deliberadamente afuera de esta lista.
-  const emailsDueno = ['owner@otrarondamas.com', 'owner@demo-aislamiento.com'];
+  // Same emails as in seed.ts for the users that receive ALL the catalog
+  // permissions. sellerUser (seller@otrarondamas.com) is deliberately left
+  // out of this list.
+  const ownerEmails = ['owner@otrarondamas.com', 'owner@demo-aislamiento.com'];
 
-  const todosLosPermisos = await prisma.permiso.findMany();
-  if (todosLosPermisos.length === 0) {
+  const allPermissions = await prisma.permiso.findMany();
+  if (allPermissions.length === 0) {
     console.log('No hay permisos en el catálogo — corré el seed primero.');
     return;
   }
 
-  for (const email of emailsDueno) {
-    const usuario = await prisma.usuario.findUnique({
+  for (const email of ownerEmails) {
+    const user = await prisma.usuario.findUnique({
       where: { email },
       include: { usuarioPermisos: { select: { permisoId: true } } },
     });
 
-    if (!usuario) {
+    if (!user) {
       console.log(`  ${email}: no existe todavía (se lo salta, lo crea el seed).`);
       continue;
     }
 
-    const yaAsignados = new Set(usuario.usuarioPermisos.map((up) => up.permisoId));
-    const faltantes = todosLosPermisos.filter((p) => !yaAsignados.has(p.id));
+    const alreadyAssigned = new Set(user.usuarioPermisos.map((up) => up.permisoId));
+    const missing = allPermissions.filter((p) => !alreadyAssigned.has(p.id));
 
-    if (faltantes.length === 0) {
-      console.log(`  ${email}: ya tiene los ${todosLosPermisos.length} permisos del catálogo.`);
+    if (missing.length === 0) {
+      console.log(`  ${email}: ya tiene los ${allPermissions.length} permisos del catálogo.`);
       continue;
     }
 
     await prisma.usuarioPermiso.createMany({
-      data: faltantes.map((p) => ({ usuarioId: usuario.id, permisoId: p.id })),
+      data: missing.map((p) => ({ usuarioId: user.id, permisoId: p.id })),
       skipDuplicates: true,
     });
     console.log(
-      `  ${email}: agregados ${faltantes.length} permisos faltantes (${faltantes.map((p) => p.nombre).join(', ')}).`,
+      `  ${email}: agregados ${missing.length} permisos faltantes (${missing.map((p) => p.nombre).join(', ')}).`,
     );
   }
 }

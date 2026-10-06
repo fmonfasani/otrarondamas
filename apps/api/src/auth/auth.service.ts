@@ -2,9 +2,9 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtPayload, RolUsuario, EstadoLegajo } from './auth.types';
+import { JwtPayload, UserRole, DossierStatus } from './auth.types';
 
-interface UsuarioParaSesion {
+interface UserForSession {
   id: string;
   nombre: string;
   email: string;
@@ -13,8 +13,8 @@ interface UsuarioParaSesion {
   googleId: string | null;
   createdAt: Date;
   empresa: { nombre: string };
-  rol: RolUsuario;
-  estadoLegajo: EstadoLegajo;
+  rol: UserRole;
+  estadoLegajo: DossierStatus;
 }
 
 @Injectable()
@@ -25,79 +25,79 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    const usuario = await this.verificarCredenciales(email, password);
-    return this.emitirSesion(
-      usuario,
-      usuario.usuarioPermisos.map((up) => up.permiso.nombre),
+    const user = await this.verifyCredentials(email, password);
+    return this.issueSession(
+      user,
+      user.usuarioPermisos.map((up) => up.permiso.nombre),
     );
   }
 
   /**
-   * Valida email+password sin emitir un JWT — reusado por login() y por
-   * AutorizacionesService.autorizar() (D-06): confirmar la identidad de
-   * quien autoriza una operación restringida es el mismo problema que
-   * loguearse, no se duplica la lógica de bcrypt/mensajes uniformes en
-   * un segundo lugar.
+   * Validates email+password without issuing a JWT — reused by login()
+   * and by AuthorizationsService.authorize() (D-06): confirming the
+   * identity of whoever authorizes a restricted operation is the same
+   * problem as logging in, so the bcrypt logic / uniform messages are
+   * not duplicated in a second place.
    */
-  async verificarCredenciales(email: string, password: string) {
-    // Mensaje idéntico para email inexistente y password incorrecta:
-    // no revelar cuál de los dos fue el motivo del rechazo.
-    const usuario = await this.prisma.usuario.findUnique({
+  async verifyCredentials(email: string, password: string) {
+    // Identical message for non-existent email and wrong password: do not
+    // reveal which of the two was the reason for the rejection.
+    const user = await this.prisma.usuario.findUnique({
       where: { email },
       include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
     });
 
-    // passwordHash es null para usuarios que solo se registraron por
-    // Google (ver auth.google.service.ts) — no tienen contraseña local,
-    // así que el login por password se rechaza igual que credenciales
-    // inválidas (mismo mensaje, no se revela el motivo).
-    if (!usuario || !usuario.activo || !usuario.passwordHash) {
+    // passwordHash is null for users who only registered through Google
+    // (see auth.google.service.ts) — they have no local password, so the
+    // password login is rejected just like invalid credentials (same
+    // message, the reason is not revealed).
+    if (!user || !user.activo || !user.passwordHash) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const passwordValida = await bcrypt.compare(password, usuario.passwordHash);
-    if (!passwordValida) {
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return usuario;
+    return user;
   }
 
   /**
-   * Arma el JWT + el objeto `usuario` de respuesta, compartido por el
-   * login con password y el callback de Google (auth.google.service.ts)
-   * — misma forma de sesión sin importar cómo se autenticó. El JWT en sí
-   * solo lleva los campos de autorización (ver JwtPayload); el objeto
-   * `usuario` de la respuesta lleva también los de perfil, mismo shape
-   * que devuelve GET /auth/me, para que el frontend no necesite una
-   * segunda llamada después de loguearse para tener el perfil completo.
+   * Builds the JWT + the response `usuario` object, shared by the
+   * password login and the Google callback (auth.google.service.ts) —
+   * same session shape no matter how the user authenticated. The JWT
+   * itself only carries the authorization fields (see JwtPayload); the
+   * response `usuario` object also carries the profile ones, same shape
+   * as GET /auth/me returns, so that the frontend does not need a second
+   * call after logging in to have the full profile.
    */
-  async emitirSesion(usuario: UsuarioParaSesion, permisos: string[]) {
+  async issueSession(user: UserForSession, permissions: string[]) {
     const payload: JwtPayload = {
-      sub: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      empresaId: usuario.empresaId,
-      permisos,
-      rol: usuario.rol,
-      estadoLegajo: usuario.estadoLegajo,
+      sub: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      empresaId: user.empresaId,
+      permisos: permissions,
+      rol: user.rol,
+      estadoLegajo: user.estadoLegajo,
       type: 'usuario',
     };
 
     return {
       accessToken: await this.jwtService.signAsync(payload),
       usuario: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        empresaId: usuario.empresaId,
-        empresaNombre: usuario.empresa.nombre,
-        permisos,
-        fotoUrl: usuario.fotoUrl,
-        metodoLogin: (usuario.googleId ? 'google' : 'password') as 'google' | 'password',
-        createdAt: usuario.createdAt.toISOString(),
-        rol: usuario.rol,
-        estadoLegajo: usuario.estadoLegajo,
+        id: user.id,
+        nombre: user.nombre,
+        email: user.email,
+        empresaId: user.empresaId,
+        empresaNombre: user.empresa.nombre,
+        permisos: permissions,
+        fotoUrl: user.fotoUrl,
+        metodoLogin: (user.googleId ? 'google' : 'password') as 'google' | 'password',
+        createdAt: user.createdAt.toISOString(),
+        rol: user.rol,
+        estadoLegajo: user.estadoLegajo,
       },
     };
   }

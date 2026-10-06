@@ -4,17 +4,17 @@ import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
- * Registrado como guard GLOBAL (ver auth.module.ts, APP_GUARD) — no se
- * aplica por-controller con @UseGuards. Motivo (encontrado probando, no
- * teórico): un controller con un provider Scope.REQUEST en su
- * constructor (ver EmpresaScopedPrismaService) hace que Nest resuelva
- * ese provider ANTES de ejecutar un guard aplicado solo a ese
- * controller/método, dejando request.user sin poblar en ese punto. Como
- * guard global, Nest sí garantiza que corre antes de instanciar
- * cualquier provider request-scoped del árbol de esa request.
+ * Registered as a GLOBAL guard (see auth.module.ts, APP_GUARD) — it is not
+ * applied per controller with @UseGuards. Reason (found by testing, not
+ * theoretical): a controller with a Scope.REQUEST provider in its
+ * constructor (see CompanyScopedPrismaService) makes Nest resolve that
+ * provider BEFORE running a guard applied only to that controller/method,
+ * leaving request.user unpopulated at that point. As a global guard, Nest
+ * does guarantee it runs before instantiating any request-scoped provider
+ * in that request's tree.
  *
- * Todo endpoint requiere JWT válido por defecto. Para exceptuar uno
- * (ej. POST /auth/login), usar @Public().
+ * Every endpoint requires a valid JWT by default. To exempt one
+ * (e.g. POST /auth/login), use @Public().
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {

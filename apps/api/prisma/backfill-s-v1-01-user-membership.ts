@@ -1,26 +1,26 @@
 import { PrismaClient } from '@prisma/client';
 
-// S-V1-01 — Backfill idempotente Usuario → User + Membership.
+// S-V1-01 — Idempotent backfill Usuario → User + Membership.
 //
-// Reglas (contrato aprobado, decisiones D1/D2/D3):
-// - Por cada Usuario: encontrar o crear su User (vínculo explícito por
-//   `usuarioId`; fallback por email SOLO si no existe User con ese
-//   usuarioId — nunca fusionar dos Usuarios distintos en un mismo User).
-// - Por cada par (User, Usuario.empresaId): encontrar o crear su
-//   Membership con role = Usuario.rol y status = ACTIVE (o SUSPENDED si
-//   Usuario.activo = false — único mapeo de validez documentado).
-// - NUNCA modifica Usuario, Empresa, permisos, sesiones ni JWT.
-// - Re-ejecutable: segunda corrida no crea duplicados (upsert por claves
-//   únicas + reporte de lo ya existente).
-// - Colisiones (mismo email reclamado por distinto usuarioId): se
-//   REPORTAN y se omiten, sin fusionar personas. Exit code 1 si hubo
-//   alguna; 0 si todo quedó reconciliado.
+// Rules (approved contract, decisions D1/D2/D3):
+// - For each Usuario: find or create its User (explicit link via
+//   `usuarioId`; email fallback ONLY if no User exists with that
+//   usuarioId — never merge two distinct Usuarios into one User).
+// - For each (User, Usuario.empresaId) pair: find or create its
+//   Membership with role = Usuario.rol and status = ACTIVE (or SUSPENDED
+//   if Usuario.activo = false — the only documented validity mapping).
+// - NEVER modifies Usuario, Empresa, permissions, sessions or JWT.
+// - Re-runnable: a second run creates no duplicates (upsert by unique
+//   keys + report of what already existed).
+// - Collisions (same email claimed by a different usuarioId): they are
+//   REPORTED and skipped, without merging people. Exit code 1 if there
+//   was any; 0 if everything was reconciled.
 //
-// Uso: npx ts-node prisma/backfill-s-v1-01-user-membership.ts
-// (ver package.json de apps/api). Solo escribe en las tablas nuevas
-// "User" y "Membership": reversible borrando esas filas/tablas.
+// Usage: npx ts-node prisma/backfill-s-v1-01-user-membership.ts
+// (see package.json of apps/api). It only writes to the new tables
+// "User" and "Membership": reversible by deleting those rows/tables.
 
-export interface BackfillReporte {
+export interface BackfillReport {
   usuariosVistos: number;
   usersCreados: number;
   usersExistentes: number;
@@ -29,8 +29,8 @@ export interface BackfillReporte {
   conflictos: Array<{ usuarioId: string; email: string; motivo: string }>;
 }
 
-export async function runBackfill(prisma: PrismaClient): Promise<BackfillReporte> {
-  const reporte: BackfillReporte = {
+export async function runBackfill(prisma: PrismaClient): Promise<BackfillReport> {
+  const report: BackfillReport = {
     usuariosVistos: 0,
     usersCreados: 0,
     usersExistentes: 0,
@@ -39,7 +39,7 @@ export async function runBackfill(prisma: PrismaClient): Promise<BackfillReporte
     conflictos: [],
   };
 
-  const usuarios = await prisma.usuario.findMany({
+  const users = await prisma.usuario.findMany({
     select: {
       id: true,
       empresaId: true,
@@ -54,35 +54,35 @@ export async function runBackfill(prisma: PrismaClient): Promise<BackfillReporte
     orderBy: { createdAt: 'asc' },
   });
 
-  for (const u of usuarios) {
-    reporte.usuariosVistos += 1;
+  for (const u of users) {
+    report.usuariosVistos += 1;
 
-    // 1) User por vínculo explícito.
+    // 1) User by explicit link.
     let user = await prisma.user.findUnique({ where: { usuarioId: u.id } });
 
     if (!user) {
-      // Fallback por email: solo válido si ese email no pertenece ya a
-      // OTRO usuarioId (fusionar personas está prohibido).
-      const porEmail = await prisma.user.findUnique({ where: { email: u.email } });
-      if (porEmail) {
-        if (porEmail.usuarioId && porEmail.usuarioId !== u.id) {
-          reporte.conflictos.push({
+      // Email fallback: only valid if that email does not already belong to
+      // ANOTHER usuarioId (merging people is forbidden).
+      const byEmail = await prisma.user.findUnique({ where: { email: u.email } });
+      if (byEmail) {
+        if (byEmail.usuarioId && byEmail.usuarioId !== u.id) {
+          report.conflictos.push({
             usuarioId: u.id,
             email: u.email,
-            motivo: `email ya vinculado a otro usuarioId (${porEmail.usuarioId}); se omite sin fusionar`,
+            motivo: `email ya vinculado a otro usuarioId (${byEmail.usuarioId}); se omite sin fusionar`,
           });
           continue;
         }
-        // Mismo email sin vínculo (caso teórico: User creado sin
-        // usuarioId). Adoptarlo SOLO si está libre.
-        if (!porEmail.usuarioId) {
+        // Same email without a link (theoretical case: User created without
+        // usuarioId). Adopt it ONLY if it is free.
+        if (!byEmail.usuarioId) {
           user = await prisma.user.update({
-            where: { id: porEmail.id },
+            where: { id: byEmail.id },
             data: { usuarioId: u.id },
           });
         } else {
-          reporte.usersExistentes += 1;
-          user = porEmail;
+          report.usersExistentes += 1;
+          user = byEmail;
         }
       }
     }
@@ -98,39 +98,39 @@ export async function runBackfill(prisma: PrismaClient): Promise<BackfillReporte
           usuarioId: u.id,
         },
       });
-      reporte.usersCreados += 1;
+      report.usersCreados += 1;
     } else {
-      // Existente por vínculo explícito o adoptado por email libre.
-      reporte.usersExistentes += 1;
+      // Existing through explicit link or adopted by free email.
+      report.usersExistentes += 1;
     }
 
-    // 2) Membership por par (user, empresa). El status deriva del único
-    // flag de validez del legacy: Usuario.activo.
+    // 2) Membership per (user, empresa) pair. The status derives from the
+    // single legacy validity flag: Usuario.activo.
     const status = u.activo ? 'ACTIVE' : 'SUSPENDED';
-    const existente = await prisma.membership.findUnique({
+    const existing = await prisma.membership.findUnique({
       where: { userId_businessId: { userId: user.id, businessId: u.empresaId } },
     });
-    if (existente) {
-      reporte.membershipsExistentes += 1;
+    if (existing) {
+      report.membershipsExistentes += 1;
     } else {
       await prisma.membership.create({
         data: { userId: user.id, businessId: u.empresaId, role: u.rol, status },
       });
-      reporte.membershipsCreadas += 1;
+      report.membershipsCreadas += 1;
     }
   }
 
-  return reporte;
+  return report;
 }
 
 async function main() {
   const prisma = new PrismaClient();
   try {
-    const reporte = await runBackfill(prisma);
-    console.log(JSON.stringify(reporte, null, 2));
-    if (reporte.conflictos.length > 0) {
+    const report = await runBackfill(prisma);
+    console.log(JSON.stringify(report, null, 2));
+    if (report.conflictos.length > 0) {
       console.error(
-        `Backfill incompleto: ${reporte.conflictos.length} conflicto(s) reportados arriba.`,
+        `Backfill incompleto: ${report.conflictos.length} conflicto(s) reportados arriba.`,
       );
       process.exitCode = 1;
     }
@@ -139,7 +139,7 @@ async function main() {
   }
 }
 
-// Solo ejecuta al invocarse directo con ts-node, no al importarse desde tests.
+// Only runs when invoked directly with ts-node, not when imported from tests.
 if (require.main === module) {
   main().catch((e) => {
     console.error(e);

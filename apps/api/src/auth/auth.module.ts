@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
-import { AuthClienteController } from './auth.cliente.controller';
+import { AuthCustomerController } from './auth.customer.controller';
 import { AuthService } from './auth.service';
 import { AuthGoogleService } from './auth.google.service';
-import { AuthClienteService } from './auth.cliente.service';
+import { AuthCustomerService } from './auth.customer.service';
 import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -22,17 +22,17 @@ import { MembershipModule } from '../membership/membership.module';
       signOptions: { expiresIn: '8h' }, // duración de un turno de trabajo; sin mecanismo de refresh todavía
     }),
   ],
-  controllers: [AuthController, AuthClienteController],
+  controllers: [AuthController, AuthCustomerController],
   providers: [
     AuthService,
     AuthGoogleService,
-    AuthClienteService,
+    AuthCustomerService,
     JwtStrategy,
     GoogleStrategy,
     PermissionsGuard,
   ],
-  // AuthService exportado: AutorizacionesService (D-06) lo inyecta para
-  // reusar verificarCredenciales() sin duplicar la lógica de bcrypt.
-  exports: [JwtModule, PermissionsGuard, AuthService, AuthClienteService],
+  // AuthService exported: AuthorizationsService (D-06) injects it to
+  // reuse verifyCredentials() without duplicating the bcrypt logic.
+  exports: [JwtModule, PermissionsGuard, AuthService, AuthCustomerService],
 })
 export class AuthModule {}
