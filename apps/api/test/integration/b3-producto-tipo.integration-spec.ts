@@ -46,7 +46,7 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
 
   const createHierarchy = async (label: 'A' | 'B', s: number): Promise<Hierarchy> => {
     const company = await prisma.empresa.create({
-      data: { nombre: `B3 TP ${label} ${s}`, configuracion: {} },
+      data: { nombre: `B3 TP ${label} ${s}`, slug: `b3-producto-tipo-a-${s}`, configuracion: {} },
       select: { id: true },
     });
     const family = await prisma.familia.create({
