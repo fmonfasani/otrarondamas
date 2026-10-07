@@ -32,11 +32,11 @@ describe('B3 relation isolation — Producto → Familia ownership candidate', (
     const s = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `B3 PF A ${s}`, configuracion: {} },
+      data: { nombre: `B3 PF A ${s}`, slug: `b3-producto-familia-a-${s}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `B3 PF B ${s}`, configuracion: {} },
+      data: { nombre: `B3 PF B ${s}`, slug: `b3-producto-familia-b-${s}`, configuracion: {} },
       select: { id: true },
     });
 
