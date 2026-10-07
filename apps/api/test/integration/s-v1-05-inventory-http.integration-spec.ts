@@ -95,11 +95,11 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-05 INV HTTP A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-05 INV HTTP A ${suffix}`, slug: `s-v1-05-inventory-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-05 INV HTTP B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-05 INV HTTP B ${suffix}`, slug: `s-v1-05-inventory-http-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

@@ -188,11 +188,11 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     passwordHash = await bcrypt.hash(PASSWORD, 4);
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-13 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-13 A ${suffix}`, slug: `s-v1-13-cash-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-13 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-13 B ${suffix}`, slug: `s-v1-13-cash-http-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

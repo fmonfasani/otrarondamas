@@ -93,11 +93,11 @@ describe('S-V1-04 — BusinessContext en Catálogo (integración, BD real)', () 
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-04 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-04 A ${suffix}`, slug: `s-v1-04-catalog-ctx-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-04 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-04 B ${suffix}`, slug: `s-v1-04-catalog-ctx-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

@@ -27,7 +27,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subtipo ownership candidat
 
   const createHierarchy = async (label: 'A' | 'B', s: number, prefix: string) => {
     const company = await prisma.empresa.create({
-      data: { nombre: `B3 RF ${label} ${s}`, slug: `b3-reglafidelizacion-subtipo-a-${s}`, configuracion: {} },
+      data: { nombre: `B3 RF ${label} ${s}`, slug: `b3-reglafidelizacion-subtipo-${label.toLowerCase()}-${s}`, configuracion: {} },
       select: { id: true },
     });
     const family = await prisma.familia.create({

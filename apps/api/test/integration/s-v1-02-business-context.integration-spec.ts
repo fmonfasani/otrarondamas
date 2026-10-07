@@ -40,11 +40,11 @@ describe('S-V1-02 — BusinessContext + tenant adapter', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-02 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-02 A ${suffix}`, slug: `s-v1-02-business-context-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-02 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-02 B ${suffix}`, slug: `s-v1-02-business-context-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

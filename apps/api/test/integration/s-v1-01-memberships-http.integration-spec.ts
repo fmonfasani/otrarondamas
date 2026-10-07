@@ -68,7 +68,7 @@ describe('S-V1-01 — GET /auth/memberships (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-01 HTTP ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-01 HTTP ${suffix}`, slug: `s-v1-01-memberships-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

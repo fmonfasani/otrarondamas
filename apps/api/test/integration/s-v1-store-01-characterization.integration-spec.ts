@@ -154,11 +154,11 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-ST A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-ST A ${suffix}`, slug: `s-v1-store-01-a-${suffix}`, configuracion: {} },
       select: { id: true, nombre: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-ST B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-ST B ${suffix}`, slug: `s-v1-store-01-b-${suffix}`, configuracion: {} },
       select: { id: true, nombre: true },
     });
 

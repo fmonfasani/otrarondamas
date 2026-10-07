@@ -181,11 +181,11 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-06 A ${suffix}`, slug: `s-v1-06-orders-ctx-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-06 B ${suffix}`, slug: `s-v1-06-orders-ctx-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

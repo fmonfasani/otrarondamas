@@ -22,11 +22,11 @@ describe('S-V1-01 — User + Membership foundation', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-01 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-01 A ${suffix}`, slug: `s-v1-01-user-membership-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-01 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-01 B ${suffix}`, slug: `s-v1-01-user-membership-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

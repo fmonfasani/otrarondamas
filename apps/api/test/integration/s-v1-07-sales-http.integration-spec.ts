@@ -213,11 +213,11 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-07 HTTP A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-07 HTTP A ${suffix}`, slug: `s-v1-07-sales-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-07 HTTP B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-07 HTTP B ${suffix}`, slug: `s-v1-07-sales-http-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

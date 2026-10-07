@@ -197,11 +197,11 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 ORD HTTP A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-06 ORD HTTP A ${suffix}`, slug: `s-v1-06-orders-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 ORD HTTP B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-06 ORD HTTP B ${suffix}`, slug: `s-v1-06-orders-http-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 

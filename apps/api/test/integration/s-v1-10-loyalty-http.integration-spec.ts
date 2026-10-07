@@ -150,11 +150,11 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-10 A ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-10 A ${suffix}`, slug: `s-v1-10-loyalty-http-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-10 B ${suffix}`, configuracion: {} },
+      data: { nombre: `S-V1-10 B ${suffix}`, slug: `s-v1-10-loyalty-http-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
