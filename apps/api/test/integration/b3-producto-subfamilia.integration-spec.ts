@@ -46,7 +46,7 @@ describe('B3 relation isolation — Producto.subfamilia ownership candidate', ()
 
   const createHierarchy = async (label: 'A' | 'B', s: number): Promise<Hierarchy> => {
     const company = await prisma.empresa.create({
-      data: { nombre: `B3 SP ${label} ${s}`, configuracion: {} },
+      data: { nombre: `B3 SP ${label} ${s}`, slug: `b3-producto-subfamilia-a-${s}`, configuracion: {} },
       select: { id: true },
     });
     const family = await prisma.familia.create({
