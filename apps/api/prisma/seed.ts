@@ -58,6 +58,7 @@ async function main() {
     update: {},
     create: {
       nombre: 'Otra Roonda Más',
+      slug: 'otra-roonda-mas',
       configuracion: {},
     },
   });
@@ -71,6 +72,7 @@ async function main() {
     update: {},
     create: {
       nombre: 'Empresa Demo Aislamiento',
+      slug: 'empresa-demo-aislamiento',
       configuracion: {},
     },
   });
