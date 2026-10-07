@@ -35,7 +35,8 @@ export class StoreService {
     private readonly customersService: CustomersService,
   ) {}
 
-  private companyId(): string {
+  private companyId(explicitCompanyId?: string): string {
+    if (explicitCompanyId) return explicitCompanyId;
     const companyId = process.env.TIENDA_EMPRESA_ID;
     if (!companyId) {
       // The company is not guessed: without this variable, the public store is
@@ -78,11 +79,11 @@ export class StoreService {
    * in addition to the text search — passed as is to consolidatedStock(),
    * which already knows how to filter by them.
    */
-  async catalog(search?: string, familyId?: string, subfamilyId?: string) {
-    const companyId = this.companyId();
-    const db = this.prismaFactory.forCompany(companyId);
+  async catalog(search?: string, familyId?: string, subfamilyId?: string, companyId?: string) {
+    const resolvedCompanyId = this.companyId(companyId);
+    const db = this.prismaFactory.forCompany(resolvedCompanyId);
     const stock = await this.inventoryService.consolidatedStock(
-      companyId,
+      resolvedCompanyId,
       search,
       undefined,
       familyId,
@@ -129,9 +130,9 @@ export class StoreService {
    * CatalogHierarchyController (internal panel), but without Tipo/Subtipo
    * (the store filter only goes down to Subfamilia) and without auth.
    */
-  async hierarchy() {
-    const companyId = this.companyId();
-    const db = this.prismaFactory.forCompany(companyId);
+  async hierarchy(companyId?: string) {
+    const resolvedCompanyId = this.companyId(companyId);
+    const db = this.prismaFactory.forCompany(resolvedCompanyId);
     const [families, subfamilies] = await Promise.all([
       db.familia.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
       db.subfamilia.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
@@ -147,9 +148,9 @@ export class StoreService {
    * there is stock available at the time of ordering, without setting it
    * aside.
    */
-  async createOrder(dto: CreateOrderDto) {
-    const companyId = this.companyId();
-    const db = this.prismaFactory.forCompany(companyId);
+  async createOrder(dto: CreateOrderDto, companyId?: string) {
+    const resolvedCompanyId = this.companyId(companyId);
+    const db = this.prismaFactory.forCompany(resolvedCompanyId);
 
     const productIds = [...new Set(dto.items.map((i) => i.productoId))];
     const products = await db.producto.findMany({
@@ -173,9 +174,9 @@ export class StoreService {
     // already used in CustomersService.create().
     const existingCustomer = await db.cliente.findFirst({ where: { email: dto.email } });
     const customerLevel = existingCustomer
-      ? await this.customersService.calculateLevel(companyId, existingCustomer.id)
+      ? await this.customersService.calculateLevel(resolvedCompanyId, existingCustomer.id)
       : 'NUEVO';
-    const activeRules = await this.loyaltyService.listActiveRules(companyId);
+    const activeRules = await this.loyaltyService.listActiveRules(resolvedCompanyId);
 
     // Price frozen from the catalog at the time of the order — same criterion
     // as SalesService (INV-12): a price sent by the client is never accepted.
@@ -244,7 +245,7 @@ export class StoreService {
           })
         : await tx.cliente.create({
             data: {
-              empresaId: companyId,
+              empresaId: resolvedCompanyId,
               nombre: dto.nombre,
               email: dto.email,
               telefono: dto.telefono,
@@ -286,9 +287,9 @@ export class StoreService {
    * UUID, there is no public order listing) nor internal fields like
    * usuarioId.
    */
-  async tracking(orderId: string) {
-    const companyId = this.companyId();
-    const db = this.prismaFactory.forCompany(companyId);
+  async tracking(orderId: string, companyId?: string) {
+    const resolvedCompanyId = this.companyId(companyId);
+    const db = this.prismaFactory.forCompany(resolvedCompanyId);
     const order = await db.pedido.findUnique({
       where: { id: orderId },
       include: { pedidoItems: { include: { producto: { select: { nombre: true } } } } },
