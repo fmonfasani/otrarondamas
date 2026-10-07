@@ -34,11 +34,11 @@ describe('B3 tenant isolation — execution candidates', () => {
     const suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `B3 Exec A ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 Exec A ${suffix}`, slug: `b3-exec-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `B3 Exec B ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 Exec B ${suffix}`, slug: `b3-exec-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
