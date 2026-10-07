@@ -57,11 +57,11 @@ describe('B3 relation isolation — Lote.producto ownership candidate', () => {
     const s = suffix;
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `B3 LP A ${s}`, configuracion: {} },
+      data: { nombre: `B3 LP A ${s}`, slug: `b3-lote-producto-a-${s}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `B3 LP B ${s}`, configuracion: {} },
+      data: { nombre: `B3 LP B ${s}`, slug: `b3-lote-producto-b-${s}`, configuracion: {} },
       select: { id: true },
     });
 
