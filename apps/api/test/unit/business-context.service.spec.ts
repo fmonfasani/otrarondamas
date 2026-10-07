@@ -135,7 +135,7 @@ describe('F-01 — canonical BusinessContext actors', () => {
     membershipService.findUserByLegacyUserId.mockResolvedValue({ id: 'user-a' });
     membershipService.getMembershipsForUser.mockResolvedValue([
       { id: 'membership-a', businessId: 'business-a', role: 'OWNER', status: 'ACTIVE' },
-      { id: 'membership-b', businessId: 'business-b', role: 'OWNER', status: 'OWNER' },
+      { id: 'membership-b', businessId: 'business-b', role: 'OWNER', status: 'ACTIVE' },
     ]);
 
     await expect(service.resolveForAuthenticatedUser({
