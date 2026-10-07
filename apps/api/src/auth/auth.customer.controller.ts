@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CustomerRegistrationDto } from './dto/customer-registration.dto';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
+import { AllowCustomer } from './decorators/allow-customer.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser } from './auth.types';
 import { GoogleProfile } from './google.strategy';
@@ -75,6 +76,7 @@ export class AuthCustomerController {
    * Fresh profile of the authenticated Cliente — parallel to GET /auth/me
    * for Usuario. Only accessible with a token of type 'cliente'.
    */
+  @AllowCustomer()
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser) {
     if (user.type !== 'cliente') {
