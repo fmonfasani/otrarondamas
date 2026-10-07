@@ -44,12 +44,19 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     DossierModule,
     InvitationsModule,
     HealthModule,
+    // S-V1-01: membership reads (no own controllers).
     MembershipModule,
+    // S-V1-02: context resolution + adapter (no controllers).
     BusinessContextModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    // Global guards, in this order: authentication first (populates
+    // request.user from the JWT), then permission authorization
+    // (@RequirePermission, reads the already populated request.user). See
+    // the comment in jwt-auth.guard.ts on why this has to be global and not
+    // a per-controller @UseGuards.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: StaffIdentityGuard },
