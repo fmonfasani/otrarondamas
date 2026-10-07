@@ -61,11 +61,42 @@ export class BusinessContextService {
     const permissions = await this.legacyPermissions(auth.id);
     return {
       businessId: membership.businessId,
+      customerId: null,
       userId: user.id,
       membershipId: membership.id,
       role: membership.role,
       permissions,
       actorType: 'USER',
+    };
+  }
+
+  // Resolves the authenticated Customer context from the Customer record.
+  // Customer identity is the authority for the Business boundary; the JWT
+  // empresaId claim is deliberately not used as the tenant authority.
+  async resolveForCustomer(auth: AuthenticatedUser): Promise<BusinessContext> {
+    if (auth.type !== 'cliente') {
+      throw new ForbiddenException('BusinessContext requiere identidad de cliente');
+    }
+
+    const customer = await this.prisma.cliente.findUnique({
+      where: { id: auth.id },
+      select: { id: true, empresaId: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    await this.resolveCompanyId(customer.empresaId);
+
+    return {
+      businessId: customer.empresaId,
+      customerId: customer.id,
+      userId: null,
+      membershipId: null,
+      role: null,
+      permissions: [],
+      actorType: 'CUSTOMER',
     };
   }
 
@@ -86,6 +117,7 @@ export class BusinessContextService {
     }
     return {
       businessId: business.id,
+      customerId: null,
       userId: null,
       membershipId: null,
       role: null,
