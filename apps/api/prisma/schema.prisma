@@ -110,6 +110,7 @@ enum TipoDocumentoLegajo {
 model Empresa {
   id            String   @id @default(uuid())
   nombre        String   @unique
+  slug          String   @unique
   configuracion Json
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
