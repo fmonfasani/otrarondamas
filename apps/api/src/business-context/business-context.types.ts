@@ -3,7 +3,7 @@
 // STAFF contexts are backed by User + ACTIVE Membership. Public store
 // requests use an ANONYMOUS context: Business is resolved from the stable
 // public slug and no Membership is created or inferred.
-export type BusinessActorType = 'USER' | 'ANONYMOUS';
+export type BusinessActorType = 'USER' | 'CUSTOMER' | 'ANONYMOUS';
 
 export interface BusinessContext {
   // Business concept. In V1 == physical Empresa.id (see the adapter in
@@ -11,6 +11,9 @@ export interface BusinessContext {
   businessId: string;
   // Present only for USER contexts; anonymous actors have no global User.
   userId: string | null;
+  // Present only for CUSTOMER contexts; customers are commercial identities,
+  // never Memberships.
+  customerId: string | null;
   // Present only for USER contexts; anonymous actors have no Membership.
   membershipId: string | null;
   // Present only for USER contexts.
