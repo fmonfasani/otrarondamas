@@ -1,21 +1,22 @@
-// S-V1-02 — Conceptual contract of BusinessContext (read-only, no
-// persistence).
+// S-V1-02 — Canonical BusinessContext. No persistence.
 //
-// BusinessContext answers: who acts, in which Business, with which
-// Membership/role/permissions? In V1 only the authenticated actor exists
-// (USER); ANON/CUSTOMER are reserved for future Conversation/messaging and
-// are not built in this slice.
-export type BusinessActorType = 'USER';
+// STAFF contexts are backed by User + ACTIVE Membership. Public store
+// requests use an ANONYMOUS context: Business is resolved from the stable
+// public slug and no Membership is created or inferred.
+export type BusinessActorType = 'USER' | 'ANONYMOUS';
 
 export interface BusinessContext {
   // Business concept. In V1 == physical Empresa.id (see the adapter in
-  // business-context.service.ts). Never accepted raw from input.
+  // business-context.service.ts). Never accepted raw from request input.
   businessId: string;
-  userId: string;
-  membershipId: string;
-  role: string;
-  // Legacy source (UsuarioPermiso of the session's Usuario), the same one
-  // PermissionsGuard uses at login. NOT migrated: read-only.
+  // Present only for USER contexts; anonymous actors have no global User.
+  userId: string | null;
+  // Present only for USER contexts; anonymous actors have no Membership.
+  membershipId: string | null;
+  // Present only for USER contexts.
+  role: string | null;
+  // Legacy permission source for USER contexts. Anonymous contexts are
+  // deliberately permission-less and are never treated as staff sessions.
   permissions: string[];
   actorType: BusinessActorType;
 }
