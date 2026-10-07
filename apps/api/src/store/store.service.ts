@@ -258,7 +258,7 @@ export class StoreService {
       // inbox (Phase 4 of the roadmap).
       const order = await tx.pedido.create({
         data: {
-          empresaId: companyId,
+          empresaId: resolvedCompanyId,
           clienteId: customer.id,
           usuarioId: null,
           estado: 'RECIBIDO',
