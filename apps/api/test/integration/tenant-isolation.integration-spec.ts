@@ -15,6 +15,7 @@ describe('Tenant isolation verification infrastructure', () => {
     companyA = await prisma.empresa.create({
       data: {
         nombre: `B4 Test A ${Date.now()}`,
+        slug: `b4-tenant-a-${Date.now()}`,
         configuracion: {},
       },
       select: { id: true },
@@ -23,6 +24,7 @@ describe('Tenant isolation verification infrastructure', () => {
     companyB = await prisma.empresa.create({
       data: {
         nombre: `B4 Test B ${Date.now()}`,
+        slug: `b4-tenant-b-${Date.now()}`,
         configuracion: {},
       },
       select: { id: true },
