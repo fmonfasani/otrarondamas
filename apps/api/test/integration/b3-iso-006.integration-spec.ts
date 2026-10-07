@@ -35,11 +35,11 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
     const suffix = unique();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `B3 ISO006 A ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 ISO006 A ${suffix}`, slug: `b3-iso-006-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `B3 ISO006 B ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 ISO006 B ${suffix}`, slug: `b3-iso-006-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
