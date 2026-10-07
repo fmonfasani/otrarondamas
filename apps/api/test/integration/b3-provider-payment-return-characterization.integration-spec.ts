@@ -31,11 +31,11 @@ describe('B3 ownership — PagoProveedor / DevolucionProveedor', () => {
     const suffix = unique();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `B3 characterization A ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 characterization A ${suffix}`, slug: `b3-provider-payment-return-characterization-a-${suffix}`, configuracion: {} },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `B3 characterization B ${suffix}`, configuracion: {} },
+      data: { nombre: `B3 characterization B ${suffix}`, slug: `b3-provider-payment-return-characterization-b-${suffix}`, configuracion: {} },
       select: { id: true },
     });
 
