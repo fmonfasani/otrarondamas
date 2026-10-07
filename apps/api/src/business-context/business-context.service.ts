@@ -69,6 +69,31 @@ export class BusinessContextService {
     };
   }
 
+  // Resolves the public Business context from the stable Business slug.
+  // Anonymous actors have no User/Membership and therefore receive only the
+  // Business boundary plus an empty permission set. Invalid/nonexistent slugs
+  // fail closed with the same 404 response.
+  async resolveForAnonymous(slug: string): Promise<BusinessContext> {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      throw new NotFoundException('Business no encontrado');
+    }
+    const business = await this.prisma.empresa.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!business) {
+      throw new NotFoundException('Business no encontrado');
+    }
+    return {
+      businessId: business.id,
+      userId: null,
+      membershipId: null,
+      role: null,
+      permissions: [],
+      actorType: 'ANONYMOUS',
+    };
+  }
+
   // Business → Empresa adapter (V1: verified equivalence, not assumed).
   // Verifies that the businessId exists as an Empresa and returns its id
   // for the legacy infrastructure. A non-existent or arbitrary id → throw:
