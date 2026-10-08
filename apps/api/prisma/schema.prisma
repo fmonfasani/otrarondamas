@@ -1223,6 +1223,7 @@ model MessageReadReceipt {
   id                    String      @id @default(uuid())
   messageId             String
   businessId            String
+  business              Empresa     @relation(fields: [businessId], references: [id])
   message               Message     @relation(fields: [messageId, businessId], references: [id, businessId])
   userId                String?
   membershipBusinessId  String?
