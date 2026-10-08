@@ -44,7 +44,9 @@
     "resend": "^6.28.1",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "@nestjs/platform-socket.io": "^10.4.22",
+    "@nestjs/websockets": "^10.4.22"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
