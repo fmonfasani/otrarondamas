@@ -1,6 +1,5 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { UnauthorizedException } from '@nestjs/common';
 import passport from 'passport';
 import { Server, Socket } from 'socket.io';
 import type { AuthenticatedUser } from '../auth/auth.types';
