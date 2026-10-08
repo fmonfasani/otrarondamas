@@ -5,7 +5,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { JwtService } from '@nestjs/jwt';
+import type { JwtService } from '@nestjs/jwt';
+import { ModuleRef } from '@nestjs/core';
 import { OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import type { Server, Socket } from 'socket.io';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
@@ -31,12 +32,17 @@ export class MessagingGateway implements OnModuleInit, OnModuleDestroy {
   private unsubscribeMembership?: () => void;
 
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly moduleRef: ModuleRef,
     private readonly businessContext: BusinessContextService,
     private readonly membershipRevocation: MembershipRevocationService,
     private readonly events: MessagingRealtimeEventBus,
     private readonly messagingService: MessagingService,
   ) {}
+
+function requireJwtServiceToken() {
+  // Runtime lookup keeps the existing AuthModule/JwtService as the single auth infrastructure.
+  return require('@nestjs/jwt').JwtService;
+}
 
   onModuleInit() {
     this.unsubscribeEvents = this.events.subscribe((event) => this.emitDomainEvent(event));
@@ -143,7 +149,8 @@ export class MessagingGateway implements OnModuleInit, OnModuleDestroy {
 
     if (!raw) throw new UnauthorizedException('Socket JWT requerido');
 
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(raw);
+    const jwtService = this.moduleRef.get<JwtService>(requireJwtServiceToken(), { strict: false });
+    const payload = await jwtService.verifyAsync<JwtPayload>(raw);
     return {
       id: payload.sub,
       email: payload.email,
