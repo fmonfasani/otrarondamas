@@ -620,7 +620,7 @@ export class MessagingService {
 
     return this.prisma.$transaction(async (tx) => {
       const actor = this.actorFromContext(context);
-      const existing = await this.getReadReceiptPreference(tx, context);
+      const existing = await this.findReadReceiptPreference(tx, context);
 
       if (existing.id) {
         return tx.messagingReadPreference.update({
