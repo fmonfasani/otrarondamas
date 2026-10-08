@@ -21,6 +21,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { HealthModule } from './health/health.module';
 import { MembershipModule } from './membership/membership.module';
 import { BusinessContextModule } from './business-context/business-context.module';
+import { MessagingModule } from './messaging/messaging.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
@@ -48,6 +49,8 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     MembershipModule,
     // S-V1-02: context resolution + adapter (no controllers).
     BusinessContextModule,
+    // M1: Messaging module boundary; domain capabilities are introduced in later milestones.
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [
