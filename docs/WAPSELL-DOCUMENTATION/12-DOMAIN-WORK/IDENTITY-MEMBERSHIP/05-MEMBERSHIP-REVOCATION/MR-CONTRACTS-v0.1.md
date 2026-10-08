@@ -29,6 +29,7 @@ Unresolved BusinessContext → fail closed.
 Non-Owner → authorization failure.
 Foreign Membership → authorization-safe not-found/failure.
 Invalid transition → conflict/business-rule failure.
+Self-suspension → conflict/business-rule failure.
 
 Exact HTTP mapping reuses existing project conventions.
 
