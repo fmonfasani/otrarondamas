@@ -564,6 +564,7 @@ model Cliente {
   deudas           Deuda[]           @relation("ClienteDeudas")
   pedidos          Pedido[]          @relation("ClientePedidos")
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipantCustomer")
+  authoredMessages         Message[] @relation("MessageAuthorCustomer")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
   @@unique([id, empresaId])
