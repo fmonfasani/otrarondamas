@@ -14,7 +14,7 @@ import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
-import { MarkMessageReadDto, ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
+import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 
 @Controller('messaging/conversations')
 export class MessagingController {
