@@ -8,7 +8,6 @@ import { MembershipService } from './membership.service';
 // endpoint lives in AuthController (GET /auth/memberships) and uses the
 // existing authenticated identity.
 @Module({
-  imports: [PrismaModule],
   imports: [PrismaModule, BusinessContextModule],
   providers: [MembershipService, MembershipRevocationService],
   exports: [MembershipService, MembershipRevocationService],
