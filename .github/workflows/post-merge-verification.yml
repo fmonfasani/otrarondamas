@@ -1,8 +1,8 @@
 name: Post-Merge Verification
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    types: [closed]
   workflow_dispatch:
 
 permissions:
@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   post-merge-verification:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     services:
       postgres:
