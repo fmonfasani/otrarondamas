@@ -107,6 +107,113 @@ export class MessagingService {
     );
   }
 
+  async createTextMessage(auth: AuthenticatedUser, conversationId: string, clientMessageId: string, content: string, replyToMessageId?: string) {
+    const context = await this.resolveContext(auth);
+    return this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.conversation.findFirst({
+        where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      });
+      if (!conversation) throw new NotFoundException('Conversación no encontrada');
+      await this.assertActiveParticipant(tx, conversationId, context);
+
+      if (replyToMessageId) {
+        const parent = await tx.message.findFirst({
+          where: { id: replyToMessageId, conversationId, businessId: context.businessId },
+        });
+        if (!parent) throw new NotFoundException('Mensaje de respuesta no encontrado');
+      }
+
+      const last = await tx.message.findFirst({
+        where: { conversationId, businessId: context.businessId },
+        orderBy: { sequence: 'desc' },
+        select: { sequence: true },
+      });
+      const sequence = (last?.sequence ?? BigInt(0)) + BigInt(1);
+
+      try {
+        return await tx.message.create({
+          data: {
+            conversationId,
+            businessId: context.businessId,
+            ...this.actorFromContext(context),
+            sequence,
+            clientMessageId,
+            type: 'TEXT',
+            content,
+            replyToMessageId,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictException('El clientMessageId ya fue utilizado en esta conversación por el actor');
+        }
+        throw error;
+      }
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async getMessages(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    let joinedAt: Date | undefined;
+    if (!isOwner) {
+      const participant = await this.assertActiveParticipant(this.prisma, conversationId, context);
+      joinedAt = participant.joinedAt;
+    }
+
+    return this.prisma.message.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+        ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
+      },
+      orderBy: { sequence: 'asc' },
+      include: { reactions: true },
+    });
+  }
+
+  async editMessage(auth: AuthenticatedUser, conversationId: string, messageId: string, content: string) {
+    const context = await this.resolveContext(auth);
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, conversationId, businessId: context.businessId, deletedAt: null },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+    const isAuthor =
+      (context.userId !== null && message.authorUserId === context.userId) ||
+      (context.customerId !== null && message.authorCustomerId === context.customerId);
+    if (!isAuthor) throw new ForbiddenException('Solo el autor puede editar el mensaje');
+
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { content, editedAt: new Date() },
+    });
+  }
+
+  async deleteMessage(auth: AuthenticatedUser, conversationId: string, messageId: string) {
+    const context = await this.resolveContext(auth);
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, conversationId, businessId: context.businessId, deletedAt: null },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+    const isAuthor =
+      (context.userId !== null && message.authorUserId === context.userId) ||
+      (context.customerId !== null && message.authorCustomerId === context.customerId);
+    if (!isAuthor) await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date(), deletedByUserId: context.userId ?? null, content: null },
+    });
+  }
+
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     return this.getConversationForActor(this.prisma, conversationId, context);
