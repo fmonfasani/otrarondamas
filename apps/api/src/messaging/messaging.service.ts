@@ -246,6 +246,31 @@ export class MessagingService {
     return result;
   }
 
+  async authorizeRealtimeConversation(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+      },
+      select: { id: true, businessId: true },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    if (!isOwner) {
+      await this.assertActiveParticipant(this.prisma, conversationId, context);
+    }
+
+    return {
+      businessId: conversation.businessId,
+      actorType: context.actorType,
+    };
+  }
+
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     return this.getConversationForActor(this.prisma, conversationId, context);
