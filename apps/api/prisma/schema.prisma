@@ -147,6 +147,8 @@ model Empresa {
   // migración de datos). Empresa sigue siendo el tenant físico.
   memberships        Membership[]
   conversations      Conversation[]
+  messagingReadPreferences MessagingReadPreference[]
+  messageReadReceipts MessageReadReceipt[]
 }
 
 model Usuario {
@@ -270,6 +272,8 @@ model Membership {
 
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipantMembership")
   authoredMessages         Message[] @relation("MessageAuthorMembership")
+  messagingReadPreferences MessagingReadPreference[] @relation("MessagingReadPreferenceMembership")
+  messageReadReceipts       MessageReadReceipt[] @relation("MessageReadReceiptMembership")
 }
 
 // S-V1-01: estados mínimos. ACTIVE = pertenencia válida; SUSPENDED =
@@ -565,6 +569,8 @@ model Cliente {
   pedidos          Pedido[]          @relation("ClientePedidos")
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipantCustomer")
   authoredMessages         Message[] @relation("MessageAuthorCustomer")
+  messagingReadPreferences MessagingReadPreference[] @relation("MessagingReadPreferenceCustomer")
+  messageReadReceipts       MessageReadReceipt[] @relation("MessageReadReceiptCustomer")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
   @@unique([id, empresaId])
@@ -1183,12 +1189,53 @@ model Message {
 
   attachments Attachment[]
   reactions   Reaction[]
+  readReceipts MessageReadReceipt[]
 
   @@unique([conversationId, sequence])
   @@unique([conversationId, clientMessageId, authorUserId])
   @@unique([conversationId, clientMessageId, authorCustomerId])
   @@index([businessId, conversationId, createdAt])
   @@index([conversationId, deletedAt])
+}
+
+model MessagingReadPreference {
+  id                    String      @id @default(uuid())
+  businessId            String
+  business             Empresa     @relation(fields: [businessId], references: [id])
+  userId                String?
+  membershipBusinessId  String?
+  membership            Membership? @relation("MessagingReadPreferenceMembership", fields: [userId, membershipBusinessId], references: [userId, businessId])
+  customerId            String?
+  customerBusinessId    String?
+  customer              Cliente?    @relation("MessagingReadPreferenceCustomer", fields: [customerId, customerBusinessId], references: [id, empresaId])
+  enabled               Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@unique([userId, businessId])
+  @@unique([customerId, businessId])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
+}
+
+model MessageReadReceipt {
+  id                    String      @id @default(uuid())
+  messageId             String
+  businessId            String
+  message               Message     @relation(fields: [messageId, businessId], references: [id, businessId])
+  userId                String?
+  membershipBusinessId  String?
+  membership            Membership? @relation("MessageReadReceiptMembership", fields: [userId, membershipBusinessId], references: [userId, businessId])
+  customerId            String?
+  customerBusinessId    String?
+  customer              Cliente?    @relation("MessageReadReceiptCustomer", fields: [customerId, customerBusinessId], references: [id, empresaId])
+  readAt                DateTime    @default(now())
+
+  @@unique([messageId, userId])
+  @@unique([messageId, customerId])
+  @@index([businessId, messageId])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
 }
 
 model Attachment {
