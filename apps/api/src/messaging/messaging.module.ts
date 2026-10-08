@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
 import { MembershipRevocationModule } from '../membership/membership-revocation.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -16,7 +15,7 @@ import { MessagingRealtimeEventBus } from './messaging-realtime.event-bus';
  * tenancy or authorization mechanism is introduced here.
  */
 @Module({
-  imports: [BusinessContextModule, PrismaModule, AuthModule, MembershipRevocationModule],
+  imports: [BusinessContextModule, PrismaModule, MembershipRevocationModule],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingRealtimeEventBus, MessagingGateway],
 })
