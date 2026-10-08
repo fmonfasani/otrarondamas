@@ -24,10 +24,13 @@ Provide a canonical Business-scoped capability to suspend and reactivate Members
 - Schema changes unless implementation proves an approved dependency.
 
 ## Authorization
-The acting identity must resolve through canonical BusinessContext. The target Membership must belong to the same Business. Only an Owner may mutate it.
+The acting identity must resolve through canonical BusinessContext. The target Membership must belong to the same Business. Only an Owner may mutate it. An Owner cannot suspend their own Membership.
 
 ## Suspension
 Precondition: target Membership is ACTIVE and belongs to the actor's Business. Effect: target becomes SUSPENDED.
+
+## Self-suspension
+The target Membership must not be the actor's own Membership. Self-suspension is rejected to prevent leaving the Business without its active Owner.
 
 ## Reactivation
 Precondition: target Membership is SUSPENDED and belongs to the actor's Business. Effect: target becomes ACTIVE.
