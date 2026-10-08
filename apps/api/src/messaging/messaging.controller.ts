@@ -14,6 +14,7 @@ import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
+import { MarkMessageReadDto, ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 
 @Controller('messaging/conversations')
 export class MessagingController {
@@ -56,6 +57,39 @@ export class MessagingController {
     @Param('id') id: string,
   ) {
     return this.messagingService.getMessages(user, id);
+  }
+
+  @Post(':id/messages/:messageId/read')
+  markMessageRead(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagingService.markMessageRead(user, id, messageId);
+  }
+
+  @Get(':id/messages/:messageId/read-receipts')
+  getMessageReadReceipts(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagingService.getMessageReadReceipts(user, id, messageId);
+  }
+
+  @Get('read-receipts/preferences')
+  getReadReceiptPreference(
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.messagingService.getReadReceiptPreference(user);
+  }
+
+  @Patch('read-receipts/preferences')
+  setReadReceiptPreference(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReadReceiptPreferenceDto,
+  ) {
+    return this.messagingService.setReadReceiptPreference(user, dto.enabled);
   }
 
   @Patch(':id/messages/:messageId')
