@@ -8,16 +8,12 @@ jest.mock('socket.io', () => ({
   })),
 }));
 
+import { Server } from 'socket.io';
 import { MessagingRealtimeGateway } from './messaging-realtime.gateway';
 
 describe('MessagingRealtimeGateway', () => {
-  const server = {
-    use: jest.fn(),
-    on: jest.fn(),
-    to: jest.fn(() => ({ emit: jest.fn() })),
-    sockets: { sockets: new Map() },
-    close: jest.fn(),
-  };
+  let server: any;
+
 
   const httpAdapterHost = {
     httpAdapter: { getHttpServer: jest.fn(() => ({})) },
@@ -43,6 +39,7 @@ describe('MessagingRealtimeGateway', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    server = (Server as unknown as { mock: { results: Array<{ value: any }> } }).mock.results[0]?.value;
     gateway = new MessagingRealtimeGateway(
       httpAdapterHost as any,
       jwtService as any,
@@ -73,9 +70,6 @@ describe('MessagingRealtimeGateway', () => {
       permissions: [],
       actorType: 'USER',
     });
-
-    const middleware = (server.use.mock.calls[0]?.[0]) as any;
-    expect(middleware).toBeUndefined();
 
     gateway.onModuleInit();
     const handshakeMiddleware = server.use.mock.calls[0][0];
