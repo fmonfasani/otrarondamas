@@ -25,6 +25,10 @@ Success: socket joins the authorized conversation room.
 
 Failure: room is not joined and no cross-tenant information is disclosed.
 
+Revocation contract
+
+When Membership becomes inactive/revoked, the Membership service emits a domain revocation event. The Socket.IO Gateway consumes it and invalidates affected protected realtime access. The event does not establish tenant authority or replace Membership authorization.
+
 ## Event contract
 
 | Event | Trigger | Persistence prerequisite |
