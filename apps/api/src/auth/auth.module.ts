@@ -11,11 +11,13 @@ import { GoogleStrategy } from './google.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MembershipModule } from '../membership/membership.module';
+import { BusinessContextModule } from '../business-context/business-context.module';
 
 @Module({
   imports: [
     PrismaModule,
     MembershipModule,
+    BusinessContextModule,
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
