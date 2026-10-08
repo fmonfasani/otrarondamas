@@ -268,7 +268,8 @@ model Membership {
   @@unique([userId, businessId])
   @@index([businessId, userId])
 
-  conversationParticipants ConversationParticipant[]
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipantMembership")
+  authoredMessages         Message[] @relation("MessageAuthorMembership")
 }
 
 // S-V1-01: estados mínimos. ACTIVE = pertenencia válida; SUSPENDED =
