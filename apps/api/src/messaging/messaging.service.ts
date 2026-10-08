@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   MembershipStatus,
@@ -14,6 +15,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
+import { MessagingRealtimeEventBus } from './messaging-realtime.event-bus';
 
 const MAX_GROUP_PARTICIPANTS = 50;
 
@@ -22,6 +24,7 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessContext: BusinessContextService,
+    @Optional() private readonly realtimeEvents?: MessagingRealtimeEventBus,
   ) {}
 
   async createConversation(
@@ -109,7 +112,7 @@ export class MessagingService {
 
   async createTextMessage(auth: AuthenticatedUser, conversationId: string, clientMessageId: string, content: string, replyToMessageId?: string) {
     const context = await this.resolveContext(auth);
-    return this.prisma.$transaction(async (tx) => {
+    const message = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.findFirst({
         where: { id: conversationId, businessId: context.businessId, deletedAt: null },
       });
@@ -150,8 +153,16 @@ export class MessagingService {
         throw error;
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  }
 
+    this.realtimeEvents?.publish({
+      name: 'conversation.message.created',
+      conversationId,
+      businessId: context.businessId,
+      payload: message as unknown as Record<string, unknown>,
+    });
+
+    return message;
+  }
   async getMessages(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     const isOwner = context.role === 'OWNER' && context.userId !== null;
@@ -190,12 +201,20 @@ export class MessagingService {
       (context.customerId !== null && message.authorCustomerId === context.customerId);
     if (!isAuthor) throw new ForbiddenException('Solo el autor puede editar el mensaje');
 
-    return this.prisma.message.update({
+    const updated = await this.prisma.message.update({
       where: { id: messageId },
       data: { content, editedAt: new Date() },
     });
-  }
 
+    this.realtimeEvents?.publish({
+      name: 'conversation.message.updated',
+      conversationId,
+      businessId: context.businessId,
+      payload: updated as unknown as Record<string, unknown>,
+    });
+
+    return updated;
+  }
   async deleteMessage(auth: AuthenticatedUser, conversationId: string, messageId: string) {
     const context = await this.resolveContext(auth);
     const message = await this.prisma.message.findFirst({
@@ -208,10 +227,47 @@ export class MessagingService {
       (context.customerId !== null && message.authorCustomerId === context.customerId);
     if (!isAuthor) await this.assertConversationAdmin(this.prisma, conversationId, context);
 
-    return this.prisma.message.update({
+    const deleted = await this.prisma.message.update({
       where: { id: messageId },
       data: { deletedAt: new Date(), deletedByUserId: context.userId ?? null, content: null },
     });
+
+    this.realtimeEvents?.publish({
+      name: 'conversation.message.deleted',
+      conversationId,
+      businessId: context.businessId,
+      payload: {
+        messageId: deleted.id,
+        deletedAt: deleted.deletedAt,
+        deletedByUserId: deleted.deletedByUserId,
+      },
+    });
+
+    return deleted;
+  }
+  async authorizeRealtimeConversation(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+      },
+      select: { id: true, businessId: true },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    if (!isOwner) {
+      await this.assertActiveParticipant(this.prisma, conversationId, context);
+    }
+
+    return {
+      businessId: conversation.businessId,
+      actorType: context.actorType,
+    };
   }
 
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
@@ -466,7 +522,7 @@ export class MessagingService {
   async markMessageRead(auth: AuthenticatedUser, conversationId: string, messageId: string) {
     const context = await this.resolveContext(auth);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.findFirst({
         where: {
           id: conversationId,
@@ -509,6 +565,7 @@ export class MessagingService {
         },
       });
 
+      const created = !existing;
       const receipt = existing
         ? existing
         : await tx.messageReadReceipt.create({
@@ -524,8 +581,26 @@ export class MessagingService {
         read: true,
         receiptsEnabled: true,
         readAt: receipt.readAt,
+        created,
       };
     });
+
+    if (result.read && result.created) {
+      this.realtimeEvents?.publish({
+        name: 'conversation.message.read',
+        conversationId,
+        businessId: context.businessId,
+        payload: {
+          messageId: result.messageId,
+          readAt: result.readAt,
+          userId: context.userId,
+          customerId: context.customerId,
+        },
+      });
+    }
+
+    const { created: _created, ...response } = result;
+    return response;
   }
 
   async getMessageReadReceipts(
