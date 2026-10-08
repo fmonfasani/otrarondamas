@@ -20,6 +20,7 @@ import { DossierModule } from './dossier/dossier.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { HealthModule } from './health/health.module';
 import { MembershipModule } from './membership/membership.module';
+import { MembershipRevocationModule } from './membership/membership-revocation.module';
 import { BusinessContextModule } from './business-context/business-context.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -47,6 +48,8 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     HealthModule,
     // S-V1-01: membership reads (no own controllers).
     MembershipModule,
+    // Identity & Membership: Owner-controlled Membership status transitions.
+    MembershipRevocationModule,
     // S-V1-02: context resolution + adapter (no controllers).
     BusinessContextModule,
     // M1: Messaging module boundary; domain capabilities are introduced in later milestones.
