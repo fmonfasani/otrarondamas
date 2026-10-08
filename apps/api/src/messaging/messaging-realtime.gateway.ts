@@ -38,7 +38,14 @@ export class MessagingRealtimeGateway implements OnModuleInit, OnModuleDestroy {
         const context = auth.type === 'cliente'
           ? await this.businessContext.resolveForCustomer(auth)
           : await this.businessContext.resolveForAuthenticatedUser(auth);
-        socket.data = { auth, businessId: context.businessId, userId: context.userId, customerId: context.customerId } satisfies RealtimeSocketData;
+
+        socket.data = {
+          auth,
+          businessId: context.businessId,
+          userId: context.userId,
+          customerId: context.customerId,
+        } satisfies RealtimeSocketData;
+
         next();
       } catch {
         next(new Error('Realtime authentication failed'));
@@ -48,7 +55,9 @@ export class MessagingRealtimeGateway implements OnModuleInit, OnModuleDestroy {
     this.server.on('connection', (socket) => this.onConnection(socket));
     this.unsubscribeHandlers.push(
       this.eventBus.subscribe((event) => this.publishDomainEvent(event)),
-      this.membershipRevocation.onStatusChanged((event) => this.handleMembershipStatusChanged(event)),
+      this.membershipRevocation.onStatusChanged((event) =>
+        this.handleMembershipStatusChanged(event),
+      ),
     );
   }
 
@@ -59,40 +68,70 @@ export class MessagingRealtimeGateway implements OnModuleInit, OnModuleDestroy {
 
   private async authenticate(socket: Socket): Promise<AuthenticatedUser> {
     const token = this.extractToken(socket);
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    return {
-      id: payload.sub, email: payload.email, nombre: payload.nombre, empresaId: payload.empresaId,
-      permisos: payload.permisos, rol: payload.rol, estadoLegajo: payload.estadoLegajo,
-      type: payload.type ?? 'usuario', esMayorista: payload.esMayorista,
-    };
+
+    return new Promise<AuthenticatedUser>((resolve, reject) => {
+      const middleware = passport.authenticate(
+        'jwt',
+        { session: false },
+        (error, user) => {
+          if (error) return reject(error);
+          if (!user) return reject(new UnauthorizedException('Invalid JWT'));
+          resolve(user as AuthenticatedUser);
+        },
+      );
+
+      middleware(
+        { headers: { authorization: 'Bearer ' + token } } as any,
+        {} as any,
+        () => reject(new UnauthorizedException('JWT authentication failed')),
+      );
+    });
   }
 
   private extractToken(socket: Socket): string {
     const authToken = socket.handshake.auth?.token;
     if (typeof authToken === 'string' && authToken.trim()) return authToken;
+
     const authorization = socket.handshake.headers.authorization;
-    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) return authorization.slice(7);
-    throw new Error('Missing JWT');
+    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
+      return authorization.slice(7);
+    }
+
+    throw new UnauthorizedException('Missing JWT');
   }
 
   private onConnection(socket: Socket): void {
-    socket.on('conversation:join', async (conversationId: string, acknowledge?: (result: unknown) => void) => {
-      try {
-        if (typeof conversationId !== 'string' || !conversationId) throw new Error('Invalid conversationId');
-        const auth = (socket.data as RealtimeSocketData).auth;
-        await this.messagingService.authorizeRealtimeConversation(auth, conversationId);
-        socket.join(this.conversationRoom(conversationId));
-        acknowledge?.({ ok: true, conversationId });
-      } catch {
-        acknowledge?.({ ok: false, error: 'Conversation access denied' });
-      }
-    });
+    socket.on(
+      'conversation:join',
+      async (conversationId: string, acknowledge?: (result: unknown) => void) => {
+        try {
+          if (typeof conversationId !== 'string' || !conversationId) {
+            throw new Error('Invalid conversationId');
+          }
 
-    socket.on('conversation:leave', (conversationId: string, acknowledge?: (result: unknown) => void) => {
-      if (typeof conversationId !== 'string' || !conversationId) { acknowledge?.({ ok: false, error: 'Invalid conversationId' }); return; }
-      socket.leave(this.conversationRoom(conversationId));
-      acknowledge?.({ ok: true, conversationId });
-    });
+          const auth = (socket.data as RealtimeSocketData).auth;
+          await this.messagingService.authorizeRealtimeConversation(auth, conversationId);
+
+          socket.join(this.conversationRoom(conversationId));
+          acknowledge?.({ ok: true, conversationId });
+        } catch {
+          acknowledge?.({ ok: false, error: 'Conversation access denied' });
+        }
+      },
+    );
+
+    socket.on(
+      'conversation:leave',
+      (conversationId: string, acknowledge?: (result: unknown) => void) => {
+        if (typeof conversationId !== 'string' || !conversationId) {
+          acknowledge?.({ ok: false, error: 'Invalid conversationId' });
+          return;
+        }
+
+        socket.leave(this.conversationRoom(conversationId));
+        acknowledge?.({ ok: true, conversationId });
+      },
+    );
   }
 
   private publishDomainEvent(event: MessagingRealtimeEvent): void {
@@ -100,11 +139,19 @@ export class MessagingRealtimeGateway implements OnModuleInit, OnModuleDestroy {
     this.server.to(this.conversationRoom(event.conversationId)).emit(event.type, event);
   }
 
-  private handleMembershipStatusChanged(event: { membershipId: string; userId: string; businessId: string; newStatus: 'ACTIVE' | 'SUSPENDED' }): void {
+  private handleMembershipStatusChanged(event: {
+    membershipId: string;
+    userId: string;
+    businessId: string;
+    newStatus: 'ACTIVE' | 'SUSPENDED';
+  }): void {
     if (event.newStatus !== 'SUSPENDED' || !this.server) return;
+
     for (const socket of this.server.sockets.sockets.values()) {
       const data = socket.data as RealtimeSocketData;
-      if (data.businessId === event.businessId && data.userId === event.userId) socket.disconnect(true);
+      if (data.businessId === event.businessId && data.userId === event.userId) {
+        socket.disconnect(true);
+      }
     }
   }
 
