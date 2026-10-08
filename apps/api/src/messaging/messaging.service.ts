@@ -463,6 +463,198 @@ export class MessagingService {
     );
   }
 
+  async markMessageRead(auth: AuthenticatedUser, conversationId: string, messageId: string) {
+    const context = await this.resolveContext(auth);
+
+    return this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.conversation.findFirst({
+        where: {
+          id: conversationId,
+          businessId: context.businessId,
+          deletedAt: null,
+        },
+      });
+      if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+      await this.assertActiveParticipant(tx, conversationId, context);
+
+      const message = await tx.message.findFirst({
+        where: {
+          id: messageId,
+          conversationId,
+          businessId: context.businessId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+      const preference = await this.getReadReceiptPreference(tx, context);
+      if (!preference.enabled) {
+        return {
+          messageId,
+          read: false,
+          receiptsEnabled: false,
+        };
+      }
+
+      const actor = this.actorFromContext(context);
+      const existing = await tx.messageReadReceipt.findFirst({
+        where: {
+          messageId,
+          businessId: context.businessId,
+          ...(context.userId
+            ? { userId: context.userId }
+            : { customerId: context.customerId! }),
+        },
+      });
+
+      const receipt = existing
+        ? existing
+        : await tx.messageReadReceipt.create({
+            data: {
+              messageId,
+              businessId: context.businessId,
+              ...actor,
+            },
+          });
+
+      return {
+        messageId,
+        read: true,
+        receiptsEnabled: true,
+        readAt: receipt.readAt,
+      };
+    });
+  }
+
+  async getMessageReadReceipts(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    messageId: string,
+  ) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+      },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    if (!isOwner) {
+      await this.assertActiveParticipant(this.prisma, conversationId, context);
+    }
+
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+    const receipts = await this.prisma.messageReadReceipt.findMany({
+      where: {
+        messageId,
+        businessId: context.businessId,
+      },
+      orderBy: { readAt: 'asc' },
+    });
+
+    if (!receipts.length) return [];
+
+    const userIds = receipts.flatMap((receipt) => receipt.userId ? [receipt.userId] : []);
+    const customerIds = receipts.flatMap((receipt) => receipt.customerId ? [receipt.customerId] : []);
+
+    const [userPreferences, customerPreferences] = await Promise.all([
+      userIds.length
+        ? this.prisma.messagingReadPreference.findMany({
+            where: {
+              businessId: context.businessId,
+              userId: { in: userIds },
+            },
+            select: { userId: true, enabled: true },
+          })
+        : [],
+      customerIds.length
+        ? this.prisma.messagingReadPreference.findMany({
+            where: {
+              businessId: context.businessId,
+              customerId: { in: customerIds },
+            },
+            select: { customerId: true, enabled: true },
+          })
+        : [],
+    ]);
+
+    const disabledUsers = new Set(
+      userPreferences.filter((preference) => !preference.enabled).map((preference) => preference.userId),
+    );
+    const disabledCustomers = new Set(
+      customerPreferences
+        .filter((preference) => !preference.enabled)
+        .map((preference) => preference.customerId),
+    );
+
+    return receipts.filter((receipt) => {
+      if (receipt.userId) return !disabledUsers.has(receipt.userId);
+      if (receipt.customerId) return !disabledCustomers.has(receipt.customerId);
+      return false;
+    });
+  }
+
+  async getReadReceiptPreference(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    return this.getReadReceiptPreference(this.prisma, context);
+  }
+
+  async setReadReceiptPreference(auth: AuthenticatedUser, enabled: boolean) {
+    const context = await this.resolveContext(auth);
+
+    return this.prisma.$transaction(async (tx) => {
+      const actor = this.actorFromContext(context);
+      const existing = await this.getReadReceiptPreference(tx, context);
+
+      if (existing.id) {
+        return tx.messagingReadPreference.update({
+          where: { id: existing.id },
+          data: { enabled },
+        });
+      }
+
+      return tx.messagingReadPreference.create({
+        data: {
+          businessId: context.businessId,
+          ...actor,
+          enabled,
+        },
+      });
+    });
+  }
+
+  private async getReadReceiptPreference(
+    tx: Prisma.TransactionClient | PrismaService,
+    context: BusinessContext,
+  ) {
+    const preference = await tx.messagingReadPreference.findFirst({
+      where: {
+        businessId: context.businessId,
+        ...(context.userId
+          ? { userId: context.userId }
+          : { customerId: context.customerId! }),
+      },
+    });
+
+    return preference ?? { id: null, enabled: true };
+  }
+
   private async resolveContext(auth: AuthenticatedUser): Promise<BusinessContext> {
     return auth.type === 'cliente'
       ? this.businessContext.resolveForCustomer(auth)
