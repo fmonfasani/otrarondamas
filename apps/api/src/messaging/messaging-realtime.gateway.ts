@@ -1,8 +1,9 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
+import { UnauthorizedException } from '@nestjs/common';
+import passport from 'passport';
 import { Server, Socket } from 'socket.io';
-import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { MembershipRevocationService } from '../membership/membership-revocation.service';
 import { MessagingService } from './messaging.service';
@@ -22,7 +23,6 @@ export class MessagingRealtimeGateway implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly httpAdapterHost: HttpAdapterHost,
-    private readonly jwtService: JwtService,
     private readonly businessContext: BusinessContextService,
     private readonly messagingService: MessagingService,
     private readonly membershipRevocation: MembershipRevocationService,
