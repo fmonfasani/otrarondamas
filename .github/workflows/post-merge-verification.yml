@@ -66,10 +66,10 @@ jobs:
           cd apps/api
 
           mapfile -t test_files < <(
-            find test/integration -maxdepth 1 -type f \(
-              -name 's-v1-*.integration-spec.ts' -o
-              -name 'fs-1a-*.integration-spec.ts'
-            \) | sort
+            {
+              find test/integration -maxdepth 1 -type f -name 's-v1-*.integration-spec.ts' -print
+              find test/integration -maxdepth 1 -type f -name 'fs-1a-*.integration-spec.ts' -print
+            } | sort
           )
 
           if [ "${#test_files[@]}" -eq 0 ]; then
