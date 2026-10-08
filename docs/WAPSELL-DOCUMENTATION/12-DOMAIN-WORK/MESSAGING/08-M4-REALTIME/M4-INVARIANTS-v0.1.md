@@ -26,3 +26,6 @@
 22. Existing M1–M3 and Read Receipts contracts remain compatible.
 23. M4 does not introduce a parallel tenancy, identity or authorization mechanism.
 24. No schema change is accepted unless a new verified dependency demonstrates it is necessary.
+
+25. Membership revocation is propagated from the Membership domain service to the realtime Gateway through a domain event.
+26. A revoked/inactive Membership cannot continue receiving protected conversation events after revocation handling completes.
