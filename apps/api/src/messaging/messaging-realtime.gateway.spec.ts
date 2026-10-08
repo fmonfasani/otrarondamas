@@ -39,7 +39,6 @@ describe('MessagingRealtimeGateway', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    server = (Server as unknown as { mock: { results: Array<{ value: any }> } }).mock.results[0]?.value;
     gateway = new MessagingRealtimeGateway(
       httpAdapterHost as any,
       jwtService as any,
@@ -72,6 +71,7 @@ describe('MessagingRealtimeGateway', () => {
     });
 
     gateway.onModuleInit();
+    server = (Server as unknown as { mock: { results: Array<{ value: any }> } }).mock.results[0].value;
     const handshakeMiddleware = server.use.mock.calls[0][0];
     const socket: any = {
       handshake: { auth: { token: 'jwt-token' }, headers: {} },
@@ -89,6 +89,7 @@ describe('MessagingRealtimeGateway', () => {
 
   it('authorizes conversation join before entering the room', async () => {
     gateway.onModuleInit();
+    server = (Server as unknown as { mock: { results: Array<{ value: any }> } }).mock.results[0].value;
     const connectionHandler = server.on.mock.calls.find((call: any[]) => call[0] === 'connection')?.[1];
     const socket: any = {
       data: {
@@ -117,6 +118,7 @@ describe('MessagingRealtimeGateway', () => {
 
   it('disconnects sockets when their Membership becomes suspended', async () => {
     gateway.onModuleInit();
+    server = (Server as unknown as { mock: { results: Array<{ value: any }> } }).mock.results[0].value;
     const socket: any = {
       data: { businessId: 'business-a', userId: 'user-a', customerId: null },
       disconnect: jest.fn(),
