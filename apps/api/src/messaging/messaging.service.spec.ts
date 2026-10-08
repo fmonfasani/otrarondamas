@@ -5,7 +5,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
 import { ConversationTypeDto } from './dto/create-conversation.dto';
 
-describe('MessagingService — M2 conversations', () => {
+describe('MessagingService — M2/M3 messaging', () => {
   const context: BusinessContext = {
     businessId: 'business-a',
     customerId: null,
@@ -51,6 +51,12 @@ describe('MessagingService — M2 conversations', () => {
     },
     cliente: {
       findMany: jest.fn(),
+    },
+    message: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -253,4 +259,146 @@ describe('MessagingService — M2 conversations', () => {
       }),
     );
   });
+  it('creates a TEXT message with canonical tenant context and monotonic sequence', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue({ sequence: BigInt(4) });
+    prisma.message.create.mockResolvedValue({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      sequence: BigInt(5),
+      type: 'TEXT',
+      content: 'Hola',
+    });
+
+    const result = await service.createTextMessage(
+      auth,
+      'conversation-a',
+      'client-1',
+      'Hola',
+    );
+
+    expect(result.sequence).toBe(BigInt(5));
+    expect(prisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          conversationId: 'conversation-a',
+          businessId: 'business-a',
+          userId: 'user-a',
+          membershipBusinessId: 'business-a',
+          sequence: BigInt(5),
+          clientMessageId: 'client-1',
+          type: 'TEXT',
+          content: 'Hola',
+        }),
+      }),
+    );
+  });
+
+  it('retrieves only messages created after the actor current participation period', async () => {
+    const joinedAt = new Date('2026-10-08T10:00:00.000Z');
+    const nonOwnerContext: BusinessContext = {
+      ...context,
+      role: 'ASISTENTE_LOCAL',
+    };
+    businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce(nonOwnerContext);
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      joinedAt,
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findMany.mockResolvedValue([]);
+
+    await service.getMessages(auth, 'conversation-a');
+
+    expect(prisma.message.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          businessId: 'business-a',
+          conversationId: 'conversation-a',
+          deletedAt: null,
+          createdAt: { gte: joinedAt },
+        }),
+      }),
+    );
+  });
+
+  it('allows only the message author to edit text', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      authorUserId: 'user-a',
+      deletedAt: null,
+    });
+    prisma.message.update.mockResolvedValue({
+      id: 'message-a',
+      content: 'Editado',
+    });
+
+    const result = await service.editMessage(
+      auth,
+      'conversation-a',
+      'message-a',
+      'Editado',
+    );
+
+    expect(result.content).toBe('Editado');
+    expect(prisma.message.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'message-a' },
+        data: expect.objectContaining({
+          content: 'Editado',
+          editedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('soft-deletes a message and clears visible content', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      authorUserId: 'user-a',
+      deletedAt: null,
+    });
+    prisma.message.update.mockResolvedValue({
+      id: 'message-a',
+      content: null,
+      deletedAt: new Date(),
+    });
+
+    const result = await service.deleteMessage(auth, 'conversation-a', 'message-a');
+
+    expect(result.content).toBeNull();
+    expect(prisma.message.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'message-a' },
+        data: expect.objectContaining({
+          deletedAt: expect.any(Date),
+          deletedByUserId: 'user-a',
+          content: null,
+        }),
+      }),
+    );
+  });
+
 });
