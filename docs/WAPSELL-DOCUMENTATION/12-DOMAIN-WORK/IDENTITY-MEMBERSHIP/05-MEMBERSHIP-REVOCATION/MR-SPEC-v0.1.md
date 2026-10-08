@@ -3,7 +3,7 @@
 **Status:** PROPOSED — PENDING REVIEW/GATE
 
 ## Objective
-Provide a canonical Business-scoped capability to suspend and reactivate Memberships and emit a domain event consumed by dependent capabilities such as M4 Realtime Messaging.
+Provide a canonical Business-scoped capability to suspend and reactivate Memberships and emit a domain event from the Identity & Membership revocation capability, consumed by dependent capabilities such as M4 Realtime Messaging.
 
 ## In Scope
 - Owner-authorized suspension and reactivation.
