@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { MembershipRevocationModule } from '../membership/membership-revocation.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -9,7 +8,7 @@ import { MessagingRealtimeEventBus } from './messaging-realtime-event-bus';
 import { MessagingRealtimeGateway } from './messaging-realtime.gateway';
 
 @Module({
-  imports: [AuthModule, BusinessContextModule, MembershipRevocationModule, PrismaModule],
+  imports: [BusinessContextModule, MembershipRevocationModule, PrismaModule],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingRealtimeEventBus, MessagingRealtimeGateway],
 })
