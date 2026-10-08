@@ -1191,6 +1191,7 @@ model Message {
   reactions   Reaction[]
   readReceipts MessageReadReceipt[]
 
+  @@unique([id, businessId])
   @@unique([conversationId, sequence])
   @@unique([conversationId, clientMessageId, authorUserId])
   @@unique([conversationId, clientMessageId, authorCustomerId])
