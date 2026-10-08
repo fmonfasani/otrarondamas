@@ -1,0 +1,66 @@
+name: Post-Merge Verification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  post-merge-verification:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      JWT_SECRET: s-v1-ci-only-jwt-secret
+      GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+      GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+      GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run prisma:generate --workspace=@otrarondamas/api
+      - run: npm run build --workspace=@otrarondamas/api
+      - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+      - run: npm test --workspace=@otrarondamas/api -- --runInBand
+
+      - name: Run tenant isolation regression
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/tenant-isolation.integration-spec.ts
+
+      - name: Run B3 tenant isolation candidate
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-tenant-isolation.integration-spec.ts
+
+      - name: Run S-V1 and FS-1a verification suites
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          'test/integration/(s-v1-|fs-1a-).*\\.integration-spec\\.ts'
