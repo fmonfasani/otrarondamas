@@ -17,5 +17,8 @@
 ## MR-D05 — Domain event
 **Decision:** Explicit event membership.status.changed with membershipId, userId, businessId, previousStatus, newStatus and occurredAt. No credentials, JWT, permissions or unrelated personal data.
 
+## MR-D06 — Self-suspension
+**Decision:** An Owner cannot suspend their own Membership. Self-suspension is rejected even when the actor otherwise has Owner authority.
+
 ## Rationale
 Reuse the existing Membership status model, establish Membership as Business-scoped authority, avoid a second identity/authorization mechanism, preserve legacy Usuario.activo, and provide the signal required by M4-D11.
