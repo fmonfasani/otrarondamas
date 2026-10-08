@@ -39,10 +39,6 @@ export class MessagingGateway implements OnModuleInit, OnModuleDestroy {
     private readonly messagingService: MessagingService,
   ) {}
 
-function requireJwtServiceToken() {
-  // Runtime lookup keeps the existing AuthModule/JwtService as the single auth infrastructure.
-  return require('@nestjs/jwt').JwtService;
-}
 
   onModuleInit() {
     this.unsubscribeEvents = this.events.subscribe((event) => this.emitDomainEvent(event));
@@ -180,5 +176,9 @@ function requireJwtServiceToken() {
 
   private room(conversationId: string) {
     return `conversation:${conversationId}`;
-  }
+  } 
+}
+
+function requireJwtServiceToken() {
+  return require('@nestjs/jwt').JwtService;
 }
