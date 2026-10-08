@@ -52,4 +52,4 @@ jobs:
         run: >-
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
-          'test/integration/(s-v1-|fs-1a-).*\\.integration-spec\\.ts'
+          'test/integration/(s-v1-|fs-1a-).*\.integration-spec\.ts'
