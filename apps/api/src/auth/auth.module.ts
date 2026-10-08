@@ -35,6 +35,9 @@ import { BusinessContextModule } from '../business-context/business-context.modu
   ],
   // AuthService exported: AuthorizationsService (D-06) injects it to
   // reuse verifyCredentials() without duplicating the bcrypt logic.
-  exports: [JwtModule, PermissionsGuard, AuthService, AuthCustomerService],
+  // JwtStrategy is also exported so realtime transports reuse the exact
+  // existing JWT payload-to-identity normalization instead of creating a
+  // second authentication model.
+  exports: [JwtModule, PermissionsGuard, AuthService, AuthCustomerService, JwtStrategy],
 })
 export class AuthModule {}
