@@ -62,6 +62,8 @@ jobs:
       - name: Run S-V1 and FS-1a verification suites
         shell: bash
         run: |
+          cd apps/api
+
           mapfile -t test_files < <(
             find test/integration -maxdepth 1 -type f \(
               -name 's-v1-*.integration-spec.ts' -o
@@ -77,4 +79,4 @@ jobs:
           printf 'Running %d S-V1/FS-1a integration test files:\n' "${#test_files[@]}"
           printf '  %s\n' "${test_files[@]}"
 
-          npm run test:integration --workspace=@otrarondamas/api -- --runInBand "${test_files[@]}"
+          npm run test:integration -- --runInBand "${test_files[@]}"
