@@ -136,7 +136,19 @@ describe('MessagingService — M2 conversations', () => {
     expect(prisma.conversation.create).not.toHaveBeenCalled();
   });
 
-  it('rejects access for an actor who is not an active participant', async () => {
+  it('rejects access for a non-owner actor who is not an active participant', async () => {
+    const nonOwnerContext: BusinessContext = {
+      ...context,
+      role: 'ASISTENTE_LOCAL',
+    };
+    const nonOwnerAuth: AuthenticatedUser = {
+      ...auth,
+      email: 'seller@example.com',
+      nombre: 'Seller',
+      rol: 'ASISTENTE_LOCAL',
+    };
+
+    businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce(nonOwnerContext);
     prisma.conversation.findFirst.mockResolvedValue({
       id: 'conversation-a',
       businessId: 'business-a',
@@ -145,9 +157,9 @@ describe('MessagingService — M2 conversations', () => {
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue(null);
 
-    await expect(service.getConversation(auth, 'conversation-a')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getConversation(nonOwnerAuth, 'conversation-a'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('removes a participant and promotes the earliest remaining participant when the admin leaves', async () => {
