@@ -1,3 +1,5 @@
+jest.mock('passport', () => ({ authenticate: jest.fn(() => (_req: any, _res: any, _next: any) => undefined) }));
+
 jest.mock('socket.io', () => ({
   Server: jest.fn().mockImplementation(() => ({
     use: jest.fn(),
@@ -8,6 +10,7 @@ jest.mock('socket.io', () => ({
   })),
 }));
 
+import passport from 'passport';
 import { Server } from 'socket.io';
 import { MessagingRealtimeGateway } from './messaging-realtime.gateway';
 
@@ -18,10 +21,7 @@ describe('MessagingRealtimeGateway', () => {
   const httpAdapterHost = {
     httpAdapter: { getHttpServer: jest.fn(() => ({})) },
   };
-  const jwtService = {
-    verifyAsync: jest.fn(),
-  };
-  const businessContext = {
+    const businessContext = {
     resolveForAuthenticatedUser: jest.fn(),
     resolveForCustomer: jest.fn(),
   };
@@ -41,7 +41,6 @@ describe('MessagingRealtimeGateway', () => {
     jest.clearAllMocks();
     gateway = new MessagingRealtimeGateway(
       httpAdapterHost as any,
-      jwtService as any,
       businessContext as any,
       messagingService as any,
       membershipRevocation as any,
@@ -50,15 +49,18 @@ describe('MessagingRealtimeGateway', () => {
   });
 
   it('authenticates Socket.IO handshake and resolves BusinessContext', async () => {
-    jwtService.verifyAsync.mockResolvedValue({
-      sub: 'user-a',
-      email: 'owner@example.com',
-      nombre: 'Owner',
-      empresaId: 'legacy-business',
-      permisos: [],
-      rol: 'OWNER',
-      estadoLegajo: 'APROBADO',
-      type: 'usuario',
+    (passport.authenticate as jest.Mock).mockImplementationOnce((_name, _options, callback) => {
+      callback(null, {
+        id: 'legacy-owner',
+        email: 'owner@example.com',
+        nombre: 'Owner',
+        empresaId: 'legacy-business',
+        permisos: [],
+        rol: 'OWNER',
+        estadoLegajo: 'APROBADO',
+        type: 'usuario',
+      });
+      return () => undefined;
     });
     businessContext.resolveForAuthenticatedUser.mockResolvedValue({
       businessId: 'business-a',
@@ -81,7 +83,7 @@ describe('MessagingRealtimeGateway', () => {
 
     await handshakeMiddleware(socket, next);
 
-    expect(jwtService.verifyAsync).toHaveBeenCalledWith('jwt-token');
+    expect(passport.authenticate).toHaveBeenCalledWith('jwt', { session: false }, expect.any(Function));
     expect(businessContext.resolveForAuthenticatedUser).toHaveBeenCalled();
     expect(socket.data.businessId).toBe('business-a');
     expect(next).toHaveBeenCalledWith();
