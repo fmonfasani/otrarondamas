@@ -27,7 +27,9 @@ Reuse existing JWT authentication and resolve BusinessContext.
 Implement explicit room subscription with Owner/non-Owner authorization rules.
 
 ### M4-04 Revocation
-Ensure inactive/revoked Membership loses protected realtime access.
+Implement the Membership-domain-event → Socket.IO Gateway propagation and invalidate affected protected realtime access immediately.
+
+Membership remains the source of authorization truth; the event is transport invalidation only.
 
 ### M4-05 Event publication
 Publish explicit domain events after successful persistence.
