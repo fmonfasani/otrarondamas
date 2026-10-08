@@ -1098,6 +1098,142 @@ model Notificacion {
   updatedAt    DateTime @updatedAt
 }
 
+enum MessagingConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MessagingMessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+}
+
+enum MessagingAssociationType {
+  CUSTOMER
+  ORDER
+  SALE
+  PRODUCT
+  PURCHASE
+}
+
+model Conversation {
+  id         String                    @id @default(uuid())
+  businessId String
+  business   Empresa                   @relation(fields: [businessId], references: [id])
+  type       MessagingConversationType
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  deletedAt  DateTime?
+
+  participants ConversationParticipant[]
+  messages     Message[]
+  associations ConversationAssociation[]
+
+  @@unique([id, businessId])
+  @@index([businessId, updatedAt])
+  @@index([businessId, deletedAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  businessId     String
+  conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId])
+  userId         String?
+  membership     Membership?  @relation("ConversationParticipantMembership", fields: [userId, businessId], references: [userId, businessId])
+  customerId     String?
+  customer       Cliente?     @relation("ConversationParticipantCustomer", fields: [customerId, businessId], references: [id, empresaId])
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  removedAt      DateTime?
+  isAdmin        Boolean      @default(false)
+
+  @@index([conversationId, joinedAt])
+  @@index([conversationId, leftAt])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
+}
+
+model Message {
+  id               String                @id @default(uuid())
+  conversationId   String
+  businessId       String
+  conversation     Conversation           @relation(fields: [conversationId, businessId], references: [id, businessId])
+  authorUserId     String?
+  authorMembership Membership?            @relation("MessageAuthorMembership", fields: [authorUserId, businessId], references: [userId, businessId])
+  authorCustomerId String?
+  authorCustomer   Cliente?               @relation("MessageAuthorCustomer", fields: [authorCustomerId, businessId], references: [id, empresaId])
+  sequence         BigInt
+  clientMessageId  String
+  type             MessagingMessageType
+  content          String?
+  createdAt        DateTime               @default(now())
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  deletedByUserId  String?
+  replyToMessageId String?
+
+  attachments Attachment[]
+  reactions   Reaction[]
+
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, clientMessageId, authorUserId])
+  @@unique([conversationId, clientMessageId, authorCustomerId])
+  @@index([businessId, conversationId, createdAt])
+  @@index([conversationId, deletedAt])
+}
+
+model Attachment {
+  id          String   @id @default(uuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id])
+  storageKey  String
+  filename    String
+  mimeType    String
+  sizeBytes   BigInt
+  durationSec Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  @@index([messageId, deletedAt])
+  @@index([storageKey])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([userId, messageId])
+}
+
+model ConversationAssociation {
+  id             String                    @id @default(uuid())
+  conversationId String
+  businessId     String
+  conversation   Conversation              @relation(fields: [conversationId, businessId], references: [id, businessId])
+  entityType     MessagingAssociationType
+  entityId       String
+  active         Boolean                   @default(true)
+  changedBy      String?
+  reason         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([businessId, conversationId, active])
+  @@index([businessId, entityType, entityId])
+}
+
 model AuditLog {
   id                 String        @id @default(uuid())
   empresaId          String
