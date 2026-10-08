@@ -52,7 +52,9 @@ Room membership is not an authorization primitive by itself; every protected ope
 
 Realtime access depends on active Membership.
 
-When a Membership becomes inactive/revoked, the gateway must prevent continued access to protected conversation events and remove the connection's authorized subscriptions as required by the implementation.
+When a Membership becomes inactive/revoked, the Membership domain service emits a domain event. The Socket.IO Gateway consumes that event and immediately invalidates protected realtime access affected by that Membership, including authorized room subscriptions as applicable.
+
+Membership remains the authority. The event is a notification path to the realtime transport, not a second authorization or Membership mechanism.
 
 M4 does not introduce a second Membership store.
 
