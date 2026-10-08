@@ -8,7 +8,8 @@
 4. JWT empresaId does not override BusinessContext.
 5. Only Owner may suspend/reactivate Membership.
 6. Target Membership must belong to actor Business.
-7. Cross-Business mutation is forbidden.
+7. Owner cannot suspend their own Membership.
+8. Cross-Business mutation is forbidden.
 8. Suspension is ACTIVE → SUSPENDED.
 9. Reactivation is SUSPENDED → ACTIVE.
 10. No new Membership status.
