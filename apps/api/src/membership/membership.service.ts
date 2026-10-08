@@ -1,6 +1,8 @@
 import {
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,6 +26,7 @@ export class MembershipService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => BusinessContextService))
     private readonly businessContext: BusinessContextService,
   ) {}
 
