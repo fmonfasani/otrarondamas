@@ -5,12 +5,15 @@ import {
   Get,
   Param,
   Post,
+  Patch,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { EditMessageDto } from './dto/message-operations.dto';
 
 @Controller('messaging/conversations')
 export class MessagingController {
@@ -30,6 +33,48 @@ export class MessagingController {
     @Param('id') id: string,
   ) {
     return this.messagingService.getConversation(user, id);
+  }
+
+  @Post(':id/messages')
+  createMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreateMessageDto,
+  ) {
+    return this.messagingService.createTextMessage(
+      user,
+      id,
+      dto.clientMessageId,
+      dto.content,
+      dto.replyToMessageId,
+    );
+  }
+
+  @Get(':id/messages')
+  getMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.messagingService.getMessages(user, id);
+  }
+
+  @Patch(':id/messages/:messageId')
+  editMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: EditMessageDto,
+  ) {
+    return this.messagingService.editMessage(user, id, messageId, dto.content);
+  }
+
+  @Delete(':id/messages/:messageId')
+  deleteMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagingService.deleteMessage(user, id, messageId);
   }
 
   @Delete(':id')
