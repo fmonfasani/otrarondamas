@@ -35,7 +35,9 @@ CREATE TABLE "ConversationParticipant" (
     "conversationId" TEXT NOT NULL,
     "businessId" TEXT NOT NULL,
     "userId" TEXT,
+    "membershipBusinessId" TEXT,
     "customerId" TEXT,
+    "customerBusinessId" TEXT,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "leftAt" TIMESTAMP(3),
     "removedAt" TIMESTAMP(3),
@@ -45,6 +47,14 @@ CREATE TABLE "ConversationParticipant" (
     CONSTRAINT "ConversationParticipant_actor_xor" CHECK (
         (CASE WHEN "userId" IS NULL THEN 0 ELSE 1 END) +
         (CASE WHEN "customerId" IS NULL THEN 0 ELSE 1 END) = 1
+    ),
+    CONSTRAINT "ConversationParticipant_membership_business_match" CHECK (
+        ("userId" IS NULL AND "membershipBusinessId" IS NULL) OR
+        ("userId" IS NOT NULL AND "membershipBusinessId" = "businessId")
+    ),
+    CONSTRAINT "ConversationParticipant_customer_business_match" CHECK (
+        ("customerId" IS NULL AND "customerBusinessId" IS NULL) OR
+        ("customerId" IS NOT NULL AND "customerBusinessId" = "businessId")
     )
 );
 
@@ -54,7 +64,9 @@ CREATE TABLE "Message" (
     "conversationId" TEXT NOT NULL,
     "businessId" TEXT NOT NULL,
     "authorUserId" TEXT,
+    "authorMembershipBusinessId" TEXT,
     "authorCustomerId" TEXT,
+    "authorCustomerBusinessId" TEXT,
     "sequence" BIGINT NOT NULL,
     "clientMessageId" TEXT NOT NULL,
     "type" "MessagingMessageType" NOT NULL,
@@ -71,6 +83,14 @@ CREATE TABLE "Message" (
     CONSTRAINT "Message_author_xor" CHECK (
         (CASE WHEN "authorUserId" IS NULL THEN 0 ELSE 1 END) +
         (CASE WHEN "authorCustomerId" IS NULL THEN 0 ELSE 1 END) = 1
+    ),
+    CONSTRAINT "Message_author_membership_business_match" CHECK (
+        ("authorUserId" IS NULL AND "authorMembershipBusinessId" IS NULL) OR
+        ("authorUserId" IS NOT NULL AND "authorMembershipBusinessId" = "businessId")
+    ),
+    CONSTRAINT "Message_author_customer_business_match" CHECK (
+        ("authorCustomerId" IS NULL AND "authorCustomerBusinessId" IS NULL) OR
+        ("authorCustomerId" IS NOT NULL AND "authorCustomerBusinessId" = "businessId")
     )
 );
 
@@ -154,12 +174,12 @@ ALTER TABLE "ConversationParticipant"
 
 ALTER TABLE "ConversationParticipant"
   ADD CONSTRAINT "ConversationParticipant_membership_fkey"
-  FOREIGN KEY ("userId", "businessId")
+  FOREIGN KEY ("userId", "membershipBusinessId")
   REFERENCES "Membership"("userId", "businessId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "ConversationParticipant"
   ADD CONSTRAINT "ConversationParticipant_customer_fkey"
-  FOREIGN KEY ("customerId", "businessId")
+  FOREIGN KEY ("customerId", "customerBusinessId")
   REFERENCES "Cliente"("id", "empresaId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "Message"
@@ -169,12 +189,12 @@ ALTER TABLE "Message"
 
 ALTER TABLE "Message"
   ADD CONSTRAINT "Message_authorMembership_fkey"
-  FOREIGN KEY ("authorUserId", "businessId")
+  FOREIGN KEY ("authorUserId", "authorMembershipBusinessId")
   REFERENCES "Membership"("userId", "businessId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "Message"
   ADD CONSTRAINT "Message_authorCustomer_fkey"
-  FOREIGN KEY ("authorCustomerId", "businessId")
+  FOREIGN KEY ("authorCustomerId", "authorCustomerBusinessId")
   REFERENCES "Cliente"("id", "empresaId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "Message"
