@@ -14,6 +14,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
+import { MessagingRealtimeEventBus } from './messaging-realtime-event-bus';
 
 const MAX_GROUP_PARTICIPANTS = 50;
 
@@ -22,6 +23,7 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessContext: BusinessContextService,
+    private readonly realtimeEventBus?: MessagingRealtimeEventBus,
   ) {}
 
   async createConversation(
@@ -109,7 +111,7 @@ export class MessagingService {
 
   async createTextMessage(auth: AuthenticatedUser, conversationId: string, clientMessageId: string, content: string, replyToMessageId?: string) {
     const context = await this.resolveContext(auth);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.findFirst({
         where: { id: conversationId, businessId: context.businessId, deletedAt: null },
       });
@@ -150,6 +152,16 @@ export class MessagingService {
         throw error;
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    this.realtimeEventBus?.publish({
+      type: 'conversation.message.created',
+      businessId: result.businessId,
+      conversationId: result.conversationId,
+      messageId: result.id,
+      sequence: result.sequence.toString(),
+    });
+
+    return result;
   }
 
   async getMessages(auth: AuthenticatedUser, conversationId: string) {
@@ -190,10 +202,20 @@ export class MessagingService {
       (context.customerId !== null && message.authorCustomerId === context.customerId);
     if (!isAuthor) throw new ForbiddenException('Solo el autor puede editar el mensaje');
 
-    return this.prisma.message.update({
+    const result = await this.prisma.message.update({
       where: { id: messageId },
       data: { content, editedAt: new Date() },
     });
+
+    this.realtimeEventBus?.publish({
+      type: 'conversation.message.updated',
+      businessId: context.businessId,
+      conversationId,
+      messageId,
+      editedAt: result.editedAt!.toISOString(),
+    });
+
+    return result;
   }
 
   async deleteMessage(auth: AuthenticatedUser, conversationId: string, messageId: string) {
@@ -208,10 +230,20 @@ export class MessagingService {
       (context.customerId !== null && message.authorCustomerId === context.customerId);
     if (!isAuthor) await this.assertConversationAdmin(this.prisma, conversationId, context);
 
-    return this.prisma.message.update({
+    const result = await this.prisma.message.update({
       where: { id: messageId },
       data: { deletedAt: new Date(), deletedByUserId: context.userId ?? null, content: null },
     });
+
+    this.realtimeEventBus?.publish({
+      type: 'conversation.message.deleted',
+      businessId: context.businessId,
+      conversationId,
+      messageId,
+      deletedAt: result.deletedAt!.toISOString(),
+    });
+
+    return result;
   }
 
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
@@ -466,7 +498,7 @@ export class MessagingService {
   async markMessageRead(auth: AuthenticatedUser, conversationId: string, messageId: string) {
     const context = await this.resolveContext(auth);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.findFirst({
         where: {
           id: conversationId,
@@ -526,6 +558,20 @@ export class MessagingService {
         readAt: receipt.readAt,
       };
     });
+
+    if (result.read && result.created) {
+      this.realtimeEventBus?.publish({
+        type: 'conversation.message.read',
+        businessId: context.businessId,
+        conversationId,
+        messageId,
+        ...(context.userId ? { userId: context.userId } : { customerId: context.customerId! }),
+        readAt: result.readAt!.toISOString(),
+      });
+    }
+
+    const { created: _created, ...response } = result;
+    return response;
   }
 
   async getMessageReadReceipts(
