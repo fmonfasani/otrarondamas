@@ -15,6 +15,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
+import { MessagingRealtimeEventBus } from './messaging-realtime-event-bus';
 import { MessagingRealtimeEventBus } from './messaging-realtime.event-bus';
 
 const MAX_GROUP_PARTICIPANTS = 50;
@@ -153,6 +154,16 @@ export class MessagingService {
         throw error;
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    this.realtimeEventBus?.publish({
+      type: 'conversation.message.created',
+      businessId: result.businessId,
+      conversationId: result.conversationId,
+      messageId: result.id,
+      sequence: result.sequence.toString(),
+    });
+
+    return result;
 
     this.realtimeEvents?.publish({
       name: 'conversation.message.created',
@@ -601,6 +612,18 @@ export class MessagingService {
 
     const { created: _created, ...response } = result;
     return response;
+    if (result.read && result.readAt) {
+      this.realtimeEventBus?.publish({
+        type: 'conversation.message.read',
+        businessId: context.businessId,
+        conversationId,
+        messageId,
+        ...(context.userId ? { userId: context.userId } : { customerId: context.customerId! }),
+        readAt: result.readAt.toISOString(),
+      });
+    }
+
+    return result;
   }
 
   async getMessageReadReceipts(
@@ -693,7 +716,7 @@ export class MessagingService {
   async setReadReceiptPreference(auth: AuthenticatedUser, enabled: boolean) {
     const context = await this.resolveContext(auth);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const actor = this.actorFromContext(context);
       const existing = await this.findReadReceiptPreference(tx, context);
 
