@@ -146,6 +146,9 @@ model Empresa {
   // S-V1-01: back-relation aditiva (sin columna física, sin impacto en
   // migración de datos). Empresa sigue siendo el tenant físico.
   memberships        Membership[]
+  conversations      Conversation[]
+  messagingReadPreferences MessagingReadPreference[]
+  messageReadReceipts MessageReadReceipt[]
 }
 
 model Usuario {
@@ -245,6 +248,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   memberships Membership[]
+  reactions   Reaction[]
 }
 
 // S-V1-01: pertenencia User ↔ Business. Business físico = Empresa
@@ -264,6 +268,12 @@ model Membership {
   updatedAt  DateTime         @updatedAt
 
   @@unique([userId, businessId])
+  @@index([businessId, userId])
+
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipantMembership")
+  authoredMessages         Message[] @relation("MessageAuthorMembership")
+  messagingReadPreferences MessagingReadPreference[] @relation("MessagingReadPreferenceMembership")
+  messageReadReceipts       MessageReadReceipt[] @relation("MessageReadReceiptMembership")
 }
 
 // S-V1-01: estados mínimos. ACTIVE = pertenencia válida; SUSPENDED =
@@ -557,8 +567,13 @@ model Cliente {
   cuentasCorriente CuentaCorriente[] @relation("ClienteCuentasCorriente")
   deudas           Deuda[]           @relation("ClienteDeudas")
   pedidos          Pedido[]          @relation("ClientePedidos")
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipantCustomer")
+  authoredMessages         Message[] @relation("MessageAuthorCustomer")
+  messagingReadPreferences MessagingReadPreference[] @relation("MessagingReadPreferenceCustomer")
+  messageReadReceipts       MessageReadReceipt[] @relation("MessageReadReceiptCustomer")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
+  @@unique([id, empresaId])
 }
 
 // RF-17 (docs/spec-login-roles.md): campos y documentos exigidos por
@@ -1087,6 +1102,189 @@ model Notificacion {
   mensaje      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+enum MessagingConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MessagingMessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+}
+
+enum MessagingAssociationType {
+  CUSTOMER
+  ORDER
+  SALE
+  PRODUCT
+  PURCHASE
+}
+
+model Conversation {
+  id         String                    @id @default(uuid())
+  businessId String
+  business   Empresa                   @relation(fields: [businessId], references: [id])
+  type       MessagingConversationType
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  deletedAt  DateTime?
+
+  participants ConversationParticipant[]
+  messages     Message[]
+  associations ConversationAssociation[]
+
+  @@unique([id, businessId])
+  @@index([businessId, updatedAt])
+  @@index([businessId, deletedAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  businessId     String
+  conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId])
+  userId               String?
+  membershipBusinessId String?
+  membership          Membership? @relation("ConversationParticipantMembership", fields: [userId, membershipBusinessId], references: [userId, businessId])
+  customerId           String?
+  customerBusinessId   String?
+  customer             Cliente? @relation("ConversationParticipantCustomer", fields: [customerId, customerBusinessId], references: [id, empresaId])
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  removedAt      DateTime?
+  isAdmin        Boolean      @default(false)
+
+  @@index([conversationId, joinedAt])
+  @@index([conversationId, leftAt])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
+}
+
+model Message {
+  id               String                @id @default(uuid())
+  conversationId   String
+  businessId       String
+  conversation     Conversation           @relation(fields: [conversationId, businessId], references: [id, businessId])
+  authorUserId             String?
+  authorMembershipBusinessId String?
+  authorMembership         Membership? @relation("MessageAuthorMembership", fields: [authorUserId, authorMembershipBusinessId], references: [userId, businessId])
+  authorCustomerId         String?
+  authorCustomerBusinessId String?
+  authorCustomer           Cliente? @relation("MessageAuthorCustomer", fields: [authorCustomerId, authorCustomerBusinessId], references: [id, empresaId])
+  sequence         BigInt
+  clientMessageId  String
+  type             MessagingMessageType
+  content          String?
+  createdAt        DateTime               @default(now())
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  deletedByUserId  String?
+  replyToMessageId String?
+
+  attachments Attachment[]
+  reactions   Reaction[]
+  readReceipts MessageReadReceipt[]
+
+  @@unique([id, businessId])
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, clientMessageId, authorUserId])
+  @@unique([conversationId, clientMessageId, authorCustomerId])
+  @@index([businessId, conversationId, createdAt])
+  @@index([conversationId, deletedAt])
+}
+
+model MessagingReadPreference {
+  id                    String      @id @default(uuid())
+  businessId            String
+  business             Empresa     @relation(fields: [businessId], references: [id])
+  userId                String?
+  membershipBusinessId  String?
+  membership            Membership? @relation("MessagingReadPreferenceMembership", fields: [userId, membershipBusinessId], references: [userId, businessId])
+  customerId            String?
+  customerBusinessId    String?
+  customer              Cliente?    @relation("MessagingReadPreferenceCustomer", fields: [customerId, customerBusinessId], references: [id, empresaId])
+  enabled               Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@unique([userId, businessId])
+  @@unique([customerId, businessId])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
+}
+
+model MessageReadReceipt {
+  id                    String      @id @default(uuid())
+  messageId             String
+  businessId            String
+  business              Empresa     @relation(fields: [businessId], references: [id])
+  message               Message     @relation(fields: [messageId, businessId], references: [id, businessId])
+  userId                String?
+  membershipBusinessId  String?
+  membership            Membership? @relation("MessageReadReceiptMembership", fields: [userId, membershipBusinessId], references: [userId, businessId])
+  customerId            String?
+  customerBusinessId    String?
+  customer              Cliente?    @relation("MessageReadReceiptCustomer", fields: [customerId, customerBusinessId], references: [id, empresaId])
+  readAt                DateTime    @default(now())
+
+  @@unique([messageId, userId])
+  @@unique([messageId, customerId])
+  @@index([businessId, messageId])
+  @@index([businessId, userId])
+  @@index([businessId, customerId])
+}
+
+model Attachment {
+  id          String   @id @default(uuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id])
+  storageKey  String
+  filename    String
+  mimeType    String
+  sizeBytes   BigInt
+  durationSec Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  @@index([messageId, deletedAt])
+  @@index([storageKey])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([userId, messageId])
+}
+
+model ConversationAssociation {
+  id             String                    @id @default(uuid())
+  conversationId String
+  businessId     String
+  conversation   Conversation              @relation(fields: [conversationId, businessId], references: [id, businessId])
+  entityType     MessagingAssociationType
+  entityId       String
+  active         Boolean                   @default(true)
+  changedBy      String?
+  reason         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([businessId, conversationId, active])
+  @@index([businessId, entityType, entityId])
 }
 
 model AuditLog {
