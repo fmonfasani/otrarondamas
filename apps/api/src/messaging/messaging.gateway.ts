@@ -3,10 +3,11 @@ import {
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
-import type { Socket } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { MembershipRevocationService } from '../membership/membership-revocation.service';
@@ -21,6 +22,9 @@ type SocketState = {
 
 @WebSocketGateway({ namespace: '/messaging', cors: true })
 export class MessagingGateway implements OnModuleInit, OnModuleDestroy {
+  @WebSocketServer()
+  private server!: Server;
+
   private readonly sockets = new Map<string, SocketState>();
   private readonly membershipSockets = new Map<string, Set<Socket>>();
   private unsubscribeEvents?: () => void;
@@ -163,19 +167,8 @@ export class MessagingGateway implements OnModuleInit, OnModuleDestroy {
   }
 
   private emitDomainEvent(event: MessagingRealtimeEvent) {
-    for (const [socketId, state] of this.sockets) {
-      const socket = this.findSocket(socketId);
-      if (!socket) continue;
-      if (state.businessId !== event.businessId) continue;
-      socket.to(this.room(event.conversationId)).emit(event.name, event.payload);
-    }
-  }
-
-  private findSocket(socketId: string): Socket | undefined {
-    for (const socket of this.membershipSockets.values()) {
-      for (const candidate of socket) if (candidate.id === socketId) return candidate;
-    }
-    return undefined;
+    if (!this.server) return;
+    this.server.to(this.room(event.conversationId)).emit(event.name, event.payload);
   }
 
   private room(conversationId: string) {
