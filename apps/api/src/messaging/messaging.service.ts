@@ -489,7 +489,7 @@ export class MessagingService {
       });
       if (!message) throw new NotFoundException('Mensaje no encontrado');
 
-      const preference = await this.getReadReceiptPreference(tx, context);
+      const preference = await this.findReadReceiptPreference(tx, context);
       if (!preference.enabled) {
         return {
           messageId,
@@ -612,7 +612,7 @@ export class MessagingService {
 
   async getReadReceiptPreference(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
-    return this.getReadReceiptPreference(this.prisma, context);
+    return this.findReadReceiptPreference(this.prisma, context);
   }
 
   async setReadReceiptPreference(auth: AuthenticatedUser, enabled: boolean) {
@@ -639,7 +639,7 @@ export class MessagingService {
     });
   }
 
-  private async getReadReceiptPreference(
+  private async findReadReceiptPreference(
     tx: Prisma.TransactionClient | PrismaService,
     context: BusinessContext,
   ) {
