@@ -146,6 +146,7 @@ model Empresa {
   // S-V1-01: back-relation aditiva (sin columna física, sin impacto en
   // migración de datos). Empresa sigue siendo el tenant físico.
   memberships        Membership[]
+  conversations      Conversation[]
 }
 
 model Usuario {
@@ -245,6 +246,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   memberships Membership[]
+  reactions   Reaction[]
 }
 
 // S-V1-01: pertenencia User ↔ Business. Business físico = Empresa
@@ -264,6 +266,10 @@ model Membership {
   updatedAt  DateTime         @updatedAt
 
   @@unique([userId, businessId])
+  @@index([businessId, userId])
+
+  conversationParticipants ConversationParticipant[]
+  authoredMessages         Message[] @relation("MessageAuthorMembership")
 }
 
 // S-V1-01: estados mínimos. ACTIVE = pertenencia válida; SUSPENDED =
@@ -557,8 +563,11 @@ model Cliente {
   cuentasCorriente CuentaCorriente[] @relation("ClienteCuentasCorriente")
   deudas           Deuda[]           @relation("ClienteDeudas")
   pedidos          Pedido[]          @relation("ClientePedidos")
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipantCustomer")
+  authoredMessages         Message[] @relation("MessageAuthorCustomer")
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
+  @@unique([id, empresaId])
 }
 
 // RF-17 (docs/spec-login-roles.md): campos y documentos exigidos por
