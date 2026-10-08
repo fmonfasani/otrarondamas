@@ -552,6 +552,7 @@ export class MessagingService {
           messageId,
           read: false,
           receiptsEnabled: false,
+          created: false,
         };
       }
 
