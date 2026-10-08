@@ -52,6 +52,17 @@ describe('MessagingService — M2/M3 messaging', () => {
     cliente: {
       findMany: jest.fn(),
     },
+    messageReadReceipt: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    messagingReadPreference: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     message: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -399,6 +410,142 @@ describe('MessagingService — M2/M3 messaging', () => {
         }),
       }),
     );
+  });
+
+
+  it('creates an idempotent read receipt within the canonical BusinessContext', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'message-a',
+    });
+    prisma.messagingReadPreference.findFirst.mockResolvedValue(null);
+    prisma.messageReadReceipt.findFirst.mockResolvedValue(null);
+    prisma.messageReadReceipt.create.mockResolvedValue({
+      id: 'receipt-a',
+      messageId: 'message-a',
+      businessId: 'business-a',
+      userId: 'user-a',
+      readAt: new Date('2026-10-08T10:00:00.000Z'),
+    });
+
+    const result = await service.markMessageRead(auth, 'conversation-a', 'message-a');
+
+    expect(result.read).toBe(true);
+    expect(prisma.messageReadReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          messageId: 'message-a',
+          businessId: 'business-a',
+          userId: 'user-a',
+          membershipBusinessId: 'business-a',
+        }),
+      }),
+    );
+  });
+
+  it('does not publish a read receipt when the actor disabled read receipts', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue({ id: 'message-a' });
+    prisma.messagingReadPreference.findFirst.mockResolvedValue({
+      id: 'preference-a',
+      enabled: false,
+    });
+
+    const result = await service.markMessageRead(auth, 'conversation-a', 'message-a');
+
+    expect(result).toEqual({
+      messageId: 'message-a',
+      read: false,
+      receiptsEnabled: false,
+    });
+    expect(prisma.messageReadReceipt.create).not.toHaveBeenCalled();
+  });
+
+  it('hides receipts belonging to actors who disabled read receipts', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue({ id: 'message-a' });
+    prisma.messageReadReceipt.findMany.mockResolvedValue([
+      {
+        id: 'receipt-a',
+        messageId: 'message-a',
+        businessId: 'business-a',
+        userId: 'user-a',
+        customerId: null,
+        readAt: new Date('2026-10-08T10:00:00.000Z'),
+      },
+      {
+        id: 'receipt-b',
+        messageId: 'message-a',
+        businessId: 'business-a',
+        userId: 'user-b',
+        customerId: null,
+        readAt: new Date('2026-10-08T10:01:00.000Z'),
+      },
+    ]);
+    prisma.messagingReadPreference.findMany
+      .mockResolvedValueOnce([
+        { userId: 'user-a', enabled: true },
+        { userId: 'user-b', enabled: false },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.getMessageReadReceipts(
+      auth,
+      'conversation-a',
+      'message-a',
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].userId).toBe('user-a');
+  });
+
+  it('persists the read receipt preference per Business actor', async () => {
+    prisma.messagingReadPreference.findFirst.mockResolvedValue({
+      id: 'preference-a',
+      enabled: true,
+    });
+    prisma.messagingReadPreference.update.mockResolvedValue({
+      id: 'preference-a',
+      enabled: false,
+    });
+
+    const result = await service.setReadReceiptPreference(auth, false);
+
+    expect(result.enabled).toBe(false);
+    expect(prisma.messagingReadPreference.update).toHaveBeenCalledWith({
+      where: { id: 'preference-a' },
+      data: { enabled: false },
+    });
   });
 
 });
