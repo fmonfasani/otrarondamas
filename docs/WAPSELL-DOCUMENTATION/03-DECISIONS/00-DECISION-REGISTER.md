@@ -605,3 +605,22 @@ Verification infrastructure may be implemented before B3 is fully VERIFIED, subj
 References:
 - 03-DECISIONS/49-B3-LEGAJO-DOCUMENTOLEGajo-OWNER-DECISION-CLOSURE-2026-10-04.md
 - 03-DECISIONS/50-B4-IMPLEMENTATION-READINESS-OWNER-DECISIONS-2026-10-04.md
+
+## 11. FS-1 / FS-1a Customer BusinessContext Owner Decision — 2026-10-07
+
+### D-SC01-02
+
+**Status:** APPROVED — RECORDED.
+
+L2 is approved for the interpretation of I-SC01-05: `Cliente.empresaId` may be used by `BusinessContextService.resolveForCustomer()` as persisted relationship data to resolve the Business associated with an authenticated Customer. This does not constitute a second tenant authority or parallel tenancy mechanism.
+
+The canonical tenant authority remains **BusinessContext**. The legacy JWT `empresaId` claim is not authoritative for Customer BusinessContext resolution.
+
+**Consequences:**
+- No schema change is required by this decision.
+- No second identity, tenancy or authorization mechanism is introduced.
+- FS-1/FS-1a may use the existing `Cliente.empresaId` relation through the canonical BusinessContext resolver.
+- CI/B4 coverage and FS-1a Gate closure remain separate verification concerns.
+
+**Authority:** Owner approval, 2026-10-07.  
+**Authoritative document:** `03-DECISIONS/52-FS1A-CUSTOMER-BUSINESSCONTEXT-OWNER-DECISION-2026-10-07.md`.

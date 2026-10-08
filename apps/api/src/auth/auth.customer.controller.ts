@@ -14,7 +14,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthCustomerService } from './auth.customer.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
+import { BusinessContextService } from '../business-context/business-context.service';
 import { CustomerRegistrationDto } from './dto/customer-registration.dto';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
@@ -38,7 +39,8 @@ import { GoogleProfile } from './google.strategy';
 export class AuthCustomerController {
   constructor(
     private readonly authCustomerService: AuthCustomerService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: CompanyScopedPrismaService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   /**
@@ -75,6 +77,11 @@ export class AuthCustomerController {
   /**
    * Fresh profile of the authenticated Cliente — parallel to GET /auth/me
    * for Usuario. Only accessible with a token of type 'cliente'.
+   *
+   * FS-1a: BusinessContext is the sole tenant authority. The legacy
+   * empresaId JWT claim is intentionally ignored; the customer and its
+   * Business are resolved from persisted Customer data through
+   * BusinessContextService, then the profile query is company-scoped.
    */
   @AllowCustomer()
   @Get('me')
@@ -82,8 +89,14 @@ export class AuthCustomerController {
     if (user.type !== 'cliente') {
       throw new NotFoundException('Endpoint solo para clientes');
     }
-    const customer = await this.prisma.cliente.findUnique({
-      where: { id: user.id },
+    const context = await this.businessContext.resolveForCustomer(user);
+    if (!context.customerId) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    const db = this.prisma.forCompany(context.businessId);
+    const customer = await db.cliente.findUnique({
+      where: { id: context.customerId },
       include: { empresa: true },
     });
     if (!customer) {
