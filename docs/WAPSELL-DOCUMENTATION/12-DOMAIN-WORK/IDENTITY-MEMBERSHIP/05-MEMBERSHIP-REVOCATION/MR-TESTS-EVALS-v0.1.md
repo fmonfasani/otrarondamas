@@ -5,6 +5,7 @@
 ## Unit
 - Owner suspends ACTIVE Membership.
 - Non-Owner cannot suspend.
+- Owner cannot suspend their own Membership.
 - Owner reactivates SUSPENDED Membership.
 - Non-Owner cannot reactivate.
 - Valid transitions are accepted.
@@ -19,6 +20,7 @@
 - Business A cannot mutate Membership from Business B.
 - Client-supplied tenant identifiers cannot override BusinessContext.
 - Non-Owner mutation is denied.
+- Owner self-suspension is denied.
 - Suspended Membership no longer resolves as ACTIVE through BusinessContext.
 - Reactivated Membership resolves as ACTIVE.
 - Event is emitted only after successful persistence.
