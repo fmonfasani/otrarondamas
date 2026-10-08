@@ -3,6 +3,7 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingController } from './messaging.controller';
 import { MessagingService } from './messaging.service';
+import { MessagingGateway } from './messaging.gateway';
 
 /**
  * Messaging M2 — Conversations.
@@ -14,6 +15,6 @@ import { MessagingService } from './messaging.service';
 @Module({
   imports: [BusinessContextModule, PrismaModule],
   controllers: [MessagingController],
-  providers: [MessagingService],
+  providers: [MessagingService, MessagingGateway],
 })
 export class MessagingModule {}
