@@ -72,10 +72,11 @@ describe('MessagingService — M2/M3 messaging', () => {
   };
 
   let service: MessagingService;
+  const realtimeEventBus = { publish: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new MessagingService(prisma as any, businessContext as any);
+    service = new MessagingService(prisma as any, businessContext as any, realtimeEventBus as any);
   });
 
   it('resolves authenticated operations through canonical BusinessContext', async () => {
@@ -546,6 +547,71 @@ describe('MessagingService — M2/M3 messaging', () => {
       where: { id: 'preference-a' },
       data: { enabled: false },
     });
+  });
+
+  it('publishes a created event only after message persistence succeeds', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue({ sequence: BigInt(4) });
+    prisma.message.create.mockResolvedValue({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      sequence: BigInt(5),
+      type: 'TEXT',
+      content: 'Hola',
+    });
+
+    await service.createTextMessage(auth, 'conversation-a', 'client-1', 'Hola');
+
+    expect(realtimeEventBus.publish).toHaveBeenCalledWith({
+      type: 'conversation.message.created',
+      businessId: 'business-a',
+      conversationId: 'conversation-a',
+      messageId: 'message-a',
+      sequence: '5',
+    });
+  });
+
+  it('authorizes realtime conversation access with Owner global visibility', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+
+    await expect(
+      service.authorizeRealtimeConversation(auth, 'conversation-a'),
+    ).resolves.toEqual({ businessId: 'business-a', actorType: 'USER' });
+
+    expect(prisma.conversationParticipant.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('requires active participation for non-Owner realtime access', async () => {
+    const nonOwnerContext = { ...context, role: 'ASISTENTE_LOCAL' };
+    businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce(nonOwnerContext);
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.authorizeRealtimeConversation(
+        { ...auth, rol: 'ASISTENTE_LOCAL' },
+        'conversation-a',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
 });
