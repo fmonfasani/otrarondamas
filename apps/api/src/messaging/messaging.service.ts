@@ -158,7 +158,7 @@ export class MessagingService {
       name: 'conversation.message.created',
       conversationId,
       businessId: context.businessId,
-      payload: message as unknown as Record<string, unknown>,
+      payload: this.toRealtimeMessagePayload(message),
     });
 
     return message;
@@ -210,7 +210,7 @@ export class MessagingService {
       name: 'conversation.message.updated',
       conversationId,
       businessId: context.businessId,
-      payload: updated as unknown as Record<string, unknown>,
+      payload: this.toRealtimeMessagePayload(updated),
     });
 
     return updated;
@@ -728,6 +728,19 @@ export class MessagingService {
     });
 
     return preference ?? { id: null, enabled: true };
+  }
+
+  private toRealtimeMessagePayload(message: {
+    id: string;
+    conversationId: string;
+    businessId: string;
+    sequence: bigint;
+    [key: string]: unknown;
+  }) {
+    return {
+      ...message,
+      sequence: message.sequence.toString(),
+    };
   }
 
   private async resolveContext(auth: AuthenticatedUser): Promise<BusinessContext> {
