@@ -1,8 +1,11 @@
+jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
+
 import { UnauthorizedException } from '@nestjs/common';
 import { MessagingGateway } from './messaging.gateway';
 
 describe('MessagingGateway — M4 realtime', () => {
   const jwtService = { verifyAsync: jest.fn() };
+  const moduleRef = { get: jest.fn(() => jwtService) };
   const businessContext = { resolveForAuthenticatedUser: jest.fn() };
   const membershipRevocation = { onStatusChanged: jest.fn() };
   const events = { subscribe: jest.fn() };
@@ -15,7 +18,7 @@ describe('MessagingGateway — M4 realtime', () => {
     events.subscribe.mockReturnValue(() => undefined);
     membershipRevocation.onStatusChanged.mockReturnValue(() => undefined);
     gateway = new MessagingGateway(
-      jwtService as any,
+      moduleRef as any,
       businessContext as any,
       membershipRevocation as any,
       events as any,
