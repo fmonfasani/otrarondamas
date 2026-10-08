@@ -1142,9 +1142,9 @@ model ConversationParticipant {
   businessId     String
   conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId])
   userId         String?
-  membership     Membership?  @relation("ConversationParticipantMembership", fields: [userId, businessId], references: [userId, businessId])
+  membership     Membership?
   customerId     String?
-  customer       Cliente?     @relation("ConversationParticipantCustomer", fields: [customerId, businessId], references: [id, empresaId])
+  customer       Cliente?
   joinedAt       DateTime     @default(now())
   leftAt         DateTime?
   removedAt      DateTime?
@@ -1162,9 +1162,9 @@ model Message {
   businessId       String
   conversation     Conversation           @relation(fields: [conversationId, businessId], references: [id, businessId])
   authorUserId     String?
-  authorMembership Membership?            @relation("MessageAuthorMembership", fields: [authorUserId, businessId], references: [userId, businessId])
+  authorMembership Membership?
   authorCustomerId String?
-  authorCustomer   Cliente?               @relation("MessageAuthorCustomer", fields: [authorCustomerId, businessId], references: [id, empresaId])
+  authorCustomer   Cliente?
   sequence         BigInt
   clientMessageId  String
   type             MessagingMessageType
