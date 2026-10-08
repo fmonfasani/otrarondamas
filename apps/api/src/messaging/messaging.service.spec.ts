@@ -363,6 +363,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     prisma.message.update.mockResolvedValue({
       id: 'message-a',
       content: 'Editado',
+      editedAt: new Date('2026-10-08T12:00:00.000Z'),
     });
 
     const result = await service.editMessage(
