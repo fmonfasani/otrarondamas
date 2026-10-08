@@ -1,15 +1,19 @@
 import { Module } from '@nestjs/common';
 import { BusinessContextModule } from '../business-context/business-context.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { MessagingController } from './messaging.controller';
+import { MessagingService } from './messaging.service';
 
 /**
- * Messaging module boundary.
+ * Messaging M2 — Conversations.
  *
- * M1 foundation only: the module depends on the canonical BusinessContext
- * boundary and does not introduce a parallel tenancy or authorization path.
- * Persistence, controllers, realtime, storage and domain services are
- * intentionally outside this foundation task.
+ * Messaging uses the canonical BusinessContext boundary for tenant
+ * resolution and the existing Prisma module for persistence. No parallel
+ * tenancy or authorization mechanism is introduced here.
  */
 @Module({
-  imports: [BusinessContextModule],
+  imports: [BusinessContextModule, PrismaModule],
+  controllers: [MessagingController],
+  providers: [MessagingService],
 })
 export class MessagingModule {}
