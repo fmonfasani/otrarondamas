@@ -1,39 +1,32 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  forwardRef,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { Subject } from 'rxjs';
-import type { AuthenticatedUser } from '../auth/auth.types';
-import { BusinessContextService } from '../business-context/business-context.service';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type MembershipStatusChangedEvent = {
-  membershipId: string;
-  userId: string;
-  businessId: string;
-  previousStatus: 'ACTIVE' | 'SUSPENDED';
-  newStatus: 'ACTIVE' | 'SUSPENDED';
-  occurredAt: string;
-};
-
+// S-V1-01 — Memberships read (read-only).
+//
+// This service NEVER creates, updates or deletes Users/Memberships (that is
+// done by the migration and the backfill, outside the runtime). It only
+// resolves which memberships correspond to an authenticated identity.
+//
+// Isolation rule: the caller passes the SESSION id (Usuario.id from the
+// JWT), never an arbitrary userId. The Usuario → User link is the explicit
+// `usuarioId` from the backfill; without a link there are no memberships.
+// This makes it impossible for User A to see User B's memberships through
+// input.
 @Injectable()
 export class MembershipService {
-  private readonly statusChangedSubject = new Subject<MembershipStatusChangedEvent>();
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    private readonly prisma: PrismaService,
-    @Inject(forwardRef(() => BusinessContextService))
-    private readonly businessContext: BusinessContextService,
-  ) {}
-
-  findUserByLegacyUserId(userId: string) {
+  // Resolves the canonical User from the session's legacy Usuario.
+  // null = identity not yet backfilled (pre-migration or new account without
+  // running the script): the caller returns an empty list, never invents.
+  async findUserByLegacyUserId(userId: string) {
     return this.prisma.user.findUnique({ where: { usuarioId: userId } });
   }
 
+  // Own memberships of the given User, with the Business resolved.
+  // It does not accept businessId: it neither filters nor skips tenancy, it
+  // returns EVERYTHING that is its own (isolation lives in the userId coming
+  // from the session).
   async getMembershipsForUser(userId: string) {
     const memberships = await this.prisma.membership.findMany({
       where: { userId },
@@ -48,73 +41,5 @@ export class MembershipService {
       businessNombre: m.business.nombre,
       createdAt: m.createdAt.toISOString(),
     }));
-  }
-
-  onStatusChanged(handler: (event: MembershipStatusChangedEvent) => void): () => void {
-    const subscription = this.statusChangedSubject.subscribe(handler);
-    return () => subscription.unsubscribe();
-  }
-
-  async suspendMembership(auth: AuthenticatedUser, membershipId: string) {
-    return this.changeStatus(auth, membershipId, 'ACTIVE', 'SUSPENDED');
-  }
-
-  async reactivateMembership(auth: AuthenticatedUser, membershipId: string) {
-    return this.changeStatus(auth, membershipId, 'SUSPENDED', 'ACTIVE');
-  }
-
-  private async changeStatus(
-    auth: AuthenticatedUser,
-    membershipId: string,
-    expectedStatus: 'ACTIVE' | 'SUSPENDED',
-    newStatus: 'ACTIVE' | 'SUSPENDED',
-  ) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(auth);
-
-    if (context.role !== 'OWNER') {
-      throw new ForbiddenException('Solo el Owner puede gestionar Memberships');
-    }
-
-    const target = await this.prisma.membership.findFirst({
-      where: { id: membershipId, businessId: context.businessId },
-      select: { id: true, userId: true, businessId: true, status: true },
-    });
-
-    if (!target) {
-      throw new NotFoundException('Membership no encontrada');
-    }
-
-    if (target.id === context.membershipId) {
-      throw new ConflictException('El Owner no puede suspender su propia Membership');
-    }
-
-    if (target.status !== expectedStatus) {
-      throw new ConflictException(
-        `Transición de Membership inválida: ${target.status} → ${newStatus}`,
-      );
-    }
-
-    const updated = await this.prisma.membership.update({
-      where: { id: target.id },
-      data: { status: newStatus },
-      select: { id: true, userId: true, businessId: true, status: true },
-    });
-
-    const event: MembershipStatusChangedEvent = {
-      membershipId: updated.id,
-      userId: updated.userId,
-      businessId: updated.businessId,
-      previousStatus: expectedStatus,
-      newStatus: updated.status,
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.statusChangedSubject.next(event);
-
-    return {
-      membershipId: updated.id,
-      businessId: updated.businessId,
-      status: updated.status,
-    };
   }
 }
