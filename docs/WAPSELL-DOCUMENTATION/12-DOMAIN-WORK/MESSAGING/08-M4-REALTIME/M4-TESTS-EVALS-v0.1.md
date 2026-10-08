@@ -28,6 +28,9 @@
 - Missed realtime event is recoverable through HTTP GET.
 - Reconnection does not create unauthorized room membership.
 
+- Membership revocation emits the domain revocation event and invalidates affected realtime room access.
+- A revoked Membership does not receive subsequent protected conversation events after revocation handling completes.
+
 ## Regression
 
 Run existing:
