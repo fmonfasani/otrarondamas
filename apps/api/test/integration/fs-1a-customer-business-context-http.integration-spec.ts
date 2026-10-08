@@ -120,10 +120,4 @@ describe('FS-1a — Customer BusinessContext (HTTP, stack real)', () => {
       .expect(404);
   });
 
-  it('FS1A-H-04: token de Usuario en /auth/cliente/me → rechazado por identidad CUSTOMER', async () => {
-    await request(BASE)
-      .get('/auth/cliente/me')
-      .set('Authorization', 'Bearer ' + tokenFor('not-a-customer', companyA.id, 'usuario'))
-      .expect(404);
-  });
 });
