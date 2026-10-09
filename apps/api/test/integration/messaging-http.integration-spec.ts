@@ -120,6 +120,7 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
         await prisma.messageReadReceipt.deleteMany({ where: { businessId: company.id } });
         await prisma.messagingReadPreference.deleteMany({ where: { businessId: company.id } });
         await prisma.message.deleteMany({ where: { businessId: company.id } });
+        await prisma.conversationAssociation.deleteMany({ where: { businessId: company.id } });
         await prisma.conversationParticipant.deleteMany({ where: { businessId: company.id } });
         await prisma.conversation.deleteMany({ where: { businessId: company.id } });
         await prisma.cliente.deleteMany({ where: { empresaId: company.id } });
@@ -164,6 +165,14 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       .set('Authorization', `Bearer ${tokenFor(legacyUser.id, company.id)}`)
       .expect(200);
     expect(opened.body.id).toBe(conversationId);
+
+    const associations = await request(BASE)
+      .get(`/messaging/conversations/${conversationId}/associations`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUser.id, company.id)}`)
+      .expect(200);
+    expect(associations.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({ entityType: 'CUSTOMER', entityId: customer.id, active: true }),
+    ]));
   });
 
   it('loads an empty history, sends over HTTP, and rereads the persisted message as JSON', async () => {
