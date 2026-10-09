@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { MessageCircle, Plus, Send, RefreshCw } from 'lucide-react';
 import { api, ApiError } from '../../lib/api';
 import type { Cliente } from '@otrarondamas/shared-types';
