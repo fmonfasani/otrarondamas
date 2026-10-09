@@ -5,7 +5,7 @@ import {
   OnGatewayInit,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import type { JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import type { Namespace, Socket } from 'socket.io';
 import type { JwtPayload, AuthenticatedUser } from '../auth/auth.types';
 import { JwtStrategy } from '../auth/jwt.strategy';
