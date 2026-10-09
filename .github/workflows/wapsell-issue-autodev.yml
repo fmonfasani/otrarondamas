@@ -2,7 +2,7 @@ name: Wapsell Issue Auto-Development
 
 on:
   issues:
-    types: [opened, reopened]
+    types: [opened, reopened, labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -26,7 +26,11 @@ jobs:
       (
         github.event.issue.pull_request == null &&
         github.event.issue.state == 'open' &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+        (github.event.action != 'labeled' || github.event.label.name == 'autodev:ready') &&
+        (
+          contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) ||
+          contains(github.event.issue.labels.*.name, 'autodev:ready')
+        )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -124,19 +128,19 @@ jobs:
 
       - name: Build API
         id: build
-        if: always() && steps.codex.outcome == 'success'
+        if: always() && steps.codex.outcome == 'success' && steps.protected.outcome == 'success'
         continue-on-error: true
         run: npm run build --workspace=@otrarondamas/api
 
       - name: Test API
         id: tests
-        if: always() && steps.codex.outcome == 'success'
+        if: always() && steps.codex.outcome == 'success' && steps.protected.outcome == 'success'
         continue-on-error: true
         run: npm test --workspace=@otrarondamas/api -- --runInBand
 
       - name: Open draft PR
         id: pr
-        if: always() && steps.codex.outcome == 'success'
+        if: always() && steps.codex.outcome == 'success' && steps.protected.outcome == 'success'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
