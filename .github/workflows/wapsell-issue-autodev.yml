@@ -122,6 +122,7 @@ jobs:
           effort: high
 
       - name: Guard protected database files
+        id: protected
         if: always() && steps.codex.outcome == 'success'
         run: |
           if git status --short | grep -E 'schema\.prisma|migrations/|seed'; then
