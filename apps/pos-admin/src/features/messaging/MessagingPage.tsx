@@ -64,6 +64,7 @@ export function MessagingPage() {
   const loadBase = useCallback(async () => {
     setLoading(true);
     setError('');
+    setNotice('');
     try {
       const [customerResult, conversationResult] = await Promise.allSettled([
         api.listarClientes(),
