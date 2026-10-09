@@ -305,8 +305,8 @@ describe('MessagingService — M2/M3 messaging', () => {
         data: expect.objectContaining({
           conversationId: 'conversation-a',
           businessId: 'business-a',
-          userId: 'user-a',
-          membershipBusinessId: 'business-a',
+          authorUserId: 'user-a',
+          authorMembershipBusinessId: 'business-a',
           sequence: BigInt(5),
           clientMessageId: 'client-1',
           type: 'TEXT',
@@ -314,6 +314,67 @@ describe('MessagingService — M2/M3 messaging', () => {
         }),
       }),
     );
+  });
+
+  it('creates a TEXT message with the canonical customer-author relation', async () => {
+    const customerContext: BusinessContext = {
+      ...context,
+      customerId: 'customer-a',
+      userId: null,
+      membershipId: null,
+      role: null,
+      actorType: 'CUSTOMER',
+    };
+    const customerAuth: AuthenticatedUser = {
+      ...auth,
+      id: 'customer-a',
+      type: 'cliente',
+    };
+    businessContext.resolveForCustomer.mockResolvedValueOnce(customerContext);
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-customer',
+      customerId: 'customer-a',
+      leftAt: null,
+      removedAt: null,
+    });
+    prisma.message.findFirst.mockResolvedValue(null);
+    prisma.message.create.mockResolvedValue({
+      id: 'message-customer',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      authorCustomerId: 'customer-a',
+      authorCustomerBusinessId: 'business-a',
+      sequence: BigInt(1),
+      type: 'TEXT',
+      content: 'Consulta',
+    });
+
+    const result = await service.createTextMessage(
+      customerAuth,
+      'conversation-a',
+      'client-customer-1',
+      'Consulta',
+    );
+
+    expect(result.authorCustomerId).toBe('customer-a');
+    expect(prisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          authorCustomerId: 'customer-a',
+          authorCustomerBusinessId: 'business-a',
+          sequence: BigInt(1),
+          clientMessageId: 'client-customer-1',
+          content: 'Consulta',
+        }),
+      }),
+    );
+    expect(prisma.message.create.mock.calls[0][0].data).not.toHaveProperty('customerId');
+    expect(prisma.message.create.mock.calls[0][0].data).not.toHaveProperty('userId');
   });
 
   it('retrieves only messages created after the actor current participation period', async () => {

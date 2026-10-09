@@ -235,4 +235,15 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(dto),
     }),
+
+  // Messaging demo — usa el cliente autenticado existente y los contratos HTTP de la API.
+  listarConversaciones: () => request<unknown[]>('/messaging/conversations'),
+  crearConversacion: (dto: { type: 'DIRECT' | 'GROUP'; participantCustomerIds?: string[]; participantUserIds?: string[] }) =>
+    request<unknown>('/messaging/conversations', { method: 'POST', body: JSON.stringify(dto) }),
+  listarMensajes: (conversationId: string) =>
+    request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/messages`),
+  enviarMensaje: (conversationId: string, dto: { clientMessageId: string; content: string }) =>
+    request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: 'POST', body: JSON.stringify(dto),
+    }),
 };

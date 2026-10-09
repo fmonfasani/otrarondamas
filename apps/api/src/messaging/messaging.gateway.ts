@@ -7,6 +7,7 @@ import {
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import type { DefaultEventsMap, Namespace, Socket } from 'socket.io';
@@ -76,6 +77,9 @@ export class MessagingGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
   private readonly logger = new Logger(MessagingGateway.name);
+
+  @WebSocketServer()
+  private namespace!: Namespace;
 
   private readonly connectedSockets = new Map<string, MessagingSocket>();
 
@@ -168,6 +172,26 @@ export class MessagingGateway
     const room = `${CONVERSATION_ROOM_PREFIX}${conversationId}`;
     await client.join(room);
     return { ok: true, room };
+  }
+
+  // Publish only after the HTTP service has committed persistence.
+  // BigInt sequence is serialized as a string for Socket.IO JSON payloads.
+  publishMessageCreated(message: {
+    id: string;
+    conversationId: string;
+    clientMessageId: string;
+    content: string | null;
+    sequence: bigint | number | string;
+    createdAt: Date;
+    authorUserId: string | null;
+    authorCustomerId: string | null;
+  }): void {
+    this.namespace
+      .to(`${CONVERSATION_ROOM_PREFIX}${message.conversationId}`)
+      .emit('message.created', {
+        ...message,
+        sequence: String(message.sequence),
+      });
   }
 
   // M4-04 — Membership revocation enforcement (M4-D11). Runs on the

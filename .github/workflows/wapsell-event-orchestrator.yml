@@ -1,0 +1,191 @@
+name: Wapsell Demo Orchestrator
+
+on:
+  push:
+    branches:
+      - feat/demo-tobe-orchestration
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, closed]
+  issues:
+    types: [opened, edited, labeled, assigned, closed, reopened]
+  workflow_run:
+    workflows:
+      - B3 Tenant Isolation Candidate
+      - B4 Verification Infrastructure
+      - Post-Merge Verification
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: wapsell-demo-orchestrator-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  route-demo-workstream:
+    name: Route event to demo workstream
+    runs-on: ubuntu-latest
+    outputs:
+      workstream: ${{ steps.route.outputs.workstream }}
+      next_step: ${{ steps.route.outputs.next_step }}
+    steps:
+      - name: Classify event and preserve routing decision
+        id: route
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action || 'n/a' }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PR_MERGED: ${{ github.event.pull_request.merged || false }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || '' }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          workstream="coordination"
+          next_step="Reconcile the API/UI contract and verify all four workstreams against the same target SHA."
+
+          if [[ "$EVENT_NAME" == "issues" ]]; then
+            case "$ISSUE_NUMBER" in
+              33) workstream="coordination"; next_step="Check #34-#37 dependencies, owners, SHAs and evidence; do not mark the demo ready from issue state alone." ;;
+              34) workstream="ui"; next_step="Verify the existing entrypoint uses the real Messaging API and renders loading, empty and error states." ;;
+              35) workstream="messaging-api"; next_step="Verify create/open conversation, history and send-message over HTTP using existing contracts and conversationId." ;;
+              36) workstream="business-context-security"; next_step="Verify existing BusinessContext/Membership authority, fail-closed cross-tenant behavior and applicable revocation tests." ;;
+              37) workstream="e2e-reproducibility"; next_step="Run the complete demo path against one identified SHA; record commands, outputs and HTTP/realtime limits." ;;
+              *) workstream="out-of-scope-issue"; next_step="Do not start demo work for an unrelated issue; report it only if it blocks #33-#37." ;;
+            esac
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            workstream="integration-review"
+            next_step="Inspect the changed paths and checks for the PR head SHA; preserve tenant/security invariants and do not merge automatically."
+          elif [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            workstream="verification-evidence"
+            next_step="Record the completed workflow conclusion against its exact head SHA; success is evidence only for the checks that actually ran."
+          elif [[ "$EVENT_NAME" == "push" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            workstream="demo-validation"
+            next_step="Run the bounded API build, unit and BusinessContext regression checks; do not infer UI/E2E/realtime success from API checks."
+          fi
+
+          {
+            echo "workstream=$workstream"
+            echo "next_step=$next_step"
+            echo "event_name=$EVENT_NAME"
+            echo "action=$ACTION"
+            echo "issue_number=$ISSUE_NUMBER"
+            echo "pr_number=$PR_NUMBER"
+            echo "pr_merged=$PR_MERGED"
+            echo "workflow_name=$WORKFLOW_NAME"
+            echo "workflow_conclusion=$WORKFLOW_CONCLUSION"
+            echo "event_sha=$EVENT_SHA"
+            echo "run_id=$RUN_ID"
+            echo "run_attempt=$RUN_ATTEMPT"
+            echo "received_at_utc=$(date -u +%FT%TZ)"
+          } | tee orchestration-decision.txt
+          cat "$GITHUB_EVENT_PATH" > orchestration-event-payload.json
+          {
+            echo "## Wapsell demo orchestration"
+            echo
+            echo "- **Workstream:** $workstream"
+            echo "- **Event:** $EVENT_NAME / $ACTION"
+            echo "- **Target SHA:** $EVENT_SHA"
+            echo "- **Next step:** $next_step"
+            echo
+            echo "This is routing/evidence, not proof that the assigned workstream is complete."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "workstream=$workstream" >> "$GITHUB_OUTPUT"
+          echo "next_step=$next_step" >> "$GITHUB_OUTPUT"
+
+      - name: Preserve event and routing evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wapsell-orchestration-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            orchestration-decision.txt
+            orchestration-event-payload.json
+          if-no-files-found: error
+          retention-days: 14
+
+  validate-demo-api:
+    name: Validate API baseline for demo
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: public.ecr.aws/docker/library/postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      JWT_SECRET: s-v1-ci-only-jwt-secret
+      GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+      GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+      GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+    steps:
+      - name: Checkout event SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Build API
+        run: npm run build --workspace=@otrarondamas/api
+
+      - name: Build existing admin frontend
+        run: npm run build --workspace=@otrarondamas/pos-admin
+
+      - name: Prepare ephemeral CI database
+        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
+      - name: Run API unit and configured test suite
+        run: npm test --workspace=@otrarondamas/api -- --runInBand
+
+      - name: Run BusinessContext HTTP regression
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/fs-1a-customer-business-context-http.integration-spec.ts
+
+      - name: Run S-V1 BusinessContext regression
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/s-v1-02-business-context.integration-spec.ts
+
+      - name: Summarize validation boundary
+        if: always()
+        run: |
+          {
+            echo "## Validation boundary"
+            echo
+            echo "- These jobs validate API build and selected test suites on the event SHA."
+            echo "- They do not prove browser UI, complete conversation E2E, realtime transport, or exhaustive tenant isolation."
+            echo "- Database operations target the ephemeral PostgreSQL service in this workflow."
+            echo "- No merge, deployment, production data change, or schema/migration file modification is performed."
+          } >> "$GITHUB_STEP_SUMMARY"

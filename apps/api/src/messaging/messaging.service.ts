@@ -135,7 +135,7 @@ export class MessagingService {
           data: {
             conversationId,
             businessId: context.businessId,
-            ...this.actorFromContext(context),
+            ...this.messageAuthorFromContext(context),
             sequence,
             clientMessageId,
             type: 'TEXT',
@@ -211,6 +211,39 @@ export class MessagingService {
     return this.prisma.message.update({
       where: { id: messageId },
       data: { deletedAt: new Date(), deletedByUserId: context.userId ?? null, content: null },
+    });
+  }
+
+  async listConversations(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+
+    return this.prisma.conversation.findMany({
+      where: {
+        businessId: context.businessId,
+        deletedAt: null,
+        ...(!isOwner
+          ? {
+              participants: {
+                some: {
+                  businessId: context.businessId,
+                  leftAt: null,
+                  removedAt: null,
+                  ...(context.userId
+                    ? { userId: context.userId }
+                    : { customerId: context.customerId! }),
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        participants: {
+          where: { leftAt: null, removedAt: null },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
@@ -673,6 +706,26 @@ export class MessagingService {
       return {
         customerId: context.customerId,
         customerBusinessId: context.businessId,
+      };
+    }
+
+    throw new ForbiddenException('Actor Messaging inválido');
+  }
+
+  // Message has a distinct Prisma relation contract from ConversationParticipant.
+  // Keep author identity and its composite Business relation fields explicit.
+  private messageAuthorFromContext(context: BusinessContext) {
+    if (context.userId) {
+      return {
+        authorUserId: context.userId,
+        authorMembershipBusinessId: context.businessId,
+      };
+    }
+
+    if (context.customerId) {
+      return {
+        authorCustomerId: context.customerId,
+        authorCustomerBusinessId: context.businessId,
       };
     }
 

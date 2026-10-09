@@ -10,15 +10,30 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
+import { MessagingGateway } from './messaging.gateway';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 
+// Prisma BigInt values are not JSON-serializable by Nest's default response adapter.
+// Keep the public HTTP contract JSON-safe and aligned with the Socket.IO payload.
+function serializeMessageSequence<T extends { sequence: bigint | number | string }>(message: T) {
+  return { ...message, sequence: String(message.sequence) };
+}
+
 @Controller('messaging/conversations')
 export class MessagingController {
-  constructor(private readonly messagingService: MessagingService) {}
+  constructor(
+    private readonly messagingService: MessagingService,
+    private readonly messagingGateway: MessagingGateway,
+  ) {}
+
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.listConversations(user);
+  }
 
   @Post()
   create(
@@ -42,13 +57,28 @@ export class MessagingController {
     @Param('id') id: string,
     @Body() dto: CreateMessageDto,
   ) {
-    return this.messagingService.createTextMessage(
-      user,
-      id,
-      dto.clientMessageId,
-      dto.content,
-      dto.replyToMessageId,
-    );
+    return this.messagingService
+      .createTextMessage(
+        user,
+        id,
+        dto.clientMessageId,
+        dto.content,
+        dto.replyToMessageId,
+      )
+      .then((message) => {
+        // The service transaction has committed before this event is emitted.
+        this.messagingGateway.publishMessageCreated({
+          id: message.id,
+          conversationId: message.conversationId,
+          clientMessageId: message.clientMessageId,
+          content: message.content,
+          sequence: message.sequence,
+          createdAt: message.createdAt,
+          authorUserId: message.authorUserId,
+          authorCustomerId: message.authorCustomerId,
+        });
+        return serializeMessageSequence(message);
+      });
   }
 
   @Get(':id/messages')
@@ -56,7 +86,9 @@ export class MessagingController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    return this.messagingService.getMessages(user, id);
+    return this.messagingService
+      .getMessages(user, id)
+      .then((messages) => messages.map(serializeMessageSequence));
   }
 
   @Post(':id/messages/:messageId/read')
