@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { io } from 'socket.io-client';
 import { MessageCircle, Plus, Send, RefreshCw } from 'lucide-react';
-import { api, ApiError } from '../../lib/api';
+import { API_BASE_URL, api, ApiError } from '../../lib/api';
 import type { Cliente } from '@otrarondamas/shared-types';
 
 type Participant = {
@@ -105,6 +106,49 @@ export function MessagingPage() {
       });
     return () => { cancelled = true; };
   }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const token = localStorage.getItem('accessToken') ?? sessionStorage.getItem('accessToken');
+    if (!token) return;
+
+    const socket = io(`${API_BASE_URL}/messaging`, {
+      auth: { token },
+      transports: ['websocket'],
+      reconnection: true,
+    });
+    const onMessageCreated = (message: Message & { conversationId: string }) => {
+      if (message.conversationId !== activeId) return;
+      setMessages((current) =>
+        current.some((item) => item.id === message.id)
+          ? current
+          : [...current, message],
+      );
+      void refreshConversations(activeId).catch(() => undefined);
+    };
+
+    socket.on('connect', () => {
+      socket.emit(
+        'conversation.join',
+        { conversationId: activeId },
+        (result: { ok?: boolean; message?: string }) => {
+          if (result?.ok) {
+            socket.on('message.created', onMessageCreated);
+          } else {
+            setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
+          }
+        },
+      );
+    });
+    socket.on('connect_error', () => {
+      setNotice('Tiempo real no disponible; podés seguir consultando y enviando por HTTP.');
+    });
+
+    return () => {
+      socket.off('message.created', onMessageCreated);
+      socket.disconnect();
+    };
+  }, [activeId, refreshConversations]);
 
   async function createConversation() {
     if (!customerId) {
