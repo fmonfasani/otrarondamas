@@ -17,6 +17,12 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 
+// Prisma BigInt values are not JSON-serializable by Nest's default response adapter.
+// Keep the public HTTP contract JSON-safe and aligned with the Socket.IO payload.
+function serializeMessageSequence<T extends { sequence: bigint | number | string }>(message: T) {
+  return { ...message, sequence: String(message.sequence) };
+}
+
 @Controller('messaging/conversations')
 export class MessagingController {
   constructor(
@@ -71,7 +77,7 @@ export class MessagingController {
           authorUserId: message.authorUserId,
           authorCustomerId: message.authorCustomerId,
         });
-        return message;
+        return serializeMessageSequence(message);
       });
   }
 
@@ -80,7 +86,9 @@ export class MessagingController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    return this.messagingService.getMessages(user, id);
+    return this.messagingService
+      .getMessages(user, id)
+      .then((messages) => messages.map(serializeMessageSequence));
   }
 
   @Post(':id/messages/:messageId/read')
