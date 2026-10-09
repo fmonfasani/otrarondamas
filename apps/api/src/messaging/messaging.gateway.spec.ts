@@ -1,3 +1,7 @@
+jest.mock('@nestjs/jwt', () => ({
+  JwtService: class JwtServiceMock {},
+}));
+
 import type { JwtService } from '@nestjs/jwt';
 import type { Namespace, Socket } from 'socket.io';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
