@@ -10,6 +10,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
+import { MessagingGateway } from './messaging.gateway';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -18,7 +19,10 @@ import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 
 @Controller('messaging/conversations')
 export class MessagingController {
-  constructor(private readonly messagingService: MessagingService) {}
+  constructor(
+    private readonly messagingService: MessagingService,
+    private readonly messagingGateway: MessagingGateway,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
@@ -47,13 +51,28 @@ export class MessagingController {
     @Param('id') id: string,
     @Body() dto: CreateMessageDto,
   ) {
-    return this.messagingService.createTextMessage(
-      user,
-      id,
-      dto.clientMessageId,
-      dto.content,
-      dto.replyToMessageId,
-    );
+    return this.messagingService
+      .createTextMessage(
+        user,
+        id,
+        dto.clientMessageId,
+        dto.content,
+        dto.replyToMessageId,
+      )
+      .then((message) => {
+        // The service transaction has committed before this event is emitted.
+        this.messagingGateway.publishMessageCreated({
+          id: message.id,
+          conversationId: message.conversationId,
+          clientMessageId: message.clientMessageId,
+          content: message.content,
+          sequence: message.sequence,
+          createdAt: message.createdAt,
+          authorUserId: message.authorUserId,
+          authorCustomerId: message.authorCustomerId,
+        });
+        return message;
+      });
   }
 
   @Get(':id/messages')
