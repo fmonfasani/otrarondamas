@@ -157,6 +157,9 @@ jobs:
       - name: Build API
         run: npm run build --workspace=@otrarondamas/api
 
+      - name: Build existing admin frontend
+        run: npm run build --workspace=@otrarondamas/pos-admin
+
       - name: Prepare ephemeral CI database
         run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
