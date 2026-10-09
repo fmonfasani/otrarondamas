@@ -11,9 +11,11 @@ import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import type { Namespace } from 'socket.io';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 import type { BusinessContext } from '../business-context/business-context.types';
+import type { PrismaService } from '../prisma/prisma.service';
 import { JwtStrategy } from '../auth/jwt.strategy';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { MessagingService } from './messaging.service';
+import { MembershipRevocationService } from '../membership/membership-revocation.service';
 import { MessagingGateway } from './messaging.gateway';
 
 // M4-03 — REAL Socket.IO transport validation of the ACK contract.
@@ -113,6 +115,28 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
   };
   const messagingService = { getConversation: jest.fn() };
 
+  // Real revocation service with stubbed persistence/context: the event bus
+  // under test is real, only its inputs are doubled.
+  const revocationPrisma = { membership: { findFirst: jest.fn(), update: jest.fn() } };
+  const revocationContext = { resolveForAuthenticatedUser: jest.fn() };
+  const membershipRevocation = new MembershipRevocationService(
+    revocationPrisma as unknown as PrismaService,
+    revocationContext as unknown as BusinessContextService,
+  );
+  const revocationOwnerAuth = {
+    id: 'legacy-owner',
+    type: 'usuario',
+  } as unknown as AuthenticatedUser;
+  const revocationOwnerContext: BusinessContext = {
+    businessId: 'business-a',
+    customerId: null,
+    userId: 'user-owner',
+    membershipId: 'membership-owner',
+    role: 'OWNER',
+    permissions: [],
+    actorType: 'USER',
+  };
+
   let app: INestApplication;
   let port: number;
   let namespace: Namespace;
@@ -165,6 +189,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
         { provide: JwtStrategy, useValue: jwtStrategy },
         { provide: BusinessContextService, useValue: businessContextService },
         { provide: MessagingService, useValue: messagingService },
+        { provide: MembershipRevocationService, useValue: membershipRevocation },
       ],
     }).compile();
 
@@ -342,4 +367,54 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     expect(conversationRooms()).toEqual([]);
     expect(client.connected).toBe(true);
   }, 15000);
+
+  it('suspension through the existing revocation service disconnects the joined socket', async () => {
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    (revocationContext.resolveForAuthenticatedUser as jest.Mock).mockResolvedValue(
+      revocationOwnerContext,
+    );
+    (revocationPrisma.membership.findFirst as jest.Mock).mockResolvedValue({
+      id: 'membership-a',
+      userId: 'canonical-user-a',
+      businessId: 'business-a',
+      status: 'ACTIVE',
+    });
+    (revocationPrisma.membership.update as jest.Mock).mockResolvedValue({
+      id: 'membership-a',
+      userId: 'canonical-user-a',
+      businessId: 'business-a',
+      status: 'SUSPENDED',
+    });
+    const client = await connectClient('user-jwt');
+
+    const ack = await emitJoin(client, { conversationId: 'conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+    expect(roomsOf().get('conversation:conv-a')).toEqual(new Set(serverSocketIds()));
+
+    const disconnected = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('disconnect timeout')), ACK_TIMEOUT_MS);
+      client.once('disconnect', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+    await membershipRevocation.suspendMembership(revocationOwnerAuth, 'membership-a');
+    await disconnected;
+
+    expect(client.connected).toBe(false);
+    expect(conversationRooms()).toEqual([]);
+    expect(serverSocketIds()).toEqual([]);
+  }, 15000);
+
+  it('suspended user cannot establish a new connection or regain room access', async () => {
+    // The canonical resolver fails closed for non-ACTIVE Memberships
+    // (resolver semantics owned by the BusinessContext specs); the
+    // transport must therefore reject the handshake.
+    (businessContextService.resolveForAuthenticatedUser as jest.Mock).mockRejectedValueOnce(
+      new ForbiddenException('Sin Membership activa: contexto denegado'),
+    );
+
+    await expect(connectClient('user-jwt')).rejects.toThrow('Realtime authentication failed');
+    expect(serverSocketIds()).toEqual([]);
+  });
 });
