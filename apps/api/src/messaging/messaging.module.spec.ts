@@ -1,3 +1,11 @@
+jest.mock('../auth/auth-jwt.module', () => ({
+  AuthJwtModule: class AuthJwtModuleMock {},
+}));
+
+jest.mock('./messaging.gateway', () => ({
+  MessagingGateway: class MessagingGatewayMock {},
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { MessagingModule } from './messaging.module';

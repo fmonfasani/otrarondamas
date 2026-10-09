@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { AuthJwtModule } from '../auth/auth-jwt.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingController } from './messaging.controller';
 import { MessagingService } from './messaging.service';
+import { MessagingGateway } from './messaging.gateway';
 
 /**
  * Messaging M2 — Conversations.
@@ -12,8 +14,8 @@ import { MessagingService } from './messaging.service';
  * tenancy or authorization mechanism is introduced here.
  */
 @Module({
-  imports: [BusinessContextModule, PrismaModule],
+  imports: [AuthJwtModule, BusinessContextModule, PrismaModule],
   controllers: [MessagingController],
-  providers: [MessagingService],
+  providers: [MessagingService, MessagingGateway],
 })
 export class MessagingModule {}
