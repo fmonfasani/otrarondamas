@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { io } from 'socket.io-client';
-import { MessageCircle, Plus, Send, RefreshCw } from 'lucide-react';
+import { MessageCircle, Plus, Send, RefreshCw, Search, X } from 'lucide-react';
 import { API_BASE_URL, api, ApiError } from '../../lib/api';
 import type { Cliente } from '@otrarondamas/shared-types';
 
@@ -15,6 +15,8 @@ type Conversation = {
   updatedAt?: string;
   participants?: Participant[];
 };
+type Association = { id: string; entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; label?: string; reason?: string | null };
+type ProductOption = { id: string; nombre: string; codigoInterno?: string; precioMinorista?: string | number };
 type Message = {
   id: string;
   content?: string | null;
@@ -42,6 +44,11 @@ export function MessagingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<ProductOption[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [associationBusy, setAssociationBusy] = useState('');
 
   const customerNames = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer.nombre])),
@@ -105,6 +112,75 @@ export function MessagingPage() {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) {
+      setAssociations([]);
+      setProductResults([]);
+      return;
+    }
+    let cancelled = false;
+    api.listarAsociacionesConversacion(activeId)
+      .then((rows) => {
+        if (!cancelled) setAssociations(rows as Association[]);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err, 'No se pudo cargar el contexto comercial.'));
+      });
+    return () => { cancelled = true; };
+  }, [activeId]);
+
+  async function searchProducts(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const term = productSearch.trim();
+    if (!term) {
+      setProductResults([]);
+      return;
+    }
+    setSearchingProducts(true);
+    setError('');
+    try {
+      setProductResults((await api.buscarProductos(term)) as ProductOption[]);
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudieron buscar productos del negocio.'));
+    } finally {
+      setSearchingProducts(false);
+    }
+  }
+
+  async function attachProduct(product: ProductOption) {
+    if (!activeId || associationBusy) return;
+    setAssociationBusy(product.id);
+    setError('');
+    try {
+      await api.asociarEntidadConversacion(activeId, {
+        entityType: 'PRODUCT',
+        entityId: product.id,
+        reason: 'Producto seleccionado explícitamente desde Messaging',
+      });
+      setAssociations((await api.listarAsociacionesConversacion(activeId)) as Association[]);
+      setNotice(`Producto asociado: ${product.nombre}`);
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo asociar el producto a la conversación.'));
+    } finally {
+      setAssociationBusy('');
+    }
+  }
+
+  async function detachAssociation(association: Association) {
+    if (!activeId || associationBusy) return;
+    setAssociationBusy(association.id);
+    setError('');
+    try {
+      await api.desactivarAsociacionConversacion(activeId, association.id, 'Asociación retirada desde Messaging');
+      setAssociations((current) => current.filter((item) => item.id !== association.id));
+      setNotice('Asociación retirada del contexto activo. El historial se conserva.');
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo retirar la asociación.'));
+    } finally {
+      setAssociationBusy('');
+    }
+  }
 
   useEffect(() => {
     if (!activeId) {
@@ -313,6 +389,36 @@ export function MessagingPage() {
                 <p className="font-semibold text-gray-900">{conversations.find((row) => row.id === activeId) ? conversationLabel(conversations.find((row) => row.id === activeId)!) : 'Conversación'}</p>
                 <p className="text-xs text-gray-500">ID: {activeId}</p>
               </div>
+              <section aria-label="Contexto comercial" className="border-b border-gray-200 bg-white px-5 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-900">Contexto comercial</h2>
+                  <span className="text-xs text-gray-500">{associations.length} asociaciones activas</span>
+                </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {associations.length === 0 ? <span className="text-xs text-gray-500">Sin entidades comerciales asociadas.</span> :
+                    associations.map((association) => (
+                      <div key={association.id} className="flex max-w-full items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs">
+                        <span className="font-semibold">{association.entityType}</span>
+                        <span className="max-w-[220px] truncate">{association.label || association.entityId}</span>
+                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
+                      </div>
+                    ))
+                  }
+                </div>
+                <form onSubmit={searchProducts} className="flex gap-2">
+                  <label htmlFor="messaging-product-search" className="sr-only">Buscar productos para asociar</label>
+                  <input id="messaging-product-search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Buscar producto para asociar…" className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs" />
+                  <button type="submit" disabled={searchingProducts || !productSearch.trim()} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"><Search className="h-3 w-3" />{searchingProducts ? 'Buscando…' : 'Buscar'}</button>
+                </form>
+                {productResults.length > 0 && <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
+                  {productResults.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-xs">
+                      <span className="min-w-0 truncate">{product.nombre}{product.codigoInterno ? ` · ${product.codigoInterno}` : ''}</span>
+                      <button type="button" disabled={!!associationBusy || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
+                    </div>
+                  ))}
+                </div>}
+              </section>
               <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50 p-5">
                 {loadingMessages ? <p className="text-sm text-gray-500">Cargando historial…</p> :
                   messages.length === 0 ? <p className="py-10 text-center text-sm text-gray-500">No hay mensajes todavía. Enviá el primero.</p> :

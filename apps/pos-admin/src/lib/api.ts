@@ -246,4 +246,14 @@ export const api = {
     request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: 'POST', body: JSON.stringify(dto),
     }),
+  listarAsociacionesConversacion: (conversationId: string) =>
+    request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`),
+  asociarEntidadConversacion: (conversationId: string, dto: { entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; reason?: string }) =>
+    request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`, {
+      method: 'POST', body: JSON.stringify(dto),
+    }),
+  desactivarAsociacionConversacion: (conversationId: string, associationId: string, reason?: string) =>
+    request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations/${encodeURIComponent(associationId)}`, {
+      method: 'DELETE', body: JSON.stringify({ reason }),
+    }),
 };
