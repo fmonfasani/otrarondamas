@@ -216,7 +216,7 @@ export function MessagingPage() {
       }
 
       try {
-        await refreshConversations(conversationId);
+        await refreshConversations(activeIdRef.current || conversationId);
       } catch {
         if (activeIdRef.current === conversationId) {
           setNotice('El mensaje se envió; no se pudo actualizar la lista de conversaciones.');
