@@ -447,6 +447,7 @@ export class MessagingService {
         return row ? `Compra · ${row.estado}` : 'Compra no disponible';
       }
     }
+    return 'Entidad comercial no disponible';
   }
 
   async deleteConversation(auth: AuthenticatedUser, conversationId: string) {
