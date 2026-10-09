@@ -93,6 +93,7 @@ export function MessagingPage() {
     }
     let cancelled = false;
     setLoadingMessages(true);
+    setMessages([]);
     setError('');
     api.listarMensajes(activeId)
       .then((rows) => {
@@ -133,6 +134,7 @@ export function MessagingPage() {
         { conversationId: activeId },
         (result: { ok?: boolean; message?: string }) => {
           if (result?.ok) {
+            setNotice('');
             socket.on('message.created', onMessageCreated);
           } else {
             setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
