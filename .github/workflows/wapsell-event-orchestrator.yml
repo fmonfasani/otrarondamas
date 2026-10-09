@@ -1,0 +1,65 @@
+name: Wapsell Event Orchestrator
+
+on:
+  push:
+    branches:
+      - feat/demo-tobe-orchestration
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  issues:
+    types: [opened, edited, labeled, assigned, closed, reopened]
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: wapsell-orchestrator-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  register-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Register orchestration event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action || 'n/a' }}
+          REPOSITORY: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+        run: |
+          {
+            echo "event_name=$EVENT_NAME"
+            echo "action=$ACTION"
+            echo "repository=$REPOSITORY"
+            echo "ref=$REF"
+            echo "sha=$SHA"
+            echo "run_id=$RUN_ID"
+            echo "run_attempt=$RUN_ATTEMPT"
+            echo "issue_number=$ISSUE_NUMBER"
+            echo "pr_number=$PR_NUMBER"
+            echo "workflow_conclusion=$WORKFLOW_CONCLUSION"
+            echo "received_at_utc=$(date -u +%FT%TZ)"
+          } | tee orchestration-event.txt
+          cat "$GITHUB_EVENT_PATH" > orchestration-event-payload.json
+      - name: Preserve event evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wapsell-event-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            orchestration-event.txt
+            orchestration-event-payload.json
+          if-no-files-found: error
+          retention-days: 14
