@@ -12,6 +12,7 @@ describe('MessagingController — commercial context P2', () => {
     listConversationAssociations: jest.fn(),
     createConversationAssociation: jest.fn(),
     deactivateConversationAssociation: jest.fn(),
+    createOrderFromConversation: jest.fn(),
   } as unknown as MessagingService;
   const gateway = {} as MessagingGateway;
   let controller: MessagingController;
@@ -37,6 +38,17 @@ describe('MessagingController — commercial context P2', () => {
     } as any)).resolves.toEqual(association);
     expect(service.createConversationAssociation).toHaveBeenCalledWith(
       user, 'conversation-a', 'PRODUCT', 'product-a', 'Producto elegido desde el chat',
+    );
+  });
+
+  it('creates a Commerce order from the conversation cart', async () => {
+    const order = { id: 'order-a', estado: 'RECIBIDO', total: '250.00' };
+    (service.createOrderFromConversation as jest.Mock).mockResolvedValue(order);
+    await expect(controller.createOrder(user, 'conversation-a', {
+      items: [{ productoId: 'product-a', cantidad: 2 }],
+    } as any)).resolves.toEqual(order);
+    expect(service.createOrderFromConversation).toHaveBeenCalledWith(
+      user, 'conversation-a', [{ productoId: 'product-a', cantidad: 2 }],
     );
   });
 
