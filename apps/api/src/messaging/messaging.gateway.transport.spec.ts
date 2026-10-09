@@ -74,24 +74,23 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     actorType: 'USER',
   };
 
+  // customerAuth/customerContext derive from the user fixtures above via
+  // spread: same values, without repeating the 1:1 literals (Sonar
+  // duplication). Behavior is unchanged — tests compare by deep equality.
   const customerAuth: AuthenticatedUser = {
+    ...userAuth,
     id: 'customer-a',
     email: 'customer@example.com',
     nombre: 'Customer',
-    empresaId: 'legacy-business-a',
-    permisos: [],
-    rol: 'OWNER',
-    estadoLegajo: 'APROBADO',
     type: 'cliente',
   };
 
   const customerContext: BusinessContext = {
-    businessId: 'business-a',
-    customerId: 'customer-a',
+    ...userContext,
+    customerId: customerAuth.id,
     userId: null,
     membershipId: null,
     role: null,
-    permissions: [],
     actorType: 'CUSTOMER',
   };
 
