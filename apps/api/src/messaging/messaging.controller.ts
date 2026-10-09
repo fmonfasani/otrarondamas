@@ -17,6 +17,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 import { CreateConversationAssociationDto, DeactivateConversationAssociationDto } from './dto/conversation-association.dto';
+import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
 
 // Prisma BigInt values are not JSON-serializable by Nest's default response adapter.
 // Keep the public HTTP contract JSON-safe and aligned with the Socket.IO payload.
@@ -73,6 +74,15 @@ export class MessagingController {
       dto.entityId,
       dto.reason,
     );
+  }
+
+  @Post(':id/orders')
+  createOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreateConversationOrderDto,
+  ) {
+    return this.messagingService.createOrderFromConversation(user, id, dto.items);
   }
 
   @Delete(':id/associations/:associationId')

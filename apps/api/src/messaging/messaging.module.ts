@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingController } from './messaging.controller';
 import { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
+import { StoreModule } from '../store/store.module';
 
 /**
  * Messaging M2 — Conversations.
@@ -19,7 +20,7 @@ import { MessagingGateway } from './messaging.gateway';
  * Membership stays the authority, no Membership state is stored here).
  */
 @Module({
-  imports: [AuthJwtModule, BusinessContextModule, MembershipRevocationModule, PrismaModule],
+  imports: [AuthJwtModule, BusinessContextModule, MembershipRevocationModule, PrismaModule, StoreModule],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingGateway],
 })

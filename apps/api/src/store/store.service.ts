@@ -148,7 +148,7 @@ export class StoreService {
    * there is stock available at the time of ordering, without setting it
    * aside.
    */
-  async createOrder(dto: CreateOrderDto, companyId?: string) {
+  async createOrder(dto: CreateOrderDto, companyId?: string, channelOrigen = 'web') {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
 
@@ -262,7 +262,7 @@ export class StoreService {
           clienteId: customer.id,
           usuarioId: null,
           estado: 'RECIBIDO',
-          canalOrigen: 'web',
+          canalOrigen: channelOrigen,
           total,
           pedidoItems: {
             create: itemsWithPrice.map((item) => ({

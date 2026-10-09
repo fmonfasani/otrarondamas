@@ -256,4 +256,8 @@ export const api = {
     request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations/${encodeURIComponent(associationId)}`, {
       method: 'DELETE', body: JSON.stringify({ reason }),
     }),
+  crearPedidoDesdeConversacion: (conversationId: string, dto: { items: Array<{ productoId: string; cantidad: number }> }) =>
+    request<{ id: string; estado: string; total: string }>(`/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
+      method: 'POST', body: JSON.stringify(dto),
+    }),
 };

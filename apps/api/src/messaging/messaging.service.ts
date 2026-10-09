@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -14,6 +16,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
+import { StoreService } from '../store/store.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 
 const MAX_GROUP_PARTICIPANTS = 50;
@@ -23,6 +26,7 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessContext: BusinessContextService,
+    @Optional() private readonly storeService?: StoreService,
   ) {}
 
   async createConversation(
@@ -328,6 +332,75 @@ export class MessagingService {
         reason: reason ?? 'Asociación manual',
       },
     });
+  }
+
+  async createOrderFromConversation(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    items: Array<{ productoId: string; cantidad: number }>,
+  ) {
+    const context = await this.resolveContext(auth);
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    const customerAssociations = await this.prisma.conversationAssociation.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.CUSTOMER,
+        active: true,
+      },
+      select: { entityId: true },
+    });
+    if (customerAssociations.length !== 1) {
+      throw new ConflictException(
+        'Para crear un pedido, la conversación debe tener exactamente un Customer asociado',
+      );
+    }
+
+    const customer = await this.prisma.cliente.findFirst({
+      where: {
+        id: customerAssociations[0].entityId,
+        empresaId: context.businessId,
+        activo: true,
+      },
+      select: { id: true, nombre: true, email: true, telefono: true },
+    });
+    if (!customer) throw new NotFoundException('Customer asociado no disponible en este Business');
+    if (!customer.email) {
+      throw new BadRequestException('El Customer necesita email para crear el pedido con el motor Commerce actual');
+    }
+    if (!this.storeService) {
+      throw new BadRequestException('El motor Commerce no está disponible');
+    }
+
+    // Reuse the existing Commerce engine for server-side pricing, loyalty and
+    // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
+    // stock/ERP confirmation stays in the existing authorized Orders workflow.
+    const order = await this.storeService.createOrder({
+      nombre: customer.nombre,
+      email: customer.email,
+      telefono: customer.telefono ?? undefined,
+      items,
+    }, context.businessId, 'messaging');
+
+    await this.prisma.conversationAssociation.create({
+      data: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.ORDER,
+        entityId: order.id,
+        changedBy: context.userId,
+        reason: 'Pedido creado desde el contexto comercial de Messaging',
+      },
+    });
+
+    return order;
   }
 
   async deactivateConversationAssociation(
