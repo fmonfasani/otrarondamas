@@ -2,12 +2,14 @@ jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtServiceMock {},
 }));
 
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
 import type { Namespace, Socket } from 'socket.io';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { JwtStrategy } from '../auth/jwt.strategy';
 import { BusinessContextService } from '../business-context/business-context.service';
+import type { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
 
 describe('MessagingGateway — M4-02 handshake authentication', () => {
@@ -32,6 +34,27 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
     actorType: 'USER',
   };
 
+  const customerAuth: AuthenticatedUser = {
+    id: 'customer-a',
+    email: 'customer@example.com',
+    nombre: 'Customer',
+    empresaId: 'legacy-business-a',
+    permisos: [],
+    rol: 'OWNER',
+    estadoLegajo: 'APROBADO',
+    type: 'cliente',
+  };
+
+  const customerContext: BusinessContext = {
+    businessId: 'business-a',
+    customerId: 'customer-a',
+    userId: null,
+    membershipId: null,
+    role: null,
+    permissions: [],
+    actorType: 'CUSTOMER',
+  };
+
   const payload: JwtPayload = {
     sub: auth.id,
     email: auth.email,
@@ -51,14 +74,23 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
   } as unknown as JwtStrategy;
   const businessContextService = {
     resolveForAuthenticatedUser: jest.fn(),
+    resolveForCustomer: jest.fn(),
   } as unknown as BusinessContextService;
+  const messagingService = {
+    getConversation: jest.fn(),
+  } as unknown as MessagingService;
 
   let gateway: MessagingGateway;
   let middleware: (socket: Socket, next: (error?: Error) => void) => void;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    gateway = new MessagingGateway(jwtService, jwtStrategy, businessContextService);
+    gateway = new MessagingGateway(
+      jwtService,
+      jwtStrategy,
+      businessContextService,
+      messagingService,
+    );
     const namespace = { use: jest.fn() } as unknown as Namespace;
     gateway.afterInit(namespace);
     middleware = (namespace.use as jest.Mock).mock.calls[0][0];
@@ -72,7 +104,7 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
     const socket = {
       handshake: { auth: { token: 'jwt-token' } },
       data: {},
-    } as Socket;
+    } as unknown as Socket;
     const next = jest.fn();
 
     await middleware(socket, next);
@@ -80,8 +112,32 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
     expect(jwtService.verifyAsync).toHaveBeenCalledWith('jwt-token');
     expect(jwtStrategy.validate).toHaveBeenCalledWith(payload);
     expect(businessContextService.resolveForAuthenticatedUser).toHaveBeenCalledWith(auth);
+    expect(businessContextService.resolveForCustomer).not.toHaveBeenCalled();
     expect(socket.data.authenticatedUser).toEqual(auth);
     expect(socket.data.businessContext).toEqual(context);
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('resolves the canonical customer BusinessContext for cliente identities (M4-D06)', async () => {
+    const customerPayload: JwtPayload = { ...payload, sub: customerAuth.id, type: 'cliente' };
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValue(customerPayload);
+    (jwtStrategy.validate as jest.Mock).mockResolvedValue(customerAuth);
+    (businessContextService.resolveForCustomer as jest.Mock).mockResolvedValue(customerContext);
+
+    const socket = {
+      handshake: { auth: { token: 'customer-jwt-token' } },
+      data: {},
+    } as unknown as Socket;
+    const next = jest.fn();
+
+    await middleware(socket, next);
+
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith('customer-jwt-token');
+    expect(jwtStrategy.validate).toHaveBeenCalledWith(customerPayload);
+    expect(businessContextService.resolveForCustomer).toHaveBeenCalledWith(customerAuth);
+    expect(businessContextService.resolveForAuthenticatedUser).not.toHaveBeenCalled();
+    expect(socket.data.authenticatedUser).toEqual(customerAuth);
+    expect(socket.data.businessContext).toEqual(customerContext);
     expect(next).toHaveBeenCalledWith();
   });
 
@@ -101,7 +157,7 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
     const socket = {
       handshake: { auth: { token: 'invalid-token' } },
       data: {},
-    } as Socket;
+    } as unknown as Socket;
     const next = jest.fn();
 
     await middleware(socket, next);
@@ -110,5 +166,206 @@ describe('MessagingGateway — M4-02 handshake authentication', () => {
     expect((next.mock.calls[0][0] as Error).message).toBe('Realtime authentication failed');
     expect(socket.data.authenticatedUser).toBeUndefined();
     expect(socket.data.businessContext).toBeUndefined();
+  });
+
+  it('fails closed when customer BusinessContext resolution fails', async () => {
+    const customerPayload: JwtPayload = { ...payload, sub: customerAuth.id, type: 'cliente' };
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValue(customerPayload);
+    (jwtStrategy.validate as jest.Mock).mockResolvedValue(customerAuth);
+    (businessContextService.resolveForCustomer as jest.Mock).mockRejectedValue(
+      new Error('no such customer'),
+    );
+
+    const socket = {
+      handshake: { auth: { token: 'customer-jwt-token' } },
+      data: {},
+    } as unknown as Socket;
+    const next = jest.fn();
+
+    await middleware(socket, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
+    expect((next.mock.calls[0][0] as Error).message).toBe('Realtime authentication failed');
+    expect(socket.data.authenticatedUser).toBeUndefined();
+    expect(socket.data.businessContext).toBeUndefined();
+  });
+});
+
+describe('MessagingGateway — M4-03 conversation.join authorization', () => {
+  const auth: AuthenticatedUser = {
+    id: 'user-a',
+    email: 'owner@example.com',
+    nombre: 'Owner',
+    empresaId: 'legacy-business-a',
+    permisos: [],
+    rol: 'OWNER',
+    estadoLegajo: 'APROBADO',
+    type: 'usuario',
+  };
+
+  const customerAuth: AuthenticatedUser = {
+    id: 'customer-a',
+    email: 'customer@example.com',
+    nombre: 'Customer',
+    empresaId: 'legacy-business-a',
+    permisos: [],
+    rol: 'OWNER',
+    estadoLegajo: 'APROBADO',
+    type: 'cliente',
+  };
+
+  const messagingService = {
+    getConversation: jest.fn(),
+  } as unknown as MessagingService;
+
+  let gateway: MessagingGateway;
+
+  const joinSocket = (actor: AuthenticatedUser) =>
+    ({
+      handshake: { auth: { token: 'jwt-token' } },
+      data: { authenticatedUser: actor },
+      join: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn(),
+    }) as unknown as Socket & { join: jest.Mock; disconnect: jest.Mock };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    gateway = new MessagingGateway(
+      {} as JwtService,
+      {} as JwtStrategy,
+      {} as BusinessContextService,
+      messagingService,
+    );
+  });
+
+  it('OWNER + same Business + existing conversation => join allowed, exactly once with conversation:{id}', async () => {
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    const socket = joinSocket(auth);
+
+    const result = await gateway.handleJoinConversation(socket, {
+      conversationId: 'conversation-a',
+    });
+
+    expect(messagingService.getConversation).toHaveBeenCalledWith(auth, 'conversation-a');
+    expect(socket.join).toHaveBeenCalledTimes(1);
+    expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
+    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+    expect(socket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('OWNER + same Business + no participation => join allowed (service owns the owner bypass)', async () => {
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-b' });
+    const socket = joinSocket(auth);
+
+    const result = await gateway.handleJoinConversation(socket, {
+      conversationId: 'conversation-b',
+    });
+
+    expect(socket.join).toHaveBeenCalledTimes(1);
+    expect(socket.join).toHaveBeenCalledWith('conversation:conversation-b');
+    expect(result).toEqual({ ok: true, room: 'conversation:conversation-b' });
+  });
+
+  it('non-owner + same Business + active participant => join allowed', async () => {
+    const seller: AuthenticatedUser = { ...auth, id: 'user-seller', rol: 'ASISTENTE_LOCAL' };
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    const socket = joinSocket(seller);
+
+    const result = await gateway.handleJoinConversation(socket, {
+      conversationId: 'conversation-a',
+    });
+
+    expect(messagingService.getConversation).toHaveBeenCalledWith(seller, 'conversation-a');
+    expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
+    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+  });
+
+  it('non-owner + same Business + inactive/nonparticipant => FORBIDDEN ack, no join, stays connected', async () => {
+    const seller: AuthenticatedUser = { ...auth, id: 'user-seller', rol: 'ASISTENTE_LOCAL' };
+    (messagingService.getConversation as jest.Mock).mockRejectedValue(
+      new ForbiddenException('El actor no participa en la conversación'),
+    );
+    const socket = joinSocket(seller);
+
+    const result = await gateway.handleJoinConversation(socket, {
+      conversationId: 'conversation-a',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+      message: 'El actor no participa en la conversación',
+    });
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(socket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('CUSTOMER + same Business + authorized participation => join allowed', async () => {
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    const socket = joinSocket(customerAuth);
+
+    const result = await gateway.handleJoinConversation(socket, {
+      conversationId: 'conversation-a',
+    });
+
+    expect(messagingService.getConversation).toHaveBeenCalledWith(customerAuth, 'conversation-a');
+    expect(socket.join).toHaveBeenCalledTimes(1);
+    expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
+    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+  });
+
+  it.each([
+    ['cross-Business USER', 'user-a'],
+    ['cross-Business CUSTOMER', 'customer-a'],
+    ['deleted conversation', 'user-a'],
+    ['nonexistent conversation', 'user-a'],
+  ])(
+    '%s => NOT_FOUND ack without disclosing existence, no join, stays connected',
+    async (_case, actorId) => {
+      const actor = actorId === 'customer-a' ? customerAuth : auth;
+      (messagingService.getConversation as jest.Mock).mockRejectedValue(
+        new NotFoundException('Conversación no encontrada'),
+      );
+      const socket = joinSocket(actor);
+
+      const result = await gateway.handleJoinConversation(socket, {
+        conversationId: 'conversation-other',
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'NOT_FOUND',
+        message: 'Conversación no encontrada',
+      });
+      expect(socket.join).not.toHaveBeenCalled();
+      expect(socket.disconnect).not.toHaveBeenCalled();
+    },
+  );
+
+  it('missing conversationId => BAD_REQUEST ack without touching the service', async () => {
+    const socket = joinSocket(auth);
+
+    const result = await gateway.handleJoinConversation(socket, {});
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'BAD_REQUEST',
+      message: 'conversationId requerido',
+    });
+    expect(messagingService.getConversation).not.toHaveBeenCalled();
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(socket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('unexpected authorization errors are rethrown, never masked and never joined', async () => {
+    const failure = new Error('database unavailable');
+    (messagingService.getConversation as jest.Mock).mockRejectedValue(failure);
+    const socket = joinSocket(auth);
+
+    await expect(
+      gateway.handleJoinConversation(socket, { conversationId: 'conversation-a' }),
+    ).rejects.toBe(failure);
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(socket.disconnect).not.toHaveBeenCalled();
   });
 });
