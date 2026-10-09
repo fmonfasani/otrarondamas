@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthJwtModule } from '../auth/auth-jwt.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingController } from './messaging.controller';
@@ -14,7 +14,7 @@ import { MessagingGateway } from './messaging.gateway';
  * tenancy or authorization mechanism is introduced here.
  */
 @Module({
-  imports: [AuthModule, BusinessContextModule, PrismaModule],
+  imports: [AuthJwtModule, BusinessContextModule, PrismaModule],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingGateway],
 })
