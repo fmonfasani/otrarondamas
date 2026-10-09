@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { io } from 'socket.io-client';
 import { MessageCircle, Plus, Send, RefreshCw } from 'lucide-react';
@@ -33,6 +33,7 @@ export function MessagingPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeId, setActiveId] = useState('');
+  const activeIdRef = useRef('');
   const [customerId, setCustomerId] = useState('');
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,7 @@ export function MessagingPage() {
       (activeId && rows.some((row) => row.id === activeId) ? activeId : '') ||
       rows[0]?.id ||
       '';
+    activeIdRef.current = nextId;
     setActiveId(nextId);
     return nextId;
   }, [activeId]);
@@ -69,11 +71,13 @@ export function MessagingPage() {
       ]);
       setCustomers(customerRows);
       setConversations(conversationRows);
-      setActiveId((current) =>
-        current && conversationRows.some((row) => row.id === current)
+      setActiveId((current) => {
+        const nextId = current && conversationRows.some((row) => row.id === current)
           ? current
-          : conversationRows[0]?.id ?? '',
-      );
+          : conversationRows[0]?.id ?? '';
+        activeIdRef.current = nextId;
+        return nextId;
+      });
       setCustomerId((current) => current || customerRows[0]?.id || '');
     } catch (err) {
       setError(errorMessage(err, 'No se pudieron cargar las conversaciones. Verificá la API y tu sesión.'));
@@ -85,6 +89,10 @@ export function MessagingPage() {
   useEffect(() => {
     void loadBase();
   }, [loadBase]);
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   useEffect(() => {
     if (!activeId) {
@@ -177,19 +185,43 @@ export function MessagingPage() {
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
-    if (!activeId || !content || sending) return;
+    const conversationId = activeIdRef.current || activeId;
+    if (!conversationId || !content || sending) return;
     setSending(true);
     setError('');
     setNotice('');
     try {
-      await api.enviarMensaje(activeId, {
+      const created = (await api.enviarMensaje(conversationId, {
         clientMessageId: crypto.randomUUID(),
         content,
-      });
+      })) as Message;
+
+      // HTTP success means the server accepted and persisted the message.
+      // Reflect that result immediately; a later history-refresh failure must
+      // not incorrectly tell the user that sending failed.
       setDraft('');
-      const rows = (await api.listarMensajes(activeId)) as Message[];
-      setMessages(rows);
-      await refreshConversations(activeId);
+      if (activeIdRef.current === conversationId && created?.id) {
+        setMessages((current) =>
+          current.some((item) => item.id === created.id) ? current : [...current, created],
+        );
+      }
+
+      try {
+        const rows = (await api.listarMensajes(conversationId)) as Message[];
+        if (activeIdRef.current === conversationId) setMessages(rows);
+      } catch {
+        if (activeIdRef.current === conversationId) {
+          setError('El mensaje se envió, pero no se pudo actualizar el historial. Actualizá la conversación para verificarlo.');
+        }
+      }
+
+      try {
+        await refreshConversations(conversationId);
+      } catch {
+        if (activeIdRef.current === conversationId) {
+          setNotice('El mensaje se envió; no se pudo actualizar la lista de conversaciones.');
+        }
+      }
     } catch (err) {
       setError(errorMessage(err, 'No se pudo enviar el mensaje.'));
     } finally {
@@ -237,7 +269,7 @@ export function MessagingPage() {
             {loading ? <p className="p-4 text-sm text-gray-500">Cargando conversaciones…</p> :
               conversations.length === 0 ? <p className="p-4 text-sm text-gray-500">Todavía no hay conversaciones. Elegí un cliente y creá la primera.</p> :
               conversations.map((conversation) => (
-                <button key={conversation.id} type="button" onClick={() => setActiveId(conversation.id)} className={`block w-full border-b border-gray-100 px-4 py-4 text-left hover:bg-gray-50 ${activeId === conversation.id ? 'bg-amber-50 border-l-4 border-l-amber-500' : ''}`}>
+                <button key={conversation.id} type="button" onClick={() => { activeIdRef.current = conversation.id; setActiveId(conversation.id); }} className={`block w-full border-b border-gray-100 px-4 py-4 text-left hover:bg-gray-50 ${activeId === conversation.id ? 'bg-amber-50 border-l-4 border-l-amber-500' : ''}`}>
                   <span className="block truncate text-sm font-semibold text-gray-900">{conversationLabel(conversation)}</span>
                   <span className="mt-1 block truncate text-xs text-gray-500">{conversation.id}</span>
                 </button>
@@ -272,7 +304,7 @@ export function MessagingPage() {
               </div>
               <form onSubmit={sendMessage} className="flex items-end gap-3 border-t border-gray-200 p-4">
                 <label htmlFor="messaging-draft" className="sr-only">Escribir mensaje</label>
-                <textarea id="messaging-draft" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={10000} rows={2} placeholder="Escribí un mensaje…" className="min-h-[44px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100" />
+                <textarea id="messaging-draft" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={sending} maxLength={10000} rows={2} placeholder="Escribí un mensaje…" className="min-h-[44px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100" />
                 <button type="submit" disabled={sending || !draft.trim()} className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">
                   <Send className="h-4 w-4" /> {sending ? 'Enviando…' : 'Enviar'}
                 </button>
