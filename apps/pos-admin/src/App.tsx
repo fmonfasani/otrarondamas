@@ -17,6 +17,7 @@ import { PedidosPage } from './features/pedidos/PedidosPage';
 import { PreciosPage } from './features/precios/PreciosPage';
 import { ClientesPage } from './features/clientes/ClientesPage';
 import { FidelizacionPage } from './features/fidelizacion/FidelizacionPage';
+import { MessagingPage } from './features/messaging/MessagingPage';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
                     <Route path="/precios" element={<PreciosPage />} />
                     <Route path="/customers" element={<ClientesPage />} />
                     <Route path="/fidelizacion" element={<FidelizacionPage />} />
+                    <Route path="/messaging" element={<MessagingPage />} />
                     <Route path="/cash" element={<CajaPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route
