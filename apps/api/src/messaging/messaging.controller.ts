@@ -20,6 +20,11 @@ import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 export class MessagingController {
   constructor(private readonly messagingService: MessagingService) {}
 
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.listConversations(user);
+  }
+
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser,
