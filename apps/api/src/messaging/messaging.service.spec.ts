@@ -305,8 +305,8 @@ describe('MessagingService — M2/M3 messaging', () => {
         data: expect.objectContaining({
           conversationId: 'conversation-a',
           businessId: 'business-a',
-          userId: 'user-a',
-          membershipBusinessId: 'business-a',
+          authorUserId: 'user-a',
+          authorMembershipBusinessId: 'business-a',
           sequence: BigInt(5),
           clientMessageId: 'client-1',
           type: 'TEXT',
