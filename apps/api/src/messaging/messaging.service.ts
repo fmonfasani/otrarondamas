@@ -293,6 +293,26 @@ export class MessagingService {
     })));
   }
 
+  async listConversationAssociationHistory(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    await this.getConversationForActor(this.prisma, conversationId, context);
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    const associations = await this.prisma.conversationAssociation.findMany({
+      where: { conversationId, businessId: context.businessId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return Promise.all(associations.map(async (association) => ({
+      ...association,
+      label: await this.getAssociationLabel(
+        this.prisma,
+        context.businessId,
+        association.entityType,
+        association.entityId,
+      ),
+    })));
+  }
+
   async createConversationAssociation(
     auth: AuthenticatedUser,
     conversationId: string,

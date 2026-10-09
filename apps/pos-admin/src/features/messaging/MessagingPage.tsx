@@ -51,6 +51,8 @@ export function MessagingPage() {
   const [associationBusy, setAssociationBusy] = useState('');
   const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [showAssociationHistory, setShowAssociationHistory] = useState(false);
+  const [associationHistory, setAssociationHistory] = useState<Association[]>([]);
 
   const customerNames = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer.nombre])),
@@ -131,6 +133,21 @@ export function MessagingPage() {
       });
     return () => { cancelled = true; };
   }, [activeId]);
+
+  async function toggleAssociationHistory() {
+    if (showAssociationHistory) {
+      setShowAssociationHistory(false);
+      return;
+    }
+    if (!activeId) return;
+    setError('');
+    try {
+      setAssociationHistory((await api.listarHistorialAsociacionesConversacion(activeId)) as Association[]);
+      setShowAssociationHistory(true);
+    } catch (err) {
+      setError(errorMessage(err, 'El historial de asociaciones requiere permisos de Owner.'));
+    }
+  }
 
   async function searchProducts(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -437,6 +454,17 @@ export function MessagingPage() {
                     ))
                   }
                 </div>
+                <div className="mb-2 flex justify-end">
+                  <button type="button" onClick={() => void toggleAssociationHistory()} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
+                </div>
+                {showAssociationHistory && <div className="mb-3 max-h-24 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
+                  {associationHistory.length === 0 ? <p className="text-xs text-gray-500">No hay asociaciones históricas.</p> : associationHistory.map((association) => (
+                    <div key={association.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate">{association.entityType} · {association.label || association.entityId}</span>
+                      <span className={association.active ? 'text-green-700' : 'text-gray-500'}>{association.active ? 'Activa' : 'Histórica'}</span>
+                    </div>
+                  ))}
+                </div>}
                 <form onSubmit={searchProducts} className="flex gap-2">
                   <label htmlFor="messaging-product-search" className="sr-only">Buscar productos para asociar</label>
                   <input id="messaging-product-search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Buscar producto para asociar…" className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs" />

@@ -61,6 +61,14 @@ export class MessagingController {
     return this.messagingService.listConversationAssociations(user, id);
   }
 
+  @Get(':id/associations/history')
+  listAssociationHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.messagingService.listConversationAssociationHistory(user, id);
+  }
+
   @Post(':id/associations')
   createAssociation(
     @CurrentUser() user: AuthenticatedUser,

@@ -248,6 +248,8 @@ export const api = {
     }),
   listarAsociacionesConversacion: (conversationId: string) =>
     request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`),
+  listarHistorialAsociacionesConversacion: (conversationId: string) =>
+    request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations/history`),
   asociarEntidadConversacion: (conversationId: string, dto: { entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; reason?: string }) =>
     request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`, {
       method: 'POST', body: JSON.stringify(dto),
