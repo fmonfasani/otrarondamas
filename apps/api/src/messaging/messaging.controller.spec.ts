@@ -1,3 +1,7 @@
+jest.mock('./messaging.gateway', () => ({
+  MessagingGateway: class MessagingGatewayMock {},
+}));
+
 import { MessagingController } from './messaging.controller';
 import type { MessagingService } from './messaging.service';
 import type { MessagingGateway } from './messaging.gateway';
