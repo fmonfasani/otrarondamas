@@ -15,7 +15,7 @@ type Conversation = {
   updatedAt?: string;
   participants?: Participant[];
 };
-type Association = { id: string; entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; label?: string; reason?: string | null };
+type Association = { id: string; entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; label?: string; reason?: string | null; active?: boolean };
 type ProductOption = { id: string; nombre: string; codigoInterno?: string; precioMinorista?: string | number };
 type Message = {
   id: string;
