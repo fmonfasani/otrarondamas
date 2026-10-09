@@ -16,5 +16,6 @@ import { BusinessContextModule } from '../business-context/business-context.modu
   imports: [PrismaModule, InventoryModule, LoyaltyModule, CustomersModule, BusinessContextModule],
   controllers: [StoreController, PublicStoreController],
   providers: [StoreService],
+  exports: [StoreService],
 })
 export class StoreModule {}

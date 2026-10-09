@@ -17,7 +17,7 @@ describe('MessagingModule', () => {
     expect(metadata).toContain(BusinessContextModule);
   });
 
-  it('can be compiled without introducing persistence dependencies', async () => {
+  it('compiles with the existing Commerce engine dependency', async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [MessagingModule],
     }).compile();

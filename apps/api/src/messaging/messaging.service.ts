@@ -1,11 +1,14 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   MembershipStatus,
+  MessagingAssociationType,
   MessagingConversationType,
   Prisma,
 } from '@prisma/client';
@@ -13,6 +16,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
+import { StoreService } from '../store/store.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 
 const MAX_GROUP_PARTICIPANTS = 50;
@@ -22,6 +26,7 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessContext: BusinessContextService,
+    @Optional() private readonly storeService?: StoreService,
   ) {}
 
   async createConversation(
@@ -97,6 +102,18 @@ export class MessagingService {
               businessId: context.businessId,
               customerId,
               customerBusinessId: context.businessId,
+            },
+          });
+
+          // P2: starting a conversation from a Customer establishes its commercial context.
+          await tx.conversationAssociation.create({
+            data: {
+              conversationId: conversation.id,
+              businessId: context.businessId,
+              entityType: MessagingAssociationType.CUSTOMER,
+              entityId: customerId,
+              changedBy: context.userId,
+              reason: 'Asociación automática al crear la conversación',
             },
           });
         }
@@ -250,6 +267,280 @@ export class MessagingService {
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     return this.getConversationForActor(this.prisma, conversationId, context);
+  }
+
+  async listConversationAssociations(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    // The conversation is always resolved inside the authenticated Business.
+    await this.getConversationForActor(this.prisma, conversationId, context);
+    const associations = await this.prisma.conversationAssociation.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        active: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return Promise.all(associations.map(async (association) => ({
+      ...association,
+      label: await this.getAssociationLabel(
+        this.prisma,
+        context.businessId,
+        association.entityType,
+        association.entityId,
+      ),
+    })));
+  }
+
+  async listConversationAssociationHistory(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    await this.getConversationForActor(this.prisma, conversationId, context);
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    const associations = await this.prisma.conversationAssociation.findMany({
+      where: { conversationId, businessId: context.businessId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return Promise.all(associations.map(async (association) => ({
+      ...association,
+      label: await this.getAssociationLabel(
+        this.prisma,
+        context.businessId,
+        association.entityType,
+        association.entityId,
+      ),
+    })));
+  }
+
+  async createConversationAssociation(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    entityType: MessagingAssociationType,
+    entityId: string,
+    reason?: string,
+  ) {
+    const context = await this.resolveContext(auth);
+    // Association changes are limited to conversation admins. The precise
+    // permission catalog remains open in the functional spec; no new RBAC is invented here.
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+    await this.assertAssociationEntityBelongsToBusiness(
+      this.prisma,
+      context.businessId,
+      entityType,
+      entityId,
+    );
+
+    const existing = await this.prisma.conversationAssociation.findFirst({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        entityType,
+        entityId,
+        active: true,
+      },
+    });
+    if (existing) throw new ConflictException('La entidad ya está asociada a esta conversación');
+
+    return this.prisma.conversationAssociation.create({
+      data: {
+        conversationId,
+        businessId: context.businessId,
+        entityType,
+        entityId,
+        changedBy: context.userId,
+        reason: reason ?? 'Asociación manual',
+      },
+    });
+  }
+
+  async createOrderFromConversation(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    items: Array<{ productoId: string; cantidad: number }>,
+  ) {
+    const context = await this.resolveContext(auth);
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+
+    const customerAssociations = await this.prisma.conversationAssociation.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.CUSTOMER,
+        active: true,
+      },
+      select: { entityId: true },
+    });
+    if (customerAssociations.length !== 1) {
+      throw new ConflictException(
+        'Para crear un pedido, la conversación debe tener exactamente un Customer asociado',
+      );
+    }
+
+    const customer = await this.prisma.cliente.findFirst({
+      where: {
+        id: customerAssociations[0].entityId,
+        empresaId: context.businessId,
+        activo: true,
+      },
+      select: { id: true, nombre: true, email: true, telefono: true },
+    });
+    if (!customer) throw new NotFoundException('Customer asociado no disponible en este Business');
+    if (!customer.email) {
+      throw new BadRequestException('El Customer necesita email para crear el pedido con el motor Commerce actual');
+    }
+    if (!this.storeService) {
+      throw new BadRequestException('El motor Commerce no está disponible');
+    }
+
+    // Reuse the existing Commerce engine for server-side pricing, loyalty and
+    // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
+    // stock/ERP confirmation stays in the existing authorized Orders workflow.
+    const order = await this.storeService.createOrder({
+      nombre: customer.nombre,
+      email: customer.email,
+      telefono: customer.telefono ?? undefined,
+      items,
+    }, context.businessId, 'messaging');
+
+    await this.prisma.conversationAssociation.create({
+      data: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.ORDER,
+        entityId: order.id,
+        changedBy: context.userId,
+        reason: 'Pedido creado desde el contexto comercial de Messaging',
+      },
+    });
+
+    return order;
+  }
+
+  async deactivateConversationAssociation(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    associationId: string,
+    reason?: string,
+  ) {
+    const context = await this.resolveContext(auth);
+    await this.assertConversationAdmin(this.prisma, conversationId, context);
+
+    const association = await this.prisma.conversationAssociation.findFirst({
+      where: {
+        id: associationId,
+        conversationId,
+        businessId: context.businessId,
+        active: true,
+      },
+    });
+    if (!association) throw new NotFoundException('Asociación activa no encontrada');
+
+    // Soft deactivation preserves the association record for historical/audit views.
+    return this.prisma.conversationAssociation.update({
+      where: { id: association.id },
+      data: {
+        active: false,
+        changedBy: context.userId,
+        reason: reason ?? 'Asociación desactivada desde Messaging',
+      },
+    });
+  }
+
+  private async assertAssociationEntityBelongsToBusiness(
+    db: Prisma.TransactionClient | PrismaService,
+    businessId: string,
+    entityType: MessagingAssociationType,
+    entityId: string,
+  ) {
+    let exists = false;
+    switch (entityType) {
+      case MessagingAssociationType.CUSTOMER:
+        exists = !!(await db.cliente.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { id: true },
+        }));
+        break;
+      case MessagingAssociationType.ORDER:
+        exists = !!(await db.pedido.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { id: true },
+        }));
+        break;
+      case MessagingAssociationType.SALE:
+        exists = !!(await db.venta.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { id: true },
+        }));
+        break;
+      case MessagingAssociationType.PRODUCT:
+        exists = !!(await db.producto.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { id: true },
+        }));
+        break;
+      case MessagingAssociationType.PURCHASE:
+        exists = !!(await db.compra.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { id: true },
+        }));
+        break;
+    }
+    if (!exists) {
+      throw new NotFoundException('La entidad comercial no existe dentro de este Business');
+    }
+  }
+
+  private async getAssociationLabel(
+    db: Prisma.TransactionClient | PrismaService,
+    businessId: string,
+    entityType: MessagingAssociationType,
+    entityId: string,
+  ): Promise<string> {
+    switch (entityType) {
+      case MessagingAssociationType.CUSTOMER: {
+        const row = await db.cliente.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { nombre: true },
+        });
+        return row?.nombre ?? 'Cliente no disponible';
+      }
+      case MessagingAssociationType.ORDER: {
+        const row = await db.pedido.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { estado: true },
+        });
+        return row ? `Pedido · ${row.estado}` : 'Pedido no disponible';
+      }
+      case MessagingAssociationType.SALE: {
+        const row = await db.venta.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { numero: true, estado: true },
+        });
+        return row ? `Venta ${row.numero} · ${row.estado}` : 'Venta no disponible';
+      }
+      case MessagingAssociationType.PRODUCT: {
+        const row = await db.producto.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { nombre: true, codigoInterno: true },
+        });
+        return row ? row.nombre : 'Producto no disponible';
+      }
+      case MessagingAssociationType.PURCHASE: {
+        const row = await db.compra.findFirst({
+          where: { id: entityId, empresaId: businessId },
+          select: { estado: true },
+        });
+        return row ? `Compra · ${row.estado}` : 'Compra no disponible';
+      }
+    }
+    return 'Entidad comercial no disponible';
   }
 
   async deleteConversation(auth: AuthenticatedUser, conversationId: string) {
