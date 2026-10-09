@@ -82,8 +82,9 @@ export function MessagingPage() {
       });
 
       if (customerResult.status === 'fulfilled') {
-        setCustomers(customerResult.value);
-        setCustomerId((current) => current || customerResult.value[0]?.id || '');
+        const customerRows = customerResult.value;
+        setCustomers(customerRows);
+        setCustomerId((current) => current || customerRows[0]?.id || '');
       } else {
         // A customer-list failure should not hide conversations that already exist.
         setCustomers([]);
