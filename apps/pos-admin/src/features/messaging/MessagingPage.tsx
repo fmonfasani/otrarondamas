@@ -65,11 +65,13 @@ export function MessagingPage() {
     setLoading(true);
     setError('');
     try {
-      const [customerRows, conversationRows] = await Promise.all([
+      const [customerResult, conversationResult] = await Promise.allSettled([
         api.listarClientes(),
         api.listarConversaciones() as Promise<Conversation[]>,
       ]);
-      setCustomers(customerRows);
+      if (conversationResult.status === 'rejected') throw conversationResult.reason;
+
+      const conversationRows = conversationResult.value;
       setConversations(conversationRows);
       setActiveId((current) => {
         const nextId = current && conversationRows.some((row) => row.id === current)
@@ -78,7 +80,15 @@ export function MessagingPage() {
         activeIdRef.current = nextId;
         return nextId;
       });
-      setCustomerId((current) => current || customerRows[0]?.id || '');
+
+      if (customerResult.status === 'fulfilled') {
+        setCustomers(customerResult.value);
+        setCustomerId((current) => current || customerResult.value[0]?.id || '');
+      } else {
+        // A customer-list failure should not hide conversations that already exist.
+        setCustomers([]);
+        setNotice('Las conversaciones se cargaron, pero no se pudieron cargar clientes para iniciar una nueva.');
+      }
     } catch (err) {
       setError(errorMessage(err, 'No se pudieron cargar las conversaciones. Verificá la API y tu sesión.'));
     } finally {
@@ -173,7 +183,17 @@ export function MessagingPage() {
         type: 'DIRECT',
         participantCustomerIds: [customerId],
       })) as Conversation;
-      await refreshConversations(created.id);
+      if (!created?.id) throw new Error('La API no devolvió el identificador de la conversación creada.');
+
+      // The POST response is the source of truth for the newly created row;
+      // do not turn a successful create into a reported failure because a
+      // subsequent list refresh is temporarily unavailable.
+      activeIdRef.current = created.id;
+      setActiveId(created.id);
+      setConversations((current) => [
+        created,
+        ...current.filter((row) => row.id !== created.id),
+      ]);
       setNotice('Conversación creada y guardada.');
     } catch (err) {
       setError(errorMessage(err, 'No se pudo crear la conversación.'));
