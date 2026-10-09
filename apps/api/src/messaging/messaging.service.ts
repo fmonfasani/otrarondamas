@@ -214,6 +214,39 @@ export class MessagingService {
     });
   }
 
+  async listConversations(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    const isOwner = context.role === 'OWNER' && context.userId !== null;
+
+    return this.prisma.conversation.findMany({
+      where: {
+        businessId: context.businessId,
+        deletedAt: null,
+        ...(!isOwner
+          ? {
+              participants: {
+                some: {
+                  businessId: context.businessId,
+                  leftAt: null,
+                  removedAt: null,
+                  ...(context.userId
+                    ? { userId: context.userId }
+                    : { customerId: context.customerId! }),
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        participants: {
+          where: { leftAt: null, removedAt: null },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     return this.getConversationForActor(this.prisma, conversationId, context);
