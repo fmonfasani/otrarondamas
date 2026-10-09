@@ -12,6 +12,7 @@ import {
   LogOut,
   Tag,
   Heart,
+  MessageCircle,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { path: '/precios', label: 'Precios', icon: <Tag className="w-5 h-5 shrink-0" /> },
   { path: '/customers', label: 'Clientes', icon: <Users className="w-5 h-5 shrink-0" /> },
   { path: '/fidelizacion', label: 'Fidelización', icon: <Heart className="w-5 h-5 shrink-0" /> },
+  { path: '/messaging', label: 'Mensajería', icon: <MessageCircle className="w-5 h-5 shrink-0" /> },
   { path: '/cash', label: 'Caja', icon: <DollarSign className="w-5 h-5 shrink-0" /> },
   { path: '/reports', label: 'Reportes', icon: <FileText className="w-5 h-5 shrink-0" /> },
   { path: '/settings', label: 'Configuración', icon: <Settings className="w-5 h-5 shrink-0" /> },
