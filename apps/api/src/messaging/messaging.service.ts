@@ -135,7 +135,7 @@ export class MessagingService {
           data: {
             conversationId,
             businessId: context.businessId,
-            ...this.actorFromContext(context),
+            ...this.messageAuthorFromContext(context),
             sequence,
             clientMessageId,
             type: 'TEXT',
@@ -706,6 +706,26 @@ export class MessagingService {
       return {
         customerId: context.customerId,
         customerBusinessId: context.businessId,
+      };
+    }
+
+    throw new ForbiddenException('Actor Messaging inválido');
+  }
+
+  // Message has a distinct Prisma relation contract from ConversationParticipant.
+  // Keep author identity and its composite Business relation fields explicit.
+  private messageAuthorFromContext(context: BusinessContext) {
+    if (context.userId) {
+      return {
+        authorUserId: context.userId,
+        authorMembershipBusinessId: context.businessId,
+      };
+    }
+
+    if (context.customerId) {
+      return {
+        authorCustomerId: context.customerId,
+        authorCustomerBusinessId: context.businessId,
       };
     }
 
