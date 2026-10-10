@@ -11,11 +11,16 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
   const PORT = '3394';
   const BASE = `http://127.0.0.1:${PORT}`;
   let server: ChildProcess;
+  let serverOutput = '';
+  let serverStartError: string | undefined;
   let prisma: PrismaService;
   let suffix: number;
   let company: { id: string };
+  let companyB: { id: string };
   let legacyUser: { id: string };
+  let legacyUserB: { id: string };
   let user: { id: string };
+  let userB: { id: string };
   let customer: { id: string };
   let conversationId: string | undefined;
   let messageId: string | undefined;
@@ -44,18 +49,35 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
   const waitPort = (port: number, attempts = 60) =>
     new Promise<void>((resolve, reject) => {
       const probe = (remaining: number) => {
+        if (serverStartError || server.exitCode !== null || server.signalCode !== null) {
+          reject(new Error(`Messaging API terminó antes de abrir el puerto ${port}. ${serverStartError ?? ''} ${serverOutput}`.trim()));
+          return;
+        }
         const socket = net.connect(port, '127.0.0.1');
-        socket.on('connect', () => {
+        socket.once('connect', () => {
           socket.end();
           resolve();
         });
-        socket.on('error', () => {
-          if (remaining <= 0) reject(new Error(`puerto ${port} sin respuesta`));
+        socket.once('error', () => {
+          if (remaining <= 0) reject(new Error(`puerto ${port} sin respuesta. ${serverOutput}`.trim()));
           else setTimeout(() => probe(remaining - 1), 1000);
         });
       };
       probe(attempts);
     });
+
+  const stopServer = async () => {
+    if (!server || server.exitCode !== null || server.signalCode !== null) return;
+    await new Promise<void>((resolve) => {
+      const forceKill = setTimeout(() => server.kill('SIGKILL'), 5000);
+      forceKill.unref();
+      server.once('exit', () => {
+        clearTimeout(forceKill);
+        resolve();
+      });
+      server.kill('SIGTERM');
+    });
+  };
 
   beforeAll(async () => {
     if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET es requerido para el test HTTP');
@@ -97,6 +119,20 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
         status: 'ACTIVE',
       },
     });
+    companyB = await prisma.empresa.create({
+      data: { nombre: `P1 Messaging HTTP B ${suffix}`, slug: `p1-messaging-http-b-${suffix}`, configuracion: {} },
+      select: { id: true },
+    });
+    legacyUserB = await prisma.usuario.create({
+      data: { empresaId: companyB.id, nombre: `P1 Messaging HTTP B ${suffix}`, email: `p1-messaging-http-b-${suffix}@example.test`, activo: true, rol: 'OWNER' },
+      select: { id: true },
+    });
+    userB = await prisma.user.create({
+      data: { email: `p1-messaging-canonical-b-${suffix}@example.test`, nombre: 'P1 Messaging canonical user B', usuarioId: legacyUserB.id },
+      select: { id: true },
+    });
+    await prisma.membership.create({ data: { userId: userB.id, businessId: companyB.id, role: 'OWNER', status: 'ACTIVE' } });
+
     customer = await prisma.cliente.create({
       data: {
         empresaId: company.id,
@@ -105,32 +141,40 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+    server.stdout?.on('data', (chunk: Buffer) => { serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000); });
+    server.stderr?.on('data', (chunk: Buffer) => { serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000); });
+    server.once('error', (error) => { serverStartError = error.message; });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
-    if (server && !server.killed) server.kill();
+    await stopServer();
     if (prisma) {
-      if (company?.id) {
-        await prisma.messageReadReceipt.deleteMany({ where: { businessId: company.id } });
-        await prisma.messagingReadPreference.deleteMany({ where: { businessId: company.id } });
-        await prisma.message.deleteMany({ where: { businessId: company.id } });
-        await prisma.conversationAssociation.deleteMany({ where: { businessId: company.id } });
-        await prisma.conversationParticipant.deleteMany({ where: { businessId: company.id } });
-        await prisma.conversation.deleteMany({ where: { businessId: company.id } });
-        await prisma.cliente.deleteMany({ where: { empresaId: company.id } });
-        await prisma.membership.deleteMany({ where: { businessId: company.id } });
-        if (user?.id) await prisma.user.deleteMany({ where: { id: user.id } });
-        if (legacyUser?.id) await prisma.usuario.deleteMany({ where: { id: legacyUser.id } });
-        await prisma.empresa.deleteMany({ where: { id: company.id } });
+      if (company?.id || companyB?.id) {
+        const businessIds = [company?.id, companyB?.id].filter((id): id is string => Boolean(id));
+        await prisma.messageReadReceipt.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.messagingReadPreference.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.message.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.conversationAssociation.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.conversationParticipant.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.conversation.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.cliente.deleteMany({ where: { empresaId: { in: businessIds } } });
+        await prisma.membership.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.user.deleteMany({ where: { id: { in: [user?.id, userB?.id].filter((id): id is string => Boolean(id)) } } });
+        await prisma.usuario.deleteMany({ where: { id: { in: [legacyUser?.id, legacyUserB?.id].filter((id): id is string => Boolean(id)) } } });
+        await prisma.empresa.deleteMany({ where: { id: { in: businessIds } } });
       }
       await prisma.$disconnect();
     }
+  });
+
+  it('rejects requests without authentication', async () => {
+    await request(BASE).get('/messaging/conversations').expect(401);
   });
 
   it('lists conversations for the active BusinessContext', async () => {
@@ -173,6 +217,10 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
     expect(associations.body).toEqual(expect.arrayContaining([
       expect.objectContaining({ entityType: 'CUSTOMER', entityId: customer.id, active: true }),
     ]));
+
+    const foreignAuth = `Bearer ${tokenFor(legacyUserB.id, companyB.id)}`;
+    await request(BASE).get(`/messaging/conversations/${conversationId}`).set('Authorization', foreignAuth).expect(404);
+    await request(BASE).get(`/messaging/conversations/${conversationId}/associations`).set('Authorization', foreignAuth).expect(404);
   });
 
   it('loads an empty history, sends over HTTP, and rereads the persisted message as JSON', async () => {
@@ -229,5 +277,10 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       .expect(200);
     expect(reread.body[0].id).toBe(messageId);
     expect(reread.body[0].content).toBe(content);
+
+    await request(BASE)
+      .get(`/messaging/conversations/${conversationId}/messages`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserB.id, companyB.id)}`)
+      .expect(404);
   });
 });
