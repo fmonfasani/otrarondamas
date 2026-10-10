@@ -374,6 +374,12 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
     expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
 
+    const otherClient = await connectClient('user-jwt');
+    const otherAck = await emitJoin(otherClient, { conversationId: 'conv-b' });
+    expect(otherAck).toEqual({ ok: true, room: 'conversation:conv-b' });
+    const foreignRoomEvent = jest.fn();
+    otherClient.on('conversation.message.created', foreignRoomEvent);
+
     const createdPromise = new Promise<unknown>((resolve) =>
       client.once('conversation.message.created', resolve),
     );
@@ -394,6 +400,8 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       sequence: '1',
       content: 'Hola',
     }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(foreignRoomEvent).not.toHaveBeenCalled();
 
     const updatedPromise = new Promise<unknown>((resolve) =>
       client.once('conversation.message.updated', resolve),
