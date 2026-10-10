@@ -175,7 +175,8 @@ export class MessagingGateway
   }
 
   // Publish only after the HTTP service has committed persistence.
-  // BigInt sequence is serialized as a string for Socket.IO JSON payloads.
+  // Realtime is best-effort: a transport failure must never turn a committed
+  // HTTP mutation into an apparent failure. HTTP remains the recovery source.
   publishMessageCreated(message: {
     id: string;
     conversationId: string;
@@ -186,12 +187,67 @@ export class MessagingGateway
     authorUserId: string | null;
     authorCustomerId: string | null;
   }): void {
-    this.namespace
-      .to(`${CONVERSATION_ROOM_PREFIX}${message.conversationId}`)
-      .emit('message.created', {
-        ...message,
-        sequence: String(message.sequence),
-      });
+    this.publishToConversation('conversation.message.created', message.conversationId, {
+      ...message,
+      sequence: String(message.sequence),
+    });
+  }
+
+  publishMessageUpdated(message: {
+    id: string;
+    conversationId: string;
+    content: string | null;
+    editedAt: Date | null;
+  }): void {
+    this.publishToConversation('conversation.message.updated', message.conversationId, {
+      id: message.id,
+      conversationId: message.conversationId,
+      content: message.content,
+      editedAt: message.editedAt,
+    });
+  }
+
+  publishMessageDeleted(message: {
+    id: string;
+    conversationId: string;
+    deletedAt: Date | null;
+  }): void {
+    // Never include the pre-delete content in the event payload.
+    this.publishToConversation('conversation.message.deleted', message.conversationId, {
+      id: message.id,
+      conversationId: message.conversationId,
+      deletedAt: message.deletedAt,
+    });
+  }
+
+  publishMessageRead(receipt: {
+    messageId: string;
+    conversationId: string;
+    readAt: Date | string;
+  }): void {
+    this.publishToConversation('conversation.message.read', receipt.conversationId, receipt);
+  }
+
+  private publishToConversation(
+    eventName: string,
+    conversationId: string,
+    payload: Record<string, unknown>,
+  ): void {
+    try {
+      if (!this.namespace) {
+        this.logger.warn(`realtime event ${eventName} skipped: namespace is not initialized`);
+        return;
+      }
+      this.namespace
+        .to(`${CONVERSATION_ROOM_PREFIX}${conversationId}`)
+        .emit(eventName, payload);
+    } catch (error) {
+      this.logger.warn(
+        `realtime event ${eventName} failed for conversation ${conversationId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   // M4-04 — Membership revocation enforcement (M4-D11). Runs on the

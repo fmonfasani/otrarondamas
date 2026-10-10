@@ -24,6 +24,9 @@ type Message = {
   authorCustomerId?: string | null;
   createdAt: string;
   sequence?: string | number;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+  readAt?: string | null;
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -265,13 +268,38 @@ export function MessagingPage() {
     });
     const onMessageCreated = (message: Message & { conversationId: string }) => {
       if (message.conversationId !== activeId) return;
-      setMessages((current) =>
-        current.some((item) => item.id === message.id)
-          ? current
-          : [...current, message],
-      );
+      setMessages((current) => {
+        const withoutDuplicate = current.filter((item) => item.id !== message.id);
+        return [...withoutDuplicate, message].sort(
+          (left, right) => Number(left.sequence ?? 0) - Number(right.sequence ?? 0),
+        );
+      });
       void refreshConversations(activeId).catch(() => undefined);
     };
+    const onMessageUpdated = (message: Message & { conversationId: string }) => {
+      if (message.conversationId !== activeId) return;
+      setMessages((current) => current.map((item) =>
+        item.id === message.id ? { ...item, content: message.content, editedAt: message.editedAt } : item,
+      ));
+    };
+    const onMessageDeleted = (message: { id: string; conversationId: string; deletedAt?: string | null }) => {
+      if (message.conversationId !== activeId) return;
+      setMessages((current) => current.map((item) =>
+        item.id === message.id ? { ...item, content: null, deletedAt: message.deletedAt ?? null } : item,
+      ));
+    };
+    const onMessageRead = (receipt: { messageId: string; conversationId: string; readAt?: string }) => {
+      if (receipt.conversationId !== activeId) return;
+      setMessages((current) => current.map((item) =>
+        item.id === receipt.messageId ? { ...item, readAt: receipt.readAt ?? new Date().toISOString() } : item,
+      ));
+    };
+
+    // Install handlers before joining so no event can race the acknowledgement.
+    socket.on('conversation.message.created', onMessageCreated);
+    socket.on('conversation.message.updated', onMessageUpdated);
+    socket.on('conversation.message.deleted', onMessageDeleted);
+    socket.on('conversation.message.read', onMessageRead);
 
     socket.on('connect', () => {
       socket.emit(
@@ -280,7 +308,6 @@ export function MessagingPage() {
         (result: { ok?: boolean; message?: string }) => {
           if (result?.ok) {
             setNotice('');
-            socket.on('message.created', onMessageCreated);
           } else {
             setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
           }
@@ -292,7 +319,10 @@ export function MessagingPage() {
     });
 
     return () => {
-      socket.off('message.created', onMessageCreated);
+      socket.off('conversation.message.created', onMessageCreated);
+      socket.off('conversation.message.updated', onMessageUpdated);
+      socket.off('conversation.message.deleted', onMessageDeleted);
+      socket.off('conversation.message.read', onMessageRead);
       socket.disconnect();
     };
   }, [activeId, refreshConversations]);
@@ -501,7 +531,11 @@ export function MessagingPage() {
                   messages.map((message) => (
                     <div key={message.id} className="max-w-[85%] rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
                       <p className="whitespace-pre-wrap break-words text-sm text-gray-800">{message.content ?? 'Mensaje eliminado'}</p>
-                      <p className="mt-2 text-right text-xs text-gray-400">{new Date(message.createdAt).toLocaleString()}</p>
+                      <p className="mt-2 flex items-center justify-end gap-2 text-xs text-gray-400">
+                        <span>{new Date(message.createdAt).toLocaleString()}</span>
+                        {message.editedAt && <span>Editado</span>}
+                        {message.readAt && <span className="font-semibold text-blue-600">Leído</span>}
+                      </p>
                     </div>
                   ))
                 }

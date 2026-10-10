@@ -368,6 +368,81 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     expect(client.connected).toBe(true);
   }, 15000);
 
+  it('delivers canonical persisted-message events only to the authorized conversation room', async () => {
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    const client = await connectClient('user-jwt');
+    const ack = await emitJoin(client, { conversationId: 'conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+
+    const otherClient = await connectClient('user-jwt');
+    const otherAck = await emitJoin(otherClient, { conversationId: 'conv-b' });
+    expect(otherAck).toEqual({ ok: true, room: 'conversation:conv-b' });
+    const foreignRoomEvent = jest.fn();
+    otherClient.on('conversation.message.created', foreignRoomEvent);
+
+    const createdPromise = new Promise<unknown>((resolve) =>
+      client.once('conversation.message.created', resolve),
+    );
+    const gateway = app.get(MessagingGateway);
+    gateway.publishMessageCreated({
+      id: 'message-a',
+      conversationId: 'conv-a',
+      clientMessageId: 'client-a',
+      content: 'Hola',
+      sequence: BigInt(1),
+      createdAt: new Date('2026-10-09T12:00:00.000Z'),
+      authorUserId: 'canonical-user-a',
+      authorCustomerId: null,
+    });
+    expect(await createdPromise).toEqual(expect.objectContaining({
+      id: 'message-a',
+      conversationId: 'conv-a',
+      sequence: '1',
+      content: 'Hola',
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(foreignRoomEvent).not.toHaveBeenCalled();
+
+    const updatedPromise = new Promise<unknown>((resolve) =>
+      client.once('conversation.message.updated', resolve),
+    );
+    gateway.publishMessageUpdated({
+      id: 'message-a',
+      conversationId: 'conv-a',
+      content: 'Editado',
+      editedAt: new Date('2026-10-09T12:01:00.000Z'),
+    });
+    expect(await updatedPromise).toEqual(expect.objectContaining({
+      id: 'message-a',
+      content: 'Editado',
+    }));
+
+    const deletedPromise = new Promise<unknown>((resolve) =>
+      client.once('conversation.message.deleted', resolve),
+    );
+    gateway.publishMessageDeleted({
+      id: 'message-a',
+      conversationId: 'conv-a',
+      deletedAt: new Date('2026-10-09T12:02:00.000Z'),
+    });
+    const deletedPayload = await deletedPromise as Record<string, unknown>;
+    expect(deletedPayload).toEqual(expect.objectContaining({ id: 'message-a' }));
+    expect(deletedPayload).not.toHaveProperty('content');
+
+    const readPromise = new Promise<unknown>((resolve) =>
+      client.once('conversation.message.read', resolve),
+    );
+    gateway.publishMessageRead({
+      messageId: 'message-a',
+      conversationId: 'conv-a',
+      readAt: new Date('2026-10-09T12:03:00.000Z'),
+    });
+    expect(await readPromise).toEqual(expect.objectContaining({
+      messageId: 'message-a',
+      conversationId: 'conv-a',
+    }));
+  }, 15000);
+
   it('suspension through the existing revocation service disconnects the joined socket', async () => {
     (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
     (revocationContext.resolveForAuthenticatedUser as jest.Mock).mockResolvedValue(
