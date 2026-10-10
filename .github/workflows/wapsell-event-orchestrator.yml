@@ -16,12 +16,6 @@ on:
     types: [completed]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-  actions: read
-
 concurrency:
   group: wapsell-demo-orchestrator-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.sha || github.run_id }}
   cancel-in-progress: false
@@ -30,6 +24,7 @@ jobs:
   route-demo-workstream:
     name: Route event to demo workstream
     runs-on: ubuntu-latest
+    permissions: {}
     outputs:
       workstream: ${{ steps.route.outputs.workstream }}
       next_step: ${{ steps.route.outputs.next_step }}
@@ -114,8 +109,14 @@ jobs:
 
   validate-demo-api:
     name: Validate API baseline for demo
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'pull_request') &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: public.ecr.aws/docker/library/postgres:15-alpine
@@ -149,7 +150,7 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Generate Prisma client
         run: npm run prisma:generate --workspace=@otrarondamas/api
@@ -161,7 +162,7 @@ jobs:
         run: npm run build --workspace=@otrarondamas/pos-admin
 
       - name: Prepare ephemeral CI database
-        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+        run: ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
       - name: Run API unit and configured test suite
         run: npm test --workspace=@otrarondamas/api -- --runInBand
