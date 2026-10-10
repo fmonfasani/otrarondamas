@@ -149,12 +149,20 @@ export class MessagingController {
   }
 
   @Post(':id/messages/:messageId/read')
-  markMessageRead(
+  async markMessageRead(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.messagingService.markMessageRead(user, id, messageId);
+    const result = await this.messagingService.markMessageRead(user, id, messageId);
+    if (result.read && result.readAt) {
+      this.messagingGateway.publishMessageRead({
+        messageId,
+        conversationId: id,
+        readAt: result.readAt,
+      });
+    }
+    return result;
   }
 
   @Get(':id/messages/:messageId/read-receipts')
@@ -182,22 +190,35 @@ export class MessagingController {
   }
 
   @Patch(':id/messages/:messageId')
-  editMessage(
+  async editMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
     @Body() dto: EditMessageDto,
   ) {
-    return this.messagingService.editMessage(user, id, messageId, dto.content);
+    const message = await this.messagingService.editMessage(user, id, messageId, dto.content);
+    this.messagingGateway.publishMessageUpdated({
+      id: message.id,
+      conversationId: message.conversationId,
+      content: message.content,
+      editedAt: message.editedAt,
+    });
+    return message;
   }
 
   @Delete(':id/messages/:messageId')
-  deleteMessage(
+  async deleteMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.messagingService.deleteMessage(user, id, messageId);
+    const message = await this.messagingService.deleteMessage(user, id, messageId);
+    this.messagingGateway.publishMessageDeleted({
+      id: message.id,
+      conversationId: message.conversationId,
+      deletedAt: message.deletedAt,
+    });
+    return message;
   }
 
   @Delete(':id')
