@@ -1,5 +1,5 @@
 
-# Otra Ronda Más — primer Business de la plataforma Wapsell
+# Otra Ronda Más — Business de la plataforma Wapsell
 
 Monorepo del ERP/POS comercial de **Otra Ronda Más**, en operación para un negocio real, y base de código sobre la cual se está especificando la plataforma **Wapsell**.
 
