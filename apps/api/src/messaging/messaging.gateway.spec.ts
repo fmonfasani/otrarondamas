@@ -559,3 +559,59 @@ describe('MessagingGateway — M4-04 membership revocation', () => {
     expect(second.disconnect).toHaveBeenCalledTimes(1);
   });
 });
+
+// M4-05 — the publish methods are called after a committed HTTP mutation.
+// A realtime transport failure must never escape them, so the committed
+// operation's HTTP result is unaffected.
+describe('MessagingGateway — M4-05 publication failure isolation', () => {
+  const createdEvent = {
+    id: 'message-a',
+    conversationId: 'conversation-a',
+    clientMessageId: 'client-a',
+    content: 'Hola',
+    sequence: BigInt(7),
+    createdAt: new Date('2026-10-09T12:00:00.000Z'),
+    authorUserId: 'user-a',
+    authorCustomerId: null,
+  };
+
+  const buildGateway = () =>
+    new MessagingGateway(
+      {} as JwtService,
+      {} as JwtStrategy,
+      {} as BusinessContextService,
+      {} as MessagingService,
+      {} as MembershipRevocationService,
+    );
+
+  it('a throwing transport never escapes any publish method', () => {
+    const gateway = buildGateway();
+    (gateway as unknown as { namespace: unknown }).namespace = {
+      to: () => {
+        throw new Error('transport down');
+      },
+    };
+
+    const updatedEvent = {
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      content: 'Editado',
+      editedAt: new Date('2026-10-09T12:01:00.000Z'),
+    };
+    const deletedEvent = {
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      deletedAt: new Date('2026-10-09T12:02:00.000Z'),
+    };
+
+    expect(() => gateway.publishMessageCreated(createdEvent)).not.toThrow();
+    expect(() => gateway.publishMessageUpdated(updatedEvent)).not.toThrow();
+    expect(() => gateway.publishMessageDeleted(deletedEvent)).not.toThrow();
+  });
+
+  it('publishing before the namespace is initialized is a no-op', () => {
+    const gateway = buildGateway();
+
+    expect(() => gateway.publishMessageCreated(createdEvent)).not.toThrow();
+  });
+});

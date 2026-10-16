@@ -136,4 +136,103 @@ describe('MessagingController — HTTP JSON contract', () => {
     expect(() => JSON.stringify(result)).not.toThrow();
     expect(service.getMessages).toHaveBeenCalledWith(user, 'conversation-a');
   });
+
+  // M4-05 — ordering is proven with a controlled persistence promise and a
+  // shared call log: the publish call must follow the commit marker, not
+  // merely occur once.
+  describe('M4-05 — publication ordering and persistence failure', () => {
+    type CreateBody = Parameters<MessagingController['createMessage']>[2];
+    type EditBody = Parameters<MessagingController['editMessage']>[3];
+
+    const deferred = <T>() => {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    };
+
+    const createDto: CreateBody = { clientMessageId: 'client-a', content: 'Hola' };
+    const editDto: EditBody = { content: 'Editado' };
+
+    it('publishes a created event only after the persistence promise resolves', async () => {
+      const log: string[] = [];
+      const persisted = deferred<typeof message>();
+      (service.createTextMessage as jest.Mock).mockReturnValueOnce(persisted.promise);
+      (gateway.publishMessageCreated as jest.Mock).mockImplementationOnce(() => {
+        log.push('published');
+      });
+
+      const pending = controller.createMessage(user, 'conversation-a', createDto);
+      expect(gateway.publishMessageCreated).not.toHaveBeenCalled();
+
+      log.push('committed');
+      persisted.resolve(message);
+      await pending;
+
+      expect(log).toEqual(['committed', 'published']);
+    });
+
+    it('does not publish a created event when persistence fails', async () => {
+      (service.createTextMessage as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
+
+      const attempt = controller.createMessage(user, 'conversation-a', createDto);
+      await expect(attempt).rejects.toThrow('write failed');
+      expect(gateway.publishMessageCreated).not.toHaveBeenCalled();
+    });
+
+    it('publishes an update event only after the edit persistence resolves', async () => {
+      const log: string[] = [];
+      const updated = {
+        ...message,
+        content: 'Editado',
+        editedAt: new Date('2026-10-09T12:01:00.000Z'),
+      };
+      const persisted = deferred<typeof updated>();
+      (service.editMessage as jest.Mock).mockReturnValueOnce(persisted.promise);
+      (gateway.publishMessageUpdated as jest.Mock).mockImplementationOnce(() => {
+        log.push('published');
+      });
+
+      const pending = controller.editMessage(user, 'conversation-a', 'message-a', editDto);
+      expect(gateway.publishMessageUpdated).not.toHaveBeenCalled();
+
+      log.push('committed');
+      persisted.resolve(updated);
+      await expect(pending).resolves.toEqual(updated);
+
+      expect(log).toEqual(['committed', 'published']);
+    });
+
+    it('publishes a deletion event only after the delete persistence resolves', async () => {
+      const log: string[] = [];
+      const deleted = {
+        ...message,
+        content: null,
+        deletedAt: new Date('2026-10-09T12:02:00.000Z'),
+      };
+      const persisted = deferred<typeof deleted>();
+      (service.deleteMessage as jest.Mock).mockReturnValueOnce(persisted.promise);
+      (gateway.publishMessageDeleted as jest.Mock).mockImplementationOnce(() => {
+        log.push('published');
+      });
+
+      const pending = controller.deleteMessage(user, 'conversation-a', 'message-a');
+      expect(gateway.publishMessageDeleted).not.toHaveBeenCalled();
+
+      log.push('committed');
+      persisted.resolve(deleted);
+      await expect(pending).resolves.toEqual(deleted);
+
+      expect(log).toEqual(['committed', 'published']);
+    });
+
+    it('does not publish a deletion event when delete persistence fails', async () => {
+      (service.deleteMessage as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
+
+      const attempt = controller.deleteMessage(user, 'conversation-a', 'message-a');
+      await expect(attempt).rejects.toThrow('write failed');
+      expect(gateway.publishMessageDeleted).not.toHaveBeenCalled();
+    });
+  });
 });
