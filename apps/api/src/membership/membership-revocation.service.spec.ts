@@ -3,7 +3,7 @@ import { MembershipRevocationService } from './membership-revocation.service';
 
 describe('MembershipRevocationService', () => {
   const prisma = {
-    membership: { findFirst: jest.fn(), update: jest.fn() },
+    membership: { findFirst: jest.fn(), updateMany: jest.fn() },
   };
   const businessContext = { resolveForAuthenticatedUser: jest.fn() };
   let service: MembershipRevocationService;
@@ -29,9 +29,7 @@ describe('MembershipRevocationService', () => {
     prisma.membership.findFirst.mockResolvedValue({
       id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'ACTIVE',
     });
-    prisma.membership.update.mockResolvedValue({
-      id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'SUSPENDED',
-    });
+    prisma.membership.updateMany.mockResolvedValue({ count: 1 });
     const handler = jest.fn();
     service.onStatusChanged(handler);
 
@@ -48,9 +46,7 @@ describe('MembershipRevocationService', () => {
     prisma.membership.findFirst.mockResolvedValue({
       id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'SUSPENDED',
     });
-    prisma.membership.update.mockResolvedValue({
-      id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'ACTIVE',
-    });
+    prisma.membership.updateMany.mockResolvedValue({ count: 1 });
     await expect(service.reactivateMembership(ownerAuth, 'membership-target')).resolves.toEqual({
       membershipId: 'membership-target', businessId: 'business-a', status: 'ACTIVE',
     });
@@ -75,7 +71,7 @@ describe('MembershipRevocationService', () => {
       id: 'membership-owner', userId: 'user-owner', businessId: 'business-a', status: 'ACTIVE',
     });
     await expect(service.suspendMembership(ownerAuth, 'membership-owner')).rejects.toBeInstanceOf(ConflictException);
-    expect(prisma.membership.update).not.toHaveBeenCalled();
+    expect(prisma.membership.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects invalid state transitions', async () => {
@@ -83,16 +79,41 @@ describe('MembershipRevocationService', () => {
       id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'SUSPENDED',
     });
     await expect(service.suspendMembership(ownerAuth, 'membership-target')).rejects.toBeInstanceOf(ConflictException);
-    expect(prisma.membership.update).not.toHaveBeenCalled();
+    expect(prisma.membership.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('uses a conditional update scoped to Business and expected state', async () => {
+    prisma.membership.findFirst.mockResolvedValue({
+      id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'ACTIVE',
+    });
+    prisma.membership.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.suspendMembership(ownerAuth, 'membership-target');
+
+    expect(prisma.membership.updateMany).toHaveBeenCalledWith({
+      where: { id: 'membership-target', businessId: 'business-a', status: 'ACTIVE' },
+      data: { status: 'SUSPENDED' },
+    });
+  });
+
+  it('rejects a concurrent transition when the expected state no longer matches', async () => {
+    prisma.membership.findFirst.mockResolvedValue({
+      id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'ACTIVE',
+    });
+    prisma.membership.updateMany.mockResolvedValue({ count: 0 });
+    const handler = jest.fn();
+    service.onStatusChanged(handler);
+
+    await expect(service.suspendMembership(ownerAuth, 'membership-target'))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('does not modify Usuario.activo', async () => {
     prisma.membership.findFirst.mockResolvedValue({
       id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'ACTIVE',
     });
-    prisma.membership.update.mockResolvedValue({
-      id: 'membership-target', userId: 'user-target', businessId: 'business-a', status: 'SUSPENDED',
-    });
+    prisma.membership.updateMany.mockResolvedValue({ count: 1 });
     await service.suspendMembership(ownerAuth, 'membership-target');
     expect(prisma).not.toHaveProperty('usuario');
   });
