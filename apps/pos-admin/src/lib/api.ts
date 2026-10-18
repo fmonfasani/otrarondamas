@@ -207,6 +207,11 @@ export const api = {
   // todo, incluido el listado (expone datos personales del cliente).
   listarPedidos: (estado?: string) =>
     request<PedidoListado[]>(`/pedidos${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`),
+  // GET /pedidos/:id — también exige pedidos.gestionar. Lo consume el panel
+  // comercial de Messaging para mostrar el estado de un Pedido asociado sin
+  // duplicar la entidad: la conversación guarda la referencia, Orders sigue
+  // siendo el dueño del estado.
+  obtenerPedido: (id: string) => request<PedidoListado>(`/pedidos/${encodeURIComponent(id)}`),
   actualizarEstadoPedido: (id: string, dto: ActualizarEstadoPedidoRequest) =>
     request<PedidoListado>(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify(dto) }),
 
