@@ -37,6 +37,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     conversation: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
     },
     conversationParticipant: {
@@ -104,6 +105,40 @@ describe('MessagingService — M2/M3 messaging', () => {
         }),
       }),
     );
+  });
+
+  it('lists every Business conversation for the Owner, scoped to the canonical Business', async () => {
+    prisma.conversation.findMany.mockResolvedValue([]);
+
+    await service.listConversations(auth);
+
+    expect(businessContext.resolveForAuthenticatedUser).toHaveBeenCalledWith(auth);
+    const args = prisma.conversation.findMany.mock.calls[0][0];
+    expect(args.where).toEqual({ businessId: 'business-a', deletedAt: null });
+  });
+
+  it('lists only the conversations where a non-owner actor is an active participant', async () => {
+    businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce({
+      ...context,
+      role: 'ASISTENTE_LOCAL',
+    });
+    prisma.conversation.findMany.mockResolvedValue([]);
+
+    await service.listConversations(auth);
+
+    const args = prisma.conversation.findMany.mock.calls[0][0];
+    expect(args.where).toEqual({
+      businessId: 'business-a',
+      deletedAt: null,
+      participants: {
+        some: {
+          businessId: 'business-a',
+          leftAt: null,
+          removedAt: null,
+          userId: 'user-a',
+        },
+      },
+    });
   });
 
   it('creates a DIRECT conversation with the actor and one other participant', async () => {
