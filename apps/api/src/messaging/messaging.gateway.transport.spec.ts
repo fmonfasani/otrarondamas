@@ -117,7 +117,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
 
   // Real revocation service with stubbed persistence/context: the event bus
   // under test is real, only its inputs are doubled.
-  const revocationPrisma = { membership: { findFirst: jest.fn(), update: jest.fn() } };
+  const revocationPrisma = { membership: { findFirst: jest.fn(), updateMany: jest.fn() } };
   const revocationContext = { resolveForAuthenticatedUser: jest.fn() };
   const membershipRevocation = new MembershipRevocationService(
     revocationPrisma as unknown as PrismaService,
@@ -454,12 +454,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       businessId: 'business-a',
       status: 'ACTIVE',
     });
-    (revocationPrisma.membership.update as jest.Mock).mockResolvedValue({
-      id: 'membership-a',
-      userId: 'canonical-user-a',
-      businessId: 'business-a',
-      status: 'SUSPENDED',
-    });
+    (revocationPrisma.membership.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     const client = await connectClient('user-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });

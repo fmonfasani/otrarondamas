@@ -71,11 +71,25 @@ export class MembershipRevocationService {
       );
     }
 
-    const updated = await this.prisma.membership.update({
-      where: { id: target.id },
+    // Compare-and-set: only the request that still observes the expected
+    // state may transition this Membership. A concurrent request that loses
+    // the race gets a conflict instead of emitting a duplicate/stale event.
+    const result = await this.prisma.membership.updateMany({
+      where: {
+        id: target.id,
+        businessId: context.businessId,
+        status: expectedStatus,
+      },
       data: { status: newStatus },
-      select: { id: true, userId: true, businessId: true, status: true },
     });
+
+    if (result.count !== 1) {
+      throw new ConflictException(
+        'La Membership cambió durante la operación; recargá el estado e intentá nuevamente',
+      );
+    }
+
+    const updated = { ...target, status: newStatus };
 
     const event: MembershipStatusChangedEvent = {
       membershipId: updated.id,
