@@ -63,9 +63,21 @@ describe('MessagingController — HTTP JSON contract', () => {
     const updated = { ...message, content: 'Editado', editedAt: new Date('2026-10-09T12:01:00.000Z') };
     (service.editMessage as jest.Mock).mockResolvedValue(updated);
 
-    await expect(controller.editMessage(user, 'conversation-a', 'message-a', {
+    const result = await controller.editMessage(user, 'conversation-a', 'message-a', {
       content: 'Editado',
-    } as any)).resolves.toEqual(updated);
+    } as any);
+
+    // The committed edit is answered with the canonical wire shape: BigInt
+    // sequence as a string and Dates as ISO strings, so the body is JSON-safe
+    // and identical to what Socket.IO emits.
+    expect(result).toEqual(expect.objectContaining({
+      id: 'message-a',
+      sequence: '7',
+      content: 'Editado',
+      editedAt: '2026-10-09T12:01:00.000Z',
+      createdAt: updated.createdAt.toISOString(),
+    }));
+    expect(() => JSON.stringify(result)).not.toThrow();
 
     expect(gateway.publishMessageUpdated).toHaveBeenCalledWith({
       id: 'message-a',
@@ -79,7 +91,18 @@ describe('MessagingController — HTTP JSON contract', () => {
     const deleted = { ...message, content: null, deletedAt: new Date('2026-10-09T12:02:00.000Z') };
     (service.deleteMessage as jest.Mock).mockResolvedValue(deleted);
 
-    await expect(controller.deleteMessage(user, 'conversation-a', 'message-a')).resolves.toEqual(deleted);
+    const result = await controller.deleteMessage(user, 'conversation-a', 'message-a');
+    expect(result).toEqual(expect.objectContaining({
+      id: 'message-a',
+      sequence: '7',
+      content: null,
+      deletedAt: '2026-10-09T12:02:00.000Z',
+    }));
+    // Tenancy columns never reach the wire: the serializer is an allowlist,
+    // not a spread of the Prisma row.
+    expect(result).not.toHaveProperty('businessId');
+    expect(result).not.toHaveProperty('deletedByUserId');
+    expect(() => JSON.stringify(result)).not.toThrow();
 
     expect(gateway.publishMessageDeleted).toHaveBeenCalledWith({
       id: 'message-a',
@@ -113,6 +136,39 @@ describe('MessagingController — HTTP JSON contract', () => {
     });
     await controller.markMessageRead(user, 'conversation-a', 'message-a');
     expect(gateway.publishMessageRead).not.toHaveBeenCalled();
+  });
+
+  it('does not turn a committed mutation into an HTTP error when realtime publishing throws', async () => {
+    const boom = () => { throw new Error('socket transport down'); };
+    (gateway.publishMessageCreated as jest.Mock).mockImplementation(boom);
+    (gateway.publishMessageUpdated as jest.Mock).mockImplementation(boom);
+    (gateway.publishMessageDeleted as jest.Mock).mockImplementation(boom);
+    (gateway.publishMessageRead as jest.Mock).mockImplementation(boom);
+    (service.createTextMessage as jest.Mock).mockResolvedValue(message);
+    (service.editMessage as jest.Mock).mockResolvedValue({ ...message, editedAt: new Date() });
+    (service.deleteMessage as jest.Mock).mockResolvedValue({ ...message, content: null, deletedAt: new Date() });
+    (service.markMessageRead as jest.Mock).mockResolvedValue({ messageId: 'message-a', read: true, readAt: new Date() });
+
+    const created = await controller.createMessage(user, 'conversation-a', { clientMessageId: 'client-a', content: 'Hola' } as any);
+    const edited = await controller.editMessage(user, 'conversation-a', 'message-a', { content: 'Editado' } as any);
+    const deleted = await controller.deleteMessage(user, 'conversation-a', 'message-a');
+    const read = await controller.markMessageRead(user, 'conversation-a', 'message-a');
+
+    expect(created).toEqual(expect.objectContaining({ id: 'message-a', sequence: '7' }));
+    expect(edited).toEqual(expect.objectContaining({ id: 'message-a' }));
+    expect(deleted).toEqual(expect.objectContaining({ id: 'message-a' }));
+    expect(read).toEqual(expect.objectContaining({ read: true }));
+    expect(gateway.publishMessageCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports a real persistence failure on send and publishes nothing', async () => {
+    (service.createTextMessage as jest.Mock).mockRejectedValue(new Error('database unavailable'));
+
+    await expect(controller.createMessage(user, 'conversation-a', {
+      clientMessageId: 'client-a',
+      content: 'Hola',
+    } as any)).rejects.toThrow('database unavailable');
+    expect(gateway.publishMessageCreated).not.toHaveBeenCalled();
   });
 
   it('does not publish an event when the HTTP mutation fails', async () => {

@@ -21,6 +21,80 @@ import { CreateConversationDto, ConversationTypeDto } from './dto/create-convers
 
 const MAX_GROUP_PARTICIPANTS = 50;
 
+/**
+ * MESSAGING ACCESS POLICY — INVARIANTS FOR CONVERSATION CORE
+ *
+ * Wapsell Messaging implements a four-level access control model, defined and approved in
+ * TO-BE (OR-B2 ruling 019–021, OR-B3-001/002/008) and verified in the integration test suite
+ * (messaging-participation.integration-spec.ts).
+ *
+ * ## Access Modes (enforced at each operation level)
+ *
+ * ### Mode 1: PARTICIPANT (active, joined participant)
+ * - **Who:** User or Customer with active ConversationParticipant record (leftAt=null, removedAt=null)
+ * - **List conversations:** ✓ Can list; sees only their own
+ * - **Read conversation:** ✓ Can read details and participants
+ * - **Read messages:** ✓ Can read all messages
+ * - **Write messages:** ✓ **REQUIRED** for sending (enforced by assertActiveParticipant)
+ * - **Edit/delete own messages:** ✓ Can edit/delete (author check required)
+ * - **Manage conversation:** ✗ Requires additional isAdmin flag
+ * - **Technical note:** Participant list + leftAt/removedAt timestamps define lifecycle.
+ *
+ * ### Mode 2: OWNER_READ_ONLY (non-participant but Business Owner)
+ * - **Who:** User with OWNER role in the Business, NOT in the conversation's participants
+ * - **List conversations:** ✓ Can list all conversations of the Business (no filter)
+ * - **Read conversation:** ✓ Can read details and participants
+ * - **Read messages:** ✓ Can read all messages from conversation start (no join timestamp limit)
+ * - **Write messages:** ✗ **FORBIDDEN** — assertActiveParticipant throws 403
+ * - **Technical note:** Implemented via `isOwner = context.role === 'OWNER' && context.userId !== null`
+ *   check in listConversations, getMessages, withViewerAccess. This allows administrative
+ *   audit without granting implicit write permission.
+ *
+ * ### Mode 3: NON_AUTHORIZED (non-Owner, not a participant)
+ * - **Who:** User or Customer of the Business, NOT OWNER, NOT participant
+ * - **List conversations:** ✗ FORBIDDEN — sees empty list (no admin override)
+ * - **Read conversation:** ✗ FORBIDDEN — 403 from assertActiveParticipant
+ * - **Read messages:** ✗ FORBIDDEN — 403 from assertActiveParticipant
+ * - **Write messages:** ✗ FORBIDDEN — 403 from assertActiveParticipant
+ * - **Technical note:** Non-Owners must be participants to see anything; no special read mode.
+ *
+ * ### Mode 4: FOREIGN_BUSINESS (different Business)
+ * - **Who:** User or Customer of a different Business entirely
+ * - **List conversations:** ✓ Can list, but only sees their own Business's conversations (empty list)
+ * - **Read conversation:** ✗ FORBIDDEN — 404 (businessId check fails in findFirst)
+ * - **Read messages:** ✗ FORBIDDEN — 404 (businessId check in getMessages)
+ * - **Write messages:** ✗ FORBIDDEN — 404 (businessId check in createTextMessage)
+ * - **Technical note:** All queries filter by `businessId: context.businessId`; cross-tenant
+ *   access returns 404, not 403, to avoid leaking Business existence.
+ *
+ * ## Operation-Level Enforcement
+ *
+ * - **list/get (read-only):** isOwner → no assertActiveParticipant
+ *   (OWNER_READ_ONLY allowed; other modes blocked by absent participant record)
+ * - **send/edit/delete:** assertActiveParticipant → FORBIDDEN if not participant
+ *   (OWNER_READ_ONLY and below all fail; PARTICIPANT required)
+ * - **manage (admin ops):** assertConversationAdmin → isAdmin: true AND OWNER role
+ *   (strictest check; combined with participant + admin flag)
+ *
+ * ## Customer Identity
+ *
+ * Customers are not Wapsell Users; they are commercial entities (Cliente in legacy). They:
+ * - Can participate in conversations via ConversationParticipant (customerId field)
+ * - Access via Socket.IO and customer-specific endpoints only
+ * - Are rejected on staff HTTP endpoints (SEC-01 in auth middleware)
+ * - Follow the same 4-level access but never have OWNER role (Mode 2 doesn't apply)
+ *
+ * ## Tests
+ *
+ * All four modes are verified in apps/api/test/integration/messaging-participation.integration-spec.ts:
+ * - Owner non-participant sees conversation but write fails (Mode 2)
+ * - Non-Owner non-participant cannot see anything (Mode 3)
+ * - Foreign Business sees nothing (Mode 4)
+ * - Participant can read and write (Mode 1)
+ *
+ * DO NOT weaken these invariants without Owner approval (DEC-001 precedence; see TO-BE).
+ */
+
 @Injectable()
 export class MessagingService {
   constructor(
@@ -140,6 +214,25 @@ export class MessagingService {
         if (!parent) throw new NotFoundException('Mensaje de respuesta no encontrado');
       }
 
+      // Idempotency (contract C-MSG-002 "no duplicados"): `clientMessageId` is
+      // the client's retry key. A retry of the SAME send must resolve to the
+      // same message, not to an error -- a 409 leaves the client unable to
+      // tell "my message was lost" from "my message is already there", which
+      // is exactly the ambiguous state the retry key exists to prevent.
+      //
+      // Checked BEFORE allocating a sequence: a retry must not consume one,
+      // and the two lookups stay independent of each other.
+      //
+      // The uniqueness is per (conversation, clientMessageId, author), so a
+      // pre-check cannot be trusted on its own: two concurrent retries can
+      // both miss it. The authority is the DB constraint, and the P2002 below
+      // resolves the race by returning the already-persisted row. Same-key-
+      // different-content is NOT a retry but a client bug, and fails loudly.
+      const existing = await this.findMessageByClientKey(tx, conversationId, context, clientMessageId);
+      if (existing) {
+        return this.assertSameContentOrConflict(existing, content, replyToMessageId);
+      }
+
       const last = await tx.message.findFirst({
         where: { conversationId, businessId: context.businessId },
         orderBy: { sequence: 'desc' },
@@ -162,6 +255,23 @@ export class MessagingService {
         });
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const target = (error.meta as { target?: string[] } | undefined)?.target ?? [];
+          // `(conversationId, sequence)` losing a race is a concurrency
+          // collision, not a duplicate send: the caller may retry and will get
+          // the next sequence. Surfacing it as "duplicate clientMessageId"
+          // would be a false diagnosis.
+          if (target.includes('sequence')) {
+            throw new ConflictException(
+              'Otro mensaje tomó esa posición en la conversación; reintentá el envío',
+            );
+          }
+
+          const concurrent = await this.findMessageByClientKey(
+            tx, conversationId, context, clientMessageId,
+          );
+          if (concurrent) {
+            return this.assertSameContentOrConflict(concurrent, content, replyToMessageId);
+          }
           throw new ConflictException('El clientMessageId ya fue utilizado en esta conversación por el actor');
         }
         throw error;
@@ -235,7 +345,7 @@ export class MessagingService {
     const context = await this.resolveContext(auth);
     const isOwner = context.role === 'OWNER' && context.userId !== null;
 
-    return this.prisma.conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where: {
         businessId: context.businessId,
         deletedAt: null,
@@ -262,11 +372,14 @@ export class MessagingService {
       },
       orderBy: { updatedAt: 'desc' },
     });
+
+    return conversations.map((conversation) => this.withViewerAccess(conversation, context));
   }
 
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
-    return this.getConversationForActor(this.prisma, conversationId, context);
+    const conversation = await this.getConversationForActor(this.prisma, conversationId, context);
+    return this.withViewerAccess(conversation, context);
   }
 
   async listConversationAssociations(auth: AuthenticatedUser, conversationId: string) {
@@ -1005,6 +1118,54 @@ export class MessagingService {
 
   // Message has a distinct Prisma relation contract from ConversationParticipant.
   // Keep author identity and its composite Business relation fields explicit.
+  /**
+   * Looks up a message by the client's retry key, scoped to the SAME author.
+   * The author scope matters: `clientMessageId` is only unique per author
+   * (see the two `@@unique` constraints on Message), so resolving without it
+   * could return another participant's message and leak content across actors.
+   */
+  private async findMessageByClientKey(
+    tx: Prisma.TransactionClient | PrismaService,
+    conversationId: string,
+    context: BusinessContext,
+    clientMessageId: string,
+  ) {
+    // Built from the context directly (not from `messageAuthorFromContext`,
+    // whose return is a union of the two author shapes) so both columns are
+    // always constrained: matching on only one would let a Customer's retry
+    // resolve to a User's message with the same key.
+    return tx.message.findFirst({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        clientMessageId,
+        authorUserId: context.userId ?? null,
+        authorCustomerId: context.customerId ?? null,
+      },
+    });
+  }
+
+  /**
+   * A retry is only idempotent when it carries the same payload. Reusing a
+   * `clientMessageId` for DIFFERENT content is a client defect, and silently
+   * returning the old message would hide it -- the second message would be
+   * lost without anyone noticing. That case keeps failing explicitly.
+   */
+  private assertSameContentOrConflict<T extends { content: string | null; replyToMessageId: string | null }>(
+    existing: T,
+    content: string,
+    replyToMessageId: string | undefined,
+  ): T {
+    const sameContent = existing.content === content;
+    const sameReply = (existing.replyToMessageId ?? undefined) === replyToMessageId;
+    if (!sameContent || !sameReply) {
+      throw new ConflictException(
+        'El clientMessageId ya fue utilizado en esta conversación con otro contenido',
+      );
+    }
+    return existing;
+  }
+
   private messageAuthorFromContext(context: BusinessContext) {
     if (context.userId) {
       return {
@@ -1057,6 +1218,28 @@ export class MessagingService {
         throw new ForbiddenException('Uno o más Customers no pertenecen al Business');
       }
     }
+  }
+
+  // Tells the client what the authenticated actor may do in a conversation it
+  // can see. An Owner can read every conversation of the Business (M4-D03) but
+  // writing, like for any other actor, requires active participation. Exposing
+  // this lets the UI avoid offering a send that the API will reject, without
+  // widening any permission: it only reports the existing rule.
+  private withViewerAccess<T extends { participants: Array<{ userId: string | null; customerId: string | null }> }>(
+    conversation: T,
+    context: BusinessContext,
+  ): T & { viewerAccess: { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' } } {
+    const isParticipant = conversation.participants.some((participant) =>
+      context.userId
+        ? participant.userId === context.userId
+        : participant.customerId === context.customerId,
+    );
+    return {
+      ...conversation,
+      viewerAccess: isParticipant
+        ? { canSend: true, mode: 'PARTICIPANT' }
+        : { canSend: false, mode: 'OWNER_READ_ONLY' },
+    };
   }
 
   private async assertActiveParticipant(

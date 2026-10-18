@@ -1,5 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
-import { MembershipStatus, MessagingConversationType } from '@prisma/client';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { MembershipStatus, MessagingConversationType, Prisma } from '@prisma/client';
 import type { BusinessContext } from '../business-context/business-context.types';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -139,6 +139,48 @@ describe('MessagingService — M2/M3 messaging', () => {
         },
       },
     });
+  });
+
+  it('marks each listed conversation with the actor writing access (participant vs Owner read-only)', async () => {
+    prisma.conversation.findMany.mockResolvedValue([
+      { id: 'conversation-mine', businessId: 'business-a', participants: [{ userId: 'user-a', customerId: null }] },
+      { id: 'conversation-observed', businessId: 'business-a', participants: [{ userId: 'user-z', customerId: null }, { userId: null, customerId: 'customer-a' }] },
+    ]);
+
+    const result = await service.listConversations(auth);
+
+    expect(result.map((row) => [row.id, row.viewerAccess])).toEqual([
+      ['conversation-mine', { canSend: true, mode: 'PARTICIPANT' }],
+      ['conversation-observed', { canSend: false, mode: 'OWNER_READ_ONLY' }],
+    ]);
+  });
+
+  it('reports read-only access when an Owner opens a conversation it does not participate in', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-observed',
+      businessId: 'business-a',
+      deletedAt: null,
+      participants: [{ userId: 'user-z', customerId: null }],
+    });
+
+    const result = await service.getConversation(auth, 'conversation-observed');
+
+    expect(result.viewerAccess).toEqual({ canSend: false, mode: 'OWNER_READ_ONLY' });
+    expect(prisma.conversationParticipant.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects a message from an Owner who is not a participant and persists nothing', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-observed',
+      businessId: 'business-a',
+      deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.createTextMessage(auth, 'conversation-observed', 'client-observer', 'hola'),
+    ).rejects.toThrow('El actor no participa en la conversación');
+    expect(prisma.message.create).not.toHaveBeenCalled();
   });
 
   it('creates a DIRECT conversation with the actor and one other participant', async () => {
@@ -317,7 +359,18 @@ describe('MessagingService — M2/M3 messaging', () => {
       leftAt: null,
       removedAt: null,
     });
-    prisma.message.findFirst.mockResolvedValue({ sequence: BigInt(4) });
+    // Two distinct `message.findFirst` calls happen in the send path and they
+    // must not be conflated: first the idempotency lookup by clientMessageId
+    // (no previous send -> null), then the last-sequence lookup.
+    prisma.message.findFirst.mockImplementation(({ where, orderBy }: any) =>
+      Promise.resolve(
+        where?.clientMessageId !== undefined
+          ? null
+          : orderBy?.sequence === 'desc'
+            ? { sequence: BigInt(4) }
+            : null,
+      ),
+    );
     prisma.message.create.mockResolvedValue({
       id: 'message-a',
       conversationId: 'conversation-a',
@@ -349,6 +402,121 @@ describe('MessagingService — M2/M3 messaging', () => {
         }),
       }),
     );
+  });
+
+  // ---------------------------------------------------------------- idempotency
+  // `clientMessageId` is the client's retry key. These cover the three outcomes
+  // a retry can have, which is what keeps the client out of an ambiguous state.
+
+  it('returns the existing message when the same clientMessageId is retried', async () => {
+    const persisted = {
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      sequence: BigInt(5),
+      clientMessageId: 'client-1',
+      type: 'TEXT',
+      content: 'Hola',
+      replyToMessageId: null,
+    };
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+    });
+    // The idempotency lookup finds the previous send.
+    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+      Promise.resolve(where?.clientMessageId !== undefined ? persisted : { sequence: BigInt(5) }),
+    );
+
+    const result = await service.createTextMessage(auth, 'conversation-a', 'client-1', 'Hola');
+
+    expect(result).toEqual(persisted);
+    // The decisive assertion: a retry must not persist a second row.
+    expect(prisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing a clientMessageId with different content', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+    });
+    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+      Promise.resolve(
+        where?.clientMessageId !== undefined
+          ? { id: 'message-a', content: 'Hola', replyToMessageId: null }
+          : { sequence: BigInt(5) },
+      ),
+    );
+
+    // Same key, different payload: a client defect, not a retry. Returning the
+    // old message would silently drop the new one.
+    await expect(
+      service.createTextMessage(auth, 'conversation-a', 'client-1', 'Otro contenido'),
+    ).rejects.toThrow(ConflictException);
+    expect(prisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('resolves a concurrent duplicate send through the unique constraint', async () => {
+    const persisted = {
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      sequence: BigInt(5),
+      clientMessageId: 'client-1',
+      content: 'Hola',
+      replyToMessageId: null,
+    };
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+    });
+    // Race: the pre-check misses, the competing transaction commits first.
+    let idempotencyLookups = 0;
+    prisma.message.findFirst.mockImplementation(({ where }: any) => {
+      if (where?.clientMessageId !== undefined) {
+        idempotencyLookups += 1;
+        return Promise.resolve(idempotencyLookups === 1 ? null : persisted);
+      }
+      return Promise.resolve({ sequence: BigInt(4) });
+    });
+    prisma.message.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('dup', {
+        code: 'P2002', clientVersion: 'test', meta: { target: ['conversationId', 'clientMessageId', 'authorUserId'] },
+      }),
+    );
+
+    const result = await service.createTextMessage(auth, 'conversation-a', 'client-1', 'Hola');
+
+    // The DB constraint is the authority; the winner's row is returned.
+    expect(result).toEqual(persisted);
+  });
+
+  it('reports a sequence collision as retryable, not as a duplicate send', async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+    });
+    prisma.conversationParticipant.findFirst.mockResolvedValue({
+      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+    });
+    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+      Promise.resolve(where?.clientMessageId !== undefined ? null : { sequence: BigInt(4) }),
+    );
+    prisma.message.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('seq', {
+        code: 'P2002', clientVersion: 'test', meta: { target: ['conversationId', 'sequence'] },
+      }),
+    );
+
+    // Two different sends racing for the same position is NOT a duplicate
+    // clientMessageId; diagnosing it as one would mislead the client.
+    await expect(
+      service.createTextMessage(auth, 'conversation-a', 'client-1', 'Hola'),
+    ).rejects.toThrow(/posición en la conversación/);
   });
 
   it('creates a TEXT message with the canonical customer-author relation', async () => {

@@ -1,12 +1,11 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
   Get,
   Param,
   Post,
-  Patch,
-} from '@nestjs/common';
+  Patch, Logger} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -18,19 +17,41 @@ import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 import { CreateConversationAssociationDto, DeactivateConversationAssociationDto } from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
+import { toMessageWire } from './message-serializer';
 
-// Prisma BigInt values are not JSON-serializable by Nest's default response adapter.
-// Keep the public HTTP contract JSON-safe and aligned with the Socket.IO payload.
-function serializeMessageSequence<T extends { sequence: bigint | number | string }>(message: T) {
-  return { ...message, sequence: String(message.sequence) };
-}
+// The public message representation lives in `message-serializer.ts` so HTTP
+// and Socket.IO emit the same shape from one definition. Serializing here with
+// a local spread used to leak every Prisma column (including tenancy ids) and
+// made it possible for a path to forget the BigInt conversion, which is what
+// turned a committed message into an HTTP error.
+const serializeMessageSequence = toMessageWire;
 
 @Controller('messaging/conversations')
 export class MessagingController {
+  private readonly logger = new Logger(MessagingController.name);
+
   constructor(
     private readonly messagingService: MessagingService,
     private readonly messagingGateway: MessagingGateway,
   ) {}
+
+  // Realtime is best-effort: the mutation is already committed when an event
+  // is published, so a notification failure must never turn it into an HTTP
+  // error. HTTP stays the recovery path. Only metadata is logged, never content.
+  private publishSafely(eventName: string, conversationId: string, publish: () => void): void {
+    try {
+      publish();
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'messaging.realtime.publish_failed',
+          eventName,
+          conversationId,
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
 
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
@@ -123,17 +144,20 @@ export class MessagingController {
         dto.replyToMessageId,
       )
       .then((message) => {
+        this.logger.log(JSON.stringify({ event: 'messaging.message.persisted', conversationId: message.conversationId, messageId: message.id, clientMessageId: message.clientMessageId }));
         // The service transaction has committed before this event is emitted.
-        this.messagingGateway.publishMessageCreated({
-          id: message.id,
-          conversationId: message.conversationId,
-          clientMessageId: message.clientMessageId,
-          content: message.content,
-          sequence: message.sequence,
-          createdAt: message.createdAt,
-          authorUserId: message.authorUserId,
-          authorCustomerId: message.authorCustomerId,
-        });
+        this.publishSafely('conversation.message.created', message.conversationId, () =>
+          this.messagingGateway.publishMessageCreated({
+            id: message.id,
+            conversationId: message.conversationId,
+            clientMessageId: message.clientMessageId,
+            content: message.content,
+            sequence: message.sequence,
+            createdAt: message.createdAt,
+            authorUserId: message.authorUserId,
+            authorCustomerId: message.authorCustomerId,
+          }),
+        );
         return serializeMessageSequence(message);
       });
   }
@@ -155,12 +179,15 @@ export class MessagingController {
     @Param('messageId') messageId: string,
   ) {
     const result = await this.messagingService.markMessageRead(user, id, messageId);
-    if (result.read && result.readAt) {
-      this.messagingGateway.publishMessageRead({
-        messageId,
-        conversationId: id,
-        readAt: result.readAt,
-      });
+    const readAt = result.read ? result.readAt : null;
+    if (readAt) {
+      this.publishSafely('conversation.message.read', id, () =>
+        this.messagingGateway.publishMessageRead({
+          messageId,
+          conversationId: id,
+          readAt,
+        }),
+      );
     }
     return result;
   }
@@ -197,13 +224,15 @@ export class MessagingController {
     @Body() dto: EditMessageDto,
   ) {
     const message = await this.messagingService.editMessage(user, id, messageId, dto.content);
-    this.messagingGateway.publishMessageUpdated({
-      id: message.id,
-      conversationId: message.conversationId,
-      content: message.content,
-      editedAt: message.editedAt,
-    });
-    return message;
+    this.publishSafely('conversation.message.updated', message.conversationId, () =>
+      this.messagingGateway.publishMessageUpdated({
+        id: message.id,
+        conversationId: message.conversationId,
+        content: message.content,
+        editedAt: message.editedAt,
+      }),
+    );
+    return serializeMessageSequence(message);
   }
 
   @Delete(':id/messages/:messageId')
@@ -213,12 +242,14 @@ export class MessagingController {
     @Param('messageId') messageId: string,
   ) {
     const message = await this.messagingService.deleteMessage(user, id, messageId);
-    this.messagingGateway.publishMessageDeleted({
-      id: message.id,
-      conversationId: message.conversationId,
-      deletedAt: message.deletedAt,
-    });
-    return message;
+    this.publishSafely('conversation.message.deleted', message.conversationId, () =>
+      this.messagingGateway.publishMessageDeleted({
+        id: message.id,
+        conversationId: message.conversationId,
+        deletedAt: message.deletedAt,
+      }),
+    );
+    return serializeMessageSequence(message);
   }
 
   @Delete(':id')
