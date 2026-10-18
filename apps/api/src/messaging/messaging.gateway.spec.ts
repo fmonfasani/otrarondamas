@@ -532,6 +532,24 @@ describe('MessagingGateway — M4-04 membership revocation', () => {
     expect(foreign.disconnect).not.toHaveBeenCalled();
   });
 
+  it('suspends one Business without disconnecting the same User in another Business', () => {
+    const businessASocketOne = connectedSocket('socket-a-1', userAuth, userContext);
+    const businessASocketTwo = connectedSocket('socket-a-2', userAuth, userContext);
+    const businessBSocket = connectedSocket('socket-b-1', userAuth, {
+      ...userContext,
+      businessId: 'business-b',
+      membershipId: 'membership-b',
+    });
+
+    revocationHandler(suspensionEvent({ businessId: 'business-a' }));
+
+    expect(businessASocketOne.disconnect).toHaveBeenCalledTimes(1);
+    expect(businessASocketOne.disconnect).toHaveBeenCalledWith(true);
+    expect(businessASocketTwo.disconnect).toHaveBeenCalledTimes(1);
+    expect(businessASocketTwo.disconnect).toHaveBeenCalledWith(true);
+    expect(businessBSocket.disconnect).not.toHaveBeenCalled();
+  });
+
   it('customer sockets are unaffected by User Membership events', () => {
     const customer = connectedSocket('socket-customer', customerAuth, customerContext);
 
