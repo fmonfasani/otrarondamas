@@ -3,20 +3,51 @@ import type { FormEvent } from 'react';
 import { io } from 'socket.io-client';
 import { MessageCircle, Plus, Send, RefreshCw, Search, X } from 'lucide-react';
 import { API_BASE_URL, api, ApiError } from '../../lib/api';
+import { useAuth } from '../auth/AuthContext';
 import type { Cliente } from '@otrarondamas/shared-types';
 
 type Participant = {
   userId?: string | null;
   customerId?: string | null;
+  // Sent by the API with every participant row. Admin operations
+  // (associations, association history, order creation) require this flag
+  // server-side via assertConversationAdmin, so the UI reads it to avoid
+  // offering actions the backend will reject with 403.
+  isAdmin?: boolean;
 };
+type ViewerAccess = { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' };
 type Conversation = {
   id: string;
   type: 'DIRECT' | 'GROUP';
   updatedAt?: string;
   participants?: Participant[];
+  // Sent by the API: whether this actor may write (Owners can read every
+  // conversation of the Business but only write where they participate).
+  viewerAccess?: ViewerAccess;
 };
+type PendingSend = { conversationId: string; content: string; clientMessageId: string };
+// What the panel shows for an associated Order. Read from GET /pedidos/:id;
+// `denied` covers the actor lacking `pedidos.gestionar`, which must not look
+// like a missing order.
+type OrderStatus =
+  | { state: 'loading' }
+  | { state: 'ready'; estado: string; total: string }
+  | { state: 'denied' }
+  | { state: 'error'; detail: string };
 type Association = { id: string; entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; label?: string; reason?: string | null; active?: boolean };
-type ProductOption = { id: string; nombre: string; codigoInterno?: string; precioMinorista?: string | number };
+// Shape of GET /ventas/productos (ProductoBusqueda). Messaging does not own
+// the catalog: it reads the Sales domain's search, which already applies the
+// commercial rules this panel must respect (activo only, Business scope via
+// the company-scoped Prisma client, retail price and available stock).
+type ProductOption = {
+  id: string;
+  nombre: string;
+  codigoInterno?: string;
+  precioMinorista?: string | number;
+  stockDisponible?: number;
+  unidadBase?: string;
+  familia?: { id: string; nombre: string } | null;
+};
 type Message = {
   id: string;
   content?: string | null;
@@ -34,11 +65,18 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export function MessagingPage() {
+  // Identity of the authenticated actor, used only to locate this actor's own
+  // participant row and decide which admin affordances to show.
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Cliente[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeId, setActiveId] = useState('');
   const activeIdRef = useRef('');
+  // Keeps the idempotency key of an unconfirmed send so a retry of the same
+  // text reuses it: the server then rejects the duplicate instead of storing
+  // the message twice.
+  const pendingSendRef = useRef<PendingSend | null>(null);
   const [customerId, setCustomerId] = useState('');
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -54,8 +92,25 @@ export function MessagingPage() {
   const [associationBusy, setAssociationBusy] = useState('');
   const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
   const [creatingOrder, setCreatingOrder] = useState(false);
+  // Status of the Orders associated with this conversation, keyed by order id.
+  // Messaging keeps only the reference; Orders remains the owner of the state,
+  // so this is read on demand and never persisted here.
+  const [orderStatuses, setOrderStatuses] = useState<Record<string, OrderStatus>>({});
+  const knownOrderIds = useRef<Set<string>>(new Set());
   const [showAssociationHistory, setShowAssociationHistory] = useState(false);
   const [associationHistory, setAssociationHistory] = useState<Association[]>([]);
+
+  const activeConversation = conversations.find((row) => row.id === activeId);
+  const canSend = activeConversation?.viewerAccess?.canSend === true;
+  // Admin capability for the active conversation, derived from this actor's own
+  // participant row. The backend gate is assertConversationAdmin (OWNER role
+  // AND isAdmin on an active participant); the role half is not exposed to the
+  // client, so this is the closest signal the API already sends. It is only a
+  // UI affordance: the server remains the authority and still answers 403.
+  const canManageConversation =
+    activeConversation?.participants?.some(
+      (participant) => participant.userId === user?.id && participant.isAdmin === true,
+    ) === true;
 
   const customerNames = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer.nombre])),
@@ -152,6 +207,60 @@ export function MessagingPage() {
     }
   }
 
+  // Reads the status of every ORDER currently associated, through the Orders
+  // domain. Runs when the association set changes. A 403 (no
+  // `pedidos.gestionar`) is reported as `denied`, not as a failure: the
+  // association is still valid, this actor just may not read the order.
+  useEffect(() => {
+    const orderIds = associations
+      .filter((association) => association.entityType === 'ORDER' && association.active !== false)
+      .map((association) => association.entityId);
+    if (orderIds.length === 0) {
+      knownOrderIds.current.clear();
+      setOrderStatuses((current) => (Object.keys(current).length === 0 ? current : {}));
+      return;
+    }
+    // Drop ids that are no longer associated so a re-association refetches.
+    for (const id of [...knownOrderIds.current]) {
+      if (!orderIds.includes(id)) knownOrderIds.current.delete(id);
+    }
+
+    let cancelled = false;
+    const pending = orderIds.filter((id) => !knownOrderIds.current.has(id));
+    if (pending.length === 0) return;
+
+    // Tracked in a ref, not in state: using `orderStatuses` as an effect
+    // dependency would re-run this effect on every status write and refetch
+    // forever.
+    for (const id of pending) knownOrderIds.current.add(id);
+    setOrderStatuses((current) => {
+      const next = { ...current };
+      for (const id of pending) next[id] = { state: 'loading' };
+      return next;
+    });
+
+    void (async () => {
+      for (const id of pending) {
+        let outcome: OrderStatus;
+        try {
+          const order = await api.obtenerPedido(id);
+          outcome = { state: 'ready', estado: order.estado, total: order.total };
+        } catch (err) {
+          outcome =
+            err instanceof ApiError && err.status === 403
+              ? { state: 'denied' }
+              : { state: 'error', detail: errorMessage(err, 'No se pudo leer el pedido.') };
+        }
+        if (cancelled) return;
+        setOrderStatuses((current) => ({ ...current, [id]: outcome }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [associations]);
+
   async function searchProducts(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const term = productSearch.trim();
@@ -159,10 +268,23 @@ export function MessagingPage() {
       setProductResults([]);
       return;
     }
+    // The Sales domain requires at least 2 characters and answers 400
+    // otherwise. Checking it here keeps the panel from turning a known
+    // precondition into an error banner.
+    if (term.length < 2) {
+      setProductResults([]);
+      setError('Ingresá al menos 2 caracteres para buscar productos.');
+      return;
+    }
     setSearchingProducts(true);
     setError('');
     try {
-      setProductResults((await api.buscarProductos(term)) as ProductOption[]);
+      // buscarProductosVenta -> GET /ventas/productos: only `activo` products,
+      // scoped to the Business, with precioMinorista and stockDisponible. The
+      // generic catalog search (/catalogo/productos) also returns inactive
+      // products and no stock, which is not what a commercial conversation
+      // should offer.
+      setProductResults((await api.buscarProductosVenta(term)) as ProductOption[]);
     } catch (err) {
       setError(errorMessage(err, 'No se pudieron buscar productos del negocio.'));
     } finally {
@@ -294,35 +416,58 @@ export function MessagingPage() {
         item.id === receipt.messageId ? { ...item, readAt: receipt.readAt ?? new Date().toISOString() } : item,
       ));
     };
+    const onParticipantRemoved = (event: { conversationId: string; participantId?: string; userId?: string | null; customerId?: string | null }) => {
+      if (event.conversationId !== activeId) return;
+      // A participant was removed from this conversation. Invalidate viewerAccess
+      // by refreshing the conversation to get the authoritative state.
+      console.info('[messaging] participant removed event', { conversationId: event.conversationId, participantId: event.participantId });
+      void refreshConversations(activeId).catch(() => {
+        setError('No se pudo actualizar el estado de participación. Recargá la conversación.');
+      });
+    };
 
     // Install handlers before joining so no event can race the acknowledgement.
-    socket.on('conversation.message.created', onMessageCreated);
+    const onMessageCreatedWithLog = (message: Message & { conversationId: string }) => {
+      console.info('[messaging] event received', { event: 'conversation.message.created', conversationId: message.conversationId, messageId: message.id, sequence: message.sequence });
+      onMessageCreated(message);
+    };
+    socket.on('conversation.message.created', onMessageCreatedWithLog);
     socket.on('conversation.message.updated', onMessageUpdated);
     socket.on('conversation.message.deleted', onMessageDeleted);
     socket.on('conversation.message.read', onMessageRead);
+    socket.on('conversation.participant.removed', onParticipantRemoved);
 
     socket.on('connect', () => {
       socket.emit(
         'conversation.join',
         { conversationId: activeId },
-        (result: { ok?: boolean; message?: string }) => {
+        (result: { ok?: boolean; message?: string; viewerAccess?: ViewerAccess }) => {
+          console.info('[messaging] room join acknowledgement', { conversationId: activeId, ok: result?.ok === true, canSend: result?.viewerAccess?.canSend, message: result?.ok ? undefined : result?.message });
           if (result?.ok) {
             setNotice('');
+            // Apply the viewerAccess from the ACK to ensure the UI is in sync with the server.
+            if (result.viewerAccess) {
+              setConversations((current) => current.map((conv) =>
+                conv.id === activeId ? { ...conv, viewerAccess: result.viewerAccess } : conv,
+              ));
+            }
           } else {
             setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
           }
         },
       );
     });
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (error) => {
+      console.warn('[messaging] socket connection failed', { message: error.message });
       setNotice('Tiempo real no disponible; podés seguir consultando y enviando por HTTP.');
     });
 
     return () => {
-      socket.off('conversation.message.created', onMessageCreated);
+      socket.off('conversation.message.created', onMessageCreatedWithLog);
       socket.off('conversation.message.updated', onMessageUpdated);
       socket.off('conversation.message.deleted', onMessageDeleted);
       socket.off('conversation.message.read', onMessageRead);
+      socket.off('conversation.participant.removed', onParticipantRemoved);
       socket.disconnect();
     };
   }, [activeId, refreshConversations]);
@@ -363,15 +508,22 @@ export function MessagingPage() {
     event.preventDefault();
     const content = draft.trim();
     const conversationId = activeIdRef.current || activeId;
-    if (!conversationId || !content || sending) return;
+    if (!conversationId || !content || sending || !canSend) return;
     setSending(true);
     setError('');
     setNotice('');
+    const pending = pendingSendRef.current;
+    const attempt: PendingSend =
+      pending && pending.conversationId === conversationId && pending.content === content
+        ? pending
+        : { conversationId, content, clientMessageId: crypto.randomUUID() };
+    pendingSendRef.current = attempt;
     try {
       const created = (await api.enviarMensaje(conversationId, {
-        clientMessageId: crypto.randomUUID(),
+        clientMessageId: attempt.clientMessageId,
         content,
       })) as Message;
+      pendingSendRef.current = null;
 
       // HTTP success means the server accepted and persisted the message.
       // Reflect that result immediately; a later history-refresh failure must
@@ -400,7 +552,34 @@ export function MessagingPage() {
         }
       }
     } catch (err) {
-      setError(errorMessage(err, 'No se pudo enviar el mensaje.'));
+      if (err instanceof ApiError && err.status === 409) {
+        // Same idempotency key already stored: the first attempt did persist.
+        // Reconcile with the server instead of reporting a false failure.
+        pendingSendRef.current = null;
+        setDraft('');
+        setNotice('El mensaje ya estaba enviado; se actualizó el historial.');
+        try {
+          const rows = (await api.listarMensajes(conversationId)) as Message[];
+          if (activeIdRef.current === conversationId) setMessages(rows);
+        } catch {
+          setError('El mensaje ya estaba enviado, pero no se pudo actualizar el historial. Actualizá la conversación.');
+        }
+      } else if (err instanceof ApiError && err.status === 403) {
+        pendingSendRef.current = null;
+        // Invalidate viewerAccess and refresh: the actor may have been removed
+        // while typing. Reconcile with the server to get the truth.
+        setError('No podés escribir en esta conversación porque no sos participante. Podés leerla como Owner del negocio.');
+        void refreshConversations(conversationId).catch(() => {
+          setError('No se pudo actualizar el estado de participación. Recargá la página.');
+        });
+      } else if (err instanceof ApiError) {
+        pendingSendRef.current = null;
+        setError(errorMessage(err, 'No se pudo enviar el mensaje.'));
+      } else {
+        // No HTTP answer (network): the outcome is unknown. Keep the key so a
+        // retry cannot create a duplicate.
+        setError('No se pudo confirmar el envío. Reintentá: si el mensaje ya había llegado, no se duplicará.');
+      }
     } finally {
       setSending(false);
     }
@@ -471,6 +650,11 @@ export function MessagingPage() {
               <section aria-label="Contexto comercial" className="border-b border-gray-200 bg-white px-5 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-gray-900">Contexto comercial</h2>
+                  {/* Explains why the admin affordances are disabled, instead
+                      of leaving the seller to discover it through a 403. */}
+                  {!canManageConversation && (
+                    <span className="text-xs text-gray-500">Solo lectura: administrar el contexto comercial requiere ser administrador de la conversación.</span>
+                  )}
                   <span className="text-xs text-gray-500">{associations.length} asociaciones activas</span>
                 </div>
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -479,13 +663,22 @@ export function MessagingPage() {
                       <div key={association.id} className="flex max-w-full items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs">
                         <span className="font-semibold">{association.entityType}</span>
                         <span className="max-w-[220px] truncate">{association.label || association.entityId}</span>
-                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
+                        {/* Order state comes from Orders (GET /pedidos/:id).
+                            Messaging displays it without storing it. */}
+                        {association.entityType === 'ORDER' && (() => {
+                          const status = orderStatuses[association.entityId];
+                          if (!status || status.state === 'loading') return <span className="text-gray-400">…</span>;
+                          if (status.state === 'ready') return <span className="font-semibold text-gray-700">{status.estado} · ${status.total}</span>;
+                          if (status.state === 'denied') return <span className="text-gray-400" title="Requiere el permiso pedidos.gestionar">sin permiso</span>;
+                          return <span className="text-amber-700" title={status.detail}>estado no disponible</span>;
+                        })()}
+                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy || !canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
                       </div>
                     ))
                   }
                 </div>
                 <div className="mb-2 flex justify-end">
-                  <button type="button" onClick={() => void toggleAssociationHistory()} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
+                  <button type="button" onClick={() => void toggleAssociationHistory()} disabled={!canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
                 </div>
                 {showAssociationHistory && <div className="mb-3 max-h-24 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
                   {associationHistory.length === 0 ? <p className="text-xs text-gray-500">No hay asociaciones históricas.</p> : associationHistory.map((association) => (
@@ -514,13 +707,25 @@ export function MessagingPage() {
                     ))}
                   </div>
                   {!associations.some((association) => association.entityType === 'CUSTOMER') && <p className="mt-2 text-xs text-amber-800">Asociá un Customer para habilitar la creación del pedido.</p>}
-                  <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !associations.some((association) => association.entityType === 'CUSTOMER')} className="mt-3 w-full rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
+                  <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !canManageConversation || !associations.some((association) => association.entityType === 'CUSTOMER')} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="mt-3 w-full rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
                 </div>}
                 {productResults.length > 0 && <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
                   {productResults.map((product) => (
                     <div key={product.id} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-xs">
-                      <span className="min-w-0 truncate">{product.nombre}{product.codigoInterno ? ` · ${product.codigoInterno}` : ''}</span>
-                      <button type="button" disabled={!!associationBusy || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{product.nombre}{product.codigoInterno ? ` · ${product.codigoInterno}` : ''}</span>
+                        {/* Price and availability come from the Sales domain's
+                            search; Messaging only displays them. */}
+                        <span className="mt-0.5 block text-gray-500">
+                          {product.precioMinorista != null && <span>${product.precioMinorista}</span>}
+                          {product.stockDisponible != null && (
+                            <span className={product.stockDisponible > 0 ? 'ml-2' : 'ml-2 font-semibold text-amber-700'}>
+                              {product.stockDisponible > 0 ? `stock ${product.stockDisponible}` : 'sin stock'}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <button type="button" disabled={!!associationBusy || !canManageConversation || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
                     </div>
                   ))}
                 </div>}
@@ -540,7 +745,12 @@ export function MessagingPage() {
                   ))
                 }
               </div>
-              <form onSubmit={sendMessage} className="flex items-end gap-3 border-t border-gray-200 p-4">
+              {!canSend && (
+                <div role="status" className="border-t border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                  Estás viendo esta conversación como Owner del negocio, sin ser participante. Podés leer el historial, pero solo los participantes pueden escribir.
+                </div>
+              )}
+              <form hidden={!canSend} onSubmit={sendMessage} className="flex items-end gap-3 border-t border-gray-200 p-4">
                 <label htmlFor="messaging-draft" className="sr-only">Escribir mensaje</label>
                 <textarea id="messaging-draft" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={sending} maxLength={10000} rows={2} placeholder="Escribí un mensaje…" className="min-h-[44px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100" />
                 <button type="submit" disabled={sending || !draft.trim()} className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">

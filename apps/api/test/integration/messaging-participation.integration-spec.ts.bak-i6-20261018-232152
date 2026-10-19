@@ -1,0 +1,659 @@
+import { createHmac } from 'crypto';
+import { spawn, ChildProcess } from 'child_process';
+import * as net from 'net';
+import request from 'supertest';
+import { io, Socket } from 'socket.io-client';
+import { PrismaService } from '../../src/prisma/prisma.service';
+
+// Messaging participation and delivery against the compiled stack and a real
+// PostgreSQL database. It reproduces the field report where a business Owner
+// who is NOT a participant sees a conversation (list, history) but gets
+// "El actor no participa en la conversación" when writing, and it verifies a
+// persisted message is delivered exactly once over HTTP and Socket.IO.
+describe('Messaging participation and delivery (compiled stack + real PostgreSQL)', () => {
+  const PORT = '3395';
+  const BASE = `http://127.0.0.1:${PORT}`;
+  const NOT_PARTICIPANT = 'El actor no participa en la conversación';
+
+  let server: ChildProcess;
+  let serverOutput = '';
+  let serverStartError: string | undefined;
+  let prisma: PrismaService;
+  let suffix: number;
+
+  type Actor = {
+    legacyId: string;
+    userId: string;
+    businessId: string;
+    role: 'OWNER' | 'ASISTENTE_LOCAL';
+  };
+  let owner1: Actor; // participant and sender (the account that created the data)
+  let owner2: Actor; // second Owner who is NOT a participant of customerConversation
+  let assistant: Actor; // non-Owner, never a participant
+  let foreignOwner: Actor; // Owner of another Business
+  let businessId: string;
+  let foreignBusinessId: string;
+  let customer: { id: string };
+  let userConversationId: string; // owner1 <-> owner2
+  let customerConversationId: string; // owner1 <-> customer
+  const sockets: Socket[] = [];
+
+  const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const sign = (payload: Record<string, unknown>) => {
+    const header = b64url({ alg: 'HS256', typ: 'JWT' });
+    const body = b64url({ ...payload, exp: Math.floor(Date.now() / 1000) + 3600 });
+    const signature = createHmac('sha256', process.env.JWT_SECRET as string)
+      .update(`${header}.${body}`)
+      .digest('base64url');
+    return `${header}.${body}.${signature}`;
+  };
+  const userToken = (actor: Actor) =>
+    sign({
+      sub: actor.legacyId,
+      email: `msg-part-${actor.legacyId}@example.test`,
+      nombre: 'Messaging participation',
+      empresaId: actor.businessId,
+      permisos: [],
+      rol: actor.role,
+      estadoLegajo: 'APROBADO',
+      type: 'usuario',
+    });
+  const customerToken = () =>
+    sign({
+      sub: customer.id,
+      email: `msg-part-customer-${suffix}@example.test`,
+      nombre: 'Messaging customer',
+      empresaId: businessId,
+      permisos: [],
+      rol: 'OWNER',
+      estadoLegajo: 'APROBADO',
+      type: 'cliente',
+    });
+  const bearer = (token: string) => `Bearer ${token}`;
+
+  const makeActor = async (
+    business: string,
+    label: string,
+    role: 'OWNER' | 'ASISTENTE_LOCAL',
+  ): Promise<Actor> => {
+    const legacy = await prisma.usuario.create({
+      data: {
+        empresaId: business,
+        nombre: `Msg participation ${label} ${suffix}`,
+        email: `msg-part-${label}-${suffix}@example.test`,
+        activo: true,
+        rol: role,
+      },
+      select: { id: true },
+    });
+    const user = await prisma.user.create({
+      data: {
+        email: `msg-part-canonical-${label}-${suffix}@example.test`,
+        nombre: `Msg participation canonical ${label}`,
+        usuarioId: legacy.id,
+      },
+      select: { id: true },
+    });
+    await prisma.membership.create({
+      data: { userId: user.id, businessId: business, role, status: 'ACTIVE' },
+    });
+    return { legacyId: legacy.id, userId: user.id, businessId: business, role };
+  };
+
+  const waitPort = (port: number, attempts = 60) =>
+    new Promise<void>((resolve, reject) => {
+      const probe = (remaining: number) => {
+        if (serverStartError || server.exitCode !== null || server.signalCode !== null) {
+          reject(
+            new Error(
+              `API terminó antes de abrir el puerto ${port}. ${serverStartError ?? ''} ${serverOutput}`.trim(),
+            ),
+          );
+          return;
+        }
+        const socket = net.connect(port, '127.0.0.1');
+        socket.once('connect', () => {
+          socket.end();
+          resolve();
+        });
+        socket.once('error', () => {
+          if (remaining <= 0)
+            reject(new Error(`puerto ${port} sin respuesta. ${serverOutput}`.trim()));
+          else setTimeout(() => probe(remaining - 1), 1000);
+        });
+      };
+      probe(attempts);
+    });
+
+  const stopServer = async () => {
+    if (!server || server.exitCode !== null || server.signalCode !== null) return;
+    await new Promise<void>((resolve) => {
+      const forceKill = setTimeout(() => server.kill('SIGKILL'), 5000);
+      forceKill.unref();
+      server.once('exit', () => {
+        clearTimeout(forceKill);
+        resolve();
+      });
+      server.kill('SIGTERM');
+    });
+  };
+
+  const connectSocket = (token: string | null) =>
+    new Promise<Socket>((resolve, reject) => {
+      const socket = io(`${BASE}/messaging`, {
+        auth: token ? { token } : {},
+        transports: ['websocket'],
+        reconnection: false,
+        timeout: 5000,
+      });
+      sockets.push(socket);
+      socket.once('connect', () => resolve(socket));
+      socket.once('connect_error', (error) => reject(error));
+    });
+
+  const join = (socket: Socket, conversationId: string) =>
+    new Promise<{ ok: boolean; error?: string; message?: string }>((resolve) => {
+      socket.emit('conversation.join', { conversationId }, resolve);
+    });
+
+  const nextEvent = <T = Record<string, unknown>>(
+    socket: Socket,
+    eventName: string,
+    timeoutMs = 4000,
+  ) =>
+    new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        socket.off(eventName, handler);
+        reject(new Error(`timeout esperando ${eventName}`));
+      }, timeoutMs);
+      const handler = (payload: T) => {
+        clearTimeout(timer);
+        resolve(payload);
+      };
+      socket.once(eventName, handler);
+    });
+
+  const countEvents = (socket: Socket, eventName: string) => {
+    const received: unknown[] = [];
+    socket.on(eventName, (payload) => received.push(payload));
+    return received;
+  };
+
+  const send = (token: string, conversationId: string, clientMessageId: string, content: string) =>
+    request(BASE)
+      .post(`/messaging/conversations/${conversationId}/messages`)
+      .set('Authorization', bearer(token))
+      .send({ clientMessageId, content });
+
+  beforeAll(async () => {
+    if (!process.env.JWT_SECRET)
+      throw new Error('JWT_SECRET es requerido para el test de participación');
+    prisma = new PrismaService();
+    await prisma.$connect();
+    suffix = Date.now();
+
+    const company = await prisma.empresa.create({
+      data: {
+        nombre: `Msg participation ${suffix}`,
+        slug: `msg-participation-${suffix}`,
+        configuracion: {},
+      },
+      select: { id: true },
+    });
+    const foreign = await prisma.empresa.create({
+      data: {
+        nombre: `Msg participation B ${suffix}`,
+        slug: `msg-participation-b-${suffix}`,
+        configuracion: {},
+      },
+      select: { id: true },
+    });
+    businessId = company.id;
+    foreignBusinessId = foreign.id;
+    owner1 = await makeActor(businessId, 'owner1', 'OWNER');
+    owner2 = await makeActor(businessId, 'owner2', 'OWNER');
+    assistant = await makeActor(businessId, 'assistant', 'ASISTENTE_LOCAL');
+    foreignOwner = await makeActor(foreignBusinessId, 'foreign', 'OWNER');
+    customer = await prisma.cliente.create({
+      data: { empresaId: businessId, nombre: `Msg participation customer ${suffix}` },
+      select: { id: true },
+    });
+
+    server = spawn(process.execPath, ['dist/src/main.js'], {
+      cwd: process.cwd(),
+      env: { ...process.env, PORT },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    server.stdout?.on('data', (chunk: Buffer) => {
+      serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
+    });
+    server.stderr?.on('data', (chunk: Buffer) => {
+      serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
+    });
+    server.once('error', (error) => {
+      serverStartError = error.message;
+    });
+    await waitPort(Number(PORT));
+
+    // owner1 opens one conversation with owner2 (User) and one with the Customer.
+    const withUser = await request(BASE)
+      .post('/messaging/conversations')
+      .set('Authorization', bearer(userToken(owner1)))
+      .send({ type: 'DIRECT', participantUserIds: [owner2.userId] })
+      .expect(201);
+    userConversationId = withUser.body.id;
+    const withCustomer = await request(BASE)
+      .post('/messaging/conversations')
+      .set('Authorization', bearer(userToken(owner1)))
+      .send({ type: 'DIRECT', participantCustomerIds: [customer.id] })
+      .expect(201);
+    customerConversationId = withCustomer.body.id;
+  }, 120000);
+
+  afterAll(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await stopServer();
+    if (prisma) {
+      const businessIds = [businessId, foreignBusinessId].filter(Boolean);
+      if (businessIds.length) {
+        const userIds = [owner1, owner2, assistant, foreignOwner]
+          .filter(Boolean)
+          .map((a) => a.userId);
+        const legacyIds = [owner1, owner2, assistant, foreignOwner]
+          .filter(Boolean)
+          .map((a) => a.legacyId);
+        await prisma.messageReadReceipt.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.messagingReadPreference.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
+        await prisma.message.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.conversationAssociation.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
+        await prisma.conversationParticipant.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
+        await prisma.conversation.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.cliente.deleteMany({ where: { empresaId: { in: businessIds } } });
+        await prisma.membership.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+        await prisma.usuario.deleteMany({ where: { id: { in: legacyIds } } });
+        await prisma.empresa.deleteMany({ where: { id: { in: businessIds } } });
+      }
+      await prisma.$disconnect();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Field report: Owner who is not a participant.
+  // ---------------------------------------------------------------------
+  describe('Owner who is not a participant (the reported "El actor no participa" case)', () => {
+    it('sees the conversation and its history but cannot write: consistent 403 and nothing persisted', async () => {
+      const token = userToken(owner2);
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(200);
+      expect(listed.body.map((row: { id: string }) => row.id)).toEqual(
+        expect.arrayContaining([userConversationId, customerConversationId]),
+      );
+
+      await request(BASE)
+        .get(`/messaging/conversations/${customerConversationId}/messages`)
+        .set('Authorization', bearer(token))
+        .expect(200);
+
+      const before = await prisma.message.count({
+        where: { conversationId: customerConversationId },
+      });
+      const rejected = await send(
+        token,
+        customerConversationId,
+        `owner2-${suffix}`,
+        'no debería persistir',
+      ).expect(403);
+      expect(rejected.body.message).toBe(NOT_PARTICIPANT);
+      expect(
+        await prisma.message.count({ where: { conversationId: customerConversationId } }),
+      ).toBe(before);
+    });
+
+    it('tells the client up front whether it can write (viewerAccess) so the UI never offers a send that will fail', async () => {
+      const asObserver = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      const customerRow = asObserver.body.find(
+        (row: { id: string }) => row.id === customerConversationId,
+      );
+      const userRow = asObserver.body.find((row: { id: string }) => row.id === userConversationId);
+      expect(customerRow.viewerAccess).toEqual({ canSend: false, mode: 'OWNER_READ_ONLY' });
+      expect(userRow.viewerAccess).toEqual({ canSend: true, mode: 'PARTICIPANT' });
+
+      const opened = await request(BASE)
+        .get(`/messaging/conversations/${customerConversationId}`)
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      expect(opened.body.viewerAccess).toEqual({ canSend: false, mode: 'OWNER_READ_ONLY' });
+
+      const asParticipant = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(userToken(owner1)))
+        .expect(200);
+      for (const row of asParticipant.body) {
+        expect(row.viewerAccess).toEqual({ canSend: true, mode: 'PARTICIPANT' });
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Acceptance: two users exchange messages.
+  // ---------------------------------------------------------------------
+  describe('two users exchange messages', () => {
+    it('persists exactly one row per message, both sides read the same ordered history after a reload', async () => {
+      const sent = await send(
+        userToken(owner1),
+        userConversationId,
+        `u1-${suffix}`,
+        'hola desde owner1',
+      ).expect(201);
+      expect(sent.body.sequence).toBe('1');
+      expect(sent.body.authorUserId).toBe(owner1.userId);
+      expect(() => JSON.stringify(sent.body)).not.toThrow();
+
+      const reply = await send(
+        userToken(owner2),
+        userConversationId,
+        `u2-${suffix}`,
+        'respuesta de owner2',
+      ).expect(201);
+      expect(reply.body.sequence).toBe('2');
+      expect(reply.body.authorUserId).toBe(owner2.userId);
+
+      for (const actor of [owner1, owner2]) {
+        const history = await request(BASE)
+          .get(`/messaging/conversations/${userConversationId}/messages`)
+          .set('Authorization', bearer(userToken(actor)))
+          .expect(200);
+        expect(history.body.map((m: { sequence: string }) => m.sequence)).toEqual(['1', '2']);
+        expect(history.body.map((m: { content: string }) => m.content)).toEqual([
+          'hola desde owner1',
+          'respuesta de owner2',
+        ]);
+      }
+      expect(await prisma.message.count({ where: { conversationId: userConversationId } })).toBe(2);
+    });
+
+    it('edit and delete persist and answer with a JSON-safe body (no false error after the change was committed)', async () => {
+      const created = await send(
+        userToken(owner1),
+        userConversationId,
+        `edit-${suffix}`,
+        'texto original',
+      ).expect(201);
+
+      const edited = await request(BASE)
+        .patch(`/messaging/conversations/${userConversationId}/messages/${created.body.id}`)
+        .set('Authorization', bearer(userToken(owner1)))
+        .send({ content: 'texto editado' })
+        .expect(200);
+      expect(edited.body.content).toBe('texto editado');
+      expect(typeof edited.body.sequence).toBe('string');
+      expect((await prisma.message.findUnique({ where: { id: created.body.id } }))?.content).toBe(
+        'texto editado',
+      );
+
+      const deleted = await request(BASE)
+        .delete(`/messaging/conversations/${userConversationId}/messages/${created.body.id}`)
+        .set('Authorization', bearer(userToken(owner1)))
+        .expect(200);
+      expect(deleted.body.content).toBeNull();
+      expect(typeof deleted.body.sequence).toBe('string');
+      expect(
+        (await prisma.message.findUnique({ where: { id: created.body.id } }))?.deletedAt,
+      ).not.toBeNull();
+    });
+
+    it('a retried send with the same clientMessageId returns the existing message without creating a duplicate', async () => {
+      const clientMessageId = `retry-${suffix}`;
+      const content = 'mensaje para probar idempotencia';
+      const before = await prisma.message.count({
+        where: { conversationId: userConversationId },
+      });
+
+      const first = await send(
+        userToken(owner1),
+        userConversationId,
+        clientMessageId,
+        content,
+      ).expect(201);
+
+      const retry = await send(
+        userToken(owner1),
+        userConversationId,
+        clientMessageId,
+        content,
+      ).expect(201);
+
+      expect(retry.body.id).toBe(first.body.id);
+      expect(
+        await prisma.message.count({
+          where: { conversationId: userConversationId },
+        }),
+      ).toBe(before + 1);
+    });
+
+    it('reusing the same clientMessageId with different content returns 409 without creating a duplicate', async () => {
+      const clientMessageId = `conflict-${suffix}`;
+      const before = await prisma.message.count({
+        where: { conversationId: userConversationId },
+      });
+
+      const first = await send(
+        userToken(owner1),
+        userConversationId,
+        clientMessageId,
+        'contenido original',
+      ).expect(201);
+
+      const retry = await send(
+        userToken(owner1),
+        userConversationId,
+        clientMessageId,
+        'contenido diferente',
+      ).expect(409);
+
+      expect(retry.body.message).toEqual(
+        expect.stringContaining('clientMessageId'),
+      );
+      expect(
+        await prisma.message.count({
+          where: { conversationId: userConversationId },
+        }),
+      ).toBe(before + 1);
+
+      expect(
+        await prisma.message.findUnique({ where: { id: first.body.id } }),
+      ).toMatchObject({ content: 'contenido original' });
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Customer identity and strangers.
+  // ---------------------------------------------------------------------
+  describe('customer identity, non-participants and tenant isolation', () => {
+    it('a Customer identity is rejected on the staff HTTP endpoints (SEC-01) and never writes through them', async () => {
+      const token = customerToken();
+      const before = await prisma.message.count({
+        where: { conversationId: customerConversationId },
+      });
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(403);
+      expect(listed.body.message).toBe('Los clientes no pueden acceder a endpoints internos');
+      await send(token, customerConversationId, `c1-${suffix}`, 'hola, soy el cliente').expect(403);
+      expect(
+        await prisma.message.count({ where: { conversationId: customerConversationId } }),
+      ).toBe(before);
+    });
+
+    it('a Customer participant can join only its own conversation over Socket.IO and receives its events', async () => {
+      const customerSocket = await connectSocket(customerToken());
+      expect((await join(customerSocket, customerConversationId)).ok).toBe(true);
+      expect(await join(customerSocket, userConversationId)).toEqual(
+        expect.objectContaining({ ok: false, error: 'FORBIDDEN' }),
+      );
+
+      const received = nextEvent<{ id: string; authorUserId: string | null }>(
+        customerSocket,
+        'conversation.message.created',
+      );
+      const sent = await send(
+        userToken(owner1),
+        customerConversationId,
+        `to-customer-${suffix}`,
+        'respuesta al cliente',
+      ).expect(201);
+      const event = await received;
+      expect(event.id).toBe(sent.body.id);
+      expect(event.authorUserId).toBe(owner1.userId);
+    });
+
+    it('a non-Owner who is not a participant cannot list, read, write or mark read', async () => {
+      const token = userToken(assistant);
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(200);
+      expect(listed.body).toEqual([]);
+      await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}`)
+        .set('Authorization', bearer(token))
+        .expect(403);
+      await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}/messages`)
+        .set('Authorization', bearer(token))
+        .expect(403);
+      await send(token, userConversationId, `a1-${suffix}`, 'no autorizado').expect(403);
+    });
+
+    it('an Owner of another Business cannot discover, read or write (404, nothing leaks)', async () => {
+      const token = userToken(foreignOwner);
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(200);
+      expect(listed.body).toEqual([]);
+      await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}`)
+        .set('Authorization', bearer(token))
+        .expect(404);
+      await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}/messages`)
+        .set('Authorization', bearer(token))
+        .expect(404);
+      await send(token, userConversationId, `f1-${suffix}`, 'otra empresa').expect(404);
+    });
+
+    it('rejects unauthenticated requests', async () => {
+      await request(BASE).get('/messaging/conversations').expect(401);
+      await request(BASE)
+        .post(`/messaging/conversations/${userConversationId}/messages`)
+        .send({ clientMessageId: 'x', content: 'x' })
+        .expect(401);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Socket.IO delivery.
+  // ---------------------------------------------------------------------
+  describe('Socket.IO delivery', () => {
+    it('rejects an unauthenticated connection', async () => {
+      await expect(connectSocket(null)).rejects.toBeTruthy();
+    });
+
+    it('delivers a committed message once to every authorized participant with the same shape as HTTP', async () => {
+      const s1 = await connectSocket(userToken(owner1));
+      const s2 = await connectSocket(userToken(owner2));
+      expect((await join(s1, userConversationId)).ok).toBe(true);
+      expect((await join(s2, userConversationId)).ok).toBe(true);
+      const at1 = countEvents(s1, 'conversation.message.created');
+      const at2 = countEvents(s2, 'conversation.message.created');
+      const received = nextEvent<{
+        id: string;
+        sequence: string;
+        content: string;
+        conversationId: string;
+      }>(s2, 'conversation.message.created');
+
+      const sent = await send(
+        userToken(owner1),
+        userConversationId,
+        `rt-${suffix}`,
+        'tiempo real',
+      ).expect(201);
+      const event = await received;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(event.id).toBe(sent.body.id);
+      expect(event.conversationId).toBe(userConversationId);
+      expect(event.content).toBe('tiempo real');
+      expect(event.sequence).toBe(sent.body.sequence); // string on both transports
+      expect(at1).toHaveLength(1); // sender is in the room: the UI must reconcile by id
+      expect(at2).toHaveLength(1);
+      expect(
+        await prisma.message.count({
+          where: { conversationId: userConversationId, clientMessageId: `rt-${suffix}` },
+        }),
+      ).toBe(1);
+    });
+
+    it('does not let other Businesses or non-participants join, and leaks no events to them', async () => {
+      const foreign = await connectSocket(userToken(foreignOwner));
+      const stranger = await connectSocket(userToken(assistant));
+      const foreignJoin = await join(foreign, userConversationId);
+      const strangerJoin = await join(stranger, userConversationId);
+      expect(foreignJoin).toEqual(expect.objectContaining({ ok: false, error: 'NOT_FOUND' }));
+      expect(strangerJoin).toEqual(expect.objectContaining({ ok: false, error: 'FORBIDDEN' }));
+      const leakedForeign = countEvents(foreign, 'conversation.message.created');
+      const leakedStranger = countEvents(stranger, 'conversation.message.created');
+
+      await send(
+        userToken(owner1),
+        userConversationId,
+        `leak-${suffix}`,
+        'solo participantes',
+      ).expect(201);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(leakedForeign).toHaveLength(0);
+      expect(leakedStranger).toHaveLength(0);
+    });
+
+    it('recovers a message missed while disconnected through HTTP after a reconnect, without creating duplicates', async () => {
+      const first = await connectSocket(userToken(owner2));
+      expect((await join(first, userConversationId)).ok).toBe(true);
+      first.disconnect();
+
+      const missed = await send(
+        userToken(owner1),
+        userConversationId,
+        `missed-${suffix}`,
+        'mientras estabas offline',
+      ).expect(201);
+
+      const again = await connectSocket(userToken(owner2));
+      expect((await join(again, userConversationId)).ok).toBe(true);
+      const history = await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}/messages`)
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      expect(history.body.filter((m: { id: string }) => m.id === missed.body.id)).toHaveLength(1);
+      expect(
+        await prisma.message.count({
+          where: { conversationId: userConversationId, clientMessageId: `missed-${suffix}` },
+        }),
+      ).toBe(1);
+    });
+  });
+});

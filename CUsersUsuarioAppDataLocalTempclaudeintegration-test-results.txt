@@ -1,0 +1,2672 @@
+
+> @otrarondamas/api@0.0.1 test:integration
+> jest --config ./test/jest-e2e.json --runInBand
+
+FAIL test/integration/p6-cart-integration.integration-spec.ts (341.334 s)
+  ● P6 — Cart Integration (real PostgreSQL) › P6-01: getOrCreateCart — Create and retrieve cart › creates a new cart for customer in company A
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-01: getOrCreateCart — Create and retrieve cart › returns existing cart on second call (idempotent)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-01: getOrCreateCart — Create and retrieve cart › throws NotFoundException for inactive customer
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-01: getOrCreateCart — Create and retrieve cart › throws NotFoundException for customer from different company
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-02: addItem — Add product to cart with stock validation › adds item to cart successfully
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-02: addItem — Add product to cart with stock validation › rejects quantity <= 0
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-02: addItem — Add product to cart with stock validation › rejects insufficient stock
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-02: addItem — Add product to cart with stock validation › rejects non-existent product
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-02: addItem — Add product to cart with stock validation › updates quantity when adding same product twice (idempotent)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-03: updateItemQuantity — Update quantity with stock validation › updates item quantity
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-03: updateItemQuantity — Update quantity with stock validation › rejects quantity <= 0
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-03: updateItemQuantity — Update quantity with stock validation › rejects insufficient stock when updating
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-03: updateItemQuantity — Update quantity with stock validation › throws NotFoundException for non-existent item
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-04: removeItem — Remove item from cart › removes item from cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-04: removeItem — Remove item from cart › throws NotFoundException for non-existent item
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-05: getCart — Retrieve cart with items › returns cart with all items and details
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-05: getCart — Retrieve cart with items › throws NotFoundException for non-existent cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-06: clearCart — Empty cart › removes all items from cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-06: clearCart — Empty cart › throws NotFoundException for non-existent cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-07: Business isolation — Cross-company access prevention › prevents accessing cart from different company
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-07: Business isolation — Cross-company access prevention › prevents adding item to cart from different company
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-07: Business isolation — Cross-company access prevention › prevents accessing product from different company
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-08: getCartForCustomer — Retrieve customer cart › returns cart for customer
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-08: getCartForCustomer — Retrieve customer cart › returns null for customer without cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-09: assertCartBelongsToCustomer — Customer authorization check › allows access to own cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-09: assertCartBelongsToCustomer — Customer authorization check › denies access to other customer cart
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-10: Stock availability — Informative validation (no reservation) › allows adding items when stock exists
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+  ● P6 — Cart Integration (real PostgreSQL) › P6-10: Stock availability — Informative validation (no reservation) › tracks stock without reservation (cart does not reserve)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 89 |[39m   }[33m;[39m
+     [90m 90 |[39m
+    [31m[1m>[22m[39m[90m 91 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 92 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 93 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 94 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:91:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+
+  ● Test suite failed to run
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 147 |[39m   })[33m;[39m
+     [90m 148 |[39m
+    [31m[1m>[22m[39m[90m 149 |[39m   afterAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 150 |[39m     [36mawait[39m prisma[33m.[39m$disconnect()[33m;[39m
+     [90m 151 |[39m   })[33m;[39m
+     [90m 152 |[39m[0m
+
+      at test/integration/p6-cart-integration.integration-spec.ts:149:3
+      at Object.<anonymous> (test/integration/p6-cart-integration.integration-spec.ts:6:1)
+
+FAIL test/integration/s-v1-sec-01-customer-staff-boundary.integration-spec.ts (273.948 s)
+  ● S-V1-SEC-01 — Customer identity cannot access staff endpoints › rejects a Customer JWT from a staff endpoint
+
+    puerto 3392 sin respuesta
+
+    [0m [90m 39 |[39m         })[33m;[39m
+     [90m 40 |[39m         socket[33m.[39mon([32m'error'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 41 |[39m           [36mif[39m (remaining [33m<=[39m [35m0[39m) reject([36mnew[39m [33mError[39m([32m`puerto ${port} sin respuesta`[39m))[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 42 |[39m           [36melse[39m setTimeout(() [33m=>[39m probe(remaining [33m-[39m [35m1[39m)[33m,[39m [35m1000[39m)[33m;[39m
+     [90m 43 |[39m         })[33m;[39m
+     [90m 44 |[39m       }[33m;[39m[0m
+
+      at Socket.<anonymous> (test/integration/s-v1-sec-01-customer-staff-boundary.integration-spec.ts:41:38)
+
+  ● S-V1-SEC-01 — Customer identity cannot access staff endpoints › allows the Customer-only profile endpoint to reach its own handler
+
+    puerto 3392 sin respuesta
+
+    [0m [90m 39 |[39m         })[33m;[39m
+     [90m 40 |[39m         socket[33m.[39mon([32m'error'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 41 |[39m           [36mif[39m (remaining [33m<=[39m [35m0[39m) reject([36mnew[39m [33mError[39m([32m`puerto ${port} sin respuesta`[39m))[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 42 |[39m           [36melse[39m setTimeout(() [33m=>[39m probe(remaining [33m-[39m [35m1[39m)[33m,[39m [35m1000[39m)[33m;[39m
+     [90m 43 |[39m         })[33m;[39m
+     [90m 44 |[39m       }[33m;[39m[0m
+
+      at Socket.<anonymous> (test/integration/s-v1-sec-01-customer-staff-boundary.integration-spec.ts:41:38)
+
+  ● S-V1-SEC-01 — Customer identity cannot access staff endpoints › still requires authentication for staff endpoints without a token
+
+    puerto 3392 sin respuesta
+
+    [0m [90m 39 |[39m         })[33m;[39m
+     [90m 40 |[39m         socket[33m.[39mon([32m'error'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 41 |[39m           [36mif[39m (remaining [33m<=[39m [35m0[39m) reject([36mnew[39m [33mError[39m([32m`puerto ${port} sin respuesta`[39m))[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 42 |[39m           [36melse[39m setTimeout(() [33m=>[39m probe(remaining [33m-[39m [35m1[39m)[33m,[39m [35m1000[39m)[33m;[39m
+     [90m 43 |[39m         })[33m;[39m
+     [90m 44 |[39m       }[33m;[39m[0m
+
+      at Socket.<anonymous> (test/integration/s-v1-sec-01-customer-staff-boundary.integration-spec.ts:41:38)
+
+FAIL test/integration/s-v1-04-catalog-business-context.integration-spec.ts (51.013 s)
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T1: listado de A devuelve solo productos de A
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T2: lectura cross-tenant → no encontrado, sin filtrar información de B
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T3: jerarquía de A devuelve únicamente los 4 niveles de A
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T4: crear producto en A persiste en A
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T5: empresaId arbitrario del body no cambia el tenant efectivo
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T6: Producto A + Familia B → rechazado y no persiste
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T7: Producto A + Subfamilia B → rechazado y no persiste
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T8: Producto A + Tipo B → rechazado y no persiste
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T9: Producto A + Subtipo B → rechazado y no persiste
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T9b: jerarquía completa y coherente de B → rechazado por B3 relation ownership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T10: jerarquía incoherente dentro de A → rechazado por validateHierarchy
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T11: PATCH cross-tenant → no accesible y B no se modifica
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T12: Membership B operando sobre recurso de A → aislado
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T13: sin Membership ACTIVE → fail-closed
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T14: Membership SUSPENDED → fail-closed
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › T15: JWT legacy con empresaId B + Membership A → prevalece A
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+  ● S-V1-04 — BusinessContext en Catálogo (integración, BD real) › I-SV4-09: CompanyScopedPrismaService + extension siguen siendo el enforcement
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 84 |[39m     }) [36mas[39m [33mCreateProductDto[39m[33m;[39m
+     [90m 85 |[39m
+    [31m[1m>[22m[39m[90m 86 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 87 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 88 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 89 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-04-catalog-business-context.integration-spec.ts:86:3
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:26:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 243 |[39m
+     [90m 244 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 245 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 246 |[39m     [36mawait[39m prisma[33m.[39mproducto[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 247 |[39m     [36mawait[39m prisma[33m.[39msubtipo[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 248 |[39m     [36mawait[39m prisma[33m.[39mtipo[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-04-catalog-business-context.integration-spec.ts:245:33)
+
+FAIL test/integration/s-v1-07-sales-business-context.integration-spec.ts (15.582 s)
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-01: searchProducts resolves empresaId from Membership, not JWT
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-02: quote prices with A catalog; a B product is PRODUCTO_NO_ENCONTRADO even with the B claim
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-03: create with claim B + Membership A creates the sale in A, deducts A stock, leaves B intact
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-04: create with a B product or a B customer fails closed (404) and persists nothing
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-05: insufficient stock → BadRequest, the whole transaction rolls back
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-06: idempotencyKey replays the same sale within the tenant and deducts stock once
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-07: customer + loyalty rule of A apply; a higher rule of B never does
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-08: a non-zero descuentoItem is 403 DESCUENTO_NO_AUTORIZADO and persists nothing
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-09: an inactive product is 422 PRODUCTO_INACTIVO
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-10: findAll is tenant-scoped (claim B + Membership A) and filters keep working
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-11: findOne / getReceipt of an A sale work with claim B; a B sale is 404 with either claim
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-12: Sales.createPayment (transfer) on an A sale with claim B → PAGO audit, no MovimientoCaja
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-13: Sales.createPayment cash — open register: Pago + vuelto, still NO MovimientoCaja; closed: 409 CAJA_CERRADA
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-14: Sales.createPayment overpay → 400, annulled sale → 409
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-15: Sales.createPayment on a B sale fails closed (404) and leaves B intact
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-16: Payments.create cash — open register creates MovimientoCaja tipo Venta; closed register still registers the Pago without movement
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-17: Payments.create overpay → 400; B sale → 404 and B intact; findAll is tenant-scoped
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-18: no ACTIVE Membership (none / SUSPENDED) fails closed (403) on every Sales and Payments handler
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-19: token type=cliente fails closed (403) on every Sales and Payments handler
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-20: permissions are unchanged (PermissionsGuard intact): ventas.crear / ventas.ver / none
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-21 (ventas.ver, characterization): the permission is required by the code but absent from the seed catalog
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-22 (J1, characterization): usuarioId keeps the legacy user.id even when it belongs to another empresa
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-23 (idempotency cross-tenant, characterization): the key is globally unique — B reusing A key fails with P2002 and nothing leaks
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+  ● S-V1-07 — BusinessContext en Sales y Payments (integración, BD real) › SBC-24: a member of B only sees B (symmetric isolation) and cannot touch A sales
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 205 |[39m   }[33m;[39m
+     [90m 206 |[39m
+    [31m[1m>[22m[39m[90m 207 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 208 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 209 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 210 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-07-sales-business-context.integration-spec.ts:207:3
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:31:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 281 |[39m
+     [90m 282 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 283 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 284 |[39m     [36mawait[39m prisma[33m.[39mmovimientoCaja[33m.[39mdeleteMany({ where[33m:[39m { cajaId[33m:[39m cashRegisterA[33m.[39mid } })[33m;[39m
+     [90m 285 |[39m     [36mawait[39m prisma[33m.[39maperturaCaja[33m.[39mdeleteMany({ where[33m:[39m { cajaId[33m:[39m cashRegisterA[33m.[39mid } })[33m;[39m
+     [90m 286 |[39m     [36mawait[39m prisma[33m.[39mcaja[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-07-sales-business-context.integration-spec.ts:283:33)
+
+FAIL test/integration/s-v1-06-orders-http.integration-spec.ts (12.099 s)
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-01: sin token → 401 (JwtAuthGuard global intacto)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-02: GET /pedidos con claim B + Membership A → solo pedidos de A
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-03: GET /pedidos?estado=... respeta tenant y filtro a la vez
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-04: GET /pedidos/:id propio con claim B + Membership A → 200
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-05: GET /pedidos/:id de otro tenant → 404 (también con claim de ese tenant)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-06: PATCH /pedidos/:id/estado de otro tenant → 404 y B intacto
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-07: confirmar pedido de A con claim B → solo recursos de A cambian
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-08: stock insuficiente → 400, pedido sigue RECIBIDO y sin efectos parciales
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-09: cancelar RECIBIDO → CANCELADO, setea usuarioId, sin tocar stock
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-10: doble confirmación → 400 y sin segunda salida de stock
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-12: sin Membership ACTIVE o SUSPENDED → 403 fail-closed
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+  ● S-V1-06 — Pedidos (HTTP, stack real) › SV6-H-13: token type=cliente → 403 en los tres endpoints
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 194 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 195 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 197 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:196:5)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 276 |[39m
+     [90m 277 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 278 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 279 |[39m     [36mawait[39m prisma[33m.[39mmovimientoStock[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 280 |[39m     [36mawait[39m prisma[33m.[39mpedidoItem[33m.[39mdeleteMany({ where[33m:[39m { pedido[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } } })[33m;[39m
+     [90m 281 |[39m     [36mawait[39m prisma[33m.[39mpedido[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-06-orders-http.integration-spec.ts:278:33)
+
+FAIL test/integration/s-v1-05-purchases-business-context.integration-spec.ts (14 s)
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-01: listSuppliers resolves empresaId from Membership, not JWT
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-02: createSupplier resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-03: listPurchases resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-04: createPurchase resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-05: SUSPENDED membership fails closed with ForbiddenException
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-06: user without Membership fails closed
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-07: cross-tenant supplier access is blocked
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Purchases (integración, BD real) › BC-08: userB cannot access companyA suppliers
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 71 |[39m   })[33m;[39m
+     [90m 72 |[39m
+    [31m[1m>[22m[39m[90m 73 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 74 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 75 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 76 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-purchases-business-context.integration-spec.ts:73:3
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:10:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 266 |[39m
+     [90m 267 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 268 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 269 |[39m     [36mawait[39m prisma[33m.[39mmovimientoStock[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 270 |[39m     [36mawait[39m prisma[33m.[39mlote[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 271 |[39m     [36mawait[39m prisma[33m.[39mdevolucionProveedorItem[33m.[39mdeleteMany({[0m
+
+      at Object.<anonymous> (test/integration/s-v1-05-purchases-business-context.integration-spec.ts:268:33)
+
+FAIL test/integration/s-v1-05-inventory-business-context.integration-spec.ts (12.269 s)
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-01: consolidatedStock resolves empresaId from Membership, not JWT
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-02: batchesForProduct resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-03: movementsForProduct resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-04: registerAdjustment resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-05: alerts resolves empresaId from Membership
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-06: SUSPENDED membership fails closed with ForbiddenException
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-07: user without Membership fails closed
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-08: cross-tenant access is blocked by companyScopeExtension
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-09: registerAdjustment on cross-tenant batch fails closed
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+  ● S-V1-05 — BusinessContext en Inventory (integración, BD real) › BC-10: userB cannot access companyA data
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 78 |[39m   })[33m;[39m
+     [90m 79 |[39m
+    [31m[1m>[22m[39m[90m 80 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 81 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 82 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 83 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-05-inventory-business-context.integration-spec.ts:80:3
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:10:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 273 |[39m
+     [90m 274 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 275 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 276 |[39m     [36mawait[39m prisma[33m.[39mmovimientoStock[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 277 |[39m     [36mawait[39m prisma[33m.[39mlote[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 278 |[39m     [36mawait[39m prisma[33m.[39mproducto[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-05-inventory-business-context.integration-spec.ts:275:33)
+
+FAIL test/integration/s-v1-10-loyalty-http.integration-spec.ts (6.726 s)
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-01: sin token → 401 en las 4 rutas (JwtAuthGuard global intacto)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-02: LIST con claim B + Membership A → solo reglas de A (el claim no es autoridad)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-03: LIST — A con claim A ve A, B con claim B ve B, y B con claim A ve solo B (simetría)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-04: GET :id — regla propia → 200; regla del otro Business → 404 con ambos claims
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-05: POST con claim B + Membership A → regla creada en A; un empresaId del body se descarta
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-06: POST con jerarquía propia → 201 y el GET devuelve los nombres; con jerarquía de B → 404 y no persiste
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-07: PATCH — regla propia → 200; regla de B → 404 y B intacto (ambos claims); empresaId del body se descarta
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-08: PATCH con jerarquía de B sobre una regla propia → 404 y la regla no cambia
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-09: simetría B→A — un miembro de B no lee ni muta reglas de A
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-10: sin Membership ACTIVE (ninguna o SUSPENDED) → 403 fail-closed en las 4 rutas y no persiste
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-11: Usuario legacy sin User canónico vinculado → 404 (comportamiento canónico de BusinessContextService)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-12: múltiples Memberships ACTIVE → 409 en las 4 rutas (sin elección arbitraria de Business)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-13: token type=cliente → 403 en las 4 rutas, con y sin permisos forjados
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-14: sin fidelizacion.gestionar → 403 en las 4 rutas (incluidos los GET) aunque la Membership sea válida
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-15: ApprovedDossierGuard preservado — estadoLegajo PENDIENTE → 403 aun con permiso y Membership
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+  ● S-V1-10 — Loyalty (HTTP, stack real) › LH-16: contrato — forma de la respuesta, orden por createdAt desc y validación de DTO (400)
+
+    PrismaClientInitializationError: Can't reach database server at `localhost:5500`
+
+    Please make sure your database server is running at `localhost:5500`.
+
+    [0m [90m 147 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m 148 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+    [31m[1m>[22m[39m[90m 149 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 150 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m
+     [90m 151 |[39m
+     [90m 152 |[39m     companyA [33m=[39m [36mawait[39m prisma[33m.[39mempresa[33m.[39mcreate({[0m
+
+      at t (../../node_modules/@prisma/client/runtime/library.js:112:2488)
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:149:5)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 270 |[39m
+     [90m 271 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 272 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 273 |[39m     [36mawait[39m prisma[33m.[39mreglaFidelizacion[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 274 |[39m     [36mawait[39m prisma[33m.[39msubtipo[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 275 |[39m     [36mawait[39m prisma[33m.[39mtipo[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-10-loyalty-http.integration-spec.ts:272:33)
+
+FAIL test/integration/s-v1-03-clientes-business-context.integration-spec.ts (8.272 s)
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T1: User + Membership ACTIVE → Clientes usa la Empresa correcta
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T2: User sin Membership → fail-closed explícito
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T3: User A no puede resolver ni usar el Business de User B
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T4: Membership SUSPENDED → acceso rechazado
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T5: businessId resuelve correctamente a Empresa.id
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T6: Cliente de Empresa B no aparece para Empresa A (persistencia/query)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T7: Crear Cliente persiste bajo la Empresa correcta
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T8: un empresaId arbitrario del caller no cambia el tenant efectivo
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › T9: CompanyScopedPrismaService sigue siendo el aislamiento final
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+  ● S-V1-03 — BusinessContext en Clientes (integración, BD real) › I-SV3-07: CustomersService mantiene su firma legacy para ventas/tienda
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 53 |[39m   })[33m;[39m
+     [90m 54 |[39m
+    [31m[1m>[22m[39m[90m 55 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 56 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 57 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 58 |[39m     prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-03-clientes-business-context.integration-spec.ts:55:3
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:24:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 132 |[39m
+     [90m 133 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 134 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 135 |[39m     [36mawait[39m prisma[33m.[39mcliente[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 136 |[39m     [36mawait[39m prisma[33m.[39mmembership[33m.[39mdeleteMany({ where[33m:[39m { businessId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 137 |[39m     [36mawait[39m prisma[33m.[39muser[33m.[39mdeleteMany({ where[33m:[39m { email[33m:[39m { contains[33m:[39m [32m`${suffix}`[39m } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-03-clientes-business-context.integration-spec.ts:134:33)
+
+FAIL test/integration/s-v1-06-orders-business-context.integration-spec.ts (8.996 s)
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-01: list resolves empresaId from Membership, not JWT
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-02: list with estado filter respects tenant and state simultaneously
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-03: get resolves empresaId from Membership, not JWT
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-04: get of another tenant order fails closed, even with JWT claim of that tenant
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-05: updateStatus of another tenant order fails closed and leaves it intact
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-06: confirm (RECIBIDO→CONFIRMADO) deducts stock and creates MovimientoStock in A only
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-07: insufficient stock → BadRequest, order stays RECIBIDO, no partial effects
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-08: cancel (RECIBIDO→CANCELADO) sets usuarioId and does not touch stock
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-09: double confirmation → BadRequest, no second deduction or movement
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-10: no ACTIVE Membership (none / SUSPENDED) fails closed on the three handlers
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-11: token type=cliente fails closed on the three handlers
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-12: pedidos.gestionar is still required on the three handlers (PermissionsGuard intact)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-13 (J1, characterization): usuarioId keeps the legacy user.id even when it belongs to another empresa
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+  ● S-V1-06 — BusinessContext en Orders (integración, BD real) › OBC-14: a member of B only sees B orders (symmetric isolation)
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 170 |[39m   }[33m;[39m
+     [90m 171 |[39m
+    [31m[1m>[22m[39m[90m 172 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m     |[39m   [31m[1m^[22m[39m
+     [90m 173 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 174 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 175 |[39m     [36mconst[39m prismaFactory [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/s-v1-06-orders-business-context.integration-spec.ts:172:3
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:14:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 233 |[39m
+     [90m 234 |[39m   afterAll([36masync[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 235 |[39m     [36mconst[39m companies [33m=[39m [companyA[33m.[39mid[33m,[39m companyB[33m.[39mid][33m;[39m
+     [90m     |[39m                                 [31m[1m^[22m[39m
+     [90m 236 |[39m     [36mawait[39m prisma[33m.[39mmovimientoStock[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m
+     [90m 237 |[39m     [36mawait[39m prisma[33m.[39mpedidoItem[33m.[39mdeleteMany({ where[33m:[39m { pedido[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } } })[33m;[39m
+     [90m 238 |[39m     [36mawait[39m prisma[33m.[39mpedido[33m.[39mdeleteMany({ where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m companies } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-06-orders-business-context.integration-spec.ts:235:33)
+
+FAIL test/integration/s-v1-01-memberships-http.integration-spec.ts (120.44 s)
+  ● S-V1-01 — GET /auth/memberships (HTTP, stack real) › SV-H-01: sin token → 401
+
+    thrown: "Exceeded timeout of 120000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 63 |[39m     })[33m;[39m
+     [90m 64 |[39m
+    [31m[1m>[22m[39m[90m 65 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 66 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 67 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 68 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[0m
+
+      at test/integration/s-v1-01-memberships-http.integration-spec.ts:65:3
+      at Object.<anonymous> (test/integration/s-v1-01-memberships-http.integration-spec.ts:17:1)
+
+  ● S-V1-01 — GET /auth/memberships (HTTP, stack real) › SV-H-02: autenticado sin vínculo User → 200 + []
+
+    thrown: "Exceeded timeout of 120000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 63 |[39m     })[33m;[39m
+     [90m 64 |[39m
+    [31m[1m>[22m[39m[90m 65 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 66 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 67 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 68 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[0m
+
+      at test/integration/s-v1-01-memberships-http.integration-spec.ts:65:3
+      at Object.<anonymous> (test/integration/s-v1-01-memberships-http.integration-spec.ts:17:1)
+
+  ● S-V1-01 — GET /auth/memberships (HTTP, stack real) › SV-H-03: autenticado con Membership → 200 + membership correcta
+
+    thrown: "Exceeded timeout of 120000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 63 |[39m     })[33m;[39m
+     [90m 64 |[39m
+    [31m[1m>[22m[39m[90m 65 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 66 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 67 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 68 |[39m     suffix [33m=[39m [33mDate[39m[33m.[39mnow()[33m;[39m[0m
+
+      at test/integration/s-v1-01-memberships-http.integration-spec.ts:65:3
+      at Object.<anonymous> (test/integration/s-v1-01-memberships-http.integration-spec.ts:17:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+    [0m [90m 110 |[39m   afterAll([36masync[39m () [33m=>[39m {
+     [90m 111 |[39m     [36mconst[39m users [33m=[39m [36mawait[39m prisma[33m.[39muser[33m.[39mfindMany({
+    [31m[1m>[22m[39m[90m 112 |[39m       where[33m:[39m { usuarioId[33m:[39m { [36min[39m[33m:[39m [userWithMembership[33m.[39mid[33m,[39m userWithoutMembership[33m.[39mid] } }[33m,[39m
+     [90m     |[39m                                                     [31m[1m^[22m[39m
+     [90m 113 |[39m       select[33m:[39m { id[33m:[39m [36mtrue[39m }[33m,[39m
+     [90m 114 |[39m     })[33m;[39m
+     [90m 115 |[39m     [36mawait[39m prisma[33m.[39mmembership[33m.[39mdeleteMany({ where[33m:[39m { userId[33m:[39m { [36min[39m[33m:[39m users[33m.[39mmap((u) [33m=>[39m u[33m.[39mid) } } })[33m;[39m[0m
+
+      at Object.<anonymous> (test/integration/s-v1-01-memberships-http.integration-spec.ts:112:53)
+
+FAIL test/integration/b3-producto-subtipo.integration-spec.ts (5.325 s)
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-01: same-Business Subtipo reference persists
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-02: cross-Business Subtipo create rejects with P2025 and no persistence
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-03: cross-Business Subtipo update rejects with P2025 and preserves the relation
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-04: same-Business Subtipo reference commits inside an interactive transaction
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-05: rejected cross-Business create rolls back the valid Producto of the same transaction
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-06: nonexistent Subtipo fails closed with P2025 and no persistence
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-07: mixed createMany rejects with P2025 without partial persistence
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+  ● B3 relation isolation — Producto.subtipo ownership candidate › ST-08: control — duplicate codigoInterno is P2002, distinguishable from the ownership rejection P2025
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 90 |[39m   }[33m;[39m
+     [90m 91 |[39m
+    [31m[1m>[22m[39m[90m 92 |[39m   beforeAll([36masync[39m () [33m=>[39m {
+     [90m    |[39m   [31m[1m^[22m[39m
+     [90m 93 |[39m     prisma [33m=[39m [36mnew[39m [33mPrismaService[39m()[33m;[39m
+     [90m 94 |[39m     [36mawait[39m prisma[33m.[39m$connect()[33m;[39m
+     [90m 95 |[39m     scopedPrisma [33m=[39m [36mnew[39m [33mCompanyScopedPrismaService[39m(prisma)[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:92:3
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:12:1)
+
+
+  ● Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'empresaId')
+
+    [0m [90m 102 |[39m     [36mconst[39m hierarchies [33m=[39m [hierA[33m,[39m hierB][33m;[39m
+     [90m 103 |[39m     [36mawait[39m prisma[33m.[39mproducto[33m.[39mdeleteMany({
+    [31m[1m>[22m[39m[90m 104 |[39m       where[33m:[39m { empresaId[33m:[39m { [36min[39m[33m:[39m hierarchies[33m.[39mmap((j) [33m=>[39m j[33m.[39mempresaId) } }[33m,[39m
+     [90m     |[39m                                                          [31m[1m^[22m[39m
+     [90m 105 |[39m     })[33m;[39m
+     [90m 106 |[39m     [36mawait[39m prisma[33m.[39msubtipo[33m.[39mdeleteMany({ where[33m:[39m { id[33m:[39m { [36min[39m[33m:[39m hierarchies[33m.[39mmap((j) [33m=>[39m j[33m.[39msubtipoId) } } })[33m;[39m
+     [90m 107 |[39m     [36mawait[39m prisma[33m.[39mtipo[33m.[39mdeleteMany({ where[33m:[39m { id[33m:[39m { [36min[39m[33m:[39m hierarchies[33m.[39mmap((j) [33m=>[39m j[33m.[39mtipoId) } } })[33m;[39m[0m
+
+      at test/integration/b3-producto-subtipo.integration-spec.ts:104:58
+          at Array.map (<anonymous>)
+      at Object.<anonymous> (test/integration/b3-producto-subtipo.integration-spec.ts:104:45)
+
