@@ -23,13 +23,8 @@ export class CartController {
 
   @Get()
   async getCart(@CurrentUser() user: AuthenticatedUser) {
-    // Only customers can access their cart
-    if (user.type !== 'cliente') {
-      throw new Error('Solo clientes pueden acceder a su carrito');
-    }
-
-    const context = await this.businessContextService.resolveForAuthenticatedUser(user);
-    return this.cartService.getOrCreateCart(user.id, context.businessId);
+    const context = await this.businessContextService.resolveForCustomer(user);
+    return this.cartService.getOrCreateCart(context.customerId!, context.businessId);
   }
 
   @Post('items')
@@ -37,12 +32,8 @@ export class CartController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: AddCartItemDto,
   ) {
-    if (user.type !== 'cliente') {
-      throw new Error('Solo clientes pueden agregar items al carrito');
-    }
-
-    const context = await this.businessContextService.resolveForAuthenticatedUser(user);
-    const cart = await this.cartService.getOrCreateCart(user.id, context.businessId);
+    const context = await this.businessContextService.resolveForCustomer(user);
+    const cart = await this.cartService.getOrCreateCart(context.customerId!, context.businessId);
     return this.cartService.addItem(cart.id, dto.productoId, Number(dto.cantidad), context.businessId);
   }
 
@@ -52,11 +43,7 @@ export class CartController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateCartItemDto,
   ) {
-    if (user.type !== 'cliente') {
-      throw new Error('Solo clientes pueden modificar su carrito');
-    }
-
-    const context = await this.businessContextService.resolveForAuthenticatedUser(user);
+    const context = await this.businessContextService.resolveForCustomer(user);
     return this.cartService.updateItemQuantity(itemId, Number(dto.cantidad), context.businessId);
   }
 
@@ -65,23 +52,15 @@ export class CartController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('itemId') itemId: string,
   ) {
-    if (user.type !== 'cliente') {
-      throw new Error('Solo clientes pueden modificar su carrito');
-    }
-
-    const context = await this.businessContextService.resolveForAuthenticatedUser(user);
+    const context = await this.businessContextService.resolveForCustomer(user);
     await this.cartService.removeItem(itemId, context.businessId);
     return { success: true };
   }
 
   @Delete()
   async clearCart(@CurrentUser() user: AuthenticatedUser) {
-    if (user.type !== 'cliente') {
-      throw new Error('Solo clientes pueden vaciar su carrito');
-    }
-
-    const context = await this.businessContextService.resolveForAuthenticatedUser(user);
-    const cart = await this.cartService.getOrCreateCart(user.id, context.businessId);
+    const context = await this.businessContextService.resolveForCustomer(user);
+    const cart = await this.cartService.getOrCreateCart(context.customerId!, context.businessId);
     await this.cartService.clearCart(cart.id, context.businessId);
     return { success: true };
   }
