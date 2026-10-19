@@ -1,11 +1,4 @@
-﻿import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Patch, Logger} from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Param, Post, Patch, Logger } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -15,7 +8,10 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
-import { CreateConversationAssociationDto, DeactivateConversationAssociationDto } from './dto/conversation-association.dto';
+import {
+  CreateConversationAssociationDto,
+  DeactivateConversationAssociationDto,
+} from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
 import { toMessageWire } from './message-serializer';
 
@@ -59,34 +55,22 @@ export class MessagingController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateConversationDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
   }
 
   @Get(':id')
-  get(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.getConversation(user, id);
   }
 
   @Get(':id/associations')
-  listAssociations(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  listAssociations(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociations(user, id);
   }
 
   @Get(':id/associations/history')
-  listAssociationHistory(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  listAssociationHistory(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociationHistory(user, id);
   }
 
@@ -136,37 +120,29 @@ export class MessagingController {
     @Body() dto: CreateMessageDto,
   ) {
     return this.messagingService
-      .createTextMessage(
-        user,
-        id,
-        dto.clientMessageId,
-        dto.content,
-        dto.replyToMessageId,
-      )
+      .createTextMessage(user, id, dto.clientMessageId, dto.content, dto.replyToMessageId)
       .then((message) => {
-        this.logger.log(JSON.stringify({ event: 'messaging.message.persisted', conversationId: message.conversationId, messageId: message.id, clientMessageId: message.clientMessageId }));
+        this.logger.log(
+          JSON.stringify({
+            event: 'messaging.message.persisted',
+            conversationId: message.conversationId,
+            messageId: message.id,
+            clientMessageId: message.clientMessageId,
+          }),
+        );
         // The service transaction has committed before this event is emitted.
         this.publishSafely('conversation.message.created', message.conversationId, () =>
-          this.messagingGateway.publishMessageCreated({
-            id: message.id,
-            conversationId: message.conversationId,
-            clientMessageId: message.clientMessageId,
-            content: message.content,
-            sequence: message.sequence,
-            createdAt: message.createdAt,
-            authorUserId: message.authorUserId,
-            authorCustomerId: message.authorCustomerId,
-          }),
+          // P3/D-01: hand the persisted entity to the gateway, which runs it
+          // through the same `toMessageWire` used for the HTTP body. Picking
+          // fields here is what let the socket payload drift from HTTP.
+          this.messagingGateway.publishMessageCreated(message),
         );
         return serializeMessageSequence(message);
       });
   }
 
   @Get(':id/messages')
-  getMessages(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService
       .getMessages(user, id)
       .then((messages) => messages.map(serializeMessageSequence));
@@ -202,9 +178,7 @@ export class MessagingController {
   }
 
   @Get('read-receipts/preferences')
-  getReadReceiptPreference(
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  getReadReceiptPreference(@CurrentUser() user: AuthenticatedUser) {
     return this.messagingService.getReadReceiptPreference(user);
   }
 
@@ -253,10 +227,7 @@ export class MessagingController {
   }
 
   @Delete(':id')
-  remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.deleteConversation(user, id);
   }
 
@@ -266,12 +237,7 @@ export class MessagingController {
     @Param('id') id: string,
     @Body() dto: AddParticipantDto,
   ) {
-    return this.messagingService.addParticipant(
-      user,
-      id,
-      dto.userId,
-      dto.customerId,
-    );
+    return this.messagingService.addParticipant(user, id, dto.userId, dto.customerId);
   }
 
   @Delete(':id/participants/:participantId')
@@ -280,7 +246,19 @@ export class MessagingController {
     @Param('id') id: string,
     @Param('participantId') participantId: string,
   ) {
-    return this.messagingService.removeParticipant(user, id, participantId);
+    return this.messagingService.removeParticipant(user, id, participantId).then((participant) => {
+      this.publishSafely('conversation.participant.removed', id, () =>
+        this.messagingGateway.publishParticipantRemoved({
+          conversationId: id,
+          participantId: participant.id,
+          userId: participant.userId,
+          customerId: participant.customerId,
+          removedAt: participant.removedAt,
+          leftAt: participant.leftAt,
+        }),
+      );
+      return participant;
+    });
   }
 
   @Post(':id/admin/:participantId')

@@ -3,11 +3,17 @@ import type { FormEvent } from 'react';
 import { io } from 'socket.io-client';
 import { MessageCircle, Plus, Send, RefreshCw, Search, X } from 'lucide-react';
 import { API_BASE_URL, api, ApiError } from '../../lib/api';
+import { useAuth } from '../auth/AuthContext';
 import type { Cliente } from '@otrarondamas/shared-types';
 
 type Participant = {
   userId?: string | null;
   customerId?: string | null;
+  // Sent by the API with every participant row. Admin operations
+  // (associations, association history, order creation) require this flag
+  // server-side via assertConversationAdmin, so the UI reads it to avoid
+  // offering actions the backend will reject with 403.
+  isAdmin?: boolean;
 };
 type ViewerAccess = { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' };
 type Conversation = {
@@ -59,6 +65,9 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export function MessagingPage() {
+  // Identity of the authenticated actor, used only to locate this actor's own
+  // participant row and decide which admin affordances to show.
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Cliente[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -92,7 +101,16 @@ export function MessagingPage() {
   const [associationHistory, setAssociationHistory] = useState<Association[]>([]);
 
   const activeConversation = conversations.find((row) => row.id === activeId);
-  const canSend = activeConversation?.viewerAccess?.canSend !== false;
+  const canSend = activeConversation?.viewerAccess?.canSend === true;
+  // Admin capability for the active conversation, derived from this actor's own
+  // participant row. The backend gate is assertConversationAdmin (OWNER role
+  // AND isAdmin on an active participant); the role half is not exposed to the
+  // client, so this is the closest signal the API already sends. It is only a
+  // UI affordance: the server remains the authority and still answers 403.
+  const canManageConversation =
+    activeConversation?.participants?.some(
+      (participant) => participant.userId === user?.id && participant.isAdmin === true,
+    ) === true;
 
   const customerNames = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer.nombre])),
@@ -398,6 +416,15 @@ export function MessagingPage() {
         item.id === receipt.messageId ? { ...item, readAt: receipt.readAt ?? new Date().toISOString() } : item,
       ));
     };
+    const onParticipantRemoved = (event: { conversationId: string; participantId?: string; userId?: string | null; customerId?: string | null }) => {
+      if (event.conversationId !== activeId) return;
+      // A participant was removed from this conversation. Invalidate viewerAccess
+      // by refreshing the conversation to get the authoritative state.
+      console.info('[messaging] participant removed event', { conversationId: event.conversationId, participantId: event.participantId });
+      void refreshConversations(activeId).catch(() => {
+        setError('No se pudo actualizar el estado de participación. Recargá la conversación.');
+      });
+    };
 
     // Install handlers before joining so no event can race the acknowledgement.
     const onMessageCreatedWithLog = (message: Message & { conversationId: string }) => {
@@ -408,15 +435,22 @@ export function MessagingPage() {
     socket.on('conversation.message.updated', onMessageUpdated);
     socket.on('conversation.message.deleted', onMessageDeleted);
     socket.on('conversation.message.read', onMessageRead);
+    socket.on('conversation.participant.removed', onParticipantRemoved);
 
     socket.on('connect', () => {
       socket.emit(
         'conversation.join',
         { conversationId: activeId },
-        (result: { ok?: boolean; message?: string }) => {
-          console.info('[messaging] room join acknowledgement', { conversationId: activeId, ok: result?.ok === true, message: result?.ok ? undefined : result?.message });
+        (result: { ok?: boolean; message?: string; viewerAccess?: ViewerAccess }) => {
+          console.info('[messaging] room join acknowledgement', { conversationId: activeId, ok: result?.ok === true, canSend: result?.viewerAccess?.canSend, message: result?.ok ? undefined : result?.message });
           if (result?.ok) {
             setNotice('');
+            // Apply the viewerAccess from the ACK to ensure the UI is in sync with the server.
+            if (result.viewerAccess) {
+              setConversations((current) => current.map((conv) =>
+                conv.id === activeId ? { ...conv, viewerAccess: result.viewerAccess } : conv,
+              ));
+            }
           } else {
             setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
           }
@@ -433,6 +467,7 @@ export function MessagingPage() {
       socket.off('conversation.message.updated', onMessageUpdated);
       socket.off('conversation.message.deleted', onMessageDeleted);
       socket.off('conversation.message.read', onMessageRead);
+      socket.off('conversation.participant.removed', onParticipantRemoved);
       socket.disconnect();
     };
   }, [activeId, refreshConversations]);
@@ -531,7 +566,12 @@ export function MessagingPage() {
         }
       } else if (err instanceof ApiError && err.status === 403) {
         pendingSendRef.current = null;
+        // Invalidate viewerAccess and refresh: the actor may have been removed
+        // while typing. Reconcile with the server to get the truth.
         setError('No podés escribir en esta conversación porque no sos participante. Podés leerla como Owner del negocio.');
+        void refreshConversations(conversationId).catch(() => {
+          setError('No se pudo actualizar el estado de participación. Recargá la página.');
+        });
       } else if (err instanceof ApiError) {
         pendingSendRef.current = null;
         setError(errorMessage(err, 'No se pudo enviar el mensaje.'));
@@ -610,6 +650,11 @@ export function MessagingPage() {
               <section aria-label="Contexto comercial" className="border-b border-gray-200 bg-white px-5 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-gray-900">Contexto comercial</h2>
+                  {/* Explains why the admin affordances are disabled, instead
+                      of leaving the seller to discover it through a 403. */}
+                  {!canManageConversation && (
+                    <span className="text-xs text-gray-500">Solo lectura: administrar el contexto comercial requiere ser administrador de la conversación.</span>
+                  )}
                   <span className="text-xs text-gray-500">{associations.length} asociaciones activas</span>
                 </div>
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -627,13 +672,13 @@ export function MessagingPage() {
                           if (status.state === 'denied') return <span className="text-gray-400" title="Requiere el permiso pedidos.gestionar">sin permiso</span>;
                           return <span className="text-amber-700" title={status.detail}>estado no disponible</span>;
                         })()}
-                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
+                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy || !canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
                       </div>
                     ))
                   }
                 </div>
                 <div className="mb-2 flex justify-end">
-                  <button type="button" onClick={() => void toggleAssociationHistory()} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
+                  <button type="button" onClick={() => void toggleAssociationHistory()} disabled={!canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
                 </div>
                 {showAssociationHistory && <div className="mb-3 max-h-24 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
                   {associationHistory.length === 0 ? <p className="text-xs text-gray-500">No hay asociaciones históricas.</p> : associationHistory.map((association) => (
@@ -662,7 +707,7 @@ export function MessagingPage() {
                     ))}
                   </div>
                   {!associations.some((association) => association.entityType === 'CUSTOMER') && <p className="mt-2 text-xs text-amber-800">Asociá un Customer para habilitar la creación del pedido.</p>}
-                  <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !associations.some((association) => association.entityType === 'CUSTOMER')} className="mt-3 w-full rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
+                  <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !canManageConversation || !associations.some((association) => association.entityType === 'CUSTOMER')} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="mt-3 w-full rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
                 </div>}
                 {productResults.length > 0 && <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
                   {productResults.map((product) => (
@@ -680,7 +725,7 @@ export function MessagingPage() {
                           )}
                         </span>
                       </span>
-                      <button type="button" disabled={!!associationBusy || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
+                      <button type="button" disabled={!!associationBusy || !canManageConversation || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
                     </div>
                   ))}
                 </div>}

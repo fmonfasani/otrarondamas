@@ -12,6 +12,15 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import type { MembershipRevocationService } from '../membership/membership-revocation.service';
 import type { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
+import type { ConversationViewerAccess } from './messaging.gateway';
+
+// WS3: the two `viewerAccess` shapes the service returns. The gateway
+// relays them verbatim in the join ACK — it never derives them.
+const PARTICIPANT_ACCESS: ConversationViewerAccess = { canSend: true, mode: 'PARTICIPANT' };
+const OWNER_READ_ONLY_ACCESS: ConversationViewerAccess = {
+  canSend: false,
+  mode: 'OWNER_READ_ONLY',
+};
 
 describe('MessagingGateway — M4-02 handshake authentication', () => {
   const auth: AuthenticatedUser = {
@@ -248,7 +257,10 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
   });
 
   it('OWNER + same Business + existing conversation => join allowed, exactly once with conversation:{id}', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
     const socket = joinSocket(auth);
 
     const result = await gateway.handleJoinConversation(socket, {
@@ -258,12 +270,23 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
     expect(messagingService.getConversation).toHaveBeenCalledWith(auth, 'conversation-a');
     expect(socket.join).toHaveBeenCalledTimes(1);
     expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
-    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+    expect(result).toEqual({
+      ok: true,
+      room: 'conversation:conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
     expect(socket.disconnect).not.toHaveBeenCalled();
   });
 
-  it('OWNER + same Business + no participation => join allowed (service owns the owner bypass)', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-b' });
+  it('OWNER + same Business + no participation => join allowed read-only, and the ACK says canSend:false', async () => {
+    // INV-MSG-005: the Owner reads every conversation of its Business.
+    // INV-MSG-004: it still cannot write where it does not participate.
+    // The ACK carries that distinction so the client never offers a send
+    // that HTTP would reject with "El actor no participa".
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conversation-b',
+      viewerAccess: OWNER_READ_ONLY_ACCESS,
+    });
     const socket = joinSocket(auth);
 
     const result = await gateway.handleJoinConversation(socket, {
@@ -272,12 +295,19 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
 
     expect(socket.join).toHaveBeenCalledTimes(1);
     expect(socket.join).toHaveBeenCalledWith('conversation:conversation-b');
-    expect(result).toEqual({ ok: true, room: 'conversation:conversation-b' });
+    expect(result).toEqual({
+      ok: true,
+      room: 'conversation:conversation-b',
+      viewerAccess: OWNER_READ_ONLY_ACCESS,
+    });
   });
 
   it('non-owner + same Business + active participant => join allowed', async () => {
     const seller: AuthenticatedUser = { ...auth, id: 'user-seller', rol: 'ASISTENTE_LOCAL' };
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
     const socket = joinSocket(seller);
 
     const result = await gateway.handleJoinConversation(socket, {
@@ -286,7 +316,11 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
 
     expect(messagingService.getConversation).toHaveBeenCalledWith(seller, 'conversation-a');
     expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
-    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+    expect(result).toEqual({
+      ok: true,
+      room: 'conversation:conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
   });
 
   it('non-owner + same Business + inactive/nonparticipant => FORBIDDEN ack, no join, stays connected', async () => {
@@ -310,7 +344,10 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
   });
 
   it('CUSTOMER + same Business + authorized participation => join allowed', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conversation-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
     const socket = joinSocket(customerAuth);
 
     const result = await gateway.handleJoinConversation(socket, {
@@ -320,7 +357,11 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
     expect(messagingService.getConversation).toHaveBeenCalledWith(customerAuth, 'conversation-a');
     expect(socket.join).toHaveBeenCalledTimes(1);
     expect(socket.join).toHaveBeenCalledWith('conversation:conversation-a');
-    expect(result).toEqual({ ok: true, room: 'conversation:conversation-a' });
+    expect(result).toEqual({
+      ok: true,
+      room: 'conversation:conversation-a',
+      viewerAccess: PARTICIPANT_ACCESS,
+    });
   });
 
   it.each([
@@ -374,6 +415,22 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
     await expect(
       gateway.handleJoinConversation(socket, { conversationId: 'conversation-a' }),
     ).rejects.toBe(failure);
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(socket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('service returns conversation without viewerAccess => contract violation, error is rethrown', async () => {
+    // Contract violation: the service MUST return viewerAccess for every
+    // authorized conversation. Failing explicitly prevents permission drift.
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conversation-a',
+      // viewerAccess intentionally omitted to test contract violation
+    });
+    const socket = joinSocket(auth);
+
+    await expect(
+      gateway.handleJoinConversation(socket, { conversationId: 'conversation-a' }),
+    ).rejects.toThrow('Authorization contract incomplete: viewerAccess missing from service response');
     expect(socket.join).not.toHaveBeenCalled();
     expect(socket.disconnect).not.toHaveBeenCalled();
   });
