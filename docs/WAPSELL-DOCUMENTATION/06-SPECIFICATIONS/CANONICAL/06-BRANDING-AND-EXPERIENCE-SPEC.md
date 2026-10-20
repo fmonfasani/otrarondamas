@@ -11,7 +11,7 @@
 >
 > **Evidence labels:** **DECIDED** = documented direction; **SPECIFIED HERE** = proposed normative behavior requiring review; **AS-IS TO VERIFY** = must be checked against code/schema/tests before implementation.
 
-## 1. Purpose
+## Relationship to the cross-interface platform specification\n\nThe customer PWA/Web, Admin Web-only boundary, shared Design System Core, experience-specific navigation, PWA lifecycle/offline policy, and cross-interface contracts are governed by [07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md](07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md). This document remains authoritative for Business Brand configuration, Brand Studio, public Brand rendering, draft/publish/revert and tenant-specific visual rules. If a conflict appears, record it for reconciliation; do not silently fork tokens, components or behavior. Both documents remain drafts until reviewed, and neither alone closes CON-012 or authorizes implementation.\n\n## 1. Purpose
 
 Define a coherent, staged branding capability so each Wapsell Business can present a distinctive commercial identity—especially in the customer-facing storefront—while sharing Wapsell's secure, accessible, reliable commerce platform.
 
