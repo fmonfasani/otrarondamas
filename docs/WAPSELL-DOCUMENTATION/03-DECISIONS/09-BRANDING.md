@@ -1,7 +1,8 @@
 # Branding Decisions
 
 **Domain:** Branding, Design System, Storefront Experience  
-**Canonical specification:** [06-BRANDING-AND-EXPERIENCE-SPEC.md](../06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md)
+**Canonical specification:** [06-BRANDING-AND-EXPERIENCE-SPEC.md](../06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md)  
+**Cross-interface specification:** [07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md](../06-SPECIFICATIONS/CANONICAL/07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md)
 
 ## Reconciled direction
 
@@ -17,7 +18,7 @@ The canonical Branding & Experience Specification has been expanded to version 0
 
 **Status:** DRAFT — INTEGRATION BASELINE / OWNER REVIEW REQUIRED.
 
-The expanded specification is normative proposal for review, not evidence that the current code complies. It deliberately leaves physical persistence, exact routes/DTOs, canonical token values, asset storage, revision/cache strategy and AI-generation provider open until repository evidence and explicit decisions support them.
+The expanded Branding specification and the cross-interface Experience Platform specification are normative proposals for review, not evidence that the current code complies. The latter proposes one customer Web/PWA experience, a separate Admin Web-only experience, a shared Design System Core, and distinct navigation/patterns. Those interface-topology requirements remain DRAFT and are not covered by D-004 approval. It deliberately leaves physical persistence, exact routes/DTOs, canonical token values, asset storage, revision/cache strategy and AI-generation provider open until repository evidence and explicit decisions support them.
 
 ## Conflict status
 
@@ -40,6 +41,7 @@ The expanded specification is normative proposal for review, not evidence that t
 ## References
 
 - [Canonical Branding & Experience Specification](../06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md)
+- [Experience Platform & Interface System Specification](../06-SPECIFICATIONS/CANONICAL/07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md)
 - [Identity, Tenancy, Membership & Authorization Specification](../06-SPECIFICATIONS/CANONICAL/01-IDENTITY-AND-TENANCY-SPEC.md)
 - [Architecture baseline](../07-DESIGN/ARCHITECTURE/BASELINE/00-R3-ARCHITECTURE-BASELINE-001-490.md)
 - [Decision Register](00-DECISION-REGISTER.md)
