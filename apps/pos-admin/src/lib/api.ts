@@ -243,48 +243,89 @@ export const api = {
 
   // Messaging demo — usa el cliente autenticado existente y los contratos HTTP de la API.
   listarConversaciones: () => request<unknown[]>('/messaging/conversations'),
-  crearConversacion: (dto: { type: 'DIRECT' | 'GROUP'; participantCustomerIds?: string[]; participantUserIds?: string[] }) =>
-    request<unknown>('/messaging/conversations', { method: 'POST', body: JSON.stringify(dto) }),
+  crearConversacion: (dto: {
+    type: 'DIRECT' | 'GROUP';
+    participantCustomerIds?: string[];
+    participantUserIds?: string[];
+  }) => request<unknown>('/messaging/conversations', { method: 'POST', body: JSON.stringify(dto) }),
   listarMensajes: (conversationId: string) =>
     request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/messages`),
   enviarMensaje: (conversationId: string, dto: { clientMessageId: string; content: string }) =>
     request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/messages`, {
-      method: 'POST', body: JSON.stringify(dto),
+      method: 'POST',
+      body: JSON.stringify(dto),
     }),
   listarAsociacionesConversacion: (conversationId: string) =>
-    request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`),
+    request<unknown[]>(
+      `/messaging/conversations/${encodeURIComponent(conversationId)}/associations`,
+    ),
   listarHistorialAsociacionesConversacion: (conversationId: string) =>
-    request<unknown[]>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations/history`),
-  asociarEntidadConversacion: (conversationId: string, dto: { entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; reason?: string }) =>
-    request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations`, {
-      method: 'POST', body: JSON.stringify(dto),
-    }),
-  desactivarAsociacionConversacion: (conversationId: string, associationId: string, reason?: string) =>
-    request<unknown>(`/messaging/conversations/${encodeURIComponent(conversationId)}/associations/${encodeURIComponent(associationId)}`, {
-      method: 'DELETE', body: JSON.stringify({ reason }),
-    }),
-  crearPedidoDesdeConversacion: (conversationId: string, dto: { items: Array<{ productoId: string; cantidad: number }> }) =>
-    request<{ id: string; estado: string; total: string }>(`/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
-      method: 'POST', body: JSON.stringify(dto),
-    }),
-  obtenerPedido: (orderId: string) =>
-    request<{ id: string; estado: string; total: string }>(`/pedidos/${encodeURIComponent(orderId)}`),
+    request<unknown[]>(
+      `/messaging/conversations/${encodeURIComponent(conversationId)}/associations/history`,
+    ),
+  asociarEntidadConversacion: (
+    conversationId: string,
+    dto: {
+      entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE';
+      entityId: string;
+      reason?: string;
+    },
+  ) =>
+    request<unknown>(
+      `/messaging/conversations/${encodeURIComponent(conversationId)}/associations`,
+      {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      },
+    ),
+  desactivarAsociacionConversacion: (
+    conversationId: string,
+    associationId: string,
+    reason?: string,
+  ) =>
+    request<unknown>(
+      `/messaging/conversations/${encodeURIComponent(conversationId)}/associations/${encodeURIComponent(associationId)}`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ reason }),
+      },
+    ),
+  crearPedidoDesdeConversacion: (
+    conversationId: string,
+    dto: { items: Array<{ productoId: string; cantidad: number }> },
+  ) =>
+    request<{ id: string; estado: string; total: string }>(
+      `/messaging/conversations/${encodeURIComponent(conversationId)}/orders`,
+      {
+        method: 'POST',
+        body: JSON.stringify(dto),
+      },
+    ),
 
   // Carrito persistente — Flujo P6
   getCart: () =>
-    request<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> }>('/cart'),
-  addToCart: (cartId: string, productoId: string, cantidad: number) =>
+    request<{
+      id: string;
+      items: Array<{
+        id: string;
+        productoId: string;
+        cantidad: number;
+        producto: { nombre: string; precioMinorista: number };
+      }>;
+    }>('/cart'),
+  addToCart: (productoId: string, cantidad: number) =>
     request<{ id: string; cantidad: number }>('/cart/items', {
-      method: 'POST', body: JSON.stringify({ productoId, cantidad }),
+      method: 'POST',
+      body: JSON.stringify({ productoId, cantidad }),
     }),
   updateCartItemQuantity: (itemId: string, cantidad: number) =>
     request<{ id: string; cantidad: number }>(`/cart/items/${encodeURIComponent(itemId)}`, {
-      method: 'PATCH', body: JSON.stringify({ cantidad }),
+      method: 'PATCH',
+      body: JSON.stringify({ cantidad }),
     }),
   removeFromCart: (itemId: string) =>
     request<{ success: boolean }>(`/cart/items/${encodeURIComponent(itemId)}`, {
       method: 'DELETE',
     }),
-  clearCart: () =>
-    request<{ success: boolean }>('/cart', { method: 'DELETE' }),
+  clearCart: () => request<{ success: boolean }>('/cart', { method: 'DELETE' }),
 };

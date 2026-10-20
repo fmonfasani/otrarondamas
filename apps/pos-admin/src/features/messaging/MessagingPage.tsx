@@ -34,7 +34,14 @@ type OrderStatus =
   | { state: 'ready'; estado: string; total: string }
   | { state: 'denied' }
   | { state: 'error'; detail: string };
-type Association = { id: string; entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE'; entityId: string; label?: string; reason?: string | null; active?: boolean };
+type Association = {
+  id: string;
+  entityType: 'CUSTOMER' | 'ORDER' | 'SALE' | 'PRODUCT' | 'PURCHASE';
+  entityId: string;
+  label?: string;
+  reason?: string | null;
+  active?: boolean;
+};
 // Shape of GET /ventas/productos (ProductoBusqueda). Messaging does not own
 // the catalog: it reads the Sales domain's search, which already applies the
 // commercial rules this panel must respect (activo only, Business scope via
@@ -90,8 +97,15 @@ export function MessagingPage() {
   const [productResults, setProductResults] = useState<ProductOption[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [associationBusy, setAssociationBusy] = useState('');
-  const [cart, setCart] = useState<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> } | null>(null);
-  const [cartLoading, setCartLoading] = useState(false);
+  const [cart, setCart] = useState<{
+    id: string;
+    items: Array<{
+      id: string;
+      productoId: string;
+      cantidad: number;
+      producto: { nombre: string; precioMinorista: number };
+    }>;
+  } | null>(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
   // Status of the Orders associated with this conversation, keyed by order id.
   // Messaging keeps only the reference; Orders remains the owner of the state,
@@ -118,18 +132,21 @@ export function MessagingPage() {
     [customers],
   );
 
-  const refreshConversations = useCallback(async (preferredId?: string) => {
-    const rows = (await api.listarConversaciones()) as Conversation[];
-    setConversations(rows);
-    const nextId =
-      (preferredId && rows.some((row) => row.id === preferredId) ? preferredId : '') ||
-      (activeId && rows.some((row) => row.id === activeId) ? activeId : '') ||
-      rows[0]?.id ||
-      '';
-    activeIdRef.current = nextId;
-    setActiveId(nextId);
-    return nextId;
-  }, [activeId]);
+  const refreshConversations = useCallback(
+    async (preferredId?: string) => {
+      const rows = (await api.listarConversaciones()) as Conversation[];
+      setConversations(rows);
+      const nextId =
+        (preferredId && rows.some((row) => row.id === preferredId) ? preferredId : '') ||
+        (activeId && rows.some((row) => row.id === activeId) ? activeId : '') ||
+        rows[0]?.id ||
+        '';
+      activeIdRef.current = nextId;
+      setActiveId(nextId);
+      return nextId;
+    },
+    [activeId],
+  );
 
   const loadBase = useCallback(async () => {
     setLoading(true);
@@ -145,9 +162,10 @@ export function MessagingPage() {
       const conversationRows = conversationResult.value;
       setConversations(conversationRows);
       setActiveId((current) => {
-        const nextId = current && conversationRows.some((row) => row.id === current)
-          ? current
-          : conversationRows[0]?.id ?? '';
+        const nextId =
+          current && conversationRows.some((row) => row.id === current)
+            ? current
+            : (conversationRows[0]?.id ?? '');
         activeIdRef.current = nextId;
         return nextId;
       });
@@ -159,10 +177,14 @@ export function MessagingPage() {
       } else {
         // A customer-list failure should not hide conversations that already exist.
         setCustomers([]);
-        setNotice('Las conversaciones se cargaron, pero no se pudieron cargar clientes para iniciar una nueva.');
+        setNotice(
+          'Las conversaciones se cargaron, pero no se pudieron cargar clientes para iniciar una nueva.',
+        );
       }
     } catch (err) {
-      setError(errorMessage(err, 'No se pudieron cargar las conversaciones. Verificá la API y tu sesión.'));
+      setError(
+        errorMessage(err, 'No se pudieron cargar las conversaciones. Verificá la API y tu sesión.'),
+      );
     } finally {
       setLoading(false);
     }
@@ -184,7 +206,8 @@ export function MessagingPage() {
       return;
     }
     let cancelled = false;
-    api.listarAsociacionesConversacion(activeId)
+    api
+      .listarAsociacionesConversacion(activeId)
       .then((rows) => {
         if (!cancelled) setAssociations(rows as Association[]);
       })
@@ -193,7 +216,9 @@ export function MessagingPage() {
       });
     // Load persistent cart from P6 CartService
     loadCart();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activeId]);
 
   async function toggleAssociationHistory() {
@@ -204,7 +229,9 @@ export function MessagingPage() {
     if (!activeId) return;
     setError('');
     try {
-      setAssociationHistory((await api.listarHistorialAsociacionesConversacion(activeId)) as Association[]);
+      setAssociationHistory(
+        (await api.listarHistorialAsociacionesConversacion(activeId)) as Association[],
+      );
       setShowAssociationHistory(true);
     } catch (err) {
       setError(errorMessage(err, 'El historial de asociaciones requiere permisos de Owner.'));
@@ -352,23 +379,20 @@ export function MessagingPage() {
   }
 
   async function loadCart() {
-    setCartLoading(true);
     try {
       const persistedCart = await api.getCart();
       setCart(persistedCart as any);
     } catch (err) {
       console.error('Failed to load cart:', err);
       setCart(null);
-    } finally {
-      setCartLoading(false);
     }
   }
 
   async function addToCart(productoId: string, cantidad: number) {
     try {
-      await api.addToCart(cart?.id || '', productoId, cantidad);
+      await api.addToCart(productoId, cantidad);
       await loadCart();
-      setNotice(`Producto agregado al carrito.`);
+      setNotice('Producto agregado al carrito.');
     } catch (err) {
       setError(errorMessage(err, 'No se pudo agregar el producto al carrito.'));
     }
@@ -411,7 +435,11 @@ export function MessagingPage() {
     setAssociationBusy(association.id);
     setError('');
     try {
-      await api.desactivarAsociacionConversacion(activeId, association.id, 'Asociación retirada desde Messaging');
+      await api.desactivarAsociacionConversacion(
+        activeId,
+        association.id,
+        'Asociación retirada desde Messaging',
+      );
       setAssociations((current) => current.filter((item) => item.id !== association.id));
       setNotice('Asociación retirada del contexto activo. El historial se conserva.');
     } catch (err) {
@@ -430,7 +458,8 @@ export function MessagingPage() {
     setLoadingMessages(true);
     setMessages([]);
     setError('');
-    api.listarMensajes(activeId)
+    api
+      .listarMensajes(activeId)
       .then((rows) => {
         if (!cancelled) setMessages(rows as Message[]);
       })
@@ -440,7 +469,9 @@ export function MessagingPage() {
       .finally(() => {
         if (!cancelled) setLoadingMessages(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activeId]);
 
   useEffect(() => {
@@ -465,27 +496,55 @@ export function MessagingPage() {
     };
     const onMessageUpdated = (message: Message & { conversationId: string }) => {
       if (message.conversationId !== activeId) return;
-      setMessages((current) => current.map((item) =>
-        item.id === message.id ? { ...item, content: message.content, editedAt: message.editedAt } : item,
-      ));
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === message.id
+            ? { ...item, content: message.content, editedAt: message.editedAt }
+            : item,
+        ),
+      );
     };
-    const onMessageDeleted = (message: { id: string; conversationId: string; deletedAt?: string | null }) => {
+    const onMessageDeleted = (message: {
+      id: string;
+      conversationId: string;
+      deletedAt?: string | null;
+    }) => {
       if (message.conversationId !== activeId) return;
-      setMessages((current) => current.map((item) =>
-        item.id === message.id ? { ...item, content: null, deletedAt: message.deletedAt ?? null } : item,
-      ));
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === message.id
+            ? { ...item, content: null, deletedAt: message.deletedAt ?? null }
+            : item,
+        ),
+      );
     };
-    const onMessageRead = (receipt: { messageId: string; conversationId: string; readAt?: string }) => {
+    const onMessageRead = (receipt: {
+      messageId: string;
+      conversationId: string;
+      readAt?: string;
+    }) => {
       if (receipt.conversationId !== activeId) return;
-      setMessages((current) => current.map((item) =>
-        item.id === receipt.messageId ? { ...item, readAt: receipt.readAt ?? new Date().toISOString() } : item,
-      ));
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === receipt.messageId
+            ? { ...item, readAt: receipt.readAt ?? new Date().toISOString() }
+            : item,
+        ),
+      );
     };
-    const onParticipantRemoved = (event: { conversationId: string; participantId?: string; userId?: string | null; customerId?: string | null }) => {
+    const onParticipantRemoved = (event: {
+      conversationId: string;
+      participantId?: string;
+      userId?: string | null;
+      customerId?: string | null;
+    }) => {
       if (event.conversationId !== activeId) return;
       // A participant was removed from this conversation. Invalidate viewerAccess
       // by refreshing the conversation to get the authoritative state.
-      console.info('[messaging] participant removed event', { conversationId: event.conversationId, participantId: event.participantId });
+      console.info('[messaging] participant removed event', {
+        conversationId: event.conversationId,
+        participantId: event.participantId,
+      });
       void refreshConversations(activeId).catch(() => {
         setError('No se pudo actualizar el estado de participación. Recargá la conversación.');
       });
@@ -493,7 +552,12 @@ export function MessagingPage() {
 
     // Install handlers before joining so no event can race the acknowledgement.
     const onMessageCreatedWithLog = (message: Message & { conversationId: string }) => {
-      console.info('[messaging] event received', { event: 'conversation.message.created', conversationId: message.conversationId, messageId: message.id, sequence: message.sequence });
+      console.info('[messaging] event received', {
+        event: 'conversation.message.created',
+        conversationId: message.conversationId,
+        messageId: message.id,
+        sequence: message.sequence,
+      });
       onMessageCreated(message);
     };
     socket.on('conversation.message.created', onMessageCreatedWithLog);
@@ -507,14 +571,21 @@ export function MessagingPage() {
         'conversation.join',
         { conversationId: activeId },
         (result: { ok?: boolean; message?: string; viewerAccess?: ViewerAccess }) => {
-          console.info('[messaging] room join acknowledgement', { conversationId: activeId, ok: result?.ok === true, canSend: result?.viewerAccess?.canSend, message: result?.ok ? undefined : result?.message });
+          console.info('[messaging] room join acknowledgement', {
+            conversationId: activeId,
+            ok: result?.ok === true,
+            canSend: result?.viewerAccess?.canSend,
+            message: result?.ok ? undefined : result?.message,
+          });
           if (result?.ok) {
             setNotice('');
             // Apply the viewerAccess from the ACK to ensure the UI is in sync with the server.
             if (result.viewerAccess) {
-              setConversations((current) => current.map((conv) =>
-                conv.id === activeId ? { ...conv, viewerAccess: result.viewerAccess } : conv,
-              ));
+              setConversations((current) =>
+                current.map((conv) =>
+                  conv.id === activeId ? { ...conv, viewerAccess: result.viewerAccess } : conv,
+                ),
+              );
             }
           } else {
             setError(result?.message ?? 'No se pudo acceder a la conversación en tiempo real.');
@@ -550,17 +621,15 @@ export function MessagingPage() {
         type: 'DIRECT',
         participantCustomerIds: [customerId],
       })) as Conversation;
-      if (!created?.id) throw new Error('La API no devolvió el identificador de la conversación creada.');
+      if (!created?.id)
+        throw new Error('La API no devolvió el identificador de la conversación creada.');
 
       // The POST response is the source of truth for the newly created row;
       // do not turn a successful create into a reported failure because a
       // subsequent list refresh is temporarily unavailable.
       activeIdRef.current = created.id;
       setActiveId(created.id);
-      setConversations((current) => [
-        created,
-        ...current.filter((row) => row.id !== created.id),
-      ]);
+      setConversations((current) => [created, ...current.filter((row) => row.id !== created.id)]);
       setNotice('Conversación creada y guardada.');
     } catch (err) {
       setError(errorMessage(err, 'No se pudo crear la conversación.'));
@@ -605,7 +674,9 @@ export function MessagingPage() {
         if (activeIdRef.current === conversationId) setMessages(rows);
       } catch {
         if (activeIdRef.current === conversationId) {
-          setError('El mensaje se envió, pero no se pudo actualizar el historial. Actualizá la conversación para verificarlo.');
+          setError(
+            'El mensaje se envió, pero no se pudo actualizar el historial. Actualizá la conversación para verificarlo.',
+          );
         }
       }
 
@@ -627,13 +698,17 @@ export function MessagingPage() {
           const rows = (await api.listarMensajes(conversationId)) as Message[];
           if (activeIdRef.current === conversationId) setMessages(rows);
         } catch {
-          setError('El mensaje ya estaba enviado, pero no se pudo actualizar el historial. Actualizá la conversación.');
+          setError(
+            'El mensaje ya estaba enviado, pero no se pudo actualizar el historial. Actualizá la conversación.',
+          );
         }
       } else if (err instanceof ApiError && err.status === 403) {
         pendingSendRef.current = null;
         // Invalidate viewerAccess and refresh: the actor may have been removed
         // while typing. Reconcile with the server to get the truth.
-        setError('No podés escribir en esta conversación porque no sos participante. Podés leerla como Owner del negocio.');
+        setError(
+          'No podés escribir en esta conversación porque no sos participante. Podés leerla como Owner del negocio.',
+        );
         void refreshConversations(conversationId).catch(() => {
           setError('No se pudo actualizar el estado de participación. Recargá la página.');
         });
@@ -643,7 +718,9 @@ export function MessagingPage() {
       } else {
         // No HTTP answer (network): the outcome is unknown. Keep the key so a
         // retry cannot create a duplicate.
-        setError('No se pudo confirmar el envío. Reintentá: si el mensaje ya había llegado, no se duplicará.');
+        setError(
+          'No se pudo confirmar el envío. Reintentá: si el mensaje ya había llegado, no se duplicará.',
+        );
       }
     } finally {
       setSending(false);
@@ -652,50 +729,114 @@ export function MessagingPage() {
 
   function conversationLabel(conversation: Conversation) {
     const customer = conversation.participants?.find((participant) => participant.customerId);
-    return (customer?.customerId && customerNames.get(customer.customerId)) ||
-      (conversation.type === 'GROUP' ? 'Conversación grupal' : 'Conversación directa');
+    return (
+      (customer?.customerId && customerNames.get(customer.customerId)) ||
+      (conversation.type === 'GROUP' ? 'Conversación grupal' : 'Conversación directa')
+    );
   }
 
   return (
     <section className="flex h-[calc(100vh-7rem)] min-h-[560px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <header className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-amber-100 p-2 text-amber-800"><MessageCircle className="h-5 w-5" /></div>
+          <div className="rounded-lg bg-amber-100 p-2 text-amber-800">
+            <MessageCircle className="h-5 w-5" />
+          </div>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Mensajería</h1>
             <p className="text-sm text-gray-500">Conversaciones y mensajes persistidos en la API</p>
           </div>
         </div>
-        <button type="button" onClick={() => void loadBase()} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">
+        <button
+          type="button"
+          onClick={() => void loadBase()}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+        >
           <RefreshCw className="h-4 w-4" /> Actualizar
         </button>
       </header>
 
-      {error && <div role="alert" className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800">{error}</div>}
-      {notice && <div role="status" className="border-b border-green-200 bg-green-50 px-5 py-3 text-sm text-green-800">{notice}</div>}
+      {error && (
+        <div
+          role="alert"
+          className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800"
+        >
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div
+          role="status"
+          className="border-b border-green-200 bg-green-50 px-5 py-3 text-sm text-green-800"
+        >
+          {notice}
+        </div>
+      )}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col border-b border-gray-200 md:border-b-0 md:border-r">
-          <form className="space-y-2 border-b border-gray-200 p-4" onSubmit={(event) => { event.preventDefault(); void createConversation(); }}>
-            <label htmlFor="messaging-customer" className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Nueva conversación</label>
-            <select id="messaging-customer" value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" disabled={loading || customers.length === 0}>
+          <form
+            className="space-y-2 border-b border-gray-200 p-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createConversation();
+            }}
+          >
+            <label
+              htmlFor="messaging-customer"
+              className="block text-xs font-semibold uppercase tracking-wide text-gray-500"
+            >
+              Nueva conversación
+            </label>
+            <select
+              id="messaging-customer"
+              value={customerId}
+              onChange={(event) => setCustomerId(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              disabled={loading || customers.length === 0}
+            >
               {customers.length === 0 && <option value="">No hay clientes disponibles</option>}
-              {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.nombre}</option>)}
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.nombre}
+                </option>
+              ))}
             </select>
-            <button type="submit" disabled={creating || loading || !customerId} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={creating || loading || !customerId}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Plus className="h-4 w-4" /> {creating ? 'Creando…' : 'Crear conversación'}
             </button>
           </form>
           <div className="flex-1 overflow-y-auto">
-            {loading ? <p className="p-4 text-sm text-gray-500">Cargando conversaciones…</p> :
-              conversations.length === 0 ? <p className="p-4 text-sm text-gray-500">Todavía no hay conversaciones. Elegí un cliente y creá la primera.</p> :
+            {loading ? (
+              <p className="p-4 text-sm text-gray-500">Cargando conversaciones…</p>
+            ) : conversations.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">
+                Todavía no hay conversaciones. Elegí un cliente y creá la primera.
+              </p>
+            ) : (
               conversations.map((conversation) => (
-                <button key={conversation.id} type="button" onClick={() => { activeIdRef.current = conversation.id; setActiveId(conversation.id); }} className={`block w-full border-b border-gray-100 px-4 py-4 text-left hover:bg-gray-50 ${activeId === conversation.id ? 'bg-amber-50 border-l-4 border-l-amber-500' : ''}`}>
-                  <span className="block truncate text-sm font-semibold text-gray-900">{conversationLabel(conversation)}</span>
-                  <span className="mt-1 block truncate text-xs text-gray-500">{conversation.id}</span>
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => {
+                    activeIdRef.current = conversation.id;
+                    setActiveId(conversation.id);
+                  }}
+                  className={`block w-full border-b border-gray-100 px-4 py-4 text-left hover:bg-gray-50 ${activeId === conversation.id ? 'bg-amber-50 border-l-4 border-l-amber-500' : ''}`}
+                >
+                  <span className="block truncate text-sm font-semibold text-gray-900">
+                    {conversationLabel(conversation)}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-gray-500">
+                    {conversation.id}
+                  </span>
                 </button>
               ))
-            }
+            )}
           </div>
         </aside>
 
@@ -704,128 +845,358 @@ export function MessagingPage() {
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-gray-500">
               <MessageCircle className="mb-3 h-10 w-10 text-gray-300" />
               <p className="font-medium">Elegí o creá una conversación</p>
-              <p className="mt-1 text-sm">Los mensajes aparecerán acá una vez cargados desde el servidor.</p>
+              <p className="mt-1 text-sm">
+                Los mensajes aparecerán acá una vez cargados desde el servidor.
+              </p>
             </div>
           ) : (
             <>
               <div className="border-b border-gray-100 px-5 py-3">
-                <p className="font-semibold text-gray-900">{conversations.find((row) => row.id === activeId) ? conversationLabel(conversations.find((row) => row.id === activeId)!) : 'Conversación'}</p>
+                <p className="font-semibold text-gray-900">
+                  {conversations.find((row) => row.id === activeId)
+                    ? conversationLabel(conversations.find((row) => row.id === activeId)!)
+                    : 'Conversación'}
+                </p>
                 <p className="text-xs text-gray-500">ID: {activeId}</p>
               </div>
-              <section aria-label="Contexto comercial" className="border-b border-gray-200 bg-white px-5 py-3">
+              <section
+                aria-label="Contexto comercial"
+                className="border-b border-gray-200 bg-white px-5 py-3"
+              >
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-gray-900">Contexto comercial</h2>
                   {/* Explains why the admin affordances are disabled, instead
                       of leaving the seller to discover it through a 403. */}
                   {!canManageConversation && (
-                    <span className="text-xs text-gray-500">Solo lectura: administrar el contexto comercial requiere ser administrador de la conversación.</span>
+                    <span className="text-xs text-gray-500">
+                      Solo lectura: administrar el contexto comercial requiere ser administrador de
+                      la conversación.
+                    </span>
                   )}
-                  <span className="text-xs text-gray-500">{associations.length} asociaciones activas</span>
+                  <span className="text-xs text-gray-500">
+                    {associations.length} asociaciones activas
+                  </span>
                 </div>
                 <div className="mb-3 flex flex-wrap gap-2">
-                  {associations.length === 0 ? <span className="text-xs text-gray-500">Sin entidades comerciales asociadas.</span> :
+                  {associations.length === 0 ? (
+                    <span className="text-xs text-gray-500">
+                      Sin entidades comerciales asociadas.
+                    </span>
+                  ) : (
                     associations.map((association) => (
-                      <div key={association.id} className="flex max-w-full items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs">
+                      <div
+                        key={association.id}
+                        className="flex max-w-full items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs"
+                      >
                         <span className="font-semibold">{association.entityType}</span>
-                        <span className="max-w-[220px] truncate">{association.label || association.entityId}</span>
+                        <span className="max-w-[220px] truncate">
+                          {association.label || association.entityId}
+                        </span>
                         {/* Order state comes from Orders (GET /pedidos/:id).
                             Messaging displays it without storing it. */}
-                        {association.entityType === 'ORDER' && (() => {
-                          const status = orderStatuses[association.entityId];
-                          if (!status || status.state === 'loading') return <span className="text-gray-400">…</span>;
-                          if (status.state === 'ready') return <span className="font-semibold text-gray-700">{status.estado} · ${status.total}</span>;
-                          if (status.state === 'denied') return <span className="text-gray-400" title="Requiere el permiso pedidos.gestionar">sin permiso</span>;
-                          return <span className="text-amber-700" title={status.detail}>estado no disponible</span>;
-                        })()}
-                        <button type="button" aria-label={`Retirar asociación ${association.label || association.entityId}`} disabled={!!associationBusy || !canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void detachAssociation(association)} className="text-gray-500 hover:text-red-600 disabled:opacity-50"><X className="h-3 w-3" /></button>
+                        {association.entityType === 'ORDER' &&
+                          (() => {
+                            const status = orderStatuses[association.entityId];
+                            if (!status || status.state === 'loading')
+                              return <span className="text-gray-400">…</span>;
+                            if (status.state === 'ready')
+                              return (
+                                <span className="font-semibold text-gray-700">
+                                  {status.estado} · ${status.total}
+                                </span>
+                              );
+                            if (status.state === 'denied')
+                              return (
+                                <span
+                                  className="text-gray-400"
+                                  title="Requiere el permiso pedidos.gestionar"
+                                >
+                                  sin permiso
+                                </span>
+                              );
+                            return (
+                              <span className="text-amber-700" title={status.detail}>
+                                estado no disponible
+                              </span>
+                            );
+                          })()}
+                        <button
+                          type="button"
+                          aria-label={`Retirar asociación ${association.label || association.entityId}`}
+                          disabled={!!associationBusy || !canManageConversation}
+                          title={
+                            canManageConversation
+                              ? undefined
+                              : 'Requiere ser administrador de la conversación'
+                          }
+                          onClick={() => void detachAssociation(association)}
+                          className="text-gray-500 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </div>
                     ))
-                  }
+                  )}
                 </div>
                 <div className="mb-2 flex justify-end">
-                  <button type="button" onClick={() => void toggleAssociationHistory()} disabled={!canManageConversation} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="text-xs font-semibold text-gray-600 underline hover:text-gray-900 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50">{showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}</button>
+                  <button
+                    type="button"
+                    onClick={() => void toggleAssociationHistory()}
+                    disabled={!canManageConversation}
+                    title={
+                      canManageConversation
+                        ? undefined
+                        : 'Requiere ser administrador de la conversación'
+                    }
+                    className="text-xs font-semibold text-gray-600 underline hover:text-gray-900 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+                  >
+                    {showAssociationHistory ? 'Ocultar historial' : 'Ver historial de asociaciones'}
+                  </button>
                 </div>
-                {showAssociationHistory && <div className="mb-3 max-h-24 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
-                  {associationHistory.length === 0 ? <p className="text-xs text-gray-500">No hay asociaciones históricas.</p> : associationHistory.map((association) => (
-                    <div key={association.id} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate">{association.entityType} · {association.label || association.entityId}</span>
-                      <span className={association.active ? 'text-green-700' : 'text-gray-500'}>{association.active ? 'Activa' : 'Histórica'}</span>
-                    </div>
-                  ))}
-                </div>}
-                <form onSubmit={searchProducts} className="flex gap-2">
-                  <label htmlFor="messaging-product-search" className="sr-only">Buscar productos para asociar</label>
-                  <input id="messaging-product-search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Buscar producto para asociar…" className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs" />
-                  <button type="submit" disabled={searchingProducts || !productSearch.trim()} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"><Search className="h-3 w-3" />{searchingProducts ? 'Buscando…' : 'Buscar'}</button>
-                </form>
-                {cart && cart.items && cart.items.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-gray-900">Carrito persistente (P6)</h3>
-                    <span className="text-xs text-gray-600">{cart.items.length} items</span>
-                  </div>
-                  <div className="space-y-2">
-                    {cart.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-3 text-xs">
-                        <div className="min-w-0 flex-1">
-                          <span className="block truncate font-semibold">{item.producto.nombre}</span>
-                          <span className="text-gray-600">${item.producto.precioMinorista}</span>
+                {showAssociationHistory && (
+                  <div className="mb-3 max-h-24 space-y-1 overflow-y-auto rounded border border-gray-200 p-2">
+                    {associationHistory.length === 0 ? (
+                      <p className="text-xs text-gray-500">No hay asociaciones históricas.</p>
+                    ) : (
+                      associationHistory.map((association) => (
+                        <div
+                          key={association.id}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="truncate">
+                            {association.entityType} · {association.label || association.entityId}
+                          </span>
+                          <span className={association.active ? 'text-green-700' : 'text-gray-500'}>
+                            {association.active ? 'Activa' : 'Histórica'}
+                          </span>
                         </div>
-                        <input aria-label={`Cantidad para ${item.producto.nombre}`} type="number" min={1} step={1} value={item.cantidad} onChange={(event) => void updateCartItemQuantity(item.id, Math.max(1, Number(event.target.value) || 1))} className="w-16 rounded border border-gray-300 px-2 py-1" />
-                        <button type="button" onClick={() => void removeFromCart(item.id)} aria-label={`Quitar ${item.producto.nombre}`} className="text-gray-500 hover:text-red-600"><X className="h-3 w-3" /></button>
+                      ))
+                    )}
+                  </div>
+                )}
+                <form onSubmit={searchProducts} className="flex gap-2">
+                  <label htmlFor="messaging-product-search" className="sr-only">
+                    Buscar productos para asociar
+                  </label>
+                  <input
+                    id="messaging-product-search"
+                    value={productSearch}
+                    onChange={(event) => setProductSearch(event.target.value)}
+                    placeholder="Buscar producto para asociar…"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    disabled={searchingProducts || !productSearch.trim()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Search className="h-3 w-3" />
+                    {searchingProducts ? 'Buscando…' : 'Buscar'}
+                  </button>
+                </form>
+                {cart && cart.items && cart.items.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-semibold text-gray-900">
+                        Carrito persistente (P6)
+                      </h3>
+                      <span className="text-xs text-gray-600">{cart.items.length} items</span>
+                    </div>
+                    <div className="space-y-2">
+                      {cart.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold">
+                              {item.producto.nombre}
+                            </span>
+                            <span className="text-gray-600">${item.producto.precioMinorista}</span>
+                          </div>
+                          <input
+                            aria-label={`Cantidad para ${item.producto.nombre}`}
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={item.cantidad}
+                            onChange={(event) =>
+                              void updateCartItemQuantity(
+                                item.id,
+                                Math.max(1, Number(event.target.value) || 1),
+                              )
+                            }
+                            className="w-16 rounded border border-gray-300 px-2 py-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void removeFromCart(item.id)}
+                            aria-label={`Quitar ${item.producto.nombre}`}
+                            className="text-gray-500 hover:text-red-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {!associations.some((association) => association.entityType === 'CUSTOMER') && (
+                      <p className="mt-2 text-xs text-amber-800">
+                        Asociá un Customer para habilitar la creación del pedido.
+                      </p>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void clearCart()}
+                        disabled={!canManageConversation}
+                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Vaciar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void createOrderFromConversation()}
+                        disabled={
+                          creatingOrder ||
+                          !canManageConversation ||
+                          !associations.some((association) => association.entityType === 'CUSTOMER')
+                        }
+                        title={
+                          canManageConversation
+                            ? undefined
+                            : 'Requiere ser administrador de la conversación'
+                        }
+                        className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {productResults.length > 0 && (
+                  <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
+                    {productResults.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-xs"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">
+                            {product.nombre}
+                            {product.codigoInterno ? ` · ${product.codigoInterno}` : ''}
+                          </span>
+                          {/* Price and availability come from the Sales domain's
+                            search; Messaging only displays them. */}
+                          <span className="mt-0.5 block text-gray-500">
+                            {product.precioMinorista != null && (
+                              <span>${product.precioMinorista}</span>
+                            )}
+                            {product.stockDisponible != null && (
+                              <span
+                                className={
+                                  product.stockDisponible > 0
+                                    ? 'ml-2'
+                                    : 'ml-2 font-semibold text-amber-700'
+                                }
+                              >
+                                {product.stockDisponible > 0
+                                  ? `stock ${product.stockDisponible}`
+                                  : 'sin stock'}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={
+                            !!associationBusy ||
+                            !canManageConversation ||
+                            associations.some(
+                              (item) =>
+                                item.entityType === 'PRODUCT' && item.entityId === product.id,
+                            )
+                          }
+                          title={
+                            canManageConversation
+                              ? undefined
+                              : 'Requiere ser administrador de la conversación'
+                          }
+                          onClick={() => void attachProduct(product)}
+                          className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50"
+                        >
+                          {associationBusy === product.id
+                            ? 'Asociando…'
+                            : associations.some(
+                                  (item) =>
+                                    item.entityType === 'PRODUCT' && item.entityId === product.id,
+                                )
+                              ? 'Asociado'
+                              : 'Asociar'}
+                        </button>
                       </div>
                     ))}
                   </div>
-                  {!associations.some((association) => association.entityType === 'CUSTOMER') && <p className="mt-2 text-xs text-amber-800">Asociá un Customer para habilitar la creación del pedido.</p>}
-                  <div className="mt-3 flex gap-2">
-                    <button type="button" onClick={() => void clearCart()} disabled={!canManageConversation} className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-red-50 disabled:opacity-50">Vaciar</button>
-                    <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !canManageConversation || !associations.some((association) => association.entityType === 'CUSTOMER')} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
-                  </div>
-                </div>}
-                {productResults.length > 0 && <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
-                  {productResults.map((product) => (
-                    <div key={product.id} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-xs">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate">{product.nombre}{product.codigoInterno ? ` · ${product.codigoInterno}` : ''}</span>
-                        {/* Price and availability come from the Sales domain's
-                            search; Messaging only displays them. */}
-                        <span className="mt-0.5 block text-gray-500">
-                          {product.precioMinorista != null && <span>${product.precioMinorista}</span>}
-                          {product.stockDisponible != null && (
-                            <span className={product.stockDisponible > 0 ? 'ml-2' : 'ml-2 font-semibold text-amber-700'}>
-                              {product.stockDisponible > 0 ? `stock ${product.stockDisponible}` : 'sin stock'}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                      <button type="button" disabled={!!associationBusy || !canManageConversation || associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id)} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} onClick={() => void attachProduct(product)} className="shrink-0 rounded border border-gray-300 px-2 py-1 font-semibold hover:bg-white disabled:opacity-50">{associationBusy === product.id ? 'Asociando…' : associations.some((item) => item.entityType === 'PRODUCT' && item.entityId === product.id) ? 'Asociado' : 'Asociar'}</button>
-                    </div>
-                  ))}
-                </div>}
+                )}
               </section>
               <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50 p-5">
-                {loadingMessages ? <p className="text-sm text-gray-500">Cargando historial…</p> :
-                  messages.length === 0 ? <p className="py-10 text-center text-sm text-gray-500">No hay mensajes todavía. Enviá el primero.</p> :
+                {loadingMessages ? (
+                  <p className="text-sm text-gray-500">Cargando historial…</p>
+                ) : messages.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-gray-500">
+                    No hay mensajes todavía. Enviá el primero.
+                  </p>
+                ) : (
                   messages.map((message) => (
-                    <div key={message.id} className="max-w-[85%] rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                      <p className="whitespace-pre-wrap break-words text-sm text-gray-800">{message.content ?? 'Mensaje eliminado'}</p>
+                    <div
+                      key={message.id}
+                      className="max-w-[85%] rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                    >
+                      <p className="whitespace-pre-wrap break-words text-sm text-gray-800">
+                        {message.content ?? 'Mensaje eliminado'}
+                      </p>
                       <p className="mt-2 flex items-center justify-end gap-2 text-xs text-gray-400">
                         <span>{new Date(message.createdAt).toLocaleString()}</span>
                         {message.editedAt && <span>Editado</span>}
-                        {message.readAt && <span className="font-semibold text-blue-600">Leído</span>}
+                        {message.readAt && (
+                          <span className="font-semibold text-blue-600">Leído</span>
+                        )}
                       </p>
                     </div>
                   ))
-                }
+                )}
               </div>
               {!canSend && (
-                <div role="status" className="border-t border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                  Estás viendo esta conversación como Owner del negocio, sin ser participante. Podés leer el historial, pero solo los participantes pueden escribir.
+                <div
+                  role="status"
+                  className="border-t border-gray-200 bg-gray-50 p-4 text-sm text-gray-700"
+                >
+                  Estás viendo esta conversación como Owner del negocio, sin ser participante. Podés
+                  leer el historial, pero solo los participantes pueden escribir.
                 </div>
               )}
-              <form hidden={!canSend} onSubmit={sendMessage} className="flex items-end gap-3 border-t border-gray-200 p-4">
-                <label htmlFor="messaging-draft" className="sr-only">Escribir mensaje</label>
-                <textarea id="messaging-draft" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={sending} maxLength={10000} rows={2} placeholder="Escribí un mensaje…" className="min-h-[44px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100" />
-                <button type="submit" disabled={sending || !draft.trim()} className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">
+              <form
+                hidden={!canSend}
+                onSubmit={sendMessage}
+                className="flex items-end gap-3 border-t border-gray-200 p-4"
+              >
+                <label htmlFor="messaging-draft" className="sr-only">
+                  Escribir mensaje
+                </label>
+                <textarea
+                  id="messaging-draft"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  disabled={sending}
+                  maxLength={10000}
+                  rows={2}
+                  placeholder="Escribí un mensaje…"
+                  className="min-h-[44px] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !draft.trim()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold text-gray-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   <Send className="h-4 w-4" /> {sending ? 'Enviando…' : 'Enviar'}
                 </button>
               </form>
