@@ -1179,6 +1179,16 @@ export class MessagingService {
       await this.assertActiveParticipant(tx, conversationId, context);
     }
 
-    return conversation;
+    const isActiveParticipant = conversation.participants.some((p) =>
+      (context.userId && p.userId === context.userId) ||
+      (context.customerId && p.customerId === context.customerId)
+    );
+
+    const viewerAccess = {
+      canSend: isActiveParticipant,
+      mode: isActiveParticipant ? 'PARTICIPANT' : 'OWNER_READ_ONLY',
+    };
+
+    return Object.assign(conversation, { viewerAccess });
   }
 }

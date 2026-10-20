@@ -244,12 +244,15 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
   });
 
   it('authorized join: ACK { ok:true, room } and the server socket joins that room', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     const client = await connectClient('user-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
 
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
     expect(messagingService.getConversation).toHaveBeenCalledWith(userAuth, 'conv-a');
     // Server-side truth: the connected server socket is inside the room.
     expect(serverSocketIds()).toHaveLength(1);
@@ -318,7 +321,10 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
   });
 
   it('customer handshake: resolveForCustomer is used and authorized join succeeds', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     const client = await connectClient('customer-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
@@ -326,7 +332,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     expect(businessContextService.resolveForCustomer).toHaveBeenCalledWith(customerAuth);
     expect(businessContextService.resolveForAuthenticatedUser).not.toHaveBeenCalled();
     expect(messagingService.getConversation).toHaveBeenCalledWith(customerAuth, 'conv-a');
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
     expect(roomsOf().get('conversation:conv-a')).toEqual(new Set(serverSocketIds()));
     expect(client.connected).toBe(true);
   });
@@ -369,14 +375,17 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
   }, 15000);
 
   it('delivers canonical persisted-message events only to the authorized conversation room', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    (messagingService.getConversation as jest.Mock).mockImplementation(async (auth, convId) => ({
+      id: convId,
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    }));
     const client = await connectClient('user-jwt');
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
 
     const otherClient = await connectClient('user-jwt');
     const otherAck = await emitJoin(otherClient, { conversationId: 'conv-b' });
-    expect(otherAck).toEqual({ ok: true, room: 'conversation:conv-b' });
+    expect(otherAck).toEqual({ ok: true, room: 'conversation:conv-b', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
     const foreignRoomEvent = jest.fn();
     otherClient.on('conversation.message.created', foreignRoomEvent);
 
@@ -444,7 +453,10 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
   }, 15000);
 
   it('suspension through the existing revocation service disconnects the joined socket', async () => {
-    (messagingService.getConversation as jest.Mock).mockResolvedValue({ id: 'conv-a' });
+    (messagingService.getConversation as jest.Mock).mockResolvedValue({
+      id: 'conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     (revocationContext.resolveForAuthenticatedUser as jest.Mock).mockResolvedValue(
       revocationOwnerContext,
     );
@@ -458,7 +470,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     const client = await connectClient('user-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a' });
+    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
     expect(roomsOf().get('conversation:conv-a')).toEqual(new Set(serverSocketIds()));
 
     const disconnected = new Promise<void>((resolve, reject) => {

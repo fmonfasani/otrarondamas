@@ -262,4 +262,6 @@ export const api = {
     request<{ id: string; estado: string; total: string }>(`/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
       method: 'POST', body: JSON.stringify(dto),
     }),
+  obtenerPedido: (orderId: string) =>
+    request<{ id: string; estado: string; total: string }>(`/pedidos/${encodeURIComponent(orderId)}`),
 };
