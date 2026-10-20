@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Patch,
-} from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Param, Post, Patch, Logger } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -16,21 +8,46 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { EditMessageDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
-import { CreateConversationAssociationDto, DeactivateConversationAssociationDto } from './dto/conversation-association.dto';
+import {
+  CreateConversationAssociationDto,
+  DeactivateConversationAssociationDto,
+} from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
+import { toMessageWire } from './message-serializer';
 
-// Prisma BigInt values are not JSON-serializable by Nest's default response adapter.
-// Keep the public HTTP contract JSON-safe and aligned with the Socket.IO payload.
-function serializeMessageSequence<T extends { sequence: bigint | number | string }>(message: T) {
-  return { ...message, sequence: String(message.sequence) };
-}
+// The public message representation lives in `message-serializer.ts` so HTTP
+// and Socket.IO emit the same shape from one definition. Serializing here with
+// a local spread used to leak every Prisma column (including tenancy ids) and
+// made it possible for a path to forget the BigInt conversion, which is what
+// turned a committed message into an HTTP error.
+const serializeMessageSequence = toMessageWire;
 
 @Controller('messaging/conversations')
 export class MessagingController {
+  private readonly logger = new Logger(MessagingController.name);
+
   constructor(
     private readonly messagingService: MessagingService,
     private readonly messagingGateway: MessagingGateway,
   ) {}
+
+  // Realtime is best-effort: the mutation is already committed when an event
+  // is published, so a notification failure must never turn it into an HTTP
+  // error. HTTP stays the recovery path. Only metadata is logged, never content.
+  private publishSafely(eventName: string, conversationId: string, publish: () => void): void {
+    try {
+      publish();
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'messaging.realtime.publish_failed',
+          eventName,
+          conversationId,
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
 
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
@@ -38,34 +55,22 @@ export class MessagingController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateConversationDto,
-  ) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
   }
 
   @Get(':id')
-  get(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.getConversation(user, id);
   }
 
   @Get(':id/associations')
-  listAssociations(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  listAssociations(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociations(user, id);
   }
 
   @Get(':id/associations/history')
-  listAssociationHistory(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  listAssociationHistory(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociationHistory(user, id);
   }
 
@@ -115,34 +120,29 @@ export class MessagingController {
     @Body() dto: CreateMessageDto,
   ) {
     return this.messagingService
-      .createTextMessage(
-        user,
-        id,
-        dto.clientMessageId,
-        dto.content,
-        dto.replyToMessageId,
-      )
+      .createTextMessage(user, id, dto.clientMessageId, dto.content, dto.replyToMessageId)
       .then((message) => {
+        this.logger.log(
+          JSON.stringify({
+            event: 'messaging.message.persisted',
+            conversationId: message.conversationId,
+            messageId: message.id,
+            clientMessageId: message.clientMessageId,
+          }),
+        );
         // The service transaction has committed before this event is emitted.
-        this.messagingGateway.publishMessageCreated({
-          id: message.id,
-          conversationId: message.conversationId,
-          clientMessageId: message.clientMessageId,
-          content: message.content,
-          sequence: message.sequence,
-          createdAt: message.createdAt,
-          authorUserId: message.authorUserId,
-          authorCustomerId: message.authorCustomerId,
-        });
+        this.publishSafely('conversation.message.created', message.conversationId, () =>
+          // P3/D-01: hand the persisted entity to the gateway, which runs it
+          // through the same `toMessageWire` used for the HTTP body. Picking
+          // fields here is what let the socket payload drift from HTTP.
+          this.messagingGateway.publishMessageCreated(message),
+        );
         return serializeMessageSequence(message);
       });
   }
 
   @Get(':id/messages')
-  getMessages(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService
       .getMessages(user, id)
       .then((messages) => messages.map(serializeMessageSequence));
@@ -155,12 +155,15 @@ export class MessagingController {
     @Param('messageId') messageId: string,
   ) {
     const result = await this.messagingService.markMessageRead(user, id, messageId);
-    if (result.read && result.readAt) {
-      this.messagingGateway.publishMessageRead({
-        messageId,
-        conversationId: id,
-        readAt: result.readAt,
-      });
+    const readAt = result.read ? result.readAt : null;
+    if (readAt) {
+      this.publishSafely('conversation.message.read', id, () =>
+        this.messagingGateway.publishMessageRead({
+          messageId,
+          conversationId: id,
+          readAt,
+        }),
+      );
     }
     return result;
   }
@@ -175,9 +178,7 @@ export class MessagingController {
   }
 
   @Get('read-receipts/preferences')
-  getReadReceiptPreference(
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  getReadReceiptPreference(@CurrentUser() user: AuthenticatedUser) {
     return this.messagingService.getReadReceiptPreference(user);
   }
 
@@ -197,13 +198,15 @@ export class MessagingController {
     @Body() dto: EditMessageDto,
   ) {
     const message = await this.messagingService.editMessage(user, id, messageId, dto.content);
-    this.messagingGateway.publishMessageUpdated({
-      id: message.id,
-      conversationId: message.conversationId,
-      content: message.content,
-      editedAt: message.editedAt,
-    });
-    return message;
+    this.publishSafely('conversation.message.updated', message.conversationId, () =>
+      this.messagingGateway.publishMessageUpdated({
+        id: message.id,
+        conversationId: message.conversationId,
+        content: message.content,
+        editedAt: message.editedAt,
+      }),
+    );
+    return serializeMessageSequence(message);
   }
 
   @Delete(':id/messages/:messageId')
@@ -213,19 +216,18 @@ export class MessagingController {
     @Param('messageId') messageId: string,
   ) {
     const message = await this.messagingService.deleteMessage(user, id, messageId);
-    this.messagingGateway.publishMessageDeleted({
-      id: message.id,
-      conversationId: message.conversationId,
-      deletedAt: message.deletedAt,
-    });
-    return message;
+    this.publishSafely('conversation.message.deleted', message.conversationId, () =>
+      this.messagingGateway.publishMessageDeleted({
+        id: message.id,
+        conversationId: message.conversationId,
+        deletedAt: message.deletedAt,
+      }),
+    );
+    return serializeMessageSequence(message);
   }
 
   @Delete(':id')
-  remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.deleteConversation(user, id);
   }
 
@@ -235,12 +237,7 @@ export class MessagingController {
     @Param('id') id: string,
     @Body() dto: AddParticipantDto,
   ) {
-    return this.messagingService.addParticipant(
-      user,
-      id,
-      dto.userId,
-      dto.customerId,
-    );
+    return this.messagingService.addParticipant(user, id, dto.userId, dto.customerId);
   }
 
   @Delete(':id/participants/:participantId')
@@ -249,7 +246,19 @@ export class MessagingController {
     @Param('id') id: string,
     @Param('participantId') participantId: string,
   ) {
-    return this.messagingService.removeParticipant(user, id, participantId);
+    return this.messagingService.removeParticipant(user, id, participantId).then((participant) => {
+      this.publishSafely('conversation.participant.removed', id, () =>
+        this.messagingGateway.publishParticipantRemoved({
+          conversationId: id,
+          participantId: participant.id,
+          userId: participant.userId,
+          customerId: participant.customerId,
+          removedAt: participant.removedAt,
+          leftAt: participant.leftAt,
+        }),
+      );
+      return participant;
+    });
   }
 
   @Post(':id/admin/:participantId')

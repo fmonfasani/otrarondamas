@@ -18,6 +18,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import type { MembershipStatusChangedEvent } from '../membership/membership-revocation.service';
 import { MembershipRevocationService } from '../membership/membership-revocation.service';
 import { MessagingService } from './messaging.service';
+import { toMessageWire, type SerializableMessage } from './message-serializer';
 
 interface MessagingSocketData {
   authenticatedUser: AuthenticatedUser;
@@ -52,8 +53,22 @@ export const CONVERSATION_ROOM_PREFIX = 'conversation:';
 //   mapped. Any other error is a bug or infrastructure failure: it is
 //   rethrown (loud, logged by the transport layer) instead of being masked
 //   as an authorization outcome. No join has happened at that point either.
+// WS3: the join ACK carries the same `viewerAccess` the HTTP contract
+// already returns for a conversation. Joining a room means "you receive this
+// conversation's events", which is NOT the same as "you may write to it": an
+// Owner who is not a participant reads every conversation of its Business
+// (INV-MSG-005) but is rejected on write (INV-MSG-004). Without this field
+// the realtime client would have to infer write capability — or discover it
+// through a 403 after the user already typed a message, which is exactly the
+// reported "El actor no participa" symptom. Same shape and same values as
+// HTTP, so the frontend has one rule, not two.
+export interface ConversationViewerAccess {
+  canSend: boolean;
+  mode: 'PARTICIPANT' | 'OWNER_READ_ONLY';
+}
+
 export type JoinConversationResult =
-  | { ok: true; room: string }
+  | { ok: true; room: string; viewerAccess: ConversationViewerAccess }
   | { ok: false; error: 'BAD_REQUEST' | 'NOT_FOUND' | 'FORBIDDEN'; message: string };
 
 interface JoinConversationBody {
@@ -133,11 +148,26 @@ export class MessagingGateway
     // Room subscription is never implicit: it requires conversation.join.
     // M4-04: tracked so a later Membership revocation can invalidate it.
     this.connectedSockets.set(client.id, client);
+    this.logger.log(
+      JSON.stringify({
+        event: 'messaging.socket.connected',
+        socketId: client.id,
+        actorType: client.data.authenticatedUser.type,
+        connectedSockets: this.connectedSockets.size,
+      }),
+    );
   }
 
   handleDisconnect(@ConnectedSocket() client: MessagingSocket): void {
     // M4-02 intentionally has no disconnect side effects.
     this.connectedSockets.delete(client.id);
+    this.logger.log(
+      JSON.stringify({
+        event: 'messaging.socket.disconnected',
+        socketId: client.id,
+        connectedSockets: this.connectedSockets.size,
+      }),
+    );
   }
 
   onModuleDestroy(): void {
@@ -157,8 +187,29 @@ export class MessagingGateway
       return { ok: false, error: 'BAD_REQUEST', message: 'conversationId requerido' };
     }
 
+    let viewerAccess: ConversationViewerAccess;
     try {
-      await this.messagingService.getConversation(client.data.authenticatedUser, conversationId);
+      // The service is the single authorization authority: the gateway runs
+      // no Prisma query of its own and derives nothing. `viewerAccess` is
+      // whatever HTTP would have answered for this same actor.
+      const conversation = await this.messagingService.getConversation(
+        client.data.authenticatedUser,
+        conversationId,
+      );
+      const rawAccess = (conversation as { viewerAccess?: ConversationViewerAccess }).viewerAccess;
+      if (!rawAccess) {
+        // Contract violation: the service MUST return viewerAccess for every
+        // authorized read. Failing explicitly prevents silent permission drift.
+        this.logger.error(
+          JSON.stringify({
+            event: 'messaging.gateway.join.missing_viewerAccess',
+            conversationId,
+            actorType: client.data.authenticatedUser.type,
+          }),
+        );
+        throw new Error('Authorization contract incomplete: viewerAccess missing from service response');
+      }
+      viewerAccess = rawAccess;
     } catch (error) {
       if (error instanceof ForbiddenException) {
         return { ok: false, error: 'FORBIDDEN', message: error.message };
@@ -171,26 +222,35 @@ export class MessagingGateway
 
     const room = `${CONVERSATION_ROOM_PREFIX}${conversationId}`;
     await client.join(room);
-    return { ok: true, room };
+    this.logger.log(
+      JSON.stringify({
+        event: 'messaging.room.joined',
+        socketId: client.id,
+        conversationId,
+        room,
+        canSend: viewerAccess.canSend,
+        mode: viewerAccess.mode,
+      }),
+    );
+    return { ok: true, room, viewerAccess };
   }
 
   // Publish only after the HTTP service has committed persistence.
   // Realtime is best-effort: a transport failure must never turn a committed
   // HTTP mutation into an apparent failure. HTTP remains the recovery source.
-  publishMessageCreated(message: {
-    id: string;
-    conversationId: string;
-    clientMessageId: string;
-    content: string | null;
-    sequence: bigint | number | string;
-    createdAt: Date;
-    authorUserId: string | null;
-    authorCustomerId: string | null;
-  }): void {
-    this.publishToConversation('conversation.message.created', message.conversationId, {
-      ...message,
-      sequence: String(message.sequence),
-    });
+  // P3/D-01: the realtime payload is produced by the SAME serializer the HTTP
+  // layer uses (`toMessageWire`), not by a hand-built object. Before this the
+  // event carried 8 ad-hoc fields while `GET /messages` returned 15, so a
+  // client rendering a socket event was missing `type` and
+  // `replyToMessageId` (a reply arrived without its thread) until a later
+  // HTTP read corrected it. One serializer means HTTP and Socket.IO cannot
+  // drift, and the allowlist keeps tenancy columns off the wire.
+  publishMessageCreated(message: SerializableMessage): void {
+    this.publishToConversation(
+      'conversation.message.created',
+      message.conversationId,
+      toMessageWire(message),
+    );
   }
 
   publishMessageUpdated(message: {
@@ -228,19 +288,87 @@ export class MessagingGateway
     this.publishToConversation('conversation.message.read', receipt.conversationId, receipt);
   }
 
+  publishParticipantRemoved(event: {
+    conversationId: string;
+    participantId: string;
+    userId: string | null;
+    customerId: string | null;
+    removedAt: Date | null;
+    leftAt: Date | null;
+  }): void {
+    // Emit before eviction so the removed participant can receive the
+    // membership-change notification, then revoke only this room subscription.
+    this.publishToConversation('conversation.participant.removed', event.conversationId, {
+      conversationId: event.conversationId,
+      participantId: event.participantId,
+      userId: event.userId,
+      customerId: event.customerId,
+      removedAt: event.removedAt,
+      leftAt: event.leftAt,
+    });
+
+    this.evictParticipantFromConversation(event);
+  }
+
+  private evictParticipantFromConversation(event: {
+    conversationId: string;
+    userId: string | null;
+    customerId: string | null;
+  }): void {
+    const room = `${CONVERSATION_ROOM_PREFIX}${event.conversationId}`;
+
+    for (const socket of this.connectedSockets.values()) {
+      try {
+        const context = socket.data.businessContext;
+        const matchesUser =
+          event.userId !== null && context.userId === event.userId;
+        const matchesCustomer =
+          event.customerId !== null && context.customerId === event.customerId;
+
+        // The authorized conversation room scopes eviction; other rooms remain joined.
+        if ((!matchesUser && !matchesCustomer) || !socket.rooms.has(room)) {
+          continue;
+        }
+
+        Promise.resolve(socket.leave(room)).catch((error: unknown) => {
+          this.logger.warn(
+            `failed to evict socket ${socket.id} from ${room}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+      } catch (error) {
+        this.logger.warn(
+          `failed to evict socket ${socket.id} from ${room}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
   private publishToConversation(
     eventName: string,
     conversationId: string,
-    payload: Record<string, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload: any,
   ): void {
     try {
       if (!this.namespace) {
         this.logger.warn(`realtime event ${eventName} skipped: namespace is not initialized`);
         return;
       }
-      this.namespace
-        .to(`${CONVERSATION_ROOM_PREFIX}${conversationId}`)
-        .emit(eventName, payload);
+      const room = `${CONVERSATION_ROOM_PREFIX}${conversationId}`;
+      const recipientSockets = this.namespace.adapter.rooms.get(room)?.size ?? 0;
+      this.namespace.to(room).emit(eventName, payload);
+      this.logger.log(
+        JSON.stringify({
+          event: 'messaging.realtime.emitted',
+          eventName,
+          conversationId,
+          messageId: typeof payload.id === 'string' ? payload.id : undefined,
+          recipientSockets,
+        }),
+      );
     } catch (error) {
       this.logger.warn(
         `realtime event ${eventName} failed for conversation ${conversationId}: ${
