@@ -7,6 +7,7 @@ import { MessagingController } from './messaging.controller';
 import { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
 import { StoreModule } from '../store/store.module';
+import { CartModule } from '../cart/cart.module';
 
 /**
  * Messaging M2 — Conversations.
@@ -18,9 +19,13 @@ import { StoreModule } from '../store/store.module';
  * M4-04: imports MembershipRevocationModule to consume the existing
  * membership.status.changed domain event (transport invalidation only —
  * Membership stays the authority, no Membership state is stored here).
+ *
+ * C3: imports CartModule to integrate persistent shopping carts with order
+ * creation (createOrderFromConversation). Cart items are the authoritative
+ * source; prices are revalidated before confirmation.
  */
 @Module({
-  imports: [AuthJwtModule, BusinessContextModule, MembershipRevocationModule, PrismaModule, StoreModule],
+  imports: [AuthJwtModule, BusinessContextModule, MembershipRevocationModule, PrismaModule, StoreModule, CartModule],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingGateway],
 })

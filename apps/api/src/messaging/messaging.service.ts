@@ -17,6 +17,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { StoreService } from '../store/store.service';
+import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 
 const MAX_GROUP_PARTICIPANTS = 50;
@@ -27,6 +28,7 @@ export class MessagingService {
     private readonly prisma: PrismaService,
     private readonly businessContext: BusinessContextService,
     @Optional() private readonly storeService?: StoreService,
+    private readonly cartService?: CartService,
   ) {}
 
   async createConversation(
@@ -354,11 +356,9 @@ export class MessagingService {
     });
   }
 
-  async createOrderFromConversation(
-    auth: AuthenticatedUser,
-    conversationId: string,
-    items: Array<{ productoId: string; cantidad: number }>,
-  ) {
+  async createOrderFromConversation(auth: AuthenticatedUser, conversationId: string) {
+    // C3 — Cart→Order integration. The persistent cart (via CartService) is the
+    // authoritative source of items. Prices are revalidated at confirmation.
     const context = await this.resolveContext(auth);
     await this.assertConversationAdmin(this.prisma, conversationId, context);
 
@@ -383,9 +383,10 @@ export class MessagingService {
       );
     }
 
+    const customerId = customerAssociations[0].entityId;
     const customer = await this.prisma.cliente.findFirst({
       where: {
-        id: customerAssociations[0].entityId,
+        id: customerId,
         empresaId: context.businessId,
         activo: true,
       },
@@ -395,20 +396,39 @@ export class MessagingService {
     if (!customer.email) {
       throw new BadRequestException('El Customer necesita email para crear el pedido con el motor Commerce actual');
     }
-    if (!this.storeService) {
-      throw new BadRequestException('El motor Commerce no está disponible');
+    if (!this.storeService || !this.cartService) {
+      throw new BadRequestException('El motor de Carrito o Commerce no está disponible');
     }
+
+    // C3: Fetch the persistent cart for this customer.
+    // CartService returns null if no cart exists; empty cart is an error.
+    const cart = await this.cartService.getCartForCustomer(customerId, context.businessId);
+    if (!cart || !cart.items || cart.items.length === 0) {
+      throw new ConflictException('El cliente no tiene un carrito con ítems para crear un pedido');
+    }
+
+    // C3: Extract items from the persistent cart. Prices are read from cart
+    // snapshot (current `Producto.precioMinorista`); revalidation is storeService's responsibility.
+    const items = cart.items.map((item) => ({
+      productoId: item.productoId,
+      cantidad: Number(item.cantidad), // CartItem.cantidad is Decimal; convert to number
+    }));
 
     // Reuse the existing Commerce engine for server-side pricing, loyalty and
     // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
     // stock/ERP confirmation stays in the existing authorized Orders workflow.
-    const order = await this.storeService.createOrder({
-      nombre: customer.nombre,
-      email: customer.email,
-      telefono: customer.telefono ?? undefined,
-      items,
-    }, context.businessId, 'messaging');
+    const order = await this.storeService.createOrder(
+      {
+        nombre: customer.nombre,
+        email: customer.email,
+        telefono: customer.telefono ?? undefined,
+        items,
+      },
+      context.businessId,
+      'messaging',
+    );
 
+    // C3: Create the association linking this conversation to the created order.
     await this.prisma.conversationAssociation.create({
       data: {
         conversationId,
@@ -419,6 +439,19 @@ export class MessagingService {
         reason: 'Pedido creado desde el contexto comercial de Messaging',
       },
     });
+
+    // C3: Clear the customer's cart after successful order creation.
+    // If an error occurs before this point, the cart is preserved (client can retry).
+    // If this fails, it's logged but does not fail the order (order is already committed).
+    try {
+      await this.cartService.clearCart(cart.id, context.businessId);
+    } catch (error) {
+      // Log but don't throw: cart clearing is best-effort; order is committed.
+      console.error(
+        `Failed to clear cart ${cart.id} after order ${order.id}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
 
     return order;
   }
