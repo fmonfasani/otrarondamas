@@ -417,6 +417,9 @@ export class MessagingService {
     // Reuse the existing Commerce engine for server-side pricing, loyalty and
     // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
     // stock/ERP confirmation stays in the existing authorized Orders workflow.
+    // C3: Pass conversationId as idempotencyKey to guarantee no duplicate orders
+    // on reintent. If a previous attempt succeeded but the response was lost,
+    // the next request will return the same order.
     const order = await this.storeService.createOrder(
       {
         nombre: customer.nombre,
@@ -426,6 +429,7 @@ export class MessagingService {
       },
       context.businessId,
       'messaging',
+      conversationId, // idempotencyKey: unique per conversation
     );
 
     // C3: Create the association linking this conversation to the created order.
@@ -440,15 +444,21 @@ export class MessagingService {
       },
     });
 
-    // C3: Clear the customer's cart after successful order creation.
-    // If an error occurs before this point, the cart is preserved (client can retry).
-    // If this fails, it's logged but does not fail the order (order is already committed).
+    // C3: Remove only the items that were confirmed in this order from the cart.
+    // This prevents loss of items added concurrently after the snapshot was taken.
+    // If an error occurs before this point, the cart is fully preserved (client can retry).
+    // If removal fails, it's logged but does not fail the order (order is already committed).
     try {
-      await this.cartService.clearCart(cart.id, context.businessId);
+      const itemIdsToRemove = cart.items.map((item) => item.id);
+      for (const itemId of itemIdsToRemove) {
+        await this.cartService.removeItem(itemId, context.businessId);
+      }
     } catch (error) {
-      // Log but don't throw: cart clearing is best-effort; order is committed.
+      // Log but don't throw: item removal is best-effort; order is committed.
+      // Worst case: customer sees items in their cart after ordering. The items
+      // won't be ordered again if the customer retries (idempotencyKey prevents it).
       console.error(
-        `Failed to clear cart ${cart.id} after order ${order.id}:`,
+        `Failed to remove cart items after order ${order.id}:`,
         error instanceof Error ? error.message : String(error),
       );
     }

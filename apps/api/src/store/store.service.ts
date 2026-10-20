@@ -148,7 +148,7 @@ export class StoreService {
    * there is stock available at the time of ordering, without setting it
    * aside.
    */
-  async createOrder(dto: CreateOrderDto, companyId?: string, channelOrigen = 'web') {
+  async createOrder(dto: CreateOrderDto, companyId?: string, channelOrigen = 'web', idempotencyKey?: string) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
 
@@ -256,6 +256,26 @@ export class StoreService {
       // usuarioId stays null: nobody has managed this order yet (see comment in
       // schema.prisma) — it is populated when a seller takes it from the orders
       // inbox (Phase 4 of the roadmap).
+
+      // C3: Idempotency — if an idempotencyKey is provided, check for an existing
+      // order with that key and return it (prevents duplicate orders on reintent).
+      // Idempotencykey is unique in the database, so a second create with the same
+      // key will fail with constraint error if it wasn't caught here. This handles
+      // the case where the first request succeeded but the response was lost.
+      if (idempotencyKey) {
+        const existingOrder = await tx.pedido.findFirst({
+          where: {
+            empresaId: resolvedCompanyId,
+            idempotencyKey,
+          },
+          include: { pedidoItems: true },
+        });
+        if (existingOrder) {
+          // Order already created with this key; return it idempotently.
+          return existingOrder;
+        }
+      }
+
       const order = await tx.pedido.create({
         data: {
           empresaId: resolvedCompanyId,
@@ -264,6 +284,7 @@ export class StoreService {
           estado: 'RECIBIDO',
           canalOrigen: channelOrigen,
           total,
+          idempotencyKey: idempotencyKey ?? null,
           pedidoItems: {
             create: itemsWithPrice.map((item) => ({
               productoId: item.productoId,

@@ -801,12 +801,16 @@ model Pedido {
   // antes.
   usuarioId   String?
   usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
-  estado      EstadoPedido @default(RECIBIDO)
-  canalOrigen String // WhatsApp, redes, web, presencial
-  total       Decimal
-  descuento   Decimal      @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  estado           EstadoPedido @default(RECIBIDO)
+  canalOrigen      String // WhatsApp, redes, web, presencial
+  total            Decimal
+  descuento        Decimal      @default(0)
+  // C3: Idempotency key for order creation. Same pattern as Venta (INV-VTA-07).
+  // Required for cart→order flow: guarantees no duplicate orders on reintent.
+  // Null for pre-C3 orders; unique index filters nulls.
+  idempotencyKey   String?      @unique
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   pedidoItems    PedidoItem[]
   pagos          Pago[]         @relation("PedidoPagos")
