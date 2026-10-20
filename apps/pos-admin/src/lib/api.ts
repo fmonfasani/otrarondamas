@@ -267,10 +267,14 @@ export const api = {
 
   // Carrito persistente — Flujo P6
   getCart: () =>
-    request<{ id: string; items: Array<{ productoId: string; cantidad: number }> }>('/cart'),
-  addToCart: (dto: { productoId: string; cantidad: number }) =>
+    request<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> }>('/cart'),
+  addToCart: (cartId: string, productoId: string, cantidad: number) =>
     request<{ id: string; cantidad: number }>('/cart/items', {
-      method: 'POST', body: JSON.stringify(dto),
+      method: 'POST', body: JSON.stringify({ productoId, cantidad }),
+    }),
+  updateCartItemQuantity: (itemId: string, cantidad: number) =>
+    request<{ id: string; cantidad: number }>(`/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'PATCH', body: JSON.stringify({ cantidad }),
     }),
   removeFromCart: (itemId: string) =>
     request<{ success: boolean }>(`/cart/items/${encodeURIComponent(itemId)}`, {
