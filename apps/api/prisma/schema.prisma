@@ -808,6 +808,7 @@ model Pedido {
   // C3: Idempotency key for order creation. Same pattern as Venta (INV-VTA-07).
   // Required for cart→order flow: guarantees no duplicate orders on reintent.
   // Null for pre-C3 orders; unique index filters nulls.
+  // MIGRATION READY: 20261019214300_add_idempotency_key_to_pedido
   idempotencyKey   String?      @unique
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
