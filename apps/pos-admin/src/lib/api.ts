@@ -267,4 +267,24 @@ export const api = {
     request<{ id: string; estado: string; total: string }>(`/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
       method: 'POST', body: JSON.stringify(dto),
     }),
+  obtenerPedido: (orderId: string) =>
+    request<{ id: string; estado: string; total: string }>(`/pedidos/${encodeURIComponent(orderId)}`),
+
+  // Carrito persistente — Flujo P6
+  getCart: () =>
+    request<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> }>('/cart'),
+  addToCart: (cartId: string, productoId: string, cantidad: number) =>
+    request<{ id: string; cantidad: number }>('/cart/items', {
+      method: 'POST', body: JSON.stringify({ productoId, cantidad }),
+    }),
+  updateCartItemQuantity: (itemId: string, cantidad: number) =>
+    request<{ id: string; cantidad: number }>(`/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'PATCH', body: JSON.stringify({ cantidad }),
+    }),
+  removeFromCart: (itemId: string) =>
+    request<{ success: boolean }>(`/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'DELETE',
+    }),
+  clearCart: () =>
+    request<{ success: boolean }>('/cart', { method: 'DELETE' }),
 };

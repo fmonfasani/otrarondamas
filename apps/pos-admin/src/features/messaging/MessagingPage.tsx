@@ -90,7 +90,8 @@ export function MessagingPage() {
   const [productResults, setProductResults] = useState<ProductOption[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [associationBusy, setAssociationBusy] = useState('');
-  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> } | null>(null);
+  const [cartLoading, setCartLoading] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
   // Status of the Orders associated with this conversation, keyed by order id.
   // Messaging keeps only the reference; Orders remains the owner of the state,
@@ -179,6 +180,7 @@ export function MessagingPage() {
     if (!activeId) {
       setAssociations([]);
       setProductResults([]);
+      setCart(null);
       return;
     }
     let cancelled = false;
@@ -189,6 +191,8 @@ export function MessagingPage() {
       .catch((err: unknown) => {
         if (!cancelled) setError(errorMessage(err, 'No se pudo cargar el contexto comercial.'));
       });
+    // Load persistent cart from P6 CartService
+    loadCart();
     return () => { cancelled = true; };
   }, [activeId]);
 
@@ -297,15 +301,22 @@ export function MessagingPage() {
     setAssociationBusy(product.id);
     setError('');
     try {
+      // Asociar producto a la conversación (para contexto)
       await api.asociarEntidadConversacion(activeId, {
         entityType: 'PRODUCT',
         entityId: product.id,
         reason: 'Producto seleccionado explícitamente desde Messaging',
       });
       setAssociations((await api.listarAsociacionesConversacion(activeId)) as Association[]);
-      setNotice(`Producto asociado: ${product.nombre}`);
+
+      // Agregar al carrito persistente (P6)
+      if (cart) {
+        await addToCart(product.id, 1);
+      }
+
+      setNotice(`Producto agregado: ${product.nombre}`);
     } catch (err) {
-      setError(errorMessage(err, 'No se pudo asociar el producto a la conversación.'));
+      setError(errorMessage(err, 'No se pudo agregar el producto.'));
     } finally {
       setAssociationBusy('');
     }
@@ -313,14 +324,8 @@ export function MessagingPage() {
 
   async function createOrderFromConversation() {
     if (!activeId || creatingOrder) return;
-    const items = associations
-      .filter((association) => association.entityType === 'PRODUCT')
-      .map((association) => ({
-        productoId: association.entityId,
-        cantidad: Math.max(1, Number(cartQuantities[association.entityId] ?? 1)),
-      }));
-    if (!items.length) {
-      setError('Asociá al menos un producto antes de crear el pedido.');
+    if (!cart || !cart.items || cart.items.length === 0) {
+      setError('El carrito está vacío. Agregá productos antes de crear el pedido.');
       return;
     }
     if (!associations.some((association) => association.entityType === 'CUSTOMER')) {
@@ -330,14 +335,74 @@ export function MessagingPage() {
     setCreatingOrder(true);
     setError('');
     try {
+      // P6: Order items come from persistent cart
+      const items = cart.items.map((item) => ({
+        productoId: item.productoId,
+        cantidad: item.cantidad,
+      }));
       const order = await api.crearPedidoDesdeConversacion(activeId, { items });
       setAssociations((await api.listarAsociacionesConversacion(activeId)) as Association[]);
-      setNotice(`Pedido creado en Commerce: ${order.id} · estado ${order.estado}. La confirmación y el movimiento de stock siguen en Pedidos.`);
-      setCartQuantities({});
+      // Carrito no se elimina; podría reutilizarse para otro pedido
+      setNotice(`Pedido creado: ${order.id} · estado ${order.estado}`);
     } catch (err) {
       setError(errorMessage(err, 'No se pudo crear el pedido desde la conversación.'));
     } finally {
       setCreatingOrder(false);
+    }
+  }
+
+  async function loadCart() {
+    setCartLoading(true);
+    try {
+      const persistedCart = await api.getCart();
+      setCart(persistedCart as any);
+    } catch (err) {
+      console.error('Failed to load cart:', err);
+      setCart(null);
+    } finally {
+      setCartLoading(false);
+    }
+  }
+
+  async function addToCart(productoId: string, cantidad: number) {
+    try {
+      await api.addToCart(cart?.id || '', productoId, cantidad);
+      await loadCart();
+      setNotice(`Producto agregado al carrito.`);
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo agregar el producto al carrito.'));
+    }
+  }
+
+  async function removeFromCart(itemId: string) {
+    if (!cart) return;
+    try {
+      await api.removeFromCart(itemId);
+      await loadCart();
+      setNotice('Producto quitado del carrito.');
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo quitar el producto del carrito.'));
+    }
+  }
+
+  async function updateCartItemQuantity(itemId: string, cantidad: number) {
+    if (!cart) return;
+    try {
+      await api.updateCartItemQuantity(itemId, cantidad);
+      await loadCart();
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo actualizar la cantidad.'));
+    }
+  }
+
+  async function clearCart() {
+    if (!cart) return;
+    try {
+      await api.clearCart();
+      setCart(null);
+      setNotice('Carrito vaciado.');
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo vaciar el carrito.'));
     }
   }
 
@@ -693,21 +758,28 @@ export function MessagingPage() {
                   <input id="messaging-product-search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Buscar producto para asociar…" className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs" />
                   <button type="submit" disabled={searchingProducts || !productSearch.trim()} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"><Search className="h-3 w-3" />{searchingProducts ? 'Buscando…' : 'Buscar'}</button>
                 </form>
-                {associations.some((association) => association.entityType === 'PRODUCT') && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                {cart && cart.items && cart.items.length > 0 && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-gray-900">Carrito de la conversación</h3>
-                    <span className="text-xs text-gray-600">{associations.filter((association) => association.entityType === 'PRODUCT').length} productos</span>
+                    <h3 className="text-xs font-semibold text-gray-900">Carrito persistente (P6)</h3>
+                    <span className="text-xs text-gray-600">{cart.items.length} items</span>
                   </div>
                   <div className="space-y-2">
-                    {associations.filter((association) => association.entityType === 'PRODUCT').map((association) => (
-                      <label key={association.id} className="flex items-center justify-between gap-3 text-xs">
-                        <span className="min-w-0 truncate">{association.label || association.entityId}</span>
-                        <input aria-label={`Cantidad para ${association.label || association.entityId}`} type="number" min={1} step={1} value={cartQuantities[association.entityId] ?? 1} onChange={(event) => setCartQuantities((current) => ({ ...current, [association.entityId]: Math.max(1, Number(event.target.value) || 1) }))} className="w-16 rounded border border-gray-300 px-2 py-1" />
-                      </label>
+                    {cart.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">{item.producto.nombre}</span>
+                          <span className="text-gray-600">${item.producto.precioMinorista}</span>
+                        </div>
+                        <input aria-label={`Cantidad para ${item.producto.nombre}`} type="number" min={1} step={1} value={item.cantidad} onChange={(event) => void updateCartItemQuantity(item.id, Math.max(1, Number(event.target.value) || 1))} className="w-16 rounded border border-gray-300 px-2 py-1" />
+                        <button type="button" onClick={() => void removeFromCart(item.id)} aria-label={`Quitar ${item.producto.nombre}`} className="text-gray-500 hover:text-red-600"><X className="h-3 w-3" /></button>
+                      </div>
                     ))}
                   </div>
                   {!associations.some((association) => association.entityType === 'CUSTOMER') && <p className="mt-2 text-xs text-amber-800">Asociá un Customer para habilitar la creación del pedido.</p>}
-                  <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !canManageConversation || !associations.some((association) => association.entityType === 'CUSTOMER')} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="mt-3 w-full rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" onClick={() => void clearCart()} disabled={!canManageConversation} className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-red-50 disabled:opacity-50">Vaciar</button>
+                    <button type="button" onClick={() => void createOrderFromConversation()} disabled={creatingOrder || !canManageConversation || !associations.some((association) => association.entityType === 'CUSTOMER')} title={canManageConversation ? undefined : 'Requiere ser administrador de la conversación'} className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">{creatingOrder ? 'Creando pedido…' : 'Crear pedido en Commerce'}</button>
+                  </div>
                 </div>}
                 {productResults.length > 0 && <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
                   {productResults.map((product) => (

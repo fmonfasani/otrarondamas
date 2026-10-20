@@ -149,6 +149,7 @@ model Empresa {
   conversations      Conversation[]
   messagingReadPreferences MessagingReadPreference[]
   messageReadReceipts MessageReadReceipt[]
+  carts              Cart[]
 }
 
 model Usuario {
@@ -491,6 +492,7 @@ model Producto {
   devolucionProveedorItems DevolucionProveedorItem[] @relation("ProductoDevolucionItems")
   pedidoItems           PedidoItem[]
   productoProveedor     ProductoProveedor[]
+  cartItems         CartItem[]
 
   // Corrige el gap original (@unique GLOBAL) — el SKU es único por
   // empresa, no en todo el sistema.
@@ -571,6 +573,7 @@ model Cliente {
   authoredMessages         Message[] @relation("MessageAuthorCustomer")
   messagingReadPreferences MessagingReadPreference[] @relation("MessagingReadPreferenceCustomer")
   messageReadReceipts       MessageReadReceipt[] @relation("MessageReadReceiptCustomer")
+  carts                    Cart[]
 
   @@unique([empresaId, email]) // Assuming email is unique per company for clients
   @@unique([id, empresaId])
@@ -798,12 +801,17 @@ model Pedido {
   // antes.
   usuarioId   String?
   usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
-  estado      EstadoPedido @default(RECIBIDO)
-  canalOrigen String // WhatsApp, redes, web, presencial
-  total       Decimal
-  descuento   Decimal      @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  estado           EstadoPedido @default(RECIBIDO)
+  canalOrigen      String // WhatsApp, redes, web, presencial
+  total            Decimal
+  descuento        Decimal      @default(0)
+  // C3: Idempotency key for order creation. Same pattern as Venta (INV-VTA-07).
+  // Required for cart→order flow: guarantees no duplicate orders on reintent.
+  // Null for pre-C3 orders; unique index filters nulls.
+  // MIGRATION READY: 20261019214300_add_idempotency_key_to_pedido
+  idempotencyKey   String?      @unique
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   pedidoItems    PedidoItem[]
   pagos          Pago[]         @relation("PedidoPagos")
@@ -1379,4 +1387,32 @@ model Autorizacion {
 
   arqueoDeCaja ArqueoCaja[]
   audits       AuditLog[]
+}
+
+model Cart {
+  id         String     @id @default(uuid())
+  customerId String
+  customer   Cliente    @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  businessId String
+  business   Empresa    @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  items      CartItem[]
+
+  @@unique([customerId, businessId])
+  @@index([businessId, customerId])
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cantidad   Decimal
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cartId, productoId])
+  @@index([cartId])
 }

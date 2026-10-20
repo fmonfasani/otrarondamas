@@ -44,11 +44,12 @@ describe('MessagingController — commercial context P2', () => {
   it('creates a Commerce order from the conversation cart', async () => {
     const order = { id: 'order-a', estado: 'RECIBIDO', total: '250.00' };
     (service.createOrderFromConversation as jest.Mock).mockResolvedValue(order);
+    // C3: Order items come from persistent cart, not request body
     await expect(controller.createOrder(user, 'conversation-a', {
-      items: [{ productoId: 'product-a', cantidad: 2 }],
+      items: [{ productoId: 'product-a', cantidad: 2 }], // Request body ignored by service
     } as any)).resolves.toEqual(order);
     expect(service.createOrderFromConversation).toHaveBeenCalledWith(
-      user, 'conversation-a', [{ productoId: 'product-a', cantidad: 2 }],
+      user, 'conversation-a',
     );
   });
 
