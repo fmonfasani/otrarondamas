@@ -264,4 +264,18 @@ export const api = {
     }),
   obtenerPedido: (orderId: string) =>
     request<{ id: string; estado: string; total: string }>(`/pedidos/${encodeURIComponent(orderId)}`),
+
+  // Carrito persistente — Flujo P6
+  getCart: () =>
+    request<{ id: string; items: Array<{ productoId: string; cantidad: number }> }>('/cart'),
+  addToCart: (dto: { productoId: string; cantidad: number }) =>
+    request<{ id: string; cantidad: number }>('/cart/items', {
+      method: 'POST', body: JSON.stringify(dto),
+    }),
+  removeFromCart: (itemId: string) =>
+    request<{ success: boolean }>(`/cart/items/${encodeURIComponent(itemId)}`, {
+      method: 'DELETE',
+    }),
+  clearCart: () =>
+    request<{ success: boolean }>('/cart', { method: 'DELETE' }),
 };

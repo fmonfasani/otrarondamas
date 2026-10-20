@@ -298,6 +298,21 @@ export class StoreService {
         include: { pedidoItems: true },
       });
 
+      // C5A: Deduct stock for each item in the order (within same transaction).
+      // Ensures atomic order creation + stock deduction: either both succeed or
+      // both roll back on conflict/insufficient stock.
+      for (const item of order.pedidoItems) {
+        await this.inventoryService.deductStock(
+          tx,
+          resolvedCompanyId,
+          item.productoId,
+          Number(item.cantidad),
+          'Orden comercial', // reason
+          order.id, // referenceId
+          null, // userId (not yet assigned, Phase 4 of roadmap)
+        );
+      }
+
       return order;
     });
   }

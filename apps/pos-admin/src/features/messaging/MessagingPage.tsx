@@ -90,7 +90,8 @@ export function MessagingPage() {
   const [productResults, setProductResults] = useState<ProductOption[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [associationBusy, setAssociationBusy] = useState('');
-  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<{ id: string; items: Array<{ id: string; productoId: string; cantidad: number; producto: { nombre: string; precioMinorista: number } }> } | null>(null);
+  const [cartLoading, setCartLoading] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
   // Status of the Orders associated with this conversation, keyed by order id.
   // Messaging keeps only the reference; Orders remains the owner of the state,
@@ -179,6 +180,7 @@ export function MessagingPage() {
     if (!activeId) {
       setAssociations([]);
       setProductResults([]);
+      setCart(null);
       return;
     }
     let cancelled = false;
@@ -189,6 +191,8 @@ export function MessagingPage() {
       .catch((err: unknown) => {
         if (!cancelled) setError(errorMessage(err, 'No se pudo cargar el contexto comercial.'));
       });
+    // Load persistent cart from P6 CartService
+    loadCart();
     return () => { cancelled = true; };
   }, [activeId]);
 
@@ -313,16 +317,6 @@ export function MessagingPage() {
 
   async function createOrderFromConversation() {
     if (!activeId || creatingOrder) return;
-    const items = associations
-      .filter((association) => association.entityType === 'PRODUCT')
-      .map((association) => ({
-        productoId: association.entityId,
-        cantidad: Math.max(1, Number(cartQuantities[association.entityId] ?? 1)),
-      }));
-    if (!items.length) {
-      setError('Asociá al menos un producto antes de crear el pedido.');
-      return;
-    }
     if (!associations.some((association) => association.entityType === 'CUSTOMER')) {
       setError('La conversación necesita un Customer asociado para crear un pedido.');
       return;
@@ -330,14 +324,71 @@ export function MessagingPage() {
     setCreatingOrder(true);
     setError('');
     try {
-      const order = await api.crearPedidoDesdeConversacion(activeId, { items });
+      // C3: Order items come from persistent cart, not associations or request body
+      // The service resolves the cart and creates the order with idempotencyKey=conversationId
+      const order = await api.crearPedidoDesdeConversacion(activeId, { items: [] });
       setAssociations((await api.listarAsociacionesConversacion(activeId)) as Association[]);
       setNotice(`Pedido creado en Commerce: ${order.id} · estado ${order.estado}. La confirmación y el movimiento de stock siguen en Pedidos.`);
-      setCartQuantities({});
     } catch (err) {
       setError(errorMessage(err, 'No se pudo crear el pedido desde la conversación.'));
     } finally {
       setCreatingOrder(false);
+    }
+  }
+
+  async function loadCart() {
+    setCartLoading(true);
+    try {
+      const persistedCart = await api.getCart();
+      setCart(persistedCart as any);
+    } catch (err) {
+      console.error('Failed to load cart:', err);
+      setCart(null);
+    } finally {
+      setCartLoading(false);
+    }
+  }
+
+  async function addToCart(productoId: string, cantidad: number) {
+    if (!cart) return;
+    try {
+      await api.addToCart(cart.id, productoId, cantidad);
+      await loadCart();
+      setNotice(`Producto agregado al carrito.`);
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo agregar el producto al carrito.'));
+    }
+  }
+
+  async function removeFromCart(itemId: string) {
+    if (!cart) return;
+    try {
+      await api.removeFromCart(itemId);
+      await loadCart();
+      setNotice('Producto quitado del carrito.');
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo quitar el producto del carrito.'));
+    }
+  }
+
+  async function updateCartItemQuantity(itemId: string, cantidad: number) {
+    if (!cart) return;
+    try {
+      await api.updateCartItemQuantity(itemId, cantidad);
+      await loadCart();
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo actualizar la cantidad.'));
+    }
+  }
+
+  async function clearCart() {
+    if (!cart) return;
+    try {
+      await api.clearCart();
+      setCart(null);
+      setNotice('Carrito vaciado.');
+    } catch (err) {
+      setError(errorMessage(err, 'No se pudo vaciar el carrito.'));
     }
   }
 
