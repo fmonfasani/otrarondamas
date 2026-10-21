@@ -31,7 +31,7 @@ Track stable Figma frames as design inputs to Wapsell's existing traceability sy
 | ADM-FIN-001 | B14 / `2055:581` | [B14 Finanzas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / AR | SPEC-ADMIN-UI-001 §§3, 6.4; visual defects recorded | NOT VERIFIED | NOT MAPPED |
 | ADM-REP-001 | B15 / `2055:774` | [B15 Reportes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | SPEC-ADMIN-UI-001 §§3, 6.4; visual defects recorded | NOT VERIFIED | NOT MAPPED |
 | ADM-SET-001 | B16 / `2055:967` | [B16 Configuración](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business configuration / Brand | SPEC-ADMIN-UI-001 §§3, 6.4; visual defects recorded | NOT VERIFIED | NOT MAPPED |
-| ADM-TEAM-001 | B17 / `2055:1160` | [B17 Equipo y permisos](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | SPEC-ADMIN-UI-001 §§3, 6.5; visual review blocked by Figma quota | NOT VERIFIED | NOT MAPPED |
+| ADM-TEAM-001 | B17 / `2055:1160` | [B17 Equipo y permisos](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | SPEC-ADMIN-UI-001 §§3, 6.4; visual defects recorded | NOT VERIFIED | NOT MAPPED |
 | ADM-ACC-001 | B18 / `2055:1353` | [B18 Perfil y cuenta](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | SPEC-ADMIN-UI-001 §§3, 6.5; visual review blocked by Figma quota | NOT VERIFIED | NOT MAPPED |
 
 ## 4. Requirement-to-evidence row template
