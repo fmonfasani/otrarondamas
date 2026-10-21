@@ -86,7 +86,7 @@ B10 is the proposed first pilot because it provides a bounded Admin screen to te
 - **ADM-CUS-RQ-006 — UI state coverage:** define loading, empty, error and forbidden states, including recovery actions.
 - **ADM-CUS-RQ-007 — Tenant isolation:** verify both UI-facing queries and server authorization prevent access to another Business's Customer data.
 
-These IDs identify candidate work only. They must be reconciled with the current Customer domain contract, existing Prisma schema, NestJS routes/services, role/capability decisions, conflicts, and tests before being approved. Do not create API endpoints or schema fields merely to match the mockup.
+These IDs identify candidate work only. They must be reconciled with the current Customer domain contract, existing Prisma schema, NestJS routes/services, role/permission decisions, conflicts, and tests before being approved. Do not create API endpoints or schema fields merely to match the mockup.
 
 ### 6.1 B10 — AS-IS reconciliation from repository evidence (2026-10-21)
 
@@ -114,7 +114,7 @@ The following describes the current implementation found in `main`; it is not a 
 | Loyalty level | List/detail calculate `NUEVO`, `FRECUENTE` or `VIP` from confirmed sales + confirmed orders, with thresholds configurable by environment variables. | This is a derived loyalty value, not a generic metric. Any B10 metric must have its own definition and source. |
 | UI states | Page implements loading, request error, empty list, form validation/error, save-in-progress and cancel. | Explicit forbidden, stale/conflict and richer table states are not evidenced in this component. |
 | Tenant authority | Controller resolves authenticated actor → active Membership/BusinessContext → legacy company ID; service uses `CompanyScopedPrismaService.forCompany()`. | Preserve server-derived Business context. The client/JWT `empresaId` must not become the tenant authority. |
-| Authorization | GET list/detail have no local `@RequirePermission` decorator; create/update require `clientes.gestionar`. Global auth and dossier guards also apply. | This is observed AS-IS, not approval of the final role/capability matrix. Reconcile list/detail visibility with the approved authorization design. |
+| Authorization | GET list/detail have no local `@RequirePermission` decorator; create/update require `clientes.gestionar`. Global auth and dossier guards also apply. | This is observed AS-IS, not approval of the final role/permission matrix. Reconcile list/detail visibility with the approved authorization design. |
 | Data model | `Cliente` is Business-scoped and has contact fields plus other fields/relations beyond this page's DTO. | The screen contract must state which fields are intentionally exposed and under which permission. |
 
 #### Test artifacts found — execution not claimed
@@ -211,7 +211,7 @@ B12–B17 repeat the same banner copy about “73 clientes sin compras en los ú
 | B14 — Finanzas | Financial KPIs and accounts-receivable amount are shown without formulas/source definitions; transaction rows reuse order/customer data and do not align with financial columns. | Define recognized income/expense, period boundaries, net result, accounts receivable, currency, refunds/voids, settlement status, source-of-truth entities and export semantics. Do not treat order totals as cash or recognized revenue by default. |
 | B15 — Reportes | KPI cards lack explicit formula/source/window contracts; indicator table reuses order/customer-like rows; export action is not scoped to a report or selected filters. | Define each metric's identifier, formula, grain, period/timezone, filters, comparison baseline, empty/partial-data behavior, authorization and export format/scope. |
 | B16 — Configuración del negocio | “Información general” contains customer-like records, purchase counts and spending; summary cards mix business identity/preferences with unrelated operational metrics. | Define editable business profile fields, validation, business-brand vs platform design-system boundary, operational preferences, permissions, save/cancel/error behavior and audit history. Do not infer fiscal or legal fields from the mockup. |
-| B17 — Equipo y permisos | User/role table contains customer-like contacts and purchase-like quantities/amounts under modules, permissions and last access; summary/banner copy is reused from other modules. | Define User vs Membership identity, tenant membership lifecycle, invitation/expiry/revocation, role/capability assignment, suspension/reactivation, last-access provenance, self-lockout prevention and authorization/audit requirements. UI visibility must never replace backend authorization. |
+| B17 — Equipo y permisos | User/role table contains customer-like contacts and purchase-like quantities/amounts under modules, permissions and last access; summary/banner copy is reused from other modules. | Define User vs Membership identity, tenant membership lifecycle, invitation/expiry/revocation, role/permission assignment, suspension/reactivation, last-access provenance, self-lockout prevention and authorization/audit requirements. UI visibility must never replace backend authorization. |
 
 #### Shared visual acceptance requirements
 
@@ -224,7 +224,7 @@ B12–B17 repeat the same banner copy about “73 clientes sin compras en los ú
 
 ### 6.5 B18 — Profile and account review status
 
-B18 was not visually reviewed in this audit because the Figma MCP tool call quota was reached. Its screen content, fields, actions, session behavior and relationship between global User and active Business remain **NOT VERIFIED**. Do not treat it as reviewed or implementation-ready. Revisit the frame when Figma tool access is available and then reconcile it against authentication/account contracts.
+**Superseded status note:** the initial inventory pass could not visually inspect B18 because the Figma tool quota was reached. The later visual audit in §6.6 reviewed the frame and recorded its defects. Visual inspection does not verify implementation or approve its behavior; B18 remains not implementation-ready pending reconciliation against authentication/account contracts.
 
 
 
