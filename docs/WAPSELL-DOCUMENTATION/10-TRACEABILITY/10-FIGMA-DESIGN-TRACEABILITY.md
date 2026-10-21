@@ -26,13 +26,13 @@ Track stable Figma frames as design inputs to Wapsell's existing traceability sy
 |---|---|---|---|---|---|---|
 | ADM-CUS-001 | B10 / `2054:2` | [B10 Clientes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2054-2) | Customer | SPEC-ADMIN-UI-001 §§6–6.2; visual inventory recorded, multiple target data/UI gaps open | [ClientesPage](https://github.com/fmonfasani/otrarondamas/blob/main/apps/pos-admin/src/features/clientes/ClientesPage.tsx), [controller](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.controller.ts), [service](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.service.ts) — AS-IS only; visual match NOT VERIFIED | [BusinessContext test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-business-context.integration-spec.ts), [HTTP test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-http.integration-spec.ts) exist; execution NOT RUN here |
 | ADM-SUP-001 | B11 / `2055:2` | [B11 Proveedores](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-2) | Supplier / Purchases | SPEC-ADMIN-UI-001 §§3, 6.3; visual content defects recorded, detailed contract open | NOT VERIFIED | NOT MAPPED |
-| ADM-DEL-001 | B12 / `2055:195` | [B12 Entregas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.8; schema model fields inspected; CON-025 and D-016/REQ-FUL-003 remain open | SCHEMA EXISTS; DELIVERY FLOW NOT IMPLEMENTED / NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-CASH-001 | B13 / `2055:388` | [B13 Caja](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.7; current flow and invariants mapped by source inspection; Figma metrics/actions still lack verified contracts | AS-IS CODE INSPECTED; FIGMA TARGET NOT IMPLEMENTATION-READY | Existing cash tests not executed in this pass; Figma acceptance tests NOT MAPPED |
-| ADM-FIN-001 | B14 / `2055:581` | [B14 Finanzas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / AR / Finance | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.9; schema inspected; D-011/D-012 concepts noted with implementation details open | AR COLLECTION NOT IMPLEMENTED; FINANCE KPI CONTRACT NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-REP-001 | B15 / `2055:774` | [B15 Reportes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.10; AS-IS confirms `/reports` placeholder; metric/source contracts not verified | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-SET-001 | B16 / `2055:967` | [B16 Configuración](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business settings / Brand | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.11; `/settings` placeholder; SPEC-BRAND-001 draft; D-004 conceptual only; CON-012 open | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-TEAM-001 | B17 / `2055:1160` | [B17 Equipo y permisos](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Permissions | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.12; canonical OR-B2-001/002/003/008/009; admin actions not verified | PARTIAL INFRASTRUCTURE / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-ACC-001 | B18 / `2055:1353` | [B18 Perfil y cuenta](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | SPEC-ADMIN-UI-001 §§3, 6.7, 7.13; `/profile` read-only; MFA/session inventory and edit/export actions not verified | PARTIALLY VERIFIED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-DEL-001 | B12 / `2055:195` | [B12 Entregas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.8; schema model fields inspected; CON-025 and D-016/REQ-FUL-003 remain open | SCHEMA EXISTS; DELIVERY FLOW NOT IMPLEMENTED / NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-CASH-001 | B13 / `2055:388` | [B13 Caja](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.7; current flow and invariants mapped by source inspection; Figma metrics/actions still lack verified contracts | AS-IS CODE INSPECTED; FIGMA TARGET NOT IMPLEMENTATION-READY | Existing cash tests not executed in this pass; Figma acceptance tests NOT MAPPED |
+| ADM-FIN-001 | B14 / `2055:581` | [B14 Finanzas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / AR / Finance | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.9; schema inspected; D-011/D-012 concepts noted with implementation details open | AR COLLECTION NOT IMPLEMENTED; FINANCE KPI CONTRACT NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-REP-001 | B15 / `2055:774` | [B15 Reportes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.10; AS-IS confirms `/reports` placeholder; metric/source contracts not verified | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-SET-001 | B16 / `2055:967` | [B16 Configuración](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business settings / Brand | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.11; `/settings` placeholder; SPEC-BRAND-001 draft; D-004 conceptual only; CON-012 open | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-TEAM-001 | B17 / `2055:1160` | [B17 Equipo y permisos](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Permissions | SPEC-ADMIN-UI-001 §§3, 6.4, 6.7, 10.12; canonical OR-B2-001/002/003/008/009; admin actions not verified | PARTIAL INFRASTRUCTURE / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
+| ADM-ACC-001 | B18 / `2055:1353` | [B18 Perfil y cuenta](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | SPEC-ADMIN-UI-001 §§3, 6.6, 10.13; `/profile` read-only; MFA/session inventory and edit/export actions not verified | PARTIALLY VERIFIED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
 
 ## 4. Requirement-to-evidence row template
 
@@ -66,7 +66,7 @@ A screen can move from design inventory to implementation-ready only when:
 The Figma links and node IDs identify the frames. They do not establish that a screen's content is approved, that its behaviors are specified, that its UI is implemented, that APIs exist, or that tests pass. Those claims require separate evidence recorded in the appropriate columns.
 
 
-## 5. Next reconciliation work package (2026-10-21)
+## 8. Next reconciliation work package (2026-10-21)
 
 Order is based on the gap between the proposed Figma experience and verified AS-IS capability; it does not imply implementation priority approval.
 
@@ -80,12 +80,12 @@ Order is based on the gap between the proposed Figma experience and verified AS-
 | 6 | B17 Equipo y permisos | Membership/context resolution exists; full team/role administration not established. | Specify invite, membership mutation, roles/permissions, suspension, audit and self-lockout controls only after rulings/contracts. | Partial infrastructure only; admin actions not verified. |
 | 7 | B18 Perfil y cuenta | Current `/profile` is read-only; MFA/session inventory/revocation/edit/export/security activity not verified. | Keep User, Membership and Customer distinct; approve any new account/security capability and its contract before UI implementation. | Existing profile only; Figma target not implemented/verified. |
 
-### Completion rule
+### 8.1 Completion rule
 
 For each frame, close the documentation pass only when the spec names the source of truth for every displayed metric/field/action, links the applicable requirement/decision/contract, maps acceptance criteria to tests, and preserves all unresolved Owner decisions as OPEN. Test existence and test execution must be reported separately. This register records a work plan, not approval or implementation authorization.
 
 
-### B12 — delivery/fulfillment evidence update (2026-10-21)
+### 8.2 B12 — delivery/fulfillment evidence update (2026-10-21)
 
 - Prisma schema confirms `Entrega` has unique `pedidoId`, optional `preparadorId`/`repartidorId`, nullable free-text `resultado`, `medioCobro` and `fechaEntrega`. The example values in the schema comment are not an approved lifecycle.
 - AS-IS inventory says there is no delivery controller/service or executable flow.
@@ -93,14 +93,14 @@ For each frame, close the documentation pass only when the spec names the source
 - The traceability gate now requires resolving actor/tenant boundaries, lifecycle, address/schedule source, failure/retry/cancellation, proof of delivery, collection-on-delivery and Payment↔Cash effects before implementation.
 - No new API, field, state, role, permission or migration is authorized by this evidence update.
 
-### B14 — finance / accounts-receivable evidence update (2026-10-21)
+### 8.3 B14 — finance / accounts-receivable evidence update (2026-10-21)
 
 - Inspected Prisma `CuentaCorriente`, `Deuda`, `AplicacionPago`, `Pago` and `MovimientoCaja`; AS-IS inventory explicitly states that AR/debt collection models are not used by a service.
 - D-012 establishes conceptual Business-scoped AR intent, while debt lifecycle, allocation, balances and credit rules remain open implementation details. D-011 gateway integration details remain open.
 - Cash TO-BE explicitly leaves gateway-payment-to-cash posting and payment-vs-cash reconciliation unresolved. Cash movement, payment settlement, recognized income/expense and AR are not interchangeable.
 - No financial KPI formula, posting rule, endpoint, migration, permission or UI operation is approved by this audit. No tests were executed.
 
-### B15 — reporting evidence update (2026-10-21)
+### 8.4 B15 — reporting evidence update (2026-10-21)
 
 - AS-IS UI/product inventories confirm `/reports` is a literal development placeholder. No operational reports page was verified.
 - Prisma domain models do not establish metric formulas, reporting queries, freshness guarantees or export behavior.
@@ -108,7 +108,7 @@ For each frame, close the documentation pass only when the spec names the source
 - Preserve the distinction between Order and Sale (D-007), explicit Sale lifecycle effects (D-008), Payment, Cash, AR, and Customer vs User. Figma sample values/banner are not evidence.
 - No code changes or tests; B15 remains a proposed screen and is not implementation-ready.
 
-### B16 — business settings / brand evidence update (2026-10-21)
+### 8.5 B16 — business settings / brand evidence update (2026-10-21)
 
 - AS-IS confirms `/settings` is a literal development placeholder; no settings CRUD was verified.
 - `SPEC-BRAND-001` remains DRAFT / OWNER REVIEW REQUIRED and does not close CON-012. D-004 establishes conceptual shared Design System + per-Business Brand direction; physical persistence, tokens, assets and customization limits remain open.
