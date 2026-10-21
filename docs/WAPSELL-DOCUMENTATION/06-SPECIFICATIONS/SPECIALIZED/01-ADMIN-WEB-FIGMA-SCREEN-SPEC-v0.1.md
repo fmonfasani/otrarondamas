@@ -143,6 +143,56 @@ These are **test cases present in the repository**, not evidence that they passe
 
 **Evidence boundary:** source inspection is **VERIFIED BY CODE** for the statements above. Test execution, visual fidelity to B10, API documentation completeness, accessibility and target-state approval remain **NOT VERIFIED**. The current UI is a minimal AS-IS screen; do not label it a B10 implementation without a visual comparison and acceptance review.
 
+### 6.2 B10 — Visual inventory and target/AS-IS gap
+
+**Visual source inspected:** B10 frame screenshot at 1440×1100 (rendered preview 1024×783), node `2054:2`. This is a visual inspection of the design only; the running Admin application was not captured at the same viewport, so pixel/visual fidelity remains **NOT VERIFIED**.
+
+The frame visibly proposes these regions/actions:
+- shared Admin navigation and current Business card;
+- page heading, explanatory text, `Exportar` and `+ Nuevo cliente` actions;
+- four summary cards: registered customers, recurring customers, new this month, and customers without recent purchases;
+- a customer-activity callout with `Ver clientes`;
+- directory toolbar with search across name/email/phone, a status filter, activity-based sort, record count and pagination;
+- columns for customer, contact, purchases, total purchased, last purchase, status and row actions;
+- a selected-customer summary panel and a recent-purchases panel.
+
+**Critical data boundary:** displayed figures (e.g. 1,284 customers, 342 recurring, 86 new, 73 inactive/recently absent), names, purchase counts, currency values, timestamps and statuses are mock content in the frame. They are not verified database values or approved business definitions. Do not ship these as constants or seed production data. Every card/column must either be backed by an approved query/contract or removed/marked as illustrative.
+
+| Visible B10 feature | Current AS-IS evidence | Classification / next spec decision |
+|---|---|---|
+| Customer list and contact fields | Existing `ClientesPage` renders name, loyalty level, email, phone and Edit action. | Partial overlap; define approved columns and row action. |
+| Name/email search | Existing debounced search uses `GET /clientes?search=...`. | Existing behavior; UI copy can mention only fields the backend actually searches. |
+| Phone search | Not supported by the inspected service's search predicate. | **Contract gap**; either extend spec/backend deliberately or remove phone from search placeholder. |
+| Active/inactive filter | No filter contract evidenced in the inspected endpoint/page. | **Contract gap**; define status semantics before implementing. |
+| Purchases / total purchased / last purchase | The customer domain has sales/orders relations and loyalty computation, but the inspected list page does not display these metrics. | **Contract gap**; define status inclusion, currency, time zone, returns/cancellations and aggregation rules before calculating. |
+| Four summary cards and activity callout | No corresponding summary contract evidenced in the inspected page/service. | **Contract gap**; define formulas, period boundaries, empty states and query performance, or remove. |
+| Customer detail + recent purchases | API `GET /clientes/:id` exists; inspected Admin component only exposes an edit form and does not render a detail/history panel. | **UI and data-contract gap**; decide scope and permission before implementing. |
+| Export | No export action is present in the inspected component. | **Contract gap**; define columns, permission, row limits and tenant scope if retained. |
+| Pagination and activity sort | No pagination/sort contract evidenced; search query has a limit of 50 when a term is supplied. | **Contract gap**; define stable ordering, cursor/page semantics and total count before implementing. |
+| Customer status | Prisma `Cliente.activo` exists, but the inspected component's list display does not expose it. | Field existence alone does not approve status editing or status-filter behavior. |
+
+**B10 recommendation:** do not implement all visible elements as one batch. First reconcile the list/search contract and visible row fields with the current Customer domain. Treat metrics, export, activity feed, purchase-history panel, status filter and pagination as separate candidate capabilities with independent acceptance criteria. A visual element that lacks an approved data contract is an open decision, not permission to invent one.
+
+### 6.3 B11 — Proveedores visual consistency findings
+
+**Visual source inspected:** B11 frame screenshot at 1440×1100 (rendered preview 1024×783), node `2055:2`. This is a content/design review, not an implementation review.
+
+The frame reuses the B10 Admin shell and proposes a supplier directory, summary cards, supplier follow-up callout, status filter, sorting, supplier profile and recent orders. However, several content elements appear copied from the customer screen and are inconsistent with the supplier domain:
+
+- the callout still says **73 customers** without purchases and uses customer-oriented wording;
+- rows include person/customer-style entries (e.g. customer names and loyalty-like states) mixed into the supplier directory;
+- repeated purchase amounts, counts and activity timestamps appear to be reused from the customer mockup;
+- the supplier screen shows financial/account metrics (e.g. pending debt / purchases) without a defined Supplier/Purchase/Accounts Payable calculation contract.
+
+These are **design defects / mock-data inconsistencies**, not approved business rules. Before B11 can become an implementation spec:
+1. replace customer-oriented copy with supplier-specific language;
+2. use coherent supplier examples and distinguish supplier contact status from customer loyalty status;
+3. define what “saldo”, “compras”, “facturas pendientes” and “altas este mes” mean, their currency/time window and authoritative sources;
+4. confirm which supplier actions are supported by existing endpoints and permissions;
+5. record unsupported controls as out-of-scope or a separately approved capability.
+
+The screen's visual shell can be reused; its content and metrics must not be accepted by template inheritance alone.
+
 ## 7. Acceptance criteria for the design-to-spec workflow
 
 The workflow itself is acceptable when:
