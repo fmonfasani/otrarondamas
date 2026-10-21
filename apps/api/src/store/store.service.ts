@@ -173,20 +173,19 @@ export class StoreService {
       }
     }
 
-    // Validate stock availability (without deduction) unless deductStock is true.
-    // Phase 1-3: validate only. Phase 3+: deduction happens in transaction below.
-    if (!deductStock) {
-      const products = await this.inventoryService.consolidatedStock(
-        resolvedCompanyId,
-      );
-      for (const item of dto.items) {
-        const product = products.find((p) => p.productoId === item.productoId);
-        if (!product || product.stockTotal < item.cantidad) {
-          const available = product?.stockTotal ?? 0;
-          throw new BadRequestException(
-            `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
-          );
-        }
+    // Validate stock availability (always validate, deduction only if deductStock=true).
+    // Phase 1-3 (/tienda/pedidos, deductStock=false): validate only, no deduction.
+    // Phase 3 (/store/order, deductStock=true): validate + deduct atomically in transaction.
+    const productsWithStock = await this.inventoryService.consolidatedStock(
+      resolvedCompanyId,
+    );
+    for (const item of dto.items) {
+      const product = productsWithStock.find((p) => p.productoId === item.productoId);
+      if (!product || product.stockTotal < item.cantidad) {
+        const available = product?.stockTotal ?? 0;
+        throw new BadRequestException(
+          `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
+        );
       }
     }
 

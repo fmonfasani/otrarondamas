@@ -39,7 +39,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
   let hierB: Awaited<ReturnType<typeof mkHierarchy>>;
   let inactiveFamilyA: { id: string };
   let productA1: { id: string; nombre: string }; // 100.00 with 10% discount, stock 5
-  let productA2: { id: string; nombre: string }; // 50.00 no discount, no stock
+  let productA2: { id: string; nombre: string }; // 50.00 no discount, stock 10 (STORE-03b, STORE-03c)
   let productAInactive: { id: string };
   let productB1: { id: string };
   let ruleA: { id: string };
@@ -195,6 +195,18 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       },
     });
 
+    // productA2 also needs stock for STORE-03b and STORE-03c (which expect 201).
+    // STORE-03f uses a separate product with zero stock.
+    await prisma.lote.create({
+      data: {
+        empresaId: companyA.id,
+        productoId: productA2.id,
+        numeroLote: `L2-${suffix}`,
+        vencimiento: new Date('2099-01-01T00:00:00.000Z'),
+        cantidad: '10',
+      },
+    });
+
     // Both rules are created INACTIVE: they only apply while the loyalty
     // order-creation case flips them on, so every other case runs with no
     // loyalty rule in either Business.
@@ -288,8 +300,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       precio: '50.00',
       precioSinDescuento: null,
       descuentoPorcentaje: null,
-      disponible: false,
-      stockTotal: 0,
+      disponible: true,
+      stockTotal: 10,
     });
     expect(Object.keys(a1).sort()).toEqual(
       [
@@ -534,11 +546,18 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
   });
 
   it('STORE-03f: stock insuficiente → 400 sin crear Pedido ni Cliente (validación de stock sin descuento)', async () => {
+    // Create a product with zero stock locally to test insufficient stock validation
+    // without contaminating the shared catalog fixtures (STORE-01a/b/c expect productA1 + productA2)
+    const productNoStock = await mkProduct(companyA.id, hierA, 'A3-nostock', {
+      precioMinorista: '25',
+    });
+    // productNoStock has no lote, so stock = 0
+
     const before = await counts();
 
     const res = await request(BASE)
       .post('/tienda/pedidos')
-      .send(orderBody(email('insufficient-stock'), [{ productoId: productA2.id, cantidad: 1 }]));
+      .send(orderBody(email('insufficient-stock'), [{ productoId: productNoStock.id, cantidad: 1 }]));
 
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Stock insuficiente');
