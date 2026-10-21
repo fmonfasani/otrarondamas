@@ -470,3 +470,49 @@ The state-conflict inventory identifies **CON-025** as unresolved: define the co
 7. Only then decide whether schema migrations, API modules, UI actions or tests are needed.
 
 **Outcome:** B12 is **NOT IMPLEMENTATION-READY**. No new states, endpoints, fields, migrations, roles or permissions are approved by this audit. No application code or tests were changed or executed.
+
+### 7.9 B14 — Finance / accounts receivable reconciliation detail (source inspection, 2026-10-21)
+
+**Sources inspected:** `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`), `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md`. The candidate finance TO-BE path was not present at the inspected location. This was source inspection only; no database query, runtime execution, or test run.
+
+#### Verified schema surface — not an implemented finance capability
+
+- `CuentaCorriente` is associated with `Empresa` and `Cliente`, has a decimal `saldo`, and a uniqueness constraint on `[empresaId, clienteId]`.
+- `Deuda` is associated with `Empresa` and `Cliente`, optionally references `Venta` and `CuentaCorriente`, and stores `montoTotal`, `montoPendiente`, and optional `fechaVencimiento`.
+- `AplicacionPago` relates a `Pago` to a concrete `Deuda`, records `montoAplicado`, and has a uniqueness constraint on `[pagoId, deudaId]`.
+- `Pago` has `empresaId`, optional `ventaId`, optional `deudaId` referencing `CuentaCorriente`, `monto`, `medio`, `estado`, `comision`, and optional cash/transfer-specific fields.
+- `MovimientoCaja` records `tipo`, `monto`, optional `referenciaId` and timestamps. The schema comment lists operational categories such as `Venta`, `DeudaCobro`, `Gasto` and `Retiro`.
+
+The AS-IS product inventory explicitly states that current-account/debt collection is **not implemented**: the `CuentaCorriente`, `Deuda`, and `AplicacionPago` models exist, but no service uses them. Schema relationships and comments are not evidence of working posting, aging, balance calculation, allocation, or reporting behavior.
+
+#### Canonical decision boundary
+
+- **D-012** conceptually approves Business-scoped Accounts Receivable: an unpaid or partially paid sale may create a receivable associated with the Customer; the system should support pending balances, later collections, allocation to debts, traceability, and customer balance inquiry. The detailed debt model, allocation rules, statuses and credit rules remain open.
+- **D-011** conceptually approves external payment gateways, with Mercado Pago prioritized behind a provider abstraction. API, checkout, webhooks, credentials, idempotency and reconciliation remain open details.
+- The Cash TO-BE document explicitly leaves unresolved whether external gateway payments create cash movements and whether payment reconciliation and cash reconciliation are the same process. Do not collapse these into one ledger or infer automatic cash postings.
+- Canonical precedence remains Owner ruling → Decision Register → canonical spec → TO-BE → audit/workshop/historical. Figma values and schema comments cannot resolve open decisions.
+
+#### B14 metric and operation disposition
+
+| Candidate element | Evidence / unresolved contract | Required disposition |
+|---|---|---|
+| Accounts receivable total / customer balance | `CuentaCorriente.saldo` exists; no service or authoritative balance-update contract was verified. | Do not display schema values as operationally correct balances. Define ledger/source of truth, balance invariants and reconciliation. |
+| Debt rows / outstanding amount | `Deuda.montoTotal` and `montoPendiente` exist; lifecycle, due/overdue semantics and update rules remain open. | Specify creation, partial collection, settlement, cancellation/credit adjustment and overdue rules before UI/API contracts. |
+| Payment allocation | `AplicacionPago` links payment and debt with `montoAplicado`; no execution flow was verified. | Define allocation constraints, partial/multiple-debt handling, overpayment, reversals and transaction atomicity. |
+| Financial income / expense / net result | No approved formula, recognition basis, period boundary or source aggregation was verified. | Do not derive financial KPIs from order totals or cash movements. Define accounting semantics, timezone, currency, refunds/voids and inclusion rules. |
+| Payment status / settlement | `Pago.estado` exists; D-011 implementation details remain open. | Define provider lifecycle, idempotency, webhook trust and reconciliation before reporting payment as approved/settled. |
+| Cash movement | `MovimientoCaja` is an operational cash record, not by itself recognized revenue, payment settlement or a receivable ledger. | Preserve separation among Payment, Cash, recognized income/expense and AR. Define any cross-domain effects explicitly. |
+| Export / period filters | No finance reporting endpoint/contract was verified. | Treat export and filters as proposed; define permissions, row scope, pagination, currency/rounding and acceptance tests. |
+| Tenant and customer scope | Schema associates records to a Business and Customer; no AR service authorization was verified. | Require server-side BusinessContext/tenant isolation for every read/write; Customer and User remain distinct entities. |
+
+#### Required decision/specification sequence
+
+1. Preserve D-012's conceptual scope while explicitly resolving open implementation details for debt lifecycle, balance calculation, collection and allocation.
+2. Define the authoritative source for outstanding balances and invariants connecting `CuentaCorriente.saldo`, `Deuda.montoPendiente`, `Pago` and `AplicacionPago`.
+3. Define payment state transitions, external provider callbacks, idempotency, reversals and reconciliation under D-011.
+4. Decide if/when a payment, debt collection, refund or expense creates a `MovimientoCaja`; do not infer a one-to-one relation from similar labels.
+5. Define finance KPI formulas, period/timezone/currency semantics, and export behavior.
+6. Specify tenant authorization, audit trail, atomicity and concurrency guarantees, then map approved criteria to tests.
+7. Only after approval, determine the API/service, schema migrations, UI and tests required.
+
+**Outcome:** B14 is **NOT IMPLEMENTATION-READY**. The conceptual AR/payment scope is recorded separately from the still-open execution contract. No financial formulas, posting rules, states, endpoints, permissions or migrations are approved by this audit. No application code or tests were changed or executed.
