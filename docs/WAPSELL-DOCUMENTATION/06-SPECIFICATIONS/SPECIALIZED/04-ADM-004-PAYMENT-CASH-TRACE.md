@@ -134,3 +134,22 @@ The DTOs are not equivalent:
 The legacy manual controller delegates to `PaymentsService` with the narrower DTO; the sale controller delegates to `SalesService` with the POS DTO. The frontend contract therefore aligns with the sale-specific service, but this is not enough by itself to authorize deleting or moving the legacy route: external API consumers have not been inventoried.
 
 **Verification boundary:** connected repository tools can inspect source and CI metadata but cannot start the application or capture the live Nest route table in this session. No runtime handler selection is claimed.
+
+
+## 11. Bootstrap validation behavior and remaining runtime test
+
+The API bootstrap enables a global `ValidationPipe({ whitelist: true, transform: true })`. Therefore, if the duplicated route is handled by `PaymentsController`, fields outside `CreatePaymentDto` (`montoRecibido`, `referencia`) are not part of that DTO and are subject to whitelist removal. The frontend then also risks receiving the wrong response shape: `PaymentsService.create()` returns a payment record, while the modal reads `resp.saldo` and `resp.pago`.
+
+If `SalesController` handles the route, its DTO and expected response are the intended POS contract, and its service enforces the closed-cash rule. This comparison makes the collision a concrete contract-integrity issue, not merely duplicate documentation.
+
+### Regression acceptance criteria
+
+1. Exactly one canonical `POST /ventas/:id/pagos` handler is registered.
+2. The real POS payload validates and the response contains `saldo` and `pago`.
+3. Cash payment with a closed or missing register is rejected according to the sale contract.
+4. Successful cash payment creates one approved `Pago` and one corresponding `MovimientoCaja` in the same transaction.
+5. Transfer/QR payment creates one approved `Pago` and no physical-cash movement.
+6. Repeated request behavior and concurrent payments do not over-collect the sale total.
+7. Existing GET `/ventas/:ventaId/pagos` behavior remains available.
+
+The connected GitHub interface provides source inspection and commit metadata, but does not execute the API or local test runner. These criteria remain unverified until an integration run is available.
