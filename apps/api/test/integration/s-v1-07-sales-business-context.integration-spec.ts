@@ -714,12 +714,12 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
       { medio: 'efectivo', monto: 8 },
       sessionOf(usuarioA.id, companyB.id),
     );
-    expect(withCash).toMatchObject({
+    expect(withCash.pago).toMatchObject({
       empresaId: companyA.id,
       usuarioId: usuarioA.id,
       ventaId: saleA.id,
     });
-    const movements = await cashMovements(withCash.id);
+    const movements = await cashMovements(withCash.pago.id);
     expect(movements).toHaveLength(1);
     expect(movements[0]).toMatchObject({
       cajaId: cashRegisterA.id,
@@ -731,13 +731,14 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
 
     await setCashOpen(false);
     try {
-      const closed = await payments.create(
-        saleA.id,
-        { medio: 'efectivo', monto: 2 },
-        sessionOf(usuarioA.id, companyA.id),
-      );
-      expect(closed.estado).toBe('APROBADO');
-      expect(await cashMovements(closed.id)).toHaveLength(0);
+      await expect(
+        payments.create(
+          saleA.id,
+          { medio: 'efectivo', monto: 2 },
+          sessionOf(usuarioA.id, companyA.id),
+        ),
+      ).rejects.toThrow(ConflictException);
+      expect(await prisma.pago.count({ where: { ventaId: saleA.id } })).toBe(1);
     } finally {
       await setCashOpen(true);
     }
@@ -747,7 +748,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
       { medio: 'transferencia', monto: 2 },
       sessionOf(usuarioA.id, companyA.id),
     );
-    expect(await cashMovements(transfer.id)).toHaveLength(0);
+    expect(await cashMovements(transfer.pago.id)).toHaveLength(0);
   });
 
   it('SBC-17: Payments.create overpay → 400; B sale → 404 and B intact; findAll is tenant-scoped', async () => {
