@@ -255,7 +255,7 @@ Repository sources inspected: `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/
 
 1. Distinguish global User identity from active Business membership/context; do not expose business-scoped or customer-scoped data as personal account data.
 2. Define editable fields and whether profile remains read-only; any mutation requires explicit owner decision, endpoint, validation, authorization, and audit behavior.
-3. Define MFA enrollment/state and recovery semantics only if approved and supported; otherwise remove the “2FA” metric.
+3. MFA is mandatory for Owner/Admin by OR-B3-014. Define enrollment/state, recovery, challenge lifecycle and technical enforcement in the specialized security contract; until those contracts and the real state source exist, do not show a live “2FA” status metric.
 4. Define session inventory/revocation semantics only if approved and supported; otherwise remove active-session counts.
 5. Define account verification source/state and account-activity event taxonomy; do not fabricate status or events.
 6. Remove the customer-repurchase banner, customer rows, purchase/spending panels and customer statuses; replace them with profile/security data backed by defined contracts or omit them.
@@ -359,8 +359,8 @@ This section records the next SDD work package accepted for execution. It reconc
 ### 10.5 B17–B18 — Team, permissions, profile and account
 
 - Separate global User identity, Business Membership/context, and Customer identity; never infer their equivalence from a Figma row.
-- Membership/context resolution in the current code does not prove that membership invitations, role mutation, permission editing, suspension, session revocation, MFA, account verification, or security-event history are implemented.
-- Keep B18's current `/profile` read-only behavior as AS-IS evidence. Editing, export, MFA, active-session count/revocation and verification indicators require explicit product decisions and backed contracts before implementation.
+- Membership/context resolution in the current code does not prove that membership invitations, role mutation, permission editing, suspension, session revocation, MFA enforcement, account verification, or security-event history are implemented. Owner/Admin MFA is required by OR-B3-014; its mechanism remains open.
+- Keep B18's current `/profile` read-only behavior as AS-IS evidence. Editing, export, active-session count/revocation and verification indicators require explicit product decisions and backed contracts before implementation. MFA for Owner/Admin is already required by OR-B3-014; the mechanism, enrollment/recovery and enforcement contracts remain open.
 - Server-side tenant isolation and authorization remain mandatory; navigation visibility is not an authorization control.
 
 ### 10.6 Cross-screen acceptance gate
@@ -440,9 +440,9 @@ The AS-IS product and module inventories state that no `apps/api/src/entregas/` 
 #### Canonical decision boundary
 
 The state-conflict inventory identifies **CON-025** as unresolved: define the complete lifecycle of Fulfillment and Deliveries. The Owner decision closure further states:
-- Repartidor is excluded as an MVP Membership Role (`FUTURE / OPEN`); this does **not** resolve D-016.
-- D-016 (Business management of fulfillment/repartidores) and REQ-FUL-003 remain **OPEN OWNER DECISION** and are not promoted.
-- D-016's open state means the design cannot assume that a courier is a Business Membership, an external identity, an employee, or a separately managed actor.
+- OR-B3-011 later resolves the conceptual direction: Fulfillment is in the MVP under the Orders domain, and Repartidor is not an MVP Membership Role. Detailed fulfillment workflow and physical model remain open; CON-025 is still unresolved.
+- Do not describe D-016 / REQ-FUL-003 as wholly open Owner decisions after OR-B3-011. Their earlier ambiguity is superseded by the later conceptual ruling; remaining workflow, actors outside Membership, assignment and lifecycle details stay open implementation/specification detail.
+- Since Repartidor is not an MVP Membership Role, do not infer the courier's identity/assignment mechanism, external actor model, employment relationship, or separate management flow without a further approved contract.
 - The canonical precedence is Owner ruling → Decision Register → canonical spec → TO-BE → audit/workshop/historical evidence. The Figma mockup and the schema comment cannot overrule that authority.
 
 #### B12 field/action disposition
@@ -461,7 +461,7 @@ The state-conflict inventory identifies **CON-025** as unresolved: define the co
 
 #### Required decision/specification sequence
 
-1. Resolve or explicitly retain as open the Owner decisions for D-016 / REQ-FUL-003 and CON-025.
+1. Apply OR-B3-011 for the conceptual Fulfillment boundary and retain the detailed lifecycle/workflow questions under CON-025; specify actor identity, assignment, and operational behavior only after the required contracts are approved.
 2. Establish the delivery actor model and its tenant/identity boundary without assuming Repartidor is an MVP Membership role.
 3. Specify lifecycle and permitted transitions, including failure/cancellation/retry, only after the relevant decisions.
 4. Define the source of order address, item count, order value, assignment, schedule and completion evidence.
