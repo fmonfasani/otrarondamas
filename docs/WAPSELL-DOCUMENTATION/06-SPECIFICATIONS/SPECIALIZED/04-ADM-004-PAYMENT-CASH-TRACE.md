@@ -119,3 +119,18 @@ This confirms that the **frontend currently targets the duplicated route templat
 - Add an HTTP-level test that submits the exact frontend payload and asserts the expected response contract.
 - Verify both cash-open and cash-closed behavior against the selected canonical handler.
 - Only then remove, relocate, or adapt one route. Preserve existing consumers or provide a deliberate compatibility migration; do not silently break the POS modal.
+
+
+## 10. Module registration and DTO contract confirmed
+
+The application module imports both `SalesModule` and `PaymentsModule`; their respective modules register `SalesController` and `PaymentsController`. Thus, both route declarations are included in the application module graph (source-level confirmation). The actual effective handler still requires runtime route inspection.
+
+The DTOs are not equivalent:
+
+- `CreatePaymentDto` accepts `medio` and `monto`.
+- `CreateSalePaymentDto` accepts those fields plus optional `montoRecibido` and `referencia`.
+- The POS sends `montoRecibido` for cash and `referencia` for transfer/QR, and expects the sale-payment response shape.
+
+The legacy manual controller delegates to `PaymentsService` with the narrower DTO; the sale controller delegates to `SalesService` with the POS DTO. The frontend contract therefore aligns with the sale-specific service, but this is not enough by itself to authorize deleting or moving the legacy route: external API consumers have not been inventoried.
+
+**Verification boundary:** connected repository tools can inspect source and CI metadata but cannot start the application or capture the live Nest route table in this session. No runtime handler selection is claimed.
