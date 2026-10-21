@@ -268,6 +268,19 @@ export class SalesService {
     return { lineas: lines, total: total.toString() };
   }
 
+  async findPaymentsBySale(saleId: string, companyId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const sale = await db.venta.findFirst({
+      where: { id: saleId, empresaId: companyId },
+    });
+    if (!sale) throw new NotFoundException('Venta no encontrada');
+
+    return db.pago.findMany({
+      where: { ventaId: saleId, empresaId: companyId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   // Inc-3 (RF-VTA-14, RF-VTA-15, RF-VTA-16): record a payment on a sale.
   // D-VTA-07/A: block cash if the cash register is closed.
   // D-VTA-04/B: leaving with a balance is allowed — the derived balance is
