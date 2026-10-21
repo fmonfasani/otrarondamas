@@ -105,3 +105,17 @@ Treat this as **P0 route ambiguity / payment integrity risk**. Before changing b
 5. Add HTTP regression tests proving the effective route, closed-register behavior, amount validation, and exactly-one payment plus exactly-one cash movement.
 
 Do not simply delete either controller or change the cash policy without confirming route consumers and contract compatibility.
+
+
+## 9. Frontend call-site confirmation
+
+The POS payment modal `apps/pos-admin/src/features/ventas/ModalCobro.tsx` calls `api.crearPago(ventaId, dto)`. The helper in `apps/pos-admin/src/lib/api.ts` sends that request to `POST /ventas/${ventaId}/pagos`. The modal uses the sale-payment DTO shape, including `montoRecibido` for cash and `referencia` for transfer/QR, and expects a response with `saldo` and `pago`.
+
+This confirms that the **frontend currently targets the duplicated route template**, but it does not establish which controller handles it at runtime. The two controllers use different DTO and response contracts, so a route-resolution mismatch could surface as validation errors or a response-shape failure in the modal.
+
+### Safe resolution plan
+
+- Reproduce the registered route table using the same Nest application/module composition as CI.
+- Add an HTTP-level test that submits the exact frontend payload and asserts the expected response contract.
+- Verify both cash-open and cash-closed behavior against the selected canonical handler.
+- Only then remove, relocate, or adapt one route. Preserve existing consumers or provide a deliberate compatibility migration; do not silently break the POS modal.
