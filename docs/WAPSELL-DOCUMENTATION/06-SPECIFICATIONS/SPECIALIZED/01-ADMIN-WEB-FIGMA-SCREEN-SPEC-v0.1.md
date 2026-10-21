@@ -630,3 +630,29 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 6. Only after canonical reconciliation and approval determine whether API, UI, schema migration or deployment work is authorized.
 
 **Outcome:** B17 is **NOT IMPLEMENTATION-READY**. Identity/Membership and authorization concepts exist, but complete team administration is not established. No invite flow, permission matrix, role mutation, endpoint, migration or test is approved by this audit. No application code or tests were changed or executed.
+
+### 7.13 B18 — Profile and account reconciliation (2026-10-21)
+
+Read-only source inspection of `ProfilePage.tsx`, `AuthContext.tsx`, `auth.controller.ts`, `auth.service.ts`, and Owner decision R8-ARCH-003. No runtime or tests executed.
+
+- `/profile` renders a read-only profile page. Its source states that `PATCH /usuarios/me` does not exist.
+- Existing fields: name, email, Business/company name, login method, photo when available, account creation date and permissions. No editable fields are implemented on this page.
+- `GET /auth/me` queries the legacy `usuario` record. Password login and Google login return an access token and profile.
+- `AuthContext` supports password login and Google callback completion; password login selects local or session storage according to “remember me”; mount-time refresh calls `api.me()` when a token exists; client logout clears browser storage. Google callback stores the token in local storage.
+- Owner decision R8-ARCH-003 requires MFA for Owner/Admin but leaves its mechanism open and implementation unauthorized. Session/device management and related lifecycle details remain open.
+- Current profile code uses legacy `Usuario`/`empresaId`. The canonical target is global User identity plus active Business context and valid ACTIVE Membership; the current profile response does not prove that migration is complete.
+
+| B18 element | Disposition |
+|---|---|
+| Edit profile | Not supported; no `PATCH /usuarios/me` verified. Any mutation needs explicit decision, contract, validation, authorization, audit and tests. |
+| MFA status | Required for Owner/Admin by decision, but current enrollment/state/enforcement were not established by inspected code. |
+| Sessions/devices | Not verified; define data and behavior before displaying counts or controls. |
+| Verification status | No authoritative source verified. |
+| Account activity | No security audit feed verified. Do not substitute customer order history. |
+| Export | Scope and authorization undefined; proposed only. |
+| Logout | Client storage is cleared; server-side invalidation is not established. |
+| Failure states | Define loading, stale profile, expired token, unauthorized response and failed refresh. |
+
+Remove customer-repurchase banners, customer rows, purchase/spending figures and order history from B18. Use only account data backed by an approved contract. Map accepted criteria to tests before implementation.
+
+**Outcome:** B18 is **PARTIALLY VERIFIED / NOT IMPLEMENTATION-READY**. Current profile/auth mechanics are evidenced; Figma edit/export, MFA status, session inventory, verification and account activity are not established capabilities. No code changes or tests were executed.
