@@ -556,3 +556,39 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 5. Map every approved metric and interaction to tests and performance/security criteria before implementation.
 
 **Outcome:** B15 is **NOT IMPLEMENTATION-READY**. `/reports` remains a placeholder. No metric formula, report endpoint, export, permission or financial interpretation is approved by this audit. No application code or tests were changed or executed.
+
+### 7.11 B16 — Business settings / brand boundary reconciliation (source inspection, 2026-10-21)
+
+**Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md` (blob `d0fc776615d4ec9b7e19f8852e5a03ad08a479fb`), `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Read-only source inspection; no runtime, database or tests.
+
+#### Verified AS-IS
+
+- The Admin `/settings` route is explicitly a placeholder: `Configuración - En desarrollo`. No settings CRUD flow was verified.
+- The Branding & Customer Experience Spec (`SPEC-BRAND-001`) is itself `DRAFT — INTEGRATION BASELINE / OWNER REVIEW REQUIRED`. It says `Business` is the tenant boundary and `Brand` is the customer-visible commercial identity; it does not claim implementation conformance and does not close CON-012.
+- D-004 establishes the conceptual direction of a canonical shared Design System with per-Business Brand configuration, but implementation details—configuration model, tokens, assets and customization limits—remain open.
+- The canonical branding spec says the server resolves tenant context, permissions and published configuration; client theme state is presentation-only; missing/invalid brand data should fall back deterministically; visual branding must not alter prices, stock, order/payment state, permissions or tenant isolation. These are documented target constraints in a draft, not evidence that the current application implements them.
+
+#### B16 proposed field/action disposition
+
+| Candidate element | Required boundary / evidence before implementation |
+|---|---|
+| Business identity (public name, description, logo) | Define which canonical Business-owned fields already exist and where they are stored; do not add legal/tax fields from the mockup without an Owner decision. |
+| Brand palette / tokens | Reconcile shared Design System Core versus Business Brand ownership under CON-012. Do not copy screenshot colors into canonical tokens or create a second competing token store. |
+| Logo/banner/avatar assets | Define upload/storage, content validation, size/type limits, replacement/removal, failure handling and asset ownership. Do not assume the existing schema or storage supports these actions without code/schema evidence. |
+| Preview / publish / revert | These are target behaviors described in a draft branding spec, not verified routes or services. Define draft/published version semantics, validation, rollback, concurrency and audit before authorizing implementation. |
+| Storefront rendering | Server must resolve the active Business and its published Brand; client-supplied tenant IDs or theme values cannot authorize cross-tenant reads or writes. |
+| Conversation greeting / tone | Brand expression cannot activate AI agents or automated replies by implication. Messaging/AI scope and operational behavior require their own approved contract. |
+| Operational preferences | Define each preference and its owning domain, default, validation, effective time and impact. Do not mix cash, payment, fulfillment or inventory behavior into generic settings without domain decisions. |
+| Save / cancel / reset actions | No mutation endpoint or settings API contract was verified. Specify request/response, validation, authorization, audit, optimistic-concurrency and error states before mapping UI actions. |
+| Tenant access / role policy | D-006 requires identity + target Business + valid Membership + required authorization. Permission catalogue details remain open; no client-only gate or invented permission code is acceptable. |
+
+#### Required reconciliation sequence
+
+1. Keep CON-012 open until the shared design-system/token hierarchy, Business Brand ownership, canonical sources and derived contracts are reconciled and reviewed.
+2. Inventory existing Business fields, brand-related persistence, asset storage, API routes and UI before proposing schema or endpoint changes; the `/settings` placeholder is not evidence of available CRUD.
+3. Separate Business profile, published Brand, operational preferences and platform-level settings as distinct concerns with explicit ownership.
+4. Define draft/publish/revert and safe fallback semantics, server-side tenant authorization, asset lifecycle and audit requirements.
+5. Map approved requirements to acceptance tests covering tenant isolation, invalid/missing brand fallback, save failures, publication/version behavior and non-interference with commerce rules.
+6. Only after approval determine whether schema, API, UI, migration and deployment work is authorized.
+
+**Outcome:** B16 is **NOT IMPLEMENTATION-READY**. `/settings` remains a placeholder and CON-012 remains open. This audit does not approve fields, token values, asset workflows, endpoints, permissions, migrations or branding implementation. No application code or tests were changed or executed.
