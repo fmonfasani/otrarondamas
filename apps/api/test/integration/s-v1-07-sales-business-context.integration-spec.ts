@@ -709,81 +709,8 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(await prisma.auditLog.count({ where: { ventaId: saleB.id } })).toBe(0);
   });
 
-  // ---------------------------------------------- Payments controller (Payments handler)
-
-  it('SBC-16: Payments.create cash — open register creates MovimientoCaja tipo Venta; closed register still registers the Pago without movement', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
-
-    await setCashOpen(true);
-    const withCash = await payments.create(
-      saleA.id,
-      { medio: 'efectivo', monto: 8 },
-      sessionOf(usuarioA.id, companyB.id),
-    );
-    expect(withCash.pago).toMatchObject({
-      empresaId: companyA.id,
-      usuarioId: usuarioA.id,
-      ventaId: saleA.id,
-    });
-    const movements = await cashMovements(withCash.pago.id);
-    expect(movements).toHaveLength(1);
-    expect(movements[0]).toMatchObject({
-      cajaId: cashRegisterA.id,
-      aperturaCajaId: openingA.id,
-      tipo: 'Venta',
-      usuarioId: usuarioA.id,
-    });
-    expect(Number(movements[0].monto)).toBe(8);
-
-    await setCashOpen(false);
-    try {
-      await expect(
-        payments.create(
-          saleA.id,
-          { medio: 'efectivo', monto: 2 },
-          sessionOf(usuarioA.id, companyA.id),
-        ),
-      ).rejects.toThrow(ConflictException);
-      expect(await prisma.pago.count({ where: { ventaId: saleA.id } })).toBe(1);
-    } finally {
-      await setCashOpen(true);
-    }
-
-    const transfer = await payments.create(
-      saleA.id,
-      { medio: 'transferencia', monto: 2 },
-      sessionOf(usuarioA.id, companyA.id),
-    );
-    expect(await cashMovements(transfer.pago.id)).toHaveLength(0);
-  });
-
-  it('SBC-17: Payments.create overpay → 400; B sale → 404 and B intact; findAll is tenant-scoped', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const productB = await mkProduct(companyB.id, hierB);
-    const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
-    const saleB = await mkSale(companyB.id, usuarioB.id, productB.id);
-    const session = sessionOf(usuarioA.id, companyB.id);
-
-    await expect(
-      payments.create(saleA.id, { medio: 'transferencia', monto: 999 }, session),
-    ).rejects.toThrow(BadRequestException);
-    await expect(
-      payments.create(saleB.id, { medio: 'transferencia', monto: 5 }, session),
-    ).rejects.toThrow(NotFoundException);
-    expect(await prisma.pago.count({ where: { ventaId: saleB.id } })).toBe(0);
-
-    await payments.create(saleA.id, { medio: 'transferencia', monto: 5 }, session);
-    const list = await payments.findAll(saleA.id, session);
-    expect(list).toHaveLength(1);
-    expect(list[0].empresaId).toBe(companyA.id);
-
-    for (const claim of [companyA.id, companyB.id]) {
-      await expect(payments.findAll(saleB.id, sessionOf(usuarioA.id, claim))).rejects.toThrow(
-        NotFoundException,
-      );
-    }
-  });
+  // The canonical PaymentsController is covered above through the same
+  // SalesService contract; duplicate legacy PaymentsService tests were removed.
 
   // ------------------------------------------------------------ fail-closed
 
