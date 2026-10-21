@@ -142,13 +142,22 @@ export class StoreService {
 
   /**
    * Creates an online store Pedido. Without stock reservation (confirmed
-   * owner decision, see roadmap): this does NOT deduct stock — the deduction
-   * only happens when a seller confirms the order from the panel (Phase 4)
-   * or when the payment is confirmed (Phase 5). Here it only validates that
-   * there is stock available at the time of ordering, without setting it
-   * aside.
+   * owner decision, see roadmap): this does NOT deduct stock by default — the
+   * deduction only happens when a seller confirms the order from the panel
+   * (Phase 4) or when the payment is confirmed (Phase 5). Here it only
+   * validates that there is stock available at the time of ordering, without
+   * setting it aside.
+   *
+   * Phase 3 (/store/order): deductStock = true → deducts atomically.
+   * Phase 1-3 (legacy /tienda/pedidos): deductStock = false → validates only.
    */
-  async createOrder(dto: CreateOrderDto, companyId?: string, channelOrigen = 'web', idempotencyKey?: string) {
+  async createOrder(
+    dto: CreateOrderDto,
+    companyId?: string,
+    channelOrigen = 'web',
+    idempotencyKey?: string,
+    deductStock = false,
+  ) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
 
@@ -161,6 +170,23 @@ export class StoreService {
     for (const item of dto.items) {
       if (!productById.has(item.productoId)) {
         throw new BadRequestException(`Producto ${item.productoId} no disponible`);
+      }
+    }
+
+    // Validate stock availability (without deduction) unless deductStock is true.
+    // Phase 1-3: validate only. Phase 3+: deduction happens in transaction below.
+    if (!deductStock) {
+      const products = await this.inventoryService.consolidatedStock(
+        resolvedCompanyId,
+      );
+      for (const item of dto.items) {
+        const product = products.find((p) => p.productoId === item.productoId);
+        if (!product || product.stockTotal < item.cantidad) {
+          const available = product?.stockTotal ?? 0;
+          throw new BadRequestException(
+            `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
+          );
+        }
       }
     }
 
@@ -299,18 +325,21 @@ export class StoreService {
       });
 
       // C5A: Deduct stock for each item in the order (within same transaction).
+      // Only if deductStock flag is true (Phase 3 /store/order).
       // Ensures atomic order creation + stock deduction: either both succeed or
       // both roll back on conflict/insufficient stock.
-      for (const item of order.pedidoItems) {
-        await this.inventoryService.deductStock(
-          tx,
-          resolvedCompanyId,
-          item.productoId,
-          Number(item.cantidad),
-          'Orden comercial', // reason
-          order.id, // referenceId
-          null, // userId (not yet assigned, Phase 4 of roadmap)
-        );
+      if (deductStock) {
+        for (const item of order.pedidoItems) {
+          await this.inventoryService.deductStock(
+            tx,
+            resolvedCompanyId,
+            item.productoId,
+            Number(item.cantidad),
+            'Orden comercial', // reason
+            order.id, // referenceId
+            null, // userId (not yet assigned, Phase 4 of roadmap)
+          );
+        }
       }
 
       return order;

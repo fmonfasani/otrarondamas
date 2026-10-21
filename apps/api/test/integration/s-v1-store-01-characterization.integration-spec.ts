@@ -246,6 +246,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.producto.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.subtipo.deleteMany({ where: { empresaId: { in: companies } } });
@@ -530,6 +531,19 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .send(orderBody(email('dto'), [{ productoId: productA2.id, cantidad: 0 }]))
       .expect(400);
     expect(await counts()).toEqual(before);
+  });
+
+  it('STORE-03f: stock insuficiente → 400 sin crear Pedido ni Cliente (validación de stock sin descuento)', async () => {
+    const before = await counts();
+
+    const res = await request(BASE)
+      .post('/tienda/pedidos')
+      .send(orderBody(email('insufficient-stock'), [{ productoId: productA2.id, cantidad: 1 }]));
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('Stock insuficiente');
+    expect(await counts()).toEqual(before);
+    expect(await prisma.cliente.count({ where: { email: email('insufficient-stock') } })).toBe(0);
   });
 
   // ------------------------------------------------------------------ STORE-04
