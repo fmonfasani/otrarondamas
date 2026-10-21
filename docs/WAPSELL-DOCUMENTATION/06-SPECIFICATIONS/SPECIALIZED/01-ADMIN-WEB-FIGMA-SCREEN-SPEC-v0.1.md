@@ -156,7 +156,7 @@ The frame visibly proposes these regions/actions:
 - columns for customer, contact, purchases, total purchased, last purchase, status and row actions;
 - a selected-customer summary panel and a recent-purchases panel.
 
-**Critical data boundary:** displayed figures (e.g. 1,284 customers, 342 recurring, 86 new, 73 inactive/recently absent), names, purchase counts, currency values, timestamps and statuses are mock content in the frame. They are not verified database values or approved business definitions. Do not ship these as constants or seed production data. Every card/column must either be backed by an approved query/contract or removed/marked as illustrative.
+**Critical data boundary:** displayed figures (e.g. 1,284 customers, 342 recurring, 86 new, 73 without recent purchases), names, purchase counts, currency values, timestamps and statuses are mock content in the frame. They are not verified database values or approved business definitions. Do not ship these as constants or seed production data. Every card/column must either be backed by an approved query/contract or removed/marked as illustrative.
 
 | Visible B10 feature | Current AS-IS evidence | Classification / next spec decision |
 |---|---|---|
