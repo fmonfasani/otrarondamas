@@ -34,15 +34,15 @@ The order represents traceability, not a claim that every link currently exists.
 
 | Screen ID | Figma frame | Stable node ID | Frame link | Domain candidates | Current spec status |
 |---|---|---:|---|---|---|
-| ADM-CUS-001 | B10 — Clientes \\| Admin Desktop | `2054:2` | [Open B10](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2054-2) | Customer | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-SUP-001 | B11 — Proveedores \\| Admin Desktop | `2055:2` | [Open B11](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-2) | Supplier / Purchases | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-DEL-001 | B12 — Entregas \\| Admin Desktop | `2055:195` | [Open B12](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-CASH-001 | B13 — Caja \\| Admin Desktop | `2055:388` | [Open B13](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-FIN-001 | B14 — Finanzas \\| Admin Desktop | `2055:581` | [Open B14](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / Accounts Receivable | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-REP-001 | B15 — Reportes \\| Admin Desktop | `2055:774` | [Open B15](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-SET-001 | B16 — Configuración del negocio \\| Admin Desktop | `2055:967` | [Open B16](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business configuration / Brand | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-TEAM-001 | B17 — Equipo y permisos \\| Admin Desktop | `2055:1160` | [Open B17](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-ACC-001 | B18 — Perfil y cuenta \\| Admin Desktop | `2055:1353` | [Open B18](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-CUS-001 | B10 — Clientes \| Admin Desktop | `2054:2` | [Open B10](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2054-2) | Customer | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-SUP-001 | B11 — Proveedores \| Admin Desktop | `2055:2` | [Open B11](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-2) | Supplier / Purchases | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-DEL-001 | B12 — Entregas \| Admin Desktop | `2055:195` | [Open B12](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-CASH-001 | B13 — Caja \| Admin Desktop | `2055:388` | [Open B13](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-FIN-001 | B14 — Finanzas \| Admin Desktop | `2055:581` | [Open B14](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / Accounts Receivable | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-REP-001 | B15 — Reportes \| Admin Desktop | `2055:774` | [Open B15](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-SET-001 | B16 — Configuración del negocio \| Admin Desktop | `2055:967` | [Open B16](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business configuration / Brand | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-TEAM-001 | B17 — Equipo y permisos \| Admin Desktop | `2055:1160` | [Open B17](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-ACC-001 | B18 — Perfil y cuenta \| Admin Desktop | `2055:1353` | [Open B18](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | Candidate mapping only; detailed behavior NOT SPECIFIED |
 
 Frame dimensions and editable-layer structure were previously inspected, but that structural inspection is not a visual fidelity review, behavior validation, or implementation check. Re-verify frames when design changes.
 
