@@ -227,6 +227,26 @@ B12–B17 repeat the same banner copy about “73 clientes sin compras en los ú
 B18 was not visually reviewed in this audit because the Figma MCP tool call quota was reached. Its screen content, fields, actions, session behavior and relationship between global User and active Business remain **NOT VERIFIED**. Do not treat it as reviewed or implementation-ready. Revisit the frame when Figma tool access is available and then reconcile it against authentication/account contracts.
 
 
+
+### 6.6 Repository AS-IS cross-check — B12–B17 (2026-10-21)
+
+**Source checked:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md` (evidence classification in that artifact: VERIFIED BY CODE + VERIFIED BY EXECUTION for the listed implemented flows), `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/features/caja/CajaPage.tsx`, `apps/pos-admin/src/lib/api.ts`, `packages/shared-types/src/index.ts`, and `apps/api/prisma/schema.prisma`. This was a repository/code inspection, not a new local test run.
+
+| Frame | AS-IS evidence found | SDD consequence |
+|---|---|---|
+| B12 — Entregas | The `Entrega` Prisma model exists and relates 1:1 to `Pedido`, with preparer/courier identifiers; the AS-IS product inventory explicitly says there is no `apps/api/src/entregas/` module/controller/service. | Treat the delivery screen as a TO-BE proposal. Define the lifecycle, commands, authorization and delivery/pedido contract before implementation; do not equate a schema model with a working feature. |
+| B13 — Caja | The repository documents an implemented cash flow: opening, movements, count/reconciliation, dual confirmation for handover, exception authorization above a threshold, and closing. Admin code includes `CajaPage`; shared API types and client include `EstadoCajaResponse` and calls such as `GET /caja/estado` and `POST /caja/apertura`. | The Figma table is not a reliable description of the current cash contract. Reconcile each KPI, column, movement type and action against the existing cash API and state machine; preserve the documented double-confirmation and exception-authorization invariants. |
+| B14 — Finanzas | The AS-IS inventory explicitly states current-account/debt collection is not implemented: `CuentaCorriente`, `Deuda` and `AplicacionPago` exist in Prisma but have no service using them. No financial-reporting contract was verified in this pass. | Do not present accounts receivable, net result or a generic financial ledger as existing capability. Separate operational cash movements from recognized income/expenses and receivables; mark unresolved accounting semantics as decisions/contracts required. |
+| B15 — Reportes | The AS-IS inventory identifies `/reports` as the literal placeholder `Reportes - En desarrollo`. | All cards, indicators, trends, filters and exports in B15 are proposed functionality, not current implementation. |
+| B16 — Configuración del negocio | The AS-IS inventory identifies `/settings` as a placeholder. The Figma frame's mixed customer/purchase rows do not define business settings. | Treat fields, save operations, brand configuration and preferences as proposed. Reconcile the business-profile boundary and CON-012 before implementation. |
+| B17 — Equipo y permisos | Canonical `Membership` and `BusinessContext` infrastructure exists; `MembershipService` is documented as read-only and resolves canonical memberships. This does not establish a complete Admin user/role/permission management feature. | Keep membership resolution distinct from membership administration. Invitation, role mutation, suspension, permission editing, audit and self-lockout behavior require explicit contracts; no implementation claim is made for those actions. |
+
+#### Code-review limitations
+
+- This pass did not execute the application's test suites, run the app, query the live database, or validate the Figma-to-code visual match.
+- The AS-IS inventory is used as an indexed source of evidence; individual implementation details should be re-opened and tested before converting them into acceptance criteria.
+- No API, schema or runtime code was changed by this audit.
+
 ## 7. Acceptance criteria for the design-to-spec workflow
 
 The workflow itself is acceptable when:
