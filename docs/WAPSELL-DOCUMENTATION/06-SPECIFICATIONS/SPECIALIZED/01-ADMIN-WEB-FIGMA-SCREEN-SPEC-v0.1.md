@@ -592,3 +592,41 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 6. Only after approval determine whether schema, API, UI, migration and deployment work is authorized.
 
 **Outcome:** B16 is **NOT IMPLEMENTATION-READY**. `/settings` remains a placeholder and CON-012 remains open. This audit does not approve fields, token values, asset workflows, endpoints, permissions, migrations or branding implementation. No application code or tests were changed or executed.
+
+### 7.12 B17 — Team / Membership and permissions reconciliation (source inspection, 2026-10-21)
+
+**Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`, and `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`). Read-only source inspection; no runtime, database query or tests.
+
+#### Verified architecture and AS-IS boundary
+
+- Canonical decisions define `User` as global identity and `Membership` as the User↔Business relationship; a User may belong to multiple Businesses. `Customer` remains a separate commercial entity.
+- D-005 and OR-B2-001 place roles and permissions on Membership, using the conceptual chain Membership → Role → Permission; the alternative Profile → Role → Capability → Overrides model is not adopted.
+- OR-B2-002 requires conceptual checks for authenticated User, target Business, valid Membership and authorization by Role/Permission. A valid token alone is insufficient. OR-B2-003 defines ACTIVE/INACTIVE Membership conceptually; inactive membership cannot operate on that Business.
+- OR-B2-008 names MVP Membership Roles: Owner, Admin, Vendedor and Gestor de Stock. Customer and Supplier are not Membership Roles; Repartidor is outside the MVP (`FUTURE / OPEN`). OR-B2-009 keeps Owner and Admin distinct. Permissions per role remain OPEN IMPLEMENTATION DETAIL.
+- AS-IS inventory identifies a gap: Admin is not present in the AS-IS role model, and Supplier belongs to the legacy User model. This is not evidence of a complete team-administration UI.
+- Prisma has `Membership`, `Permiso` and `UsuarioPermiso` models, but schema presence alone does not prove invite, role mutation, membership deactivation, permission administration, audit, or complete UI behavior. Full B17 actions were not verified in this pass.
+
+#### B17 action disposition
+
+| Candidate element | Required contract/evidence before implementation |
+|---|---|
+| Team member list | Define membership status, Business scope, role display, search and inactive/pending handling. Do not populate with Customer records or purchase metrics. |
+| Invite member | Define identity lookup/creation, email uniqueness, invitation lifecycle/expiry, resend, acceptance, duplicate membership behavior and notifications. A Figma button does not prove an endpoint exists. |
+| Assign/change role | Use only approved MVP role names; define actor authorization, role-assignment matrix and ownership-transfer rules. Permission details remain open. |
+| Activate/deactivate | Respect conceptual ACTIVE/INACTIVE status; define transitions, authorization and effects on sessions and in-flight operations. |
+| Fine-grained permissions | Canonical model is Role → Permission. The permission catalogue and per-role grants remain open; do not use Figma labels as permission codes or rely on client-side hiding. |
+| Last access / activity | No source contract was verified. Define event source, timestamp meaning/timezone, retention and privacy before display. |
+| Remove member / ownership | Define whether removal means deactivation, unlinking or deletion; preserve audit and data ownership. Specify last-Owner protection and self-lockout recovery before enabling destructive actions. |
+| Audit trail | Define actor, target membership, Business, action, timestamp, outcome and retention; events must be server-produced and tenant-scoped. |
+| Tenant authorization | Every read/write must derive target Business from authenticated active context and validate Membership plus permission server-side. Caller-supplied tenant IDs and UI visibility are not authority. |
+
+#### Required reconciliation sequence
+
+1. Reconcile legacy `Usuario.rol` / `UsuarioPermiso` behavior with canonical Membership → Role → Permission before changing role-management flows; do not assume the target model is fully migrated.
+2. Inspect actual API controllers/services and tests for member listing, invitation, role mutation, activation/deactivation and audit; distinguish existing auth/context infrastructure from unverified administration capabilities.
+3. Define the permission catalogue, role-grant matrix, invitation lifecycle, membership transitions, session effects and ownership safeguards.
+4. Define tenant-scoped authorization and audit invariants for every command and query.
+5. Map accepted criteria to tests for cross-Business isolation, inactive Membership denial, privilege escalation, invitation expiry/duplication, role boundaries and self-lockout/last-Owner protection.
+6. Only after canonical reconciliation and approval determine whether API, UI, schema migration or deployment work is authorized.
+
+**Outcome:** B17 is **NOT IMPLEMENTATION-READY**. Identity/Membership and authorization concepts exist, but complete team administration is not established. No invite flow, permission matrix, role mutation, endpoint, migration or test is approved by this audit. No application code or tests were changed or executed.
