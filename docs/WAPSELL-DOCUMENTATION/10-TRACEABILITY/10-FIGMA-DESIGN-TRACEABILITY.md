@@ -30,7 +30,7 @@ Track stable Figma frames as design inputs to Wapsell's existing traceability sy
 | ADM-CASH-001 | B13 / `2055:388` | [B13 Caja](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.7; current flow and invariants mapped by source inspection; Figma metrics/actions still lack verified contracts | AS-IS CODE INSPECTED; FIGMA TARGET NOT IMPLEMENTATION-READY | Existing cash tests not executed in this pass; Figma acceptance tests NOT MAPPED |
 | ADM-FIN-001 | B14 / `2055:581` | [B14 Finanzas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / AR / Finance | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.9; schema inspected; D-011/D-012 concepts noted with implementation details open | AR COLLECTION NOT IMPLEMENTED; FINANCE KPI CONTRACT NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
 | ADM-REP-001 | B15 / `2055:774` | [B15 Reportes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.10; AS-IS confirms `/reports` placeholder; metric/source contracts not verified | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
-| ADM-SET-001 | B16 / `2055:967` | [B16 Configuración](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business configuration / Brand | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6; `/settings` is a placeholder; CON-012 open | NOT IMPLEMENTED / DECISION OPEN | NOT MAPPED |
+| ADM-SET-001 | B16 / `2055:967` | [B16 Configuración](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business settings / Brand | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.11; `/settings` placeholder; SPEC-BRAND-001 draft; D-004 conceptual only; CON-012 open | NOT IMPLEMENTED / NOT IMPLEMENTATION-READY | Acceptance tests NOT MAPPED; no tests executed |
 | ADM-TEAM-001 | B17 / `2055:1160` | [B17 Equipo y permisos](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6; membership resolution exists, admin mutations NOT VERIFIED | PARTIAL INFRASTRUCTURE / ADMIN FEATURE NOT VERIFIED | NOT MAPPED |
 | ADM-ACC-001 | B18 / `2055:1353` | [B18 Perfil y cuenta](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | SPEC-ADMIN-UI-001 §§3, 6.7; visual defects recorded; current `/profile` is read-only | CODE PARTIALLY VERIFIED; FIGMA TARGET NOT IMPLEMENTED/VERIFIED | NOT MAPPED |
 
@@ -107,3 +107,11 @@ For each frame, close the documentation pass only when the spec names the source
 - Require a metric catalogue (source, formula, grain, timezone, currency, filters, access scope, partial-data behavior) and test mapping before implementation.
 - Preserve the distinction between Order and Sale (D-007), explicit Sale lifecycle effects (D-008), Payment, Cash, AR, and Customer vs User. Figma sample values/banner are not evidence.
 - No code changes or tests; B15 remains a proposed screen and is not implementation-ready.
+
+### B16 — business settings / brand evidence update (2026-10-21)
+
+- AS-IS confirms `/settings` is a literal development placeholder; no settings CRUD was verified.
+- `SPEC-BRAND-001` remains DRAFT / OWNER REVIEW REQUIRED and does not close CON-012. D-004 establishes conceptual shared Design System + per-Business Brand direction; physical persistence, tokens, assets and customization limits remain open.
+- Record Business identity, published Brand, operational preferences and platform-level settings as separate concerns. Do not infer fiscal/legal fields or CRUD actions from Figma.
+- Require server-side Business/Membership authorization, canonical token ownership, safe fallback, asset lifecycle, publish/revert semantics, audit and tests before implementation.
+- No code changes or tests; no field, endpoint, permission, migration or token value is approved by this audit.
