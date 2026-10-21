@@ -26,7 +26,7 @@ Track stable Figma frames as design inputs to Wapsell's existing traceability sy
 |---|---|---|---|---|---|---|
 | ADM-CUS-001 | B10 / `2054:2` | [B10 Clientes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2054-2) | Customer | SPEC-ADMIN-UI-001 §§6–6.2; visual inventory recorded, multiple target data/UI gaps open | [ClientesPage](https://github.com/fmonfasani/otrarondamas/blob/main/apps/pos-admin/src/features/clientes/ClientesPage.tsx), [controller](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.controller.ts), [service](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.service.ts) — AS-IS only; visual match NOT VERIFIED | [BusinessContext test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-business-context.integration-spec.ts), [HTTP test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-http.integration-spec.ts) exist; execution NOT RUN here |
 | ADM-SUP-001 | B11 / `2055:2` | [B11 Proveedores](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-2) | Supplier / Purchases | SPEC-ADMIN-UI-001 §§3, 6.3; visual content defects recorded, detailed contract open | NOT VERIFIED | NOT MAPPED |
-| ADM-DEL-001 | B12 / `2055:195` | [B12 Entregas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6; model exists, service/controller absent per AS-IS inventory | NOT IMPLEMENTED / NOT VERIFIED | NOT MAPPED |
+| ADM-DEL-001 | B12 / `2055:195` | [B12 Entregas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-195) | Orders / Fulfillment | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.8; schema model fields inspected; CON-025 and D-016/REQ-FUL-003 remain open | SCHEMA EXISTS; DELIVERY FLOW NOT IMPLEMENTED / NOT VERIFIED | Acceptance tests NOT MAPPED; no tests executed |
 | ADM-CASH-001 | B13 / `2055:388` | [B13 Caja](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-388) | Cash / Payments | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6, 7.7; current flow and invariants mapped by source inspection; Figma metrics/actions still lack verified contracts | AS-IS CODE INSPECTED; FIGMA TARGET NOT IMPLEMENTATION-READY | Existing cash tests not executed in this pass; Figma acceptance tests NOT MAPPED |
 | ADM-FIN-001 | B14 / `2055:581` | [B14 Finanzas](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / AR | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6; AR/debt collection explicitly not implemented | NOT IMPLEMENTED / CONTRACT NOT VERIFIED | NOT MAPPED |
 | ADM-REP-001 | B15 / `2055:774` | [B15 Reportes](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | SPEC-ADMIN-UI-001 §§3, 6.4, 6.6; `/reports` is a placeholder per AS-IS inventory | NOT IMPLEMENTED | NOT MAPPED |
@@ -83,3 +83,12 @@ Order is based on the gap between the proposed Figma experience and verified AS-
 ### Completion rule
 
 For each frame, close the documentation pass only when the spec names the source of truth for every displayed metric/field/action, links the applicable requirement/decision/contract, maps acceptance criteria to tests, and preserves all unresolved Owner decisions as OPEN. Test existence and test execution must be reported separately. This register records a work plan, not approval or implementation authorization.
+
+
+### B12 — delivery/fulfillment evidence update (2026-10-21)
+
+- Prisma schema confirms `Entrega` has unique `pedidoId`, optional `preparadorId`/`repartidorId`, nullable free-text `resultado`, `medioCobro` and `fechaEntrega`. The example values in the schema comment are not an approved lifecycle.
+- AS-IS inventory says there is no delivery controller/service or executable flow.
+- CON-025 remains open. Owner closure states Repartidor is not an MVP Membership Role and D-016 / REQ-FUL-003 remain OPEN OWNER DECISION.
+- The traceability gate now requires resolving actor/tenant boundaries, lifecycle, address/schedule source, failure/retry/cancellation, proof of delivery, collection-on-delivery and Payment↔Cash effects before implementation.
+- No new API, field, state, role, permission or migration is authorized by this evidence update.
