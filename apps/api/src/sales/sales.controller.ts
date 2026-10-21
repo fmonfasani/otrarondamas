@@ -85,32 +85,4 @@ export class SalesController {
     return this.salesService.getReceipt(id, await this.resolveCompanyIdFromContext(user));
   }
 
-  @RequirePermission('ventas.ver')
-  @Get(':id/pagos')
-  async findPayments(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.salesService.findPaymentsBySale(
-      id,
-      await this.resolveCompanyIdFromContext(user),
-    );
-  }
-
-  // Inc-3 (RF-VTA-14, RF-VTA-15, RF-VTA-16): record a payment on a sale.
-  @RequirePermission('ventas.crear')
-  @Post(':id/pagos')
-  @HttpCode(HttpStatus.CREATED)
-  async createPayment(
-    @Param('id') id: string,
-    @Body() dto: CreateSalePaymentDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.salesService.createPayment(
-      id,
-      dto,
-      await this.resolveCompanyIdFromContext(user),
-      user.id,
-    );
-  }
 }
