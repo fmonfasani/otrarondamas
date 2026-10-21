@@ -115,3 +115,29 @@ For each frame, close the documentation pass only when the spec names the source
 - Record Business identity, published Brand, operational preferences and platform-level settings as separate concerns. Do not infer fiscal/legal fields or CRUD actions from Figma.
 - Require server-side Business/Membership authorization, canonical token ownership, safe fallback, asset lifecycle, publish/revert semantics, audit and tests before implementation.
 - No code changes or tests; no field, endpoint, permission, migration or token value is approved by this audit.
+
+### 8.6 B17 — team and permissions evidence update (2026-10-21)
+
+- Canonical direction is global User ↔ Business Membership, with Role → Permission authorization. MVP Membership Roles are Owner, Admin, Vendedor and Gestor de Stock; Owner and Admin are distinct. Per-role permission grants remain open.
+- Owner rulings require User, target Business, valid Membership and authorization checks; an authenticated token alone is not sufficient. ACTIVE/INACTIVE Membership is conceptual; inactive Membership cannot operate.
+- Membership/context infrastructure and Prisma models do not prove complete team administration. Invite, role mutation, membership lifecycle actions, audit, last-owner protection and session effects remain unverified contracts.
+- No code or tests changed/executed. B17 remains not implementation-ready.
+
+### 8.7 B18 — profile and account evidence update (2026-10-21)
+
+- Current `/profile` is read-only; `PATCH /usuarios/me` was not found. The existing profile contract provides identity/contact basics, Business name, login method, photo when available, account creation date and permissions.
+- Client logout clears browser storage; this does not establish server-side token revocation. Owner/Admin MFA is mandatory by decision, but the mechanism and enforcement were not established by inspected code. Session inventory/revocation, verification state, editable profile, export and security activity remain unverified.
+- Figma's customer/purchase records and order history are inconsistent with account security and must not be treated as user profile data.
+- No code or tests changed/executed. B18 is partially verified and not implementation-ready.
+
+## 9. Global consistency review (2026-10-21)
+
+Cross-document review of this register, `SPEC-ADMIN-UI-001`, API/UI traceability, the documentation README, Decision Register and Owner decision closures found and addressed the following documentary defects on this branch:
+
+1. **Section hierarchy:** duplicate section 7 and out-of-order subsection numbering in `SPEC-ADMIN-UI-001` have been normalized to section 10 for the cross-domain reconciliation. B18/B12–B17 cross-reference numbering was corrected to match the actual subsections.
+2. **Traceability numbering:** the next-work-package heading previously reused section 5 after section 7; it is now section 8, with numbered evidence subsections.
+3. **README table integrity:** two canonical-spec rows were joined by a literal `\\n` sequence; the table rows were separated.
+4. **Role vocabulary:** the B17 screen inventory now says Membership / Roles / Permissions, consistent with the canonical Membership → Role → Permission model; “Capabilities” is not the selected authorization model.
+5. **Status consistency:** all B10–B18 frame rows remain draft/proposed or not implementation-ready. The register does not claim test execution or visual fidelity. Existing AS-IS behavior, conceptual decisions and proposed Figma behavior remain separate.
+
+**Remaining cross-document blockers:** canonical identity/tenancy and branding specs remain draft; CON-012 and CON-025 remain open; permission grants per role remain open; no normative TO-BE API/UI contract exists; acceptance criteria are not mapped comprehensively to automated tests; no application test or CI run was performed by this documentation review. The PR does not authorize implementation.
