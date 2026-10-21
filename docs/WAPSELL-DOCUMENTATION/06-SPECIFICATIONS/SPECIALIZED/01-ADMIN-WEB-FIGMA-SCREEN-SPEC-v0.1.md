@@ -193,6 +193,40 @@ These are **design defects / mock-data inconsistencies**, not approved business 
 
 The screen's visual shell can be reused; its content and metrics must not be accepted by template inheritance alone.
 
+
+### 6.4 Visual audit — B12–B17 (2026-10-21)
+
+**Review status:** visual defects recorded; target behavior and business contracts remain open. The screenshots are design evidence only. No claim is made about production behavior or underlying API correctness.
+
+#### Cross-screen template contamination
+
+B12–B17 repeat the same banner copy about “73 clientes sin compras en los últimos 60 días”, despite representing deliveries, cash, finance, reports, business configuration, and team/permissions. Several screens also reuse the same six person/customer rows, initials, contact details, status badges, and purchase-like amounts in semantically unrelated tables. This is a design-system/content defect, not evidence of real business data.
+
+#### Per-screen findings
+
+| Frame | Observed design defect | Contract required before implementation |
+|---|---|---|
+| B12 — Entregas | Delivery planner rows mix order/customer labels, addresses, item counts and monetary amounts under ambiguous columns; generic customer-repurchase banner is unrelated to fulfillment. | Define delivery aggregate and order relation, delivery lifecycle/status transitions, address source, assigned courier, time window, incident semantics, item count vs order value, filters, export and scheduling command. |
+| B13 — Caja | “Movimientos recientes” rows resemble customer/order rows rather than cash movements; columns and values do not align (e.g. address-like text under concept, counts under amount); customer banner is unrelated. | Define cash session/open-close lifecycle, movement types, payment method, signed amount/currency, opening balance, reconciliation and cash difference, permissions, idempotency, and audit trail. |
+| B14 — Finanzas | Financial KPIs and accounts-receivable amount are shown without formulas/source definitions; transaction rows reuse order/customer data and do not align with financial columns. | Define recognized income/expense, period boundaries, net result, accounts receivable, currency, refunds/voids, settlement status, source-of-truth entities and export semantics. Do not treat order totals as cash or recognized revenue by default. |
+| B15 — Reportes | KPI cards lack explicit formula/source/window contracts; indicator table reuses order/customer-like rows; export action is not scoped to a report or selected filters. | Define each metric's identifier, formula, grain, period/timezone, filters, comparison baseline, empty/partial-data behavior, authorization and export format/scope. |
+| B16 — Configuración del negocio | “Información general” contains customer-like records, purchase counts and spending; summary cards mix business identity/preferences with unrelated operational metrics. | Define editable business profile fields, validation, business-brand vs platform design-system boundary, operational preferences, permissions, save/cancel/error behavior and audit history. Do not infer fiscal or legal fields from the mockup. |
+| B17 — Equipo y permisos | User/role table contains customer-like contacts and purchase-like quantities/amounts under modules, permissions and last access; summary/banner copy is reused from other modules. | Define User vs Membership identity, tenant membership lifecycle, invitation/expiry/revocation, role/capability assignment, suspension/reactivation, last-access provenance, self-lockout prevention and authorization/audit requirements. UI visibility must never replace backend authorization. |
+
+#### Shared visual acceptance requirements
+
+- Every KPI, banner, table column, status and activity panel must describe the screen's own domain and have a defined source/meaning; otherwise remove it or mark it as explicit placeholder content.
+- Use internally coherent fixture data for each screen. Do not reuse customer/order rows to represent cash movements, financial transactions, settings, reports or memberships.
+- Labels, units and values must agree (e.g. amount columns contain monetary values; item-count columns contain counts).
+- Define loading, empty, error, forbidden, stale/conflict and success states for the relevant actions.
+- Export, create, schedule, invite and save controls are proposed affordances only until their action contracts and authorization are approved.
+- Do not derive real balances, financial outcomes, user permissions or business status from decorative mock data.
+
+### 6.5 B18 — Profile and account review status
+
+B18 was not visually reviewed in this audit because the Figma MCP tool call quota was reached. Its screen content, fields, actions, session behavior and relationship between global User and active Business remain **NOT VERIFIED**. Do not treat it as reviewed or implementation-ready. Revisit the frame when Figma tool access is available and then reconcile it against authentication/account contracts.
+
+
 ## 7. Acceptance criteria for the design-to-spec workflow
 
 The workflow itself is acceptable when:
