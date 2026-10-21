@@ -23,15 +23,17 @@ export class StaffIdentityGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const allowCustomer = this.reflector.getAllAndOverride<boolean>(
-      ALLOW_CUSTOMER_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const allowCustomer = this.reflector.getAllAndOverride<boolean>(ALLOW_CUSTOMER_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (allowCustomer) return true;
 
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser | undefined;
 
+    // SEC-01: Customer identities are not staff identities.
+    // This endpoint is staff-only unless marked @Public or @AllowCustomer.
     if (user?.type === 'cliente') {
       throw new ForbiddenException('Los clientes no pueden acceder a endpoints internos');
     }
