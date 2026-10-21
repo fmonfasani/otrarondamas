@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
@@ -40,11 +40,28 @@ export class PaymentsService {
       const approvedPayments = sale.pagos.filter((p) => p.estado === 'APROBADO');
       const totalPaid = approvedPayments.reduce((acc, p) => acc + Number(p.monto), 0);
       const pendingBalance = Number(sale.total) - totalPaid;
+      if (pendingBalance <= 0) throw new BadRequestException('PAGO_EXCEDE_SALDO');
 
       if (dto.monto > pendingBalance) {
         throw new BadRequestException(
           `El pago (${dto.monto}) excede el saldo pendiente de la venta (${pendingBalance}). Total: ${sale.total}, ya pagado: ${totalPaid}.`,
         );
+      }
+
+      let cashRegister: { id: string } | null = null;
+      let currentOpening: { id: string } | null = null;
+      if (dto.medio === 'efectivo') {
+        cashRegister = await tx.caja.findUnique({ where: { empresaId: companyId } });
+        currentOpening = cashRegister
+          ? await tx.aperturaCaja.findFirst({
+              where: { cajaId: cashRegister.id, fechaCierre: null },
+              orderBy: { fechaApertura: 'desc' },
+            })
+          : null;
+        if (!cashRegister || !currentOpening) throw new ConflictException('CAJA_CERRADA');
+        if ((dto.montoRecibido ?? dto.monto) < dto.monto) {
+          throw new BadRequestException('MONTO_RECIBIDO_INSUFICIENTE');
+        }
       }
 
       // Manual methods (cash/transfer/QR): they are considered confirmed when
@@ -59,45 +76,28 @@ export class PaymentsService {
           monto: dto.monto,
           medio: dto.medio,
           estado: 'APROBADO',
+          montoRecibido: dto.medio === 'efectivo' ? (dto.montoRecibido ?? dto.monto) : null,
+          vuelto: dto.medio === 'efectivo' ? (dto.montoRecibido ?? dto.monto) - dto.monto : null,
+          referencia: dto.referencia ?? null,
         },
       });
 
-      if (dto.medio === 'efectivo') {
-        // Caja/AperturaCaja/MovimientoCaja have no direct empresaId (they are not
-        // covered by companyScopeExtension, see company-scope.extension.ts) — the
-        // company filter is done here explicitly via the Caja.empresaId relation.
-        const cashRegister = await tx.caja.findUnique({ where: { empresaId: companyId } });
-        /* eslint-disable indent -- known false positive of the base `indent`
-           rule with a ternary returning a nested object (same pattern as
-           in dto/login.dto.ts) */
-        const currentOpening = cashRegister
-          ? await tx.aperturaCaja.findFirst({
-              where: { cajaId: cashRegister.id, fechaCierre: null },
-              orderBy: { fechaApertura: 'desc' },
-            })
-          : null;
-        /* eslint-enable indent */
-
-        if (currentOpening) {
-          await tx.movimientoCaja.create({
-            data: {
-              cajaId: cashRegister!.id,
-              aperturaCajaId: currentOpening.id,
-              usuarioId: userId,
-              tipo: 'Venta',
-              monto: dto.monto,
-              descripcion: `Cobro en efectivo de venta ${saleId}`,
-              referenciaId: payment.id,
-            },
-          });
-        }
-        // Si no hay apertura vigente, el pago en efectivo se registra
-        // igual (no se bloquea la venta por un problema de caja) pero
-        // sin movimiento asociado — ver docs/scaffolding-notas.md,
-        // limitación explícita del módulo caja.
+      if (dto.medio === 'efectivo' && cashRegister && currentOpening) {
+        await tx.movimientoCaja.create({
+          data: {
+            cajaId: cashRegister.id,
+            aperturaCajaId: currentOpening.id,
+            usuarioId: userId,
+            tipo: 'Venta',
+            monto: dto.monto,
+            descripcion: `Cobro en efectivo de venta ${saleId}`,
+            referenciaId: payment.id,
+          },
+        });
       }
 
-      return payment;
+      const newBalance = pendingBalance - dto.monto;
+      return { pago: payment, saldo: newBalance.toFixed(2) };
     });
   }
 
