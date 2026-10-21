@@ -272,6 +272,18 @@ export class SalesService {
   // D-VTA-07/A: block cash if the cash register is closed.
   // D-VTA-04/B: leaving with a balance is allowed — the derived balance is
   // computed by findOne().
+  async findPaymentsBySale(saleId: string, companyId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const sale = await db.venta.findUnique({ where: { id: saleId } });
+    if (!sale || sale.empresaId !== companyId) {
+      throw new NotFoundException('Venta no encontrada');
+    }
+    return db.pago.findMany({
+      where: { ventaId: saleId, empresaId: companyId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async createPayment(
     saleId: string,
     dto: CreateSalePaymentDto,
