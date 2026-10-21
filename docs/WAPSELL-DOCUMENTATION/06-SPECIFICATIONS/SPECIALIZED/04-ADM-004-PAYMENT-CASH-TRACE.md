@@ -83,3 +83,25 @@ These decisions must be recorded by Owner/Finance and reconciled with the decisi
 **Not verified in this task:** controller route exposure, active frontend call sites, execution of existing tests, runtime transaction isolation under concurrent load, production records, and accounting/Owner policy.
 
 **No application code, schema, migrations, or production data changed.**
+
+
+## 8. Additional controller finding: duplicate route declaration
+
+After tracing the services, the controllers were inspected too:
+
+- `PaymentsController`: `@Controller('ventas/:ventaId/pagos')` + `@Post()` → `POST /ventas/:ventaId/pagos`, delegates to `PaymentsService.create()`.
+- `SalesController`: `@Controller('ventas')` + `@Post(':id/pagos')` → the same HTTP path `POST /ventas/:id/pagos`, delegates to `SalesService.createPayment()`.
+
+Both handlers also declare `@RequirePermission('ventas.crear')` and the `ApprovedDossierGuard` controller guard. This makes the divergence more concrete: **the repository declares two POST handlers for the same route template**. The actual route selected/registered by Nest depends on framework/module registration details and must not be guessed from source alone.
+
+### Immediate priority
+
+Treat this as **P0 route ambiguity / payment integrity risk**. Before changing behavior:
+
+1. Inspect module imports/provider registration and boot logs to establish whether both controllers are registered together and how Nest resolves the duplicate route.
+2. Check API bootstrap/route mapping in CI or a local environment; capture the effective handler for `POST /ventas/:id/pagos`.
+3. Identify frontend call sites and request DTO differences (`CreatePaymentDto` vs `CreateSalePaymentDto`), including cash received/change/reference fields.
+4. Decide which service/contract is canonical, or whether one route should be removed/versioned after Owner/domain review.
+5. Add HTTP regression tests proving the effective route, closed-register behavior, amount validation, and exactly-one payment plus exactly-one cash movement.
+
+Do not simply delete either controller or change the cash policy without confirming route consumers and contract compatibility.
