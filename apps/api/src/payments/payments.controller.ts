@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { SalesService } from '../sales/sales.service';
-import { CreateSalePaymentDto } from '../sales/dto/create-sale-payment.dto';
+import { PaymentsService } from './payments.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
@@ -14,7 +14,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @UseGuards(ApprovedDossierGuard)
 export class PaymentsController {
   constructor(
-    private readonly salesService: SalesService,
+    private readonly paymentsService: PaymentsService,
     private readonly businessContext: BusinessContextService,
   ) {}
 
@@ -27,10 +27,10 @@ export class PaymentsController {
   @Post()
   async create(
     @Param('ventaId') saleId: string,
-    @Body() dto: CreateSalePaymentDto,
+    @Body() dto: CreatePaymentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.salesService.createPayment(
+    return this.paymentsService.create(
       saleId,
       dto,
       await this.resolveCompanyIdFromContext(user),
@@ -38,10 +38,9 @@ export class PaymentsController {
     );
   }
 
-  @RequirePermission('ventas.ver')
   @Get()
   async findAll(@Param('ventaId') saleId: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.salesService.findPaymentsBySale(
+    return this.paymentsService.findBySale(
       saleId,
       await this.resolveCompanyIdFromContext(user),
     );
