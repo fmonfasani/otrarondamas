@@ -228,6 +228,41 @@ B18 was not visually reviewed in this audit because the Figma MCP tool call quot
 
 
 
+
+### 6.7 Visual audit — B18 Profile and account (2026-10-21)
+
+**Review status:** screenshot visually inspected; design defects recorded. Repository AS-IS comparison is source inspection only. No runtime visual equivalence or test pass is claimed.
+
+#### Visual findings
+
+- The banner says “Tenés 73 clientes sin compras en los últimos 60 días” and links to clients, unrelated to account security.
+- The account table repeats customer names/contact data, purchase counts, monetary amounts and customer lifecycle statuses under columns for section, detail, method, configuration, update and status.
+- The summary cards mix initials/profile data, “2FA”, “3” active sessions and “OK” verification, but no source/contract is shown for MFA enrollment, session enumeration or verification state.
+- The bottom “Mi perfil” and “Actividad de la cuenta” panels show customer purchase/spending and order history, not account identity or security events.
+- “Exportar” and “Editar perfil” are visual affordances only; the screenshot does not define their data scope, permissions, endpoint, or success/failure behavior.
+
+#### AS-IS comparison
+
+Repository sources inspected: `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/features/profile/ProfilePage.tsx`, `apps/pos-admin/src/features/auth/AuthContext.tsx`, and `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`.
+
+- Current Admin route is `/profile` and renders `ProfilePage`; the documented route is functional.
+- `ProfilePage` is explicitly read-only by decision; its own comment states there is no `PATCH /usuarios/me` endpoint. It renders the authenticated profile fields available in `PerfilUsuario`, including name, email, business name, login method, photo when available, and account creation date.
+- `AuthContext` supports password login and Google callback session completion, stores tokens/user in local or session storage according to the remember-me choice, and refreshes the cached profile via `GET /auth/me` on mount when a token exists.
+- This pass did **not** verify multi-factor authentication, active-session listing/revocation, account verification status, editable profile fields, or account-activity audit feed as implemented capabilities. Do not infer these from the Figma cards.
+- The Figma design is not equivalent to the current profile page: it proposes additional account/security capabilities and contains copied customer-domain content.
+
+#### Required contract before implementation
+
+1. Distinguish global User identity from active Business membership/context; do not expose business-scoped or customer-scoped data as personal account data.
+2. Define editable fields and whether profile remains read-only; any mutation requires explicit owner decision, endpoint, validation, authorization, and audit behavior.
+3. Define MFA enrollment/state and recovery semantics only if approved and supported; otherwise remove the “2FA” metric.
+4. Define session inventory/revocation semantics only if approved and supported; otherwise remove active-session counts.
+5. Define account verification source/state and account-activity event taxonomy; do not fabricate status or events.
+6. Remove the customer-repurchase banner, customer rows, purchase/spending panels and customer statuses; replace them with profile/security data backed by defined contracts or omit them.
+7. Define export scope and authorization, or remove the action.
+8. Preserve current authentication/session security invariants and explicitly define loading, error, unauthorized and stale-session states.
+
+
 ### 6.6 Repository AS-IS cross-check — B12–B17 (2026-10-21)
 
 **Source checked:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md` (evidence classification in that artifact: VERIFIED BY CODE + VERIFIED BY EXECUTION for the listed implemented flows), `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/features/caja/CajaPage.tsx`, `apps/pos-admin/src/lib/api.ts`, `packages/shared-types/src/index.ts`, and `apps/api/prisma/schema.prisma`. This was a repository/code inspection, not a new local test run.
