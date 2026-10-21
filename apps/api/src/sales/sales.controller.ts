@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { QuoteSaleDto } from './dto/quote-sale.dto';
-import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { ListSalesDto } from './dto/list-sales.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
