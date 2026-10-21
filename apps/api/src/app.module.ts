@@ -6,7 +6,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SalesModule } from './sales/sales.module';
-import { PaymentsModule } from './payments/payments.module';
 import { CashRegisterModule } from './cash-register/cash-register.module';
 import { UsersModule } from './users/users.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -33,7 +32,6 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     AuthModule,
     CatalogModule,
     SalesModule,
-    PaymentsModule,
     CashRegisterModule,
     UsersModule,
     InventoryModule,
