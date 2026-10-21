@@ -516,3 +516,43 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 7. Only after approval, determine the API/service, schema migrations, UI and tests required.
 
 **Outcome:** B14 is **NOT IMPLEMENTATION-READY**. The conceptual AR/payment scope is recorded separately from the still-open execution contract. No financial formulas, posting rules, states, endpoints, permissions or migrations are approved by this audit. No application code or tests were changed or executed.
+
+### 7.10 B15 — Reports / analytics reconciliation detail (source inspection, 2026-10-21)
+
+**Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and the current Prisma schema `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`). Read-only source inspection; no application was started, no database query was run, and no tests were executed.
+
+#### Verified AS-IS
+
+- The AS-IS UI inventory explicitly identifies `/reports` as the literal placeholder `Reportes - En desarrollo`; no operational reports page was verified.
+- The repository contains domain data models such as `Venta`, `Pago`, `MovimientoCaja`, and inventory/order entities, but their existence does not establish a report query, a reconciled metric, or a financial aggregation contract.
+- The finance review above records that accounts-receivable collection is not implemented and that payment/cash/accounting semantics remain partly open. Report widgets must not paper over those gaps by aggregating similarly named fields.
+
+#### B15 candidate element disposition
+
+| Candidate element | Required evidence/contract before implementation |
+|---|---|
+| KPI card (sales, orders, customers, cash, net result, debt) | Stable metric ID, authoritative source, formula, inclusion/exclusion rules, currency and rounding, aggregation grain, business timezone, period boundaries, comparison baseline and empty/partial-data behavior. |
+| Time-series chart | Approved time bucket and timezone, late-arriving/corrected data behavior, null periods, comparison rules and query-performance expectations. |
+| Breakdown/ranking table | Defined dimension and grouping semantics, stable sorting, tie behavior, pagination and tenant-safe row scope. |
+| Filters | Explicit allowed dimensions, defaults, date-window limits, combination semantics, timezone interpretation and server-side validation. |
+| Export | Approved format, selected-filter scope, row/column policy, large-result behavior, authorization, auditability and sensitive-data treatment. |
+| Refresh / activity indicator | Defined freshness SLA, source update cadence, loading/error states and indication when results are incomplete or stale. |
+| Access control | Server-side BusinessContext/tenant isolation for every query and export; hiding a widget in the client is not authorization. |
+
+#### Domain separation invariants
+
+- Order volume is not necessarily confirmed Sale volume: D-007 distinguishes Order from Sale.
+- D-008 requires explicit, consistent Sale confirmation/void effects; reports must not count a voided Sale as ordinary confirmed revenue without an approved metric rule.
+- Cash movements are not automatically recognized income or expense; payment state, settlement, Cash and Accounts Receivable must remain distinct unless a canonical contract defines their relationship.
+- Customer and User are distinct entities under canonical decisions; customer counts must state whether they count commercial Customer records, linked Users, or active-period buyers.
+- No KPI should be inferred from the Figma sample values or the repeated “73 clientes sin compras” banner. Those are mockup content, not source evidence.
+
+#### Required sequence
+
+1. Inventory actual query/service capabilities and approved domain sources for each requested metric; classify unsupported metrics as unavailable rather than fabricate values.
+2. Establish a metric catalogue with formula, source, grain, timezone, currency, filters, permissions and acceptance examples for every card, chart and table.
+3. Resolve dependencies on Sale lifecycle, Payment, Cash and Accounts Receivable decisions before publishing financial metrics.
+4. Define pagination, filtering, export, freshness and partial/error behavior; enforce BusinessContext server-side.
+5. Map every approved metric and interaction to tests and performance/security criteria before implementation.
+
+**Outcome:** B15 is **NOT IMPLEMENTATION-READY**. `/reports` remains a placeholder. No metric formula, report endpoint, export, permission or financial interpretation is approved by this audit. No application code or tests were changed or executed.
