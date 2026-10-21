@@ -317,3 +317,61 @@ When a frame changes:
 - Owner approval of this document and candidate requirements: **PENDING**.
 
 This document records a proposed process and a first screen inventory. It does not claim that any of these screens are implemented or that the underlying modules are complete.
+
+
+## 7. Cross-domain contract reconciliation — prioritized work (2026-10-21)
+
+This section records the next SDD work package accepted for execution. It reconciles the Figma proposals with existing evidence and canonical governance; it does not approve new requirements or authorize implementation.
+
+### 7.1 B13 — Cash (first priority)
+
+**Sources of authority:** `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md` (DRAFT — NOT APPROVED), canonical decision register `03-DECISIONS/00-DECISION-REGISTER.md`, Owner rulings OR-B2, and the AS-IS cash flow evidence.
+
+- Preserve AS-IS evidence for opening, movements, count/reconciliation, dual confirmation on handover, exception authorization above the configured threshold, and closing.
+- Do not derive a new TO-BE Cash state machine from the Figma table. The TO-BE Cash artifact explicitly leaves physical state-machine details, adjustment/reversal/compensation mechanics, Payment↔Cash effects, and sensitive-operation authorization details open.
+- Treat Figma KPIs, movement rows, filters, and actions as untrusted mock content until mapped to existing API contracts and their source-of-truth definitions.
+- Reconciliation output must distinguish: (a) current executable AS-IS behavior, (b) approved Owner rulings, (c) derived/candidate requirements, and (d) open implementation detail. Do not silently promote between categories.
+- Required evidence before implementation: route/component and endpoint mapping, DTO/schema mapping, applicable invariant and authorization references, tests that exercise existing behavior, and a list of unresolved decisions. This is a documentation gate, not a demand to invent new contracts.
+
+### 7.2 B12 — Deliveries / fulfillment (second priority)
+
+**Authority:** Owner ruling and canonical decision register first; the current AS-IS product inventory is evidence that only the `Entrega` data model exists, with no delivery API module/controller/service or executable delivery flow.
+
+- Treat the Figma screen as a TO-BE proposal, not as an existing feature.
+- Record the already identified open conflict CON-025: lifecycle and fulfillment rules are not defined by the existing model.
+- Before implementation, reconcile order ownership, fulfillment responsibility, assignment and reassignment, delivery status/transitions, failure/return handling, timestamps, proof of delivery, tenant authorization, and audit requirements against canonical decisions. These are topics to resolve, **not states or fields approved by this document**.
+- Do not add fields, enums, endpoints, transitions, or Prisma migrations based on the mockup alone.
+
+### 7.3 B14 — Finance (third priority)
+
+- Keep operational cash movements, payment records, recognized income/expense, and accounts receivable as distinct concepts unless an approved contract defines their relationship.
+- AS-IS inventory states that current-account/debt collection is not implemented even though `CuentaCorriente`, `Deuda`, and `AplicacionPago` models exist.
+- The design's totals, net-result indicators, balances, trends, and row values have no verified formula/source contract in this pass. Do not implement or present them as real financial data.
+- Identify the needed accounting/business rulings, source entities, time-period semantics, currency handling, refunds/returns treatment, and authorization before defining API/UI behavior.
+
+### 7.4 B15–B16 — Reports and business settings
+
+- `/reports` and `/settings` are explicit AS-IS placeholders; Figma does not change this status.
+- For reports, specify each metric's formula, source, grain, timezone/window, filters, treatment of incomplete data, export semantics, and authorization before implementation.
+- For settings, identify the canonical Business-owned fields and branding authority from approved decisions. CON-012/design-token hierarchy remains a governance dependency; do not add business/legal fields or settings based only on the frame.
+- Until these contracts are approved, retain the UI status as proposed/unimplemented.
+
+### 7.5 B17–B18 — Team, permissions, profile and account
+
+- Separate global User identity, Business Membership/context, and Customer identity; never infer their equivalence from a Figma row.
+- Membership/context resolution in the current code does not prove that membership invitations, role mutation, permission editing, suspension, session revocation, MFA, account verification, or security-event history are implemented.
+- Keep B18's current `/profile` read-only behavior as AS-IS evidence. Editing, export, MFA, active-session count/revocation and verification indicators require explicit product decisions and backed contracts before implementation.
+- Server-side tenant isolation and authorization remain mandatory; navigation visibility is not an authorization control.
+
+### 7.6 Cross-screen acceptance gate
+
+A screen is not implementation-ready until all applicable conditions are satisfied:
+
+1. Every KPI, banner, column, status, activity item, and action has a defined domain meaning and authoritative source.
+2. UI fields/actions map to an approved requirement and a documented API/domain contract, or are explicitly removed from scope.
+3. Business context, tenant isolation, identity type, and authorization are explicit and enforced server-side.
+4. Loading, empty, error, stale-session, unauthorized, and mutation-result states are specified where applicable.
+5. Tests are mapped to acceptance criteria; execution evidence is reported separately from test existence.
+6. Open Owner decisions and implementation details remain marked OPEN; no guessed states, permissions, accounting formulas, schema changes, or endpoints are introduced.
+
+**Current outcome:** the prioritized reconciliation is documented. It is not an approval of the target screens, a closure of CON-012/CON-025, or an authorization to implement. The PR remains documentation-only.
