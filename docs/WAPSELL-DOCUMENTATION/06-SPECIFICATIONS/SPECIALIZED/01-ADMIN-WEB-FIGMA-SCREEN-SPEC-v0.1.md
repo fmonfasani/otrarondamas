@@ -41,7 +41,7 @@ The order represents traceability, not a claim that every link currently exists.
 | ADM-FIN-001 | B14 — Finanzas \| Admin Desktop | `2055:581` | [Open B14](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-581) | Payments / Accounts Receivable | Candidate mapping only; detailed behavior NOT SPECIFIED |
 | ADM-REP-001 | B15 — Reportes \| Admin Desktop | `2055:774` | [Open B15](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-774) | Reporting / Analytics | Candidate mapping only; detailed behavior NOT SPECIFIED |
 | ADM-SET-001 | B16 — Configuración del negocio \| Admin Desktop | `2055:967` | [Open B16](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-967) | Business configuration / Brand | Candidate mapping only; detailed behavior NOT SPECIFIED |
-| ADM-TEAM-001 | B17 — Equipo y permisos \| Admin Desktop | `2055:1160` | [Open B17](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Capabilities | Candidate mapping only; detailed behavior NOT SPECIFIED |
+| ADM-TEAM-001 | B17 — Equipo y permisos \| Admin Desktop | `2055:1160` | [Open B17](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1160) | Membership / Roles / Permissions | Candidate mapping only; detailed behavior NOT SPECIFIED |
 | ADM-ACC-001 | B18 — Perfil y cuenta \| Admin Desktop | `2055:1353` | [Open B18](https://www.figma.com/design/NkBWFLCeQjPGfsk0cTNZ9D?node-id=2055-1353) | Global User / Account / Session | Candidate mapping only; detailed behavior NOT SPECIFIED |
 
 Frame dimensions and editable-layer structure were previously inspected, but that structural inspection is not a visual fidelity review, behavior validation, or implementation check. Re-verify frames when design changes.
@@ -229,7 +229,7 @@ B18 was not visually reviewed in this audit because the Figma MCP tool call quot
 
 
 
-### 6.7 Visual audit — B18 Profile and account (2026-10-21)
+### 6.6 Visual audit — B18 Profile and account (2026-10-21)
 
 **Review status:** screenshot visually inspected; design defects recorded. Repository AS-IS comparison is source inspection only. No runtime visual equivalence or test pass is claimed.
 
@@ -263,7 +263,7 @@ Repository sources inspected: `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/
 8. Preserve current authentication/session security invariants and explicitly define loading, error, unauthorized and stale-session states.
 
 
-### 6.6 Repository AS-IS cross-check — B12–B17 (2026-10-21)
+### 6.7 Repository AS-IS cross-check — B12–B17 (2026-10-21)
 
 **Source checked:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md` (evidence classification in that artifact: VERIFIED BY CODE + VERIFIED BY EXECUTION for the listed implemented flows), `apps/pos-admin/src/App.tsx`, `apps/pos-admin/src/features/caja/CajaPage.tsx`, `apps/pos-admin/src/lib/api.ts`, `packages/shared-types/src/index.ts`, and `apps/api/prisma/schema.prisma`. This was a repository/code inspection, not a new local test run.
 
@@ -319,11 +319,11 @@ When a frame changes:
 This document records a proposed process and a first screen inventory. It does not claim that any of these screens are implemented or that the underlying modules are complete.
 
 
-## 7. Cross-domain contract reconciliation — prioritized work (2026-10-21)
+## 10. Cross-domain contract reconciliation — prioritized work (2026-10-21)
 
 This section records the next SDD work package accepted for execution. It reconciles the Figma proposals with existing evidence and canonical governance; it does not approve new requirements or authorize implementation.
 
-### 7.1 B13 — Cash (first priority)
+### 10.1 B13 — Cash (first priority)
 
 **Sources of authority:** `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md` (DRAFT — NOT APPROVED), canonical decision register `03-DECISIONS/00-DECISION-REGISTER.md`, Owner rulings OR-B2, and the AS-IS cash flow evidence.
 
@@ -333,7 +333,7 @@ This section records the next SDD work package accepted for execution. It reconc
 - Reconciliation output must distinguish: (a) current executable AS-IS behavior, (b) approved Owner rulings, (c) derived/candidate requirements, and (d) open implementation detail. Do not silently promote between categories.
 - Required evidence before implementation: route/component and endpoint mapping, DTO/schema mapping, applicable invariant and authorization references, tests that exercise existing behavior, and a list of unresolved decisions. This is a documentation gate, not a demand to invent new contracts.
 
-### 7.2 B12 — Deliveries / fulfillment (second priority)
+### 10.2 B12 — Deliveries / fulfillment (second priority)
 
 **Authority:** Owner ruling and canonical decision register first; the current AS-IS product inventory is evidence that only the `Entrega` data model exists, with no delivery API module/controller/service or executable delivery flow.
 
@@ -342,28 +342,28 @@ This section records the next SDD work package accepted for execution. It reconc
 - Before implementation, reconcile order ownership, fulfillment responsibility, assignment and reassignment, delivery status/transitions, failure/return handling, timestamps, proof of delivery, tenant authorization, and audit requirements against canonical decisions. These are topics to resolve, **not states or fields approved by this document**.
 - Do not add fields, enums, endpoints, transitions, or Prisma migrations based on the mockup alone.
 
-### 7.3 B14 — Finance (third priority)
+### 10.3 B14 — Finance (third priority)
 
 - Keep operational cash movements, payment records, recognized income/expense, and accounts receivable as distinct concepts unless an approved contract defines their relationship.
 - AS-IS inventory states that current-account/debt collection is not implemented even though `CuentaCorriente`, `Deuda`, and `AplicacionPago` models exist.
 - The design's totals, net-result indicators, balances, trends, and row values have no verified formula/source contract in this pass. Do not implement or present them as real financial data.
 - Identify the needed accounting/business rulings, source entities, time-period semantics, currency handling, refunds/returns treatment, and authorization before defining API/UI behavior.
 
-### 7.4 B15–B16 — Reports and business settings
+### 10.4 B15–B16 — Reports and business settings
 
 - `/reports` and `/settings` are explicit AS-IS placeholders; Figma does not change this status.
 - For reports, specify each metric's formula, source, grain, timezone/window, filters, treatment of incomplete data, export semantics, and authorization before implementation.
 - For settings, identify the canonical Business-owned fields and branding authority from approved decisions. CON-012/design-token hierarchy remains a governance dependency; do not add business/legal fields or settings based only on the frame.
 - Until these contracts are approved, retain the UI status as proposed/unimplemented.
 
-### 7.5 B17–B18 — Team, permissions, profile and account
+### 10.5 B17–B18 — Team, permissions, profile and account
 
 - Separate global User identity, Business Membership/context, and Customer identity; never infer their equivalence from a Figma row.
 - Membership/context resolution in the current code does not prove that membership invitations, role mutation, permission editing, suspension, session revocation, MFA, account verification, or security-event history are implemented.
 - Keep B18's current `/profile` read-only behavior as AS-IS evidence. Editing, export, MFA, active-session count/revocation and verification indicators require explicit product decisions and backed contracts before implementation.
 - Server-side tenant isolation and authorization remain mandatory; navigation visibility is not an authorization control.
 
-### 7.6 Cross-screen acceptance gate
+### 10.6 Cross-screen acceptance gate
 
 A screen is not implementation-ready until all applicable conditions are satisfied:
 
@@ -377,7 +377,7 @@ A screen is not implementation-ready until all applicable conditions are satisfi
 **Current outcome:** the prioritized reconciliation is documented. It is not an approval of the target screens, a closure of CON-012/CON-025, or an authorization to implement. The PR remains documentation-only.
 
 
-### 7.7 B13 — Cash contract reconciliation detail (source inspection, 2026-10-21)
+### 10.7 B13 — Cash contract reconciliation detail (source inspection, 2026-10-21)
 
 **Code evidence inspected:** `apps/pos-admin/src/features/caja/CajaPage.tsx` (blob `ead925e2c632fd7a8d0ea312fd8aeafefe4ac018`), `apps/pos-admin/src/lib/api.ts`, `packages/shared-types/src/index.ts`, `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md`, and canonical Owner decision artifacts. This was read-only source inspection; no app execution, DB query, or test run occurred.
 
@@ -420,7 +420,7 @@ The TO-BE Cash artifact remains **DRAFT — NOT APPROVED**. The following remain
 **Outcome:** the B13 reconciliation is more specific and traceable, but the frame remains **NOT IMPLEMENTATION-READY**. No application code, schema, endpoint, migration, or test was changed or executed.
 
 
-### 7.8 B12 — Delivery / fulfillment contract reconciliation detail (source inspection, 2026-10-21)
+### 10.8 B12 — Delivery / fulfillment contract reconciliation detail (source inspection, 2026-10-21)
 
 **Sources inspected:** `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`), `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/06-ASIS-MODULES.md`, `docs/WAPSELL-DOCUMENTATION/02-DISCOVERY/CONFLICTS/04-STATE-CONFLICTS.md`, and `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Read-only inspection only; no app execution, database query, or test run.
 
@@ -471,7 +471,7 @@ The state-conflict inventory identifies **CON-025** as unresolved: define the co
 
 **Outcome:** B12 is **NOT IMPLEMENTATION-READY**. No new states, endpoints, fields, migrations, roles or permissions are approved by this audit. No application code or tests were changed or executed.
 
-### 7.9 B14 — Finance / accounts receivable reconciliation detail (source inspection, 2026-10-21)
+### 10.9 B14 — Finance / accounts receivable reconciliation detail (source inspection, 2026-10-21)
 
 **Sources inspected:** `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`), `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md`. The candidate finance TO-BE path was not present at the inspected location. This was source inspection only; no database query, runtime execution, or test run.
 
@@ -517,7 +517,7 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 
 **Outcome:** B14 is **NOT IMPLEMENTATION-READY**. The conceptual AR/payment scope is recorded separately from the still-open execution contract. No financial formulas, posting rules, states, endpoints, permissions or migrations are approved by this audit. No application code or tests were changed or executed.
 
-### 7.10 B15 — Reports / analytics reconciliation detail (source inspection, 2026-10-21)
+### 10.10 B15 — Reports / analytics reconciliation detail (source inspection, 2026-10-21)
 
 **Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and the current Prisma schema `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`). Read-only source inspection; no application was started, no database query was run, and no tests were executed.
 
@@ -557,7 +557,7 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 
 **Outcome:** B15 is **NOT IMPLEMENTATION-READY**. `/reports` remains a placeholder. No metric formula, report endpoint, export, permission or financial interpretation is approved by this audit. No application code or tests were changed or executed.
 
-### 7.11 B16 — Business settings / brand boundary reconciliation (source inspection, 2026-10-21)
+### 10.11 B16 — Business settings / brand boundary reconciliation (source inspection, 2026-10-21)
 
 **Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md` (blob `d0fc776615d4ec9b7e19f8852e5a03ad08a479fb`), `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, and `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Read-only source inspection; no runtime, database or tests.
 
@@ -593,7 +593,7 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 
 **Outcome:** B16 is **NOT IMPLEMENTATION-READY**. `/settings` remains a placeholder and CON-012 remains open. This audit does not approve fields, token values, asset workflows, endpoints, permissions, migrations or branding implementation. No application code or tests were changed or executed.
 
-### 7.12 B17 — Team / Membership and permissions reconciliation (source inspection, 2026-10-21)
+### 10.12 B17 — Team / Membership and permissions reconciliation (source inspection, 2026-10-21)
 
 **Sources inspected:** `docs/WAPSELL-DOCUMENTATION/04-ASIS/09-ASIS-UI.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`, `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`, and `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`). Read-only source inspection; no runtime, database query or tests.
 
@@ -631,7 +631,7 @@ The AS-IS product inventory explicitly states that current-account/debt collecti
 
 **Outcome:** B17 is **NOT IMPLEMENTATION-READY**. Identity/Membership and authorization concepts exist, but complete team administration is not established. No invite flow, permission matrix, role mutation, endpoint, migration or test is approved by this audit. No application code or tests were changed or executed.
 
-### 7.13 B18 — Profile and account reconciliation (2026-10-21)
+### 10.13 B18 — Profile and account reconciliation (2026-10-21)
 
 Read-only source inspection of `ProfilePage.tsx`, `AuthContext.tsx`, `auth.controller.ts`, `auth.service.ts`, and Owner decision R8-ARCH-003. No runtime or tests executed.
 
