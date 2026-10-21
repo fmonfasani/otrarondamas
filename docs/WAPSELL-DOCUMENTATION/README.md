@@ -1,10 +1,21 @@
 # WAPSELL — Documentación canónica
 
 **Estado:** estructura documental reorganizada  
-**Rama de trabajo:** `docs/reorganize-wapsell-documentation`  
+**Rama de trabajo de la reorganización:** `docs/reorganize-wapsell-documentation`  
 **Fecha de reorganización:** 2026-10-03
 
 Esta carpeta es la documentación de diseño y transformación de **Wapsell**, con **Otra Ronda Más** como primer Business/tenant de validación.
+
+## Especificaciones de dominio destacadas
+
+| Dominio | Documento canónico | Estado |
+|---|---|---|
+| Identidad, tenancy, membership y autorización | [01-IDENTITY-AND-TENANCY-SPEC.md](06-SPECIFICATIONS/CANONICAL/01-IDENTITY-AND-TENANCY-SPEC.md) | DRAFT — NOT APPROVED |
+| Branding y experiencia | [06-BRANDING-AND-EXPERIENCE-SPEC.md](06-SPECIFICATIONS/CANONICAL/06-BRANDING-AND-EXPERIENCE-SPEC.md) | DRAFT — INTEGRATION BASELINE / OWNER REVIEW REQUIRED |
+| Plataforma de experiencias e interfaces (PWA cliente + Admin Web + Design System) | [07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md](06-SPECIFICATIONS/CANONICAL/07-EXPERIENCE-PLATFORM-AND-INTERFACE-SYSTEM-SPEC.md) | DRAFT — INTEGRATION BASELINE / OWNER REVIEW REQUIRED |
+| Decisiones de branding | [09-BRANDING.md](03-DECISIONS/09-BRANDING.md) | D-004 direction approved; CON-012 OPEN |
+
+La especificación de branding define el Brand por Business sobre Wapsell Design System Core, con Brand Studio, publicación/versionado, límites de seguridad y accesibilidad. La especificación de plataforma de experiencias conecta el combo completo: cliente Web/PWA como una sola experiencia, Admin exclusivamente Web, arquitectura de navegación diferenciada, Design System compartido, aplicación de Branding, mensajería transversal, contratos entre interfaces, estados offline, seguridad, accesibilidad, rendimiento y criterios de aceptación. Ambas siguen en borrador, no demuestran implementación ni cierran CON-012 por sí solas.
 
 ## Principio documental
 
@@ -79,6 +90,8 @@ Cambios necesarios para pasar de AS-IS a TO-BE, incluyendo identidad, tenancy, a
 
 ### `10-TRACEABILITY/`
 Trazabilidad entre requirements, specs, dominios, módulos, entidades, API/UI, E2E, tests y evidencia.
+
+**Puente Figma → SDD (draft):** [Admin Web Screen Specification](06-SPECIFICATIONS/SPECIALIZED/01-ADMIN-WEB-FIGMA-SCREEN-SPEC-v0.1.md) define el contrato de documentación para los frames B10–B18; [Figma Design Traceability Register](10-TRACEABILITY/10-FIGMA-DESIGN-TRACEABILITY.md) registra nodos, dominios candidatos y gaps de código/tests. Ambos artefactos están en DRAFT y no aprueban requisitos ni autorizan implementación.
 
 ### `11-IMPLEMENTATION-READINESS/`
 Material previo a implementación:

@@ -8,6 +8,8 @@
 > repository. The only navigation content is 00-WAPSELL-SPEC-GENERAL.md §25 *"Proposed
 > Navigation MVP"*, which is a proposal and is **not** covered by any decision.
 
+> **Figma-to-SDD addendum (2026-10-21; additive, non-normative).** A first inventory of Admin Web frames B10–B18 is now recorded in [10-FIGMA-DESIGN-TRACEABILITY.md](10-FIGMA-DESIGN-TRACEABILITY.md), with a proposed screen-level workflow in [SPEC-ADMIN-UI-001](../06-SPECIFICATIONS/SPECIALIZED/01-ADMIN-WEB-FIGMA-SCREEN-SPEC-v0.1.md). This closes only the gap of *identifying design frames*: it does **not** create an approved UI/navigation spec, define APIs, approve candidate requirements, verify code, or authorize implementation. The status above remains valid for normative TO-BE API/UI contracts.
+
 ## AS-IS endpoints that exist (verified, from 05-ASIS/07-ASIS-FLOWS.md)
 | AS-IS endpoint | Behaviour |
 |---|---|
