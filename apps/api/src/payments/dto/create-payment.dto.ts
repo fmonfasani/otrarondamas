@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsPositive } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 // RF-08 lists cash/transfer/QR/Mercado Pago as the planned payment
 // methods. Mercado Pago is explicitly left out of this DTO: D-03 does not
@@ -15,4 +15,13 @@ export class CreatePaymentDto {
   @IsNumber()
   @IsPositive()
   monto: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  montoRecibido?: number;
+
+  @IsOptional()
+  @IsString()
+  referencia?: string;
 }
