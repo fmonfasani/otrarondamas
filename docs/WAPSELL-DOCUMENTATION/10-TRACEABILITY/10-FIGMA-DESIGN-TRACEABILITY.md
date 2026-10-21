@@ -64,3 +64,22 @@ A screen can move from design inventory to implementation-ready only when:
 ## 7. Evidence boundary
 
 The Figma links and node IDs identify the frames. They do not establish that a screen's content is approved, that its behaviors are specified, that its UI is implemented, that APIs exist, or that tests pass. Those claims require separate evidence recorded in the appropriate columns.
+
+
+## 5. Next reconciliation work package (2026-10-21)
+
+Order is based on the gap between the proposed Figma experience and verified AS-IS capability; it does not imply implementation priority approval.
+
+| Priority | Frame | Current evidence | Contract gap / gate | Implementation status |
+|---|---|---|---|---|
+| 1 | B13 Caja | AS-IS cash UI/API exists; opening, movements, reconciliation/handover and closing documented. TO-BE Cash remains DRAFT and leaves physical state machine, adjustment/reversal mechanics and Payment↔Cash effects open. | Map each Figma metric/action to existing API/DTO/schema and cash invariants. Preserve the distinction between AS-IS behavior, Owner rulings, derived requirements and OPEN implementation detail. | Reconciliation only; no new state, endpoint or permission authorized. |
+| 2 | B12 Entregas | `Entrega` Prisma model exists; AS-IS inventory says no delivery module/controller/service or executable delivery flow. CON-025 is the known lifecycle gap. | Resolve fulfillment lifecycle, assignment, failure/return, proof/audit and tenant authorization against canonical decisions before specifying contracts. These are open topics, not approved fields/states. | TO-BE proposal; not implemented. |
+| 3 | B14 Finanzas | Current-account/debt collection not implemented; schema models alone are not executable capability. | Separate Cash, Payment, recognized income/expense and AR; define source/formula/time/currency/refund semantics and authorization. | Contract not verified; do not display mock figures as real. |
+| 4 | B15 Reportes | `/reports` is a placeholder. | Define metric formulas, source, grain, timezone/window, filters, incomplete-data and export/auth behavior. | Not implemented. |
+| 5 | B16 Configuración | `/settings` is a placeholder; CON-012/design-token hierarchy remains open. | Identify Business-owned settings/branding from approved authority; no fields inferred from Figma. | Not implemented. |
+| 6 | B17 Equipo y permisos | Membership/context resolution exists; full team/role administration not established. | Specify invite, membership mutation, roles/permissions, suspension, audit and self-lockout controls only after rulings/contracts. | Partial infrastructure only; admin actions not verified. |
+| 7 | B18 Perfil y cuenta | Current `/profile` is read-only; MFA/session inventory/revocation/edit/export/security activity not verified. | Keep User, Membership and Customer distinct; approve any new account/security capability and its contract before UI implementation. | Existing profile only; Figma target not implemented/verified. |
+
+### Completion rule
+
+For each frame, close the documentation pass only when the spec names the source of truth for every displayed metric/field/action, links the applicable requirement/decision/contract, maps acceptance criteria to tests, and preserves all unresolved Owner decisions as OPEN. Test existence and test execution must be reported separately. This register records a work plan, not approval or implementation authorization.
