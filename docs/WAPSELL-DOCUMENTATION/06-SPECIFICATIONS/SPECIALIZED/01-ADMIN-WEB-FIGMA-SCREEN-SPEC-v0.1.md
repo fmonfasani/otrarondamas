@@ -88,6 +88,61 @@ B10 is the proposed first pilot because it provides a bounded Admin screen to te
 
 These IDs identify candidate work only. They must be reconciled with the current Customer domain contract, existing Prisma schema, NestJS routes/services, role/capability decisions, conflicts, and tests before being approved. Do not create API endpoints or schema fields merely to match the mockup.
 
+### 6.1 B10 — AS-IS reconciliation from repository evidence (2026-10-21)
+
+The following describes the current implementation found in `main`; it is not a statement that B10's target design is implemented or approved.
+
+**Evidence inspected**
+- [Admin Customers page](https://github.com/fmonfasani/otrarondamas/blob/main/apps/pos-admin/src/features/clientes/ClientesPage.tsx)
+- [Admin route registration](https://github.com/fmonfasani/otrarondamas/blob/main/apps/pos-admin/src/App.tsx)
+- [Customers controller](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.controller.ts)
+- [Customers service](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/customers.service.ts)
+- [Customer create DTO](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/src/customers/dto/create-customer.dto.ts)
+- [Prisma schema](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/prisma/schema.prisma)
+- [BusinessContext integration test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-business-context.integration-spec.ts)
+- [Real HTTP integration test](https://github.com/fmonfasani/otrarondamas/blob/main/apps/api/test/integration/s-v1-03-clientes-http.integration-spec.ts)
+
+#### Verified by code inspection
+
+| Concern | Current AS-IS behavior | Implication for B10 target spec |
+|---|---|---|
+| Route | Admin route `/customers` renders `ClientesPage` inside the protected Admin shell. | Figma node B10 is not yet proven visually equivalent to this page. |
+| List/search | `GET /clientes?search=...`; case-insensitive substring search on `nombre` or `email`; results ordered by `nombre` ascending. | Search by phone, advanced filters, sort controls and pagination must not be assumed. |
+| Search limit | API applies `take: 50` only when a search term is supplied; no pagination contract is present in this service. | Define explicit behavior for large result sets before adopting a table/pagination design. |
+| Detail | `GET /clientes/:id` exists and returns the customer plus computed loyalty level. | Endpoint existence does not mean a detail screen or purchase history is implemented in the Admin UI. |
+| Mutations | `POST /clientes` and `PATCH /clientes/:id`; fields accepted by the DTO are name, optional email, phone and address. | Do not infer support for credit limits, active status, fiscal data, purchase history or arbitrary fields from a visual form. |
+| Loyalty level | List/detail calculate `NUEVO`, `FRECUENTE` or `VIP` from confirmed sales + confirmed orders, with thresholds configurable by environment variables. | This is a derived loyalty value, not a generic metric. Any B10 metric must have its own definition and source. |
+| UI states | Page implements loading, request error, empty list, form validation/error, save-in-progress and cancel. | Explicit forbidden, stale/conflict and richer table states are not evidenced in this component. |
+| Tenant authority | Controller resolves authenticated actor → active Membership/BusinessContext → legacy company ID; service uses `CompanyScopedPrismaService.forCompany()`. | Preserve server-derived Business context. The client/JWT `empresaId` must not become the tenant authority. |
+| Authorization | GET list/detail have no local `@RequirePermission` decorator; create/update require `clientes.gestionar`. Global auth and dossier guards also apply. | This is observed AS-IS, not approval of the final role/capability matrix. Reconcile list/detail visibility with the approved authorization design. |
+| Data model | `Cliente` is Business-scoped and has contact fields plus other fields/relations beyond this page's DTO. | The screen contract must state which fields are intentionally exposed and under which permission. |
+
+#### Test artifacts found — execution not claimed
+
+The repository contains integration specs that assert:
+- no token → 401;
+- no active Membership or suspended Membership → 403;
+- cross-Business list isolation and direct foreign-customer lookup → 404;
+- Membership-derived Business context wins over a caller-supplied legacy JWT `empresaId`;
+- injected `empresaId` in a create body does not select the tenant;
+- create without the required permission → 403.
+
+These are **test cases present in the repository**, not evidence that they passed in this work session. The tests were not executed as part of this documentation change.
+
+#### B10 gap classification
+
+| Candidate requirement | AS-IS evidence | Target gap |
+|---|---|---|
+| ADM-CUS-RQ-001 Customer list | Basic list exists | Confirm fields, columns, row actions and supported volume against B10. |
+| ADM-CUS-RQ-002 Search | Name/email substring search exists | Define normalization, debounce expectations, phone search decision and empty/no-match copy. |
+| ADM-CUS-RQ-003 Filters and ordering | Name ascending default; no pagination/filter contract found | Filters, user-selected sorting and pagination are not implemented/evidenced here. |
+| ADM-CUS-RQ-004 Customer detail | API endpoint exists; no detail UI in `ClientesPage` | Define whether a detail view and purchase history are actually in scope. |
+| ADM-CUS-RQ-005 Summary metrics | Loyalty level is computed per customer | No general summary-metrics contract evidenced; each proposed metric needs a definition. |
+| ADM-CUS-RQ-006 UI state coverage | Loading, empty, request error and form error exist | Design and implement additional states only after their behavior is specified. |
+| ADM-CUS-RQ-007 Tenant isolation | Controller/service boundary and integration-test cases exist | Re-run relevant tests and map their actual CI/run evidence before declaring the requirement verified. |
+
+**Evidence boundary:** source inspection is **VERIFIED BY CODE** for the statements above. Test execution, visual fidelity to B10, API documentation completeness, accessibility and target-state approval remain **NOT VERIFIED**. The current UI is a minimal AS-IS screen; do not label it a B10 implementation without a visual comparison and acceptance review.
+
 ## 7. Acceptance criteria for the design-to-spec workflow
 
 The workflow itself is acceptable when:
