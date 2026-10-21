@@ -169,7 +169,7 @@ The frame visibly proposes these regions/actions:
 | Customer detail + recent purchases | API `GET /clientes/:id` exists; inspected Admin component only exposes an edit form and does not render a detail/history panel. | **UI and data-contract gap**; decide scope and permission before implementing. |
 | Export | No export action is present in the inspected component. | **Contract gap**; define columns, permission, row limits and tenant scope if retained. |
 | Pagination and activity sort | No pagination/sort contract evidenced; search query has a limit of 50 when a term is supplied. | **Contract gap**; define stable ordering, cursor/page semantics and total count before implementing. |
-| Customer status | Prisma `Cliente.activo` exists, but the inspected component's list display does not expose it. | Field existence alone does not approve status editing or status-filter behavior. |
+| Customer status / loyalty | Prisma `Cliente.activo` exists, while the service independently derives loyalty `NUEVO` / `FRECUENTE` / `VIP`; the current list UI displays the loyalty level, not `activo`. | The mockup's status column mixes labels that may represent two different axes (e.g. Activo/Inactivo vs. Nuevo). Define separate status and loyalty semantics; never map `NUEVO` to an inactive/active state. |
 
 **B10 recommendation:** do not implement all visible elements as one batch. First reconcile the list/search contract and visible row fields with the current Customer domain. Treat metrics, export, activity feed, purchase-history panel, status filter and pagination as separate candidate capabilities with independent acceptance criteria. A visual element that lacks an approved data contract is an open decision, not permission to invent one.
 
