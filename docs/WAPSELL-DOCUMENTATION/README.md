@@ -90,6 +90,8 @@ Cambios necesarios para pasar de AS-IS a TO-BE, incluyendo identidad, tenancy, a
 ### `10-TRACEABILITY/`
 Trazabilidad entre requirements, specs, dominios, módulos, entidades, API/UI, E2E, tests y evidencia.
 
+**Puente Figma → SDD (draft):** [Admin Web Screen Specification](06-SPECIFICATIONS/SPECIALIZED/01-ADMIN-WEB-FIGMA-SCREEN-SPEC-v0.1.md) define el contrato de documentación para los frames B10–B18; [Figma Design Traceability Register](10-TRACEABILITY/10-FIGMA-DESIGN-TRACEABILITY.md) registra nodos, dominios candidatos y gaps de código/tests. Ambos artefactos están en DRAFT y no aprueban requisitos ni autorizan implementación.
+
 ### `11-IMPLEMENTATION-READINESS/`
 Material previo a implementación:
 - planes de transformación;
