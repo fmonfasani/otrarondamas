@@ -418,3 +418,55 @@ The page loads current cash state and user summaries, and loads movements only w
 The TO-BE Cash artifact remains **DRAFT — NOT APPROVED**. The following remain open and must not be filled from Figma: formal TO-BE state machine; adjustment, reversal and compensation mechanics; Payment↔Cash effects; permission catalogue and disputed sensitive-operation rule; and any new metrics or exports. Existing AS-IS behavior is not itself approval of a future multi-tenant contract.
 
 **Outcome:** the B13 reconciliation is more specific and traceable, but the frame remains **NOT IMPLEMENTATION-READY**. No application code, schema, endpoint, migration, or test was changed or executed.
+
+
+### 7.8 B12 — Delivery / fulfillment contract reconciliation detail (source inspection, 2026-10-21)
+
+**Sources inspected:** `apps/api/prisma/schema.prisma` (blob `491afab53626870334979d23d89ec40884145e80`), `docs/WAPSELL-DOCUMENTATION/04-ASIS/01-ASIS-PRODUCT.md`, `docs/WAPSELL-DOCUMENTATION/04-ASIS/06-ASIS-MODULES.md`, `docs/WAPSELL-DOCUMENTATION/02-DISCOVERY/CONFLICTS/04-STATE-CONFLICTS.md`, and `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`. Read-only inspection only; no app execution, database query, or test run.
+
+#### Verified model surface — not proof of an executable feature
+
+The current Prisma `Entrega` model contains:
+- `id`, `empresaId` and a relation to `Empresa`;
+- `pedidoId` marked unique, so the current schema expresses one `Entrega` per `Pedido`;
+- optional `preparadorId` and `repartidorId` relations to `Usuario`;
+- nullable free-text `resultado` with a comment listing “Entregado, Fallida, Cancelada”;
+- nullable `medioCobro` and `fechaEntrega`, plus timestamps.
+
+These are schema facts only. They do **not** establish valid transitions, who may assign or update a delivery, what constitutes proof of delivery, how a failure is retried, whether cancellation is permitted, whether multiple attempts are represented, or how cash collection at delivery affects Payment/Cash. The free-text comment is not an approved state machine.
+
+The AS-IS product and module inventories state that no `apps/api/src/entregas/` module/controller/service or executable delivery flow exists. Therefore B12 is a proposed target screen, not an existing operational capability.
+
+#### Canonical decision boundary
+
+The state-conflict inventory identifies **CON-025** as unresolved: define the complete lifecycle of Fulfillment and Deliveries. The Owner decision closure further states:
+- Repartidor is excluded as an MVP Membership Role (`FUTURE / OPEN`); this does **not** resolve D-016.
+- D-016 (Business management of fulfillment/repartidores) and REQ-FUL-003 remain **OPEN OWNER DECISION** and are not promoted.
+- D-016's open state means the design cannot assume that a courier is a Business Membership, an external identity, an employee, or a separately managed actor.
+- The canonical precedence is Owner ruling → Decision Register → canonical spec → TO-BE → audit/workshop/historical evidence. The Figma mockup and the schema comment cannot overrule that authority.
+
+#### B12 field/action disposition
+
+| Candidate element | Current evidence | Required disposition |
+|---|---|---|
+| Delivery/order association | Schema has a unique `pedidoId` (one-to-one at present). | Do not design multi-delivery-per-order behavior without a decision/schema change approval. |
+| Delivery status | Nullable free-text `resultado`; three example strings appear only in a comment. | Do not treat those strings as approved states or define transitions from them. Resolve CON-025 first. |
+| Preparer/courier assignment | Optional IDs reference `Usuario`. D-016 and the Repartidor Membership Role remain open/future. | Do not infer role, identity type, invitation flow, assignment authority, reassignment or eligibility rules. |
+| Address / delivery window | No such fields were established from the inspected `Entrega` model. | Identify the authoritative address and scheduling source before specifying UI fields; do not add fields from Figma alone. |
+| Item count / order amount | The design mixes counts and monetary values in ambiguous columns. | Source each value from an approved Order/line-item contract and label units explicitly; never treat item count as currency or infer delivery totals. |
+| Failure / cancellation / retry | The schema comment mentions “Fallida” and “Cancelada” but defines no recovery flow. | Resolve retry, cancellation, rescheduling, return-to-stock/order consequences and audit requirements before state or endpoint design. |
+| Proof / timestamp | `fechaEntrega` exists; no proof-of-delivery contract was verified. | Do not infer signature, photo, geolocation, recipient identity or completion evidence from a timestamp. |
+| Cash collected at delivery | `medioCobro` comment says “Si se cobra al entregar”; Payment↔Cash effects remain open in the Cash TO-BE artifact. | Do not infer payment capture, cash movement, settlement, or order completion effects. Reconcile with approved Payment/Cash contracts. |
+| Export / bulk actions | No delivery controller/service or contract was verified. | Treat as unimplemented proposals; require explicit scope, authorization, endpoint and acceptance criteria. |
+
+#### Required decision/specification sequence
+
+1. Resolve or explicitly retain as open the Owner decisions for D-016 / REQ-FUL-003 and CON-025.
+2. Establish the delivery actor model and its tenant/identity boundary without assuming Repartidor is an MVP Membership role.
+3. Specify lifecycle and permitted transitions, including failure/cancellation/retry, only after the relevant decisions.
+4. Define the source of order address, item count, order value, assignment, schedule and completion evidence.
+5. Reconcile collection-on-delivery with Payment and Cash semantics; do not use `medioCobro` as proof of a completed payment.
+6. Map each approved command to authorization, tenant isolation, audit requirements, idempotency/concurrency behavior and testable acceptance criteria.
+7. Only then decide whether schema migrations, API modules, UI actions or tests are needed.
+
+**Outcome:** B12 is **NOT IMPLEMENTATION-READY**. No new states, endpoints, fields, migrations, roles or permissions are approved by this audit. No application code or tests were changed or executed.
