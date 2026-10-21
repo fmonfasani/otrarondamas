@@ -375,3 +375,46 @@ A screen is not implementation-ready until all applicable conditions are satisfi
 6. Open Owner decisions and implementation details remain marked OPEN; no guessed states, permissions, accounting formulas, schema changes, or endpoints are introduced.
 
 **Current outcome:** the prioritized reconciliation is documented. It is not an approval of the target screens, a closure of CON-012/CON-025, or an authorization to implement. The PR remains documentation-only.
+
+
+### 7.7 B13 — Cash contract reconciliation detail (source inspection, 2026-10-21)
+
+**Code evidence inspected:** `apps/pos-admin/src/features/caja/CajaPage.tsx` (blob `ead925e2c632fd7a8d0ea312fd8aeafefe4ac018`), `apps/pos-admin/src/lib/api.ts`, `packages/shared-types/src/index.ts`, `docs/WAPSELL-DOCUMENTATION/08-TOBE/04-CASH.md`, and canonical Owner decision artifacts. This was read-only source inspection; no app execution, DB query, or test run occurred.
+
+#### Existing AS-IS flow evidenced in the UI
+
+The current `CajaPage` explicitly describes and implements the operational sequence:
+1. Open cash with an opening amount.
+2. Register manual movements using the existing types `Ingreso`, `Egreso`, `Gasto`, `Retiro`.
+3. Count/reconcile cash.
+4. For handover, require confirmation by the outgoing and incoming users.
+5. If the count requires exception authorization, request the authorizer's email and password (not the active session credentials) before enabling close.
+6. Close cash only through the permitted flow; the page comment explicitly states there is no force-close path that bypasses authorization.
+
+The page loads current cash state and user summaries, and loads movements only when a current opening exists. The API client/shared types expose the existing cash contract (including `EstadoCajaResponse`, `MovimientoCaja`, `RegistrarArqueoRequest`, `ArquearCajaResponse`, `ArqueoCaja`, and `CierreCaja`). This list describes code-level evidence, not a fresh runtime verification.
+
+#### B13-to-AS-IS reconciliation
+
+| Figma element | Evidence / mismatch | Required disposition |
+|---|---|---|
+| Summary cards and totals | The mockup's displayed metrics have no verified mapping to the existing cash response or a documented calculation source. | Do not implement or label them as real until each formula and source field is mapped. |
+| Recent movements/table | Current API/UI movement types are the established manual types above; Figma rows/columns are not evidence of extra movement categories or accounting effects. | Map every column to the existing movement response and keep unsupported categories/actions out of scope. |
+| Close / count actions | Existing flow includes count and gated close, including dual confirmation and exception authorization. | Preserve those controls; never infer a bypass or single-user shortcut from the mockup. |
+| Authorization | The current UI asks for authorizer credentials when the backend reports authorization is required. The canonical role/permission catalogue and some sensitive-operation details remain open. | Preserve the existing server decision and credential check. Do not invent role names, permission codes, thresholds, or client-only authorization. |
+| State labels / filters | AS-IS UI and the draft TO-BE artifact are not authority to add physical cash states. The TO-BE Cash document explicitly leaves a formal state machine open. | Use only states already returned by the current API for the current screen; any new TO-BE state requires a canonical decision and contract. |
+| Exports / analytics / audit affordances | No verified contract for Figma-only export, analytics, or expanded audit actions was established in this pass. | Treat as unimplemented proposals until scope, authorization, endpoint and acceptance criteria are approved. |
+
+#### Invariants to preserve in any future implementation
+
+- A UI affordance must not bypass backend authorization or state checks.
+- Cash handover retains dual confirmation (outgoing + incoming user).
+- A cash count requiring authorization cannot be converted into a force-close path.
+- Authorization must not be simulated by hiding/disabling a button; the server remains authoritative.
+- A Cash screen must not conflate a cash movement with a recognized accounting result or an accounts-receivable balance without an approved relationship contract.
+- Business/tenant context and server-side isolation must remain enforced.
+
+#### Open decisions and evidence boundary
+
+The TO-BE Cash artifact remains **DRAFT — NOT APPROVED**. The following remain open and must not be filled from Figma: formal TO-BE state machine; adjustment, reversal and compensation mechanics; Payment↔Cash effects; permission catalogue and disputed sensitive-operation rule; and any new metrics or exports. Existing AS-IS behavior is not itself approval of a future multi-tenant contract.
+
+**Outcome:** the B13 reconciliation is more specific and traceable, but the frame remains **NOT IMPLEMENTATION-READY**. No application code, schema, endpoint, migration, or test was changed or executed.
