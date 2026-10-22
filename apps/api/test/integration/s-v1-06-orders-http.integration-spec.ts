@@ -314,7 +314,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(placed.body).toMatchObject({
       estado: 'RECIBIDO',
       canalOrigen: 'web',
-      total: 20,
+      total: '20',
     });
     const orderId = placed.body.id as string;
     const storedBefore = await prisma.pedido.findUniqueOrThrow({
@@ -584,6 +584,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
   it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
     const product = await mkProduct(companyA.id, hierA);
+    await mkBatch(companyA.id, product.id, 10);
     const order = await mkOrder(companyA.id, customerA.id, [
       { productId: product.id, quantity: 2 },
     ]);
