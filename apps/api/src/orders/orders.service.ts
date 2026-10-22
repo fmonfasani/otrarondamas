@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { PedidoResponseDto } from '../store/dto/order.response.dto';
 
 /**
  * Phase 4 of the Online Store (RF-06): the seller's counterpart — the
@@ -48,7 +47,7 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
     }
-    return new PedidoResponseDto(order);
+    return order;
   }
 
   async updateStatus(id: string, companyId: string, dto: UpdateOrderStatusDto, userId: string) {
@@ -83,7 +82,7 @@ export class OrdersService {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
       const order = await db.pedido.findUniqueOrThrow({ where: { id }, include: { pedidoItems: true } });
-      return new PedidoResponseDto(order);
+      return order;
     }
 
     // CONFIRMADO: atomically update with Prisma SERIALIZABLE isolation +
@@ -118,7 +117,7 @@ export class OrdersService {
           );
         }
 
-        return new PedidoResponseDto(confirmedOrder);
+        return confirmedOrder;
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
