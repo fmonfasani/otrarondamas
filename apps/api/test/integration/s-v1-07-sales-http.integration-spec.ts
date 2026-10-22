@@ -736,7 +736,8 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     });
     expect(audit).toHaveLength(1);
     expect(audit[0].empresaId).toBe(companyA.id);
-    expect(await cashMovements(res.body.pago.id)).toHaveLength(1);
+    // Non-cash payments must not affect the cash drawer.
+    expect(await cashMovements(res.body.pago.id)).toHaveLength(0);
   });
 
   it('SV7-H-14: POST /ventas/:id/pagos efectivo — registra Pago, vuelto y MovimientoCaja; caja cerrada: 409', async () => {
