@@ -736,10 +736,10 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     });
     expect(audit).toHaveLength(1);
     expect(audit[0].empresaId).toBe(companyA.id);
-    expect(await cashMovements(res.body.pago.id)).toHaveLength(0);
+    expect(await cashMovements(res.body.pago.id)).toHaveLength(1);
   });
 
-  it('SV7-H-14: POST /ventas/:id/pagos efectivo — caja abierta: Pago + vuelto sin MovimientoCaja (gana el handler de Sales); caja cerrada: 409', async () => {
+  it('SV7-H-14: POST /ventas/:id/pagos efectivo — registra Pago, vuelto y MovimientoCaja; caja cerrada: 409', async () => {
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
     const auth = bearer(legacyUserA.id, companyA.id);
@@ -842,14 +842,13 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     }
   });
 
-  it('SV7-H-18 (ruta duplicada, caracterización): el POST de Payments es inalcanzable — la respuesta tiene la forma de Sales y no hay MovimientoCaja', async () => {
+  it('SV7-H-18: el POST de pagos registra MovimientoCaja y conserva el contrato { pago, saldo }', async () => {
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
     await setCashOpen(true);
 
-    // Payments' service would return the raw Pago and (cash + open register)
-    // create a MovimientoCaja. The observed response is Sales' { pago, saldo }
-    // and no MovimientoCaja exists, proving which handler serves the route.
+    // The canonical payment route keeps the POS response contract and must
+    // register the cash collection against the active opening.
     const res = await request(BASE)
       .post(`/ventas/${saleA.id}/pagos`)
       .set('Authorization', bearer(legacyUserA.id, companyA.id))
