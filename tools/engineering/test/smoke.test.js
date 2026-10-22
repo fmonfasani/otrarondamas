@@ -49,7 +49,7 @@ for (const contract of agentContracts) {
     assert.ok(fs.existsSync(fullPath), 'Missing agent file: ' + contract.file);
     const content = fs.readFileSync(fullPath, 'utf8');
     assert.match(content, new RegExp('^---\\s*\\nname: ' + contract.name + '\\s*\\n'));
-    assert.match(content, /\\n---\\s*\\n/);
+    assert.ok(content.includes(newline + '---' + newline), contract.file + ' has no closing frontmatter delimiter');
     for (const marker of contract.required) {
       assert.ok(content.includes(marker), contract.file + ' is missing required marker: ' + marker);
     }
