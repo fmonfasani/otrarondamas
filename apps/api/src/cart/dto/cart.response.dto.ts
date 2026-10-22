@@ -1,4 +1,4 @@
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 /**
  * Stable response projection for the cart endpoints.
@@ -8,28 +8,28 @@ export class CartItemResponseDto {
   id: string;
   cartId: string;
   productoId: string;
-  cantidad: Decimal | number;
+  cantidad: Prisma.Decimal | number;
   createdAt: Date;
   updatedAt: Date;
   producto?: {
     id?: string;
     nombre: string;
-    precioMinorista: Decimal | number;
-    descuentoPorcentaje?: Decimal | number | null;
+    precioMinorista: Prisma.Decimal | number;
+    descuentoPorcentaje?: Prisma.Decimal | number | null;
   };
 
   constructor(item: {
     id: string;
     cartId: string;
     productoId: string;
-    cantidad: Decimal | number;
+    cantidad: Prisma.Decimal | number;
     createdAt: Date;
     updatedAt: Date;
     producto?: {
       id?: string;
       nombre: string;
-      precioMinorista: Decimal | number;
-      descuentoPorcentaje?: Decimal | number | null;
+      precioMinorista: Prisma.Decimal | number;
+      descuentoPorcentaje?: Prisma.Decimal | number | null;
     };
   }) {
     this.id = item.id;
@@ -60,14 +60,14 @@ export class CartResponseDto {
       id: string;
       cartId: string;
       productoId: string;
-      cantidad: Decimal | number;
+      cantidad: Prisma.Decimal | number;
       createdAt: Date;
       updatedAt: Date;
       producto?: {
         id?: string;
         nombre: string;
-        precioMinorista: Decimal | number;
-        descuentoPorcentaje?: Decimal | number | null;
+        precioMinorista: Prisma.Decimal | number;
+        descuentoPorcentaje?: Prisma.Decimal | number | null;
       };
     }>;
   }) {
