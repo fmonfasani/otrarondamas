@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '../../..');
+const newline = String.fromCharCode(10);
 const tools = ['tools/engineering/check-git-state.js', 'tools/engineering/validate-module.js',
   'tools/engineering/collect-ci-evidence.js'];
 for (const tool of tools) {
