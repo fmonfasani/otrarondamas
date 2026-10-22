@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { PedidoResponseDto } from '../store/dto/order.response.dto';
 
 /**
  * Phase 4 of the Online Store (RF-06): the seller's counterpart — the
@@ -47,7 +48,7 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
     }
-    return order;
+    return new PedidoResponseDto(order);
   }
 
   async updateStatus(id: string, companyId: string, dto: UpdateOrderStatusDto, userId: string) {
@@ -81,34 +82,22 @@ export class OrdersService {
       if (transition.count !== 1) {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
-      return db.pedido.findUniqueOrThrow({ where: { id } });
+      const order = await db.pedido.findUniqueOrThrow({ where: { id }, include: { pedidoItems: true } });
+      return new PedidoResponseDto(order);
     }
 
-    // CONFIRMADO: the conditional update is inside the same transaction as
-    // stock deduction. If any item lacks stock, the whole transaction rolls
-    // back and the order remains RECIBIDO. The updateMany with a compound
-    // where (id + estado) ensures only an order in RECIBIDO state can
-    // transition — concurrent attempts see the order already CONFIRMADO and
-    // fail with 400 (via the guard after the transaction).
-    //
-    // SERIALIZABLE isolation level: ensures that concurrent transactions
-    // are fully serialized. Without this, two transactions can both read
-    // the same RECIBIDO state before either one updates it, resulting in
-    // duplicate stock deductions. With SERIALIZABLE, the second transaction
-    // will fail or retry with the updated state.
+    // CONFIRMADO: atomically update with Prisma SERIALIZABLE isolation +
+    // conditional updateMany. The updateMany will fail (count=0) if the order
+    // is not RECIBIDO, ensuring exactly one concurrent request succeeds.
     return db.$transaction(
       async (tx) => {
-        // Conditional update: only transitions if orden is RECIBIDO.
-        // If already CONFIRMADO or CANCELADO, updateMany returns count=0.
-        const transition = await tx.pedido.updateMany({
+        // Atomic: only transition if estado is RECIBIDO. This is the gate.
+        const updated = await tx.pedido.updateMany({
           where: { id, estado: 'RECIBIDO' },
           data: { estado: 'CONFIRMADO', usuarioId: userId },
         });
 
-        // If transition.count === 0, the order was not RECIBIDO (concurrent
-        // request beat us, or order is in an invalid state). This is a genuine
-        // 400, not a race condition we should retry: the other request owns it.
-        if (transition.count !== 1) {
+        if (updated.count === 0) {
           throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
         }
 
@@ -118,9 +107,6 @@ export class OrdersService {
         });
 
         for (const item of confirmedOrder.pedidoItems) {
-          // reason 'Venta': confirming an online store order IS a real sale, it
-          // just originated through that channel — no new reason is invented (see
-          // InventoryService.deductStock()).
           await this.inventoryService.deductStock(
             tx,
             companyId,
@@ -132,13 +118,9 @@ export class OrdersService {
           );
         }
 
-        return confirmedOrder;
+        return new PedidoResponseDto(confirmedOrder);
       },
       {
-        // Use SERIALIZABLE isolation to ensure that concurrent confirmations
-        // cannot both see the order in RECIBIDO state. The database will
-        // serialize them: the first succeeds, the second must retry or see
-        // the updated state.
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
