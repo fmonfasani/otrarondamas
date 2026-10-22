@@ -1,5 +1,9 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": "..",
   "testRegex": "test/.*\\.(e2e|integration)-spec\\.ts$",
   "transform": {
@@ -10,8 +14,5 @@
   "forceExit": false,
   "transformIgnorePatterns": [
     "node_modules/(?!(@nestjs|socket\\.io-client)/)"
-  ],
-  "setupFilesAfterEnv": [
-    "<rootDir>/test/setup-env.ts"
   ]
 }
