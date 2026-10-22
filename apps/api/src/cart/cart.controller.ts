@@ -54,7 +54,7 @@ export class CartController {
   async getCart(@Param('id') cartId: string) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
     const cart = await this.cartService.getCart(cartId, businessId);
-    return new CartResponseDto(cart);
+    return cart;
   }
 
   /**
@@ -75,7 +75,7 @@ export class CartController {
   ) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
     const item = await this.cartService.addItem(cartId, body.productoId, body.cantidad, businessId);
-    return new CartItemResponseDto(item);
+    return item;
   }
 
   /**
@@ -97,7 +97,7 @@ export class CartController {
   ) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
     const item = await this.cartService.updateItemQuantity(itemId, body.cantidad, businessId);
-    return new CartItemResponseDto(item);
+    return item;
   }
 
   /**
