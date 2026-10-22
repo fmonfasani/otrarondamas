@@ -12,7 +12,7 @@ A repository-versioned operating layer for Claude Code that makes engineering wo
 - `CLAUDE.md`: repository-wide context and execution contract.
 - `.claude/rules/`: persistent topic-specific constraints.
 - `.claude/agents/`: specialist agents for architecture, CI recovery, and independent review are present in v1; additional domain agents remain planned.
-- `.claude/skills/`: reusable `ci-failure-triage` and `sdd-workflow` procedures are present in v1; further skills remain planned.
+- `.claude/skills/`: reusable `ci-failure-triage`, `sdd-workflow`, `tenant-isolation-audit`, and `api-contract-audit` procedures are present in v1; further skills remain planned.
 - `tools/engineering/`: planned deterministic local checks; scripts must be tested before being treated as gates.
 - `docs/engineering/`: this kit's design, catalog, and quality criteria.
 
