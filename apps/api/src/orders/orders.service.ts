@@ -90,7 +90,7 @@ export class OrdersService {
     // is not RECIBIDO, ensuring exactly one concurrent request succeeds.
     try {
       return await db.$transaction(
-      async (tx) => {
+        async (tx) => {
         // Atomic: only transition if estado is RECIBIDO. This is the gate.
         const updated = await tx.pedido.updateMany({
           where: { id, estado: 'RECIBIDO' },
@@ -119,10 +119,10 @@ export class OrdersService {
         }
 
         return confirmedOrder;
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
       );
     } catch (error) {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent confirmation
