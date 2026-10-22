@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -80,42 +81,47 @@ export class OrdersService {
       if (transition.count !== 1) {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
-      return db.pedido.findUniqueOrThrow({ where: { id } });
+      const order = await db.pedido.findUniqueOrThrow({ where: { id }, include: { pedidoItems: true } });
+      return order;
     }
 
-    // CONFIRMADO: the conditional update is inside the same transaction as
-    // stock deduction. If any item lacks stock, the whole transaction rolls
-    // back and the order remains RECIBIDO.
-    return db.$transaction(async (tx) => {
-      const transition = await tx.pedido.updateMany({
-        where: { id, estado: 'RECIBIDO' },
-        data: { estado: 'CONFIRMADO', usuarioId: userId },
-      });
-      if (transition.count !== 1) {
-        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
-      }
+    // CONFIRMADO: atomically update with Prisma SERIALIZABLE isolation +
+    // conditional updateMany. The updateMany will fail (count=0) if the order
+    // is not RECIBIDO, ensuring exactly one concurrent request succeeds.
+    return db.$transaction(
+      async (tx) => {
+        // Atomic: only transition if estado is RECIBIDO. This is the gate.
+        const updated = await tx.pedido.updateMany({
+          where: { id, estado: 'RECIBIDO' },
+          data: { estado: 'CONFIRMADO', usuarioId: userId },
+        });
 
-      const confirmedOrder = await tx.pedido.findUniqueOrThrow({
-        where: { id },
-        include: { pedidoItems: true },
-      });
+        if (updated.count === 0) {
+          throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+        }
 
-      for (const item of confirmedOrder.pedidoItems) {
-        // reason 'Venta': confirming an online store order IS a real sale, it
-        // just originated through that channel — no new reason is invented (see
-        // InventoryService.deductStock()).
-        await this.inventoryService.deductStock(
-          tx,
-          companyId,
-          item.productoId,
-          Number(item.cantidad),
-          'Venta',
-          confirmedOrder.id,
-          userId,
-        );
-      }
+        const confirmedOrder = await tx.pedido.findUniqueOrThrow({
+          where: { id },
+          include: { pedidoItems: true },
+        });
 
-      return confirmedOrder;
-    });
+        for (const item of confirmedOrder.pedidoItems) {
+          await this.inventoryService.deductStock(
+            tx,
+            companyId,
+            item.productoId,
+            Number(item.cantidad),
+            'Venta',
+            confirmedOrder.id,
+            userId,
+          );
+        }
+
+        return confirmedOrder;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
   }
 }

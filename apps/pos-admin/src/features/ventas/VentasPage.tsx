@@ -270,7 +270,9 @@ export function VentasPage() {
                         {formatImporte(v.total)}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <span className={saldo > 0 ? 'text-amber-600 font-semibold' : 'text-gray-400'}>
+                        <span
+                          className={saldo > 0 ? 'text-amber-600 font-semibold' : 'text-gray-400'}
+                        >
                           {formatImporte(saldo)}
                         </span>
                       </td>

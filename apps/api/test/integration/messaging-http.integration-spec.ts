@@ -50,7 +50,11 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
     new Promise<void>((resolve, reject) => {
       const probe = (remaining: number) => {
         if (serverStartError || server.exitCode !== null || server.signalCode !== null) {
-          reject(new Error(`Messaging API terminó antes de abrir el puerto ${port}. ${serverStartError ?? ''} ${serverOutput}`.trim()));
+          reject(
+            new Error(
+              `Messaging API terminó antes de abrir el puerto ${port}. ${serverStartError ?? ''} ${serverOutput}`.trim(),
+            ),
+          );
           return;
         }
         const socket = net.connect(port, '127.0.0.1');
@@ -59,7 +63,8 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
           resolve();
         });
         socket.once('error', () => {
-          if (remaining <= 0) reject(new Error(`puerto ${port} sin respuesta. ${serverOutput}`.trim()));
+          if (remaining <= 0)
+            reject(new Error(`puerto ${port} sin respuesta. ${serverOutput}`.trim()));
           else setTimeout(() => probe(remaining - 1), 1000);
         });
       };
@@ -120,18 +125,34 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `P1 Messaging HTTP B ${suffix}`, slug: `p1-messaging-http-b-${suffix}`, configuracion: {} },
+      data: {
+        nombre: `P1 Messaging HTTP B ${suffix}`,
+        slug: `p1-messaging-http-b-${suffix}`,
+        configuracion: {},
+      },
       select: { id: true },
     });
     legacyUserB = await prisma.usuario.create({
-      data: { empresaId: companyB.id, nombre: `P1 Messaging HTTP B ${suffix}`, email: `p1-messaging-http-b-${suffix}@example.test`, activo: true, rol: 'OWNER' },
+      data: {
+        empresaId: companyB.id,
+        nombre: `P1 Messaging HTTP B ${suffix}`,
+        email: `p1-messaging-http-b-${suffix}@example.test`,
+        activo: true,
+        rol: 'OWNER',
+      },
       select: { id: true },
     });
     userB = await prisma.user.create({
-      data: { email: `p1-messaging-canonical-b-${suffix}@example.test`, nombre: 'P1 Messaging canonical user B', usuarioId: legacyUserB.id },
+      data: {
+        email: `p1-messaging-canonical-b-${suffix}@example.test`,
+        nombre: 'P1 Messaging canonical user B',
+        usuarioId: legacyUserB.id,
+      },
       select: { id: true },
     });
-    await prisma.membership.create({ data: { userId: userB.id, businessId: companyB.id, role: 'OWNER', status: 'ACTIVE' } });
+    await prisma.membership.create({
+      data: { userId: userB.id, businessId: companyB.id, role: 'OWNER', status: 'ACTIVE' },
+    });
 
     customer = await prisma.cliente.create({
       data: {
@@ -146,9 +167,15 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       env: { ...process.env, PORT },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    server.stdout?.on('data', (chunk: Buffer) => { serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000); });
-    server.stderr?.on('data', (chunk: Buffer) => { serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000); });
-    server.once('error', (error) => { serverStartError = error.message; });
+    server.stdout?.on('data', (chunk: Buffer) => {
+      serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
+    });
+    server.stderr?.on('data', (chunk: Buffer) => {
+      serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
+    });
+    server.once('error', (error) => {
+      serverStartError = error.message;
+    });
     await waitPort(Number(PORT));
   }, 120000);
 
@@ -158,15 +185,27 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       if (company?.id || companyB?.id) {
         const businessIds = [company?.id, companyB?.id].filter((id): id is string => Boolean(id));
         await prisma.messageReadReceipt.deleteMany({ where: { businessId: { in: businessIds } } });
-        await prisma.messagingReadPreference.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.messagingReadPreference.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
         await prisma.message.deleteMany({ where: { businessId: { in: businessIds } } });
-        await prisma.conversationAssociation.deleteMany({ where: { businessId: { in: businessIds } } });
-        await prisma.conversationParticipant.deleteMany({ where: { businessId: { in: businessIds } } });
+        await prisma.conversationAssociation.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
+        await prisma.conversationParticipant.deleteMany({
+          where: { businessId: { in: businessIds } },
+        });
         await prisma.conversation.deleteMany({ where: { businessId: { in: businessIds } } });
         await prisma.cliente.deleteMany({ where: { empresaId: { in: businessIds } } });
         await prisma.membership.deleteMany({ where: { businessId: { in: businessIds } } });
-        await prisma.user.deleteMany({ where: { id: { in: [user?.id, userB?.id].filter((id): id is string => Boolean(id)) } } });
-        await prisma.usuario.deleteMany({ where: { id: { in: [legacyUser?.id, legacyUserB?.id].filter((id): id is string => Boolean(id)) } } });
+        await prisma.user.deleteMany({
+          where: { id: { in: [user?.id, userB?.id].filter((id): id is string => Boolean(id)) } },
+        });
+        await prisma.usuario.deleteMany({
+          where: {
+            id: { in: [legacyUser?.id, legacyUserB?.id].filter((id): id is string => Boolean(id)) },
+          },
+        });
         await prisma.empresa.deleteMany({ where: { id: { in: businessIds } } });
       }
       await prisma.$disconnect();
@@ -214,13 +253,21 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       .get(`/messaging/conversations/${conversationId}/associations`)
       .set('Authorization', `Bearer ${tokenFor(legacyUser.id, company.id)}`)
       .expect(200);
-    expect(associations.body).toEqual(expect.arrayContaining([
-      expect.objectContaining({ entityType: 'CUSTOMER', entityId: customer.id, active: true }),
-    ]));
+    expect(associations.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ entityType: 'CUSTOMER', entityId: customer.id, active: true }),
+      ]),
+    );
 
     const foreignAuth = `Bearer ${tokenFor(legacyUserB.id, companyB.id)}`;
-    await request(BASE).get(`/messaging/conversations/${conversationId}`).set('Authorization', foreignAuth).expect(404);
-    await request(BASE).get(`/messaging/conversations/${conversationId}/associations`).set('Authorization', foreignAuth).expect(404);
+    await request(BASE)
+      .get(`/messaging/conversations/${conversationId}`)
+      .set('Authorization', foreignAuth)
+      .expect(404);
+    await request(BASE)
+      .get(`/messaging/conversations/${conversationId}/associations`)
+      .set('Authorization', foreignAuth)
+      .expect(404);
   });
 
   it('loads an empty history, sends over HTTP, and rereads the persisted message as JSON', async () => {
@@ -251,25 +298,29 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       .set('Authorization', auth)
       .expect(200);
     expect(history.body).toHaveLength(1);
-    expect(history.body[0]).toEqual(expect.objectContaining({
-      id: messageId,
-      conversationId,
-      sequence: '1',
-      content,
-      authorUserId: user.id,
-    }));
+    expect(history.body[0]).toEqual(
+      expect.objectContaining({
+        id: messageId,
+        conversationId,
+        sequence: '1',
+        content,
+        authorUserId: user.id,
+      }),
+    );
     expect(() => JSON.stringify(history.body)).not.toThrow();
 
     const persisted = await prisma.message.findFirst({
       where: { id: messageId, businessId: company.id },
     });
-    expect(persisted).toEqual(expect.objectContaining({
-      conversationId,
-      authorUserId: user.id,
-      authorMembershipBusinessId: company.id,
-      sequence: BigInt(1),
-      content,
-    }));
+    expect(persisted).toEqual(
+      expect.objectContaining({
+        conversationId,
+        authorUserId: user.id,
+        authorMembershipBusinessId: company.id,
+        sequence: BigInt(1),
+        content,
+      }),
+    );
 
     const reread = await request(BASE)
       .get(`/messaging/conversations/${conversationId}/messages`)

@@ -17,7 +17,11 @@ describe('FS-1a — Customer BusinessContext (HTTP, stack real)', () => {
 
   const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 
-  const tokenFor = (customerId: string, tokenCompanyId: string, type: 'cliente' | 'usuario' = 'cliente') => {
+  const tokenFor = (
+    customerId: string,
+    tokenCompanyId: string,
+    type: 'cliente' | 'usuario' = 'cliente',
+  ) => {
     const header = b64url({ alg: 'HS256', typ: 'JWT' });
     const payload = b64url({
       sub: customerId,
@@ -65,11 +69,19 @@ describe('FS-1a — Customer BusinessContext (HTTP, stack real)', () => {
       select: { id: true },
     });
     customerA = await prisma.cliente.create({
-      data: { empresaId: companyA.id, nombre: 'FS-1a Cliente A ' + suffix, email: 'fs-1a-a-' + suffix + '@example.test' },
+      data: {
+        empresaId: companyA.id,
+        nombre: 'FS-1a Cliente A ' + suffix,
+        email: 'fs-1a-a-' + suffix + '@example.test',
+      },
       select: { id: true },
     });
     customerB = await prisma.cliente.create({
-      data: { empresaId: companyB.id, nombre: 'FS-1a Cliente B ' + suffix, email: 'fs-1a-b-' + suffix + '@example.test' },
+      data: {
+        empresaId: companyB.id,
+        nombre: 'FS-1a Cliente B ' + suffix,
+        email: 'fs-1a-b-' + suffix + '@example.test',
+      },
       select: { id: true },
     });
     server = spawn('node', ['dist/src/main.js'], {
@@ -119,5 +131,4 @@ describe('FS-1a — Customer BusinessContext (HTTP, stack real)', () => {
       .set('Authorization', 'Bearer ' + tokenFor('customer-does-not-exist', companyA.id))
       .expect(404);
   });
-
 });

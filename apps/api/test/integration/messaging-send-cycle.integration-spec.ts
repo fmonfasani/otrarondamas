@@ -85,7 +85,7 @@ describe('Messaging send cycle (real PostgreSQL)', () => {
       actorType: 'USER',
     } as unknown as BusinessContext;
 
-    service = new MessagingService(prisma, { } as never);
+    service = new MessagingService(prisma, {} as never);
     // The context boundary is owned by another workstream; everything below it
     // is exercised for real.
     (service as unknown as { resolveContext: () => Promise<BusinessContext> }).resolveContext =
@@ -97,10 +97,10 @@ describe('Messaging send cycle (real PostgreSQL)', () => {
     // cleared explicitly because its FK to Conversation would otherwise block
     // the delete if another flow created one for this conversation.
     await prisma.messageReadReceipt.deleteMany({ where: { businessId } }).catch(() => undefined);
-    await prisma.reaction
-      .deleteMany({ where: { message: { businessId } } })
+    await prisma.reaction.deleteMany({ where: { message: { businessId } } }).catch(() => undefined);
+    await prisma.conversationAssociation
+      .deleteMany({ where: { businessId } })
       .catch(() => undefined);
-    await prisma.conversationAssociation.deleteMany({ where: { businessId } }).catch(() => undefined);
     await prisma.message.deleteMany({ where: { businessId } });
     await prisma.conversationParticipant.deleteMany({ where: { businessId } });
     await prisma.conversation.deleteMany({ where: { businessId } });
@@ -113,7 +113,10 @@ describe('Messaging send cycle (real PostgreSQL)', () => {
 
   it('persists a message and returns a JSON-safe body consistent with the row', async () => {
     const created = await service.createTextMessage(
-      auth, conversationId, `send-${suffix}-1`, 'Primer mensaje',
+      auth,
+      conversationId,
+      `send-${suffix}-1`,
+      'Primer mensaje',
     );
 
     const persisted = await prisma.message.findUnique({ where: { id: created.id } });

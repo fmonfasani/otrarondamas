@@ -134,7 +134,14 @@ export function ComprobantePage() {
             <span>−{formatImporte(descuento)}</span>
           </p>
         )}
-        <p style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px' }}>
+        <p
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontWeight: 'bold',
+            fontSize: '14px',
+          }}
+        >
           <span>TOTAL</span>
           <span>{formatImporte(venta.total)}</span>
         </p>
@@ -157,9 +164,7 @@ export function ComprobantePage() {
                       : ''}
                   </p>
                 )}
-                {p.referencia && (
-                  <p style={{ fontSize: '10px' }}>Ref: {p.referencia}</p>
-                )}
+                {p.referencia && <p style={{ fontSize: '10px' }}>Ref: {p.referencia}</p>}
               </div>
             ))}
             <p style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
@@ -182,9 +187,7 @@ export function ComprobantePage() {
         )}
 
         <hr style={{ borderTop: '1px dashed #000', margin: '4px 0' }} />
-        <p style={{ textAlign: 'center', fontSize: '10px' }}>
-          ¡Gracias por tu compra!
-        </p>
+        <p style={{ textAlign: 'center', fontSize: '10px' }}>¡Gracias por tu compra!</p>
       </div>
     </>
   );

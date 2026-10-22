@@ -630,9 +630,9 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
       );
       expect(response.status).toBe(403);
       expect(response.body.message).toBe(NOT_PARTICIPANT);
-      expect(await prisma.message.count({ where: { conversationId: customerConversationId } })).toBe(
-        before,
-      );
+      expect(
+        await prisma.message.count({ where: { conversationId: customerConversationId } }),
+      ).toBe(before);
     });
   });
 

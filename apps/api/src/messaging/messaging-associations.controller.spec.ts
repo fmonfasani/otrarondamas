@@ -31,13 +31,19 @@ describe('MessagingController — commercial context P2', () => {
   it('creates an association using the validated entity contract', async () => {
     const association = { id: 'association-a', entityType: 'PRODUCT', entityId: 'product-a' };
     (service.createConversationAssociation as jest.Mock).mockResolvedValue(association);
-    await expect(controller.createAssociation(user, 'conversation-a', {
-      entityType: 'PRODUCT',
-      entityId: 'product-a',
-      reason: 'Producto elegido desde el chat',
-    } as any)).resolves.toEqual(association);
+    await expect(
+      controller.createAssociation(user, 'conversation-a', {
+        entityType: 'PRODUCT',
+        entityId: 'product-a',
+        reason: 'Producto elegido desde el chat',
+      } as any),
+    ).resolves.toEqual(association);
     expect(service.createConversationAssociation).toHaveBeenCalledWith(
-      user, 'conversation-a', 'PRODUCT', 'product-a', 'Producto elegido desde el chat',
+      user,
+      'conversation-a',
+      'PRODUCT',
+      'product-a',
+      'Producto elegido desde el chat',
     );
   });
 
@@ -45,22 +51,27 @@ describe('MessagingController — commercial context P2', () => {
     const order = { id: 'order-a', estado: 'RECIBIDO', total: '250.00' };
     (service.createOrderFromConversation as jest.Mock).mockResolvedValue(order);
     // C3: Order items come from persistent cart, not request body
-    await expect(controller.createOrder(user, 'conversation-a', {
-      items: [{ productoId: 'product-a', cantidad: 2 }], // Request body ignored by service
-    } as any)).resolves.toEqual(order);
-    expect(service.createOrderFromConversation).toHaveBeenCalledWith(
-      user, 'conversation-a',
-    );
+    await expect(
+      controller.createOrder(user, 'conversation-a', {
+        items: [{ productoId: 'product-a', cantidad: 2 }], // Request body ignored by service
+      } as any),
+    ).resolves.toEqual(order);
+    expect(service.createOrderFromConversation).toHaveBeenCalledWith(user, 'conversation-a');
   });
 
   it('deactivates instead of physically deleting a historical association', async () => {
     const result = { id: 'association-a', active: false };
     (service.deactivateConversationAssociation as jest.Mock).mockResolvedValue(result);
-    await expect(controller.deactivateAssociation(user, 'conversation-a', 'association-a', {
-      reason: 'Corrección comercial',
-    })).resolves.toEqual(result);
+    await expect(
+      controller.deactivateAssociation(user, 'conversation-a', 'association-a', {
+        reason: 'Corrección comercial',
+      }),
+    ).resolves.toEqual(result);
     expect(service.deactivateConversationAssociation).toHaveBeenCalledWith(
-      user, 'conversation-a', 'association-a', 'Corrección comercial',
+      user,
+      'conversation-a',
+      'association-a',
+      'Corrección comercial',
     );
   });
 });

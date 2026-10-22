@@ -62,7 +62,9 @@ describe('StoreService', () => {
       // MessagingService.createOrderFromConversation() passes conversationId as idempotencyKey.
       // Verify it's a UUID (stable, never changes for a given conversation).
       const mockConversationId = '550e8400-e29b-41d4-a716-446655440000';
-      expect(mockConversationId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      expect(mockConversationId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
     });
 
     it('idempotencyKey schema field is unique', () => {
@@ -85,7 +87,7 @@ describe('StoreService', () => {
       const toRemove = snapshotItemIds;
 
       const remainingAfterRemove = [...snapshotItemIds, ...concurrentAddedIds].filter(
-        (id) => !toRemove.includes(id)
+        (id) => !toRemove.includes(id),
       );
 
       expect(remainingAfterRemove).toEqual(concurrentAddedIds);

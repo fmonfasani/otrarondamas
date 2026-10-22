@@ -176,15 +176,15 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
         select: { id: true },
       });
 
-      await expect(
-        cartService.getOrCreateCart(inactiveCustomer.id, companyA.id),
-      ).rejects.toThrow('Cliente no encontrado o inactivo');
+      await expect(cartService.getOrCreateCart(inactiveCustomer.id, companyA.id)).rejects.toThrow(
+        'Cliente no encontrado o inactivo',
+      );
     });
 
     it('throws NotFoundException for customer from different company', async () => {
-      await expect(
-        cartService.getOrCreateCart(customerA.id, companyB.id),
-      ).rejects.toThrow('Cliente no encontrado o inactivo');
+      await expect(cartService.getOrCreateCart(customerA.id, companyB.id)).rejects.toThrow(
+        'Cliente no encontrado o inactivo',
+      );
     });
   });
 
@@ -201,23 +201,23 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
 
     it('rejects quantity <= 0', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
-      await expect(
-        cartService.addItem(cart.id, productA.id, 0, companyA.id),
-      ).rejects.toThrow('Cantidad debe ser mayor a 0');
+      await expect(cartService.addItem(cart.id, productA.id, 0, companyA.id)).rejects.toThrow(
+        'Cantidad debe ser mayor a 0',
+      );
     });
 
     it('rejects insufficient stock', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
-      await expect(
-        cartService.addItem(cart.id, productA.id, 100, companyA.id),
-      ).rejects.toThrow('Stock insuficiente');
+      await expect(cartService.addItem(cart.id, productA.id, 100, companyA.id)).rejects.toThrow(
+        'Stock insuficiente',
+      );
     });
 
     it('rejects non-existent product', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
-      await expect(
-        cartService.addItem(cart.id, 'nonexistent-id', 1, companyA.id),
-      ).rejects.toThrow('Producto no encontrado');
+      await expect(cartService.addItem(cart.id, 'nonexistent-id', 1, companyA.id)).rejects.toThrow(
+        'Producto no encontrado',
+      );
     });
 
     it('updates quantity when adding same product twice (idempotent)', async () => {
@@ -242,18 +242,18 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      await expect(
-        cartService.updateItemQuantity(item.id, 0, companyA.id),
-      ).rejects.toThrow('Cantidad debe ser mayor a 0');
+      await expect(cartService.updateItemQuantity(item.id, 0, companyA.id)).rejects.toThrow(
+        'Cantidad debe ser mayor a 0',
+      );
     });
 
     it('rejects insufficient stock when updating', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      await expect(
-        cartService.updateItemQuantity(item.id, 100, companyA.id),
-      ).rejects.toThrow('Stock insuficiente');
+      await expect(cartService.updateItemQuantity(item.id, 100, companyA.id)).rejects.toThrow(
+        'Stock insuficiente',
+      );
     });
 
     it('throws NotFoundException for non-existent item', async () => {
@@ -285,9 +285,9 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     });
 
     it('throws NotFoundException for non-existent item', async () => {
-      await expect(
-        cartService.removeItem('nonexistent-id', companyA.id),
-      ).rejects.toThrow('Item del carrito no encontrado');
+      await expect(cartService.removeItem('nonexistent-id', companyA.id)).rejects.toThrow(
+        'Item del carrito no encontrado',
+      );
     });
   });
 
@@ -305,9 +305,9 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     });
 
     it('throws NotFoundException for non-existent cart', async () => {
-      await expect(
-        cartService.getCart('nonexistent-id', companyA.id),
-      ).rejects.toThrow('Carrito no encontrado');
+      await expect(cartService.getCart('nonexistent-id', companyA.id)).rejects.toThrow(
+        'Carrito no encontrado',
+      );
     });
   });
 
@@ -324,9 +324,9 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     });
 
     it('throws NotFoundException for non-existent cart', async () => {
-      await expect(
-        cartService.clearCart('nonexistent-id', companyA.id),
-      ).rejects.toThrow('Carrito no encontrado');
+      await expect(cartService.clearCart('nonexistent-id', companyA.id)).rejects.toThrow(
+        'Carrito no encontrado',
+      );
     });
   });
 
@@ -334,17 +334,17 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     it('prevents accessing cart from different company', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
 
-      await expect(
-        cartService.getCart(cart.id, companyB.id),
-      ).rejects.toThrow('Carrito no encontrado');
+      await expect(cartService.getCart(cart.id, companyB.id)).rejects.toThrow(
+        'Carrito no encontrado',
+      );
     });
 
     it('prevents adding item to cart from different company', async () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
 
-      await expect(
-        cartService.addItem(cart.id, productA.id, 1, companyB.id),
-      ).rejects.toThrow('Carrito no encontrado');
+      await expect(cartService.addItem(cart.id, productA.id, 1, companyB.id)).rejects.toThrow(
+        'Carrito no encontrado',
+      );
     });
 
     it('prevents accessing product from different company', async () => {
@@ -352,9 +352,9 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const hierB = await mkHierarchy(companyB.id, 'B');
       const productB_B = await mkProduct(companyB.id, hierB);
 
-      await expect(
-        cartService.addItem(cart.id, productB_B.id, 1, companyA.id),
-      ).rejects.toThrow('Producto no encontrado');
+      await expect(cartService.addItem(cart.id, productB_B.id, 1, companyA.id)).rejects.toThrow(
+        'Producto no encontrado',
+      );
     });
   });
 

@@ -54,7 +54,9 @@ describe('F-01 — canonical BusinessContext actors', () => {
   });
 
   it('rejects non-customer identities', async () => {
-    await expect(service.resolveForCustomer(customerAuth({ type: 'usuario' }))).rejects.toThrow(ForbiddenException);
+    await expect(service.resolveForCustomer(customerAuth({ type: 'usuario' }))).rejects.toThrow(
+      ForbiddenException,
+    );
     expect(prisma.cliente.findUnique).not.toHaveBeenCalled();
   });
 
@@ -66,7 +68,10 @@ describe('F-01 — canonical BusinessContext actors', () => {
   });
 
   it('fails closed when the Customer business does not exist', async () => {
-    prisma.cliente.findUnique.mockResolvedValue({ id: 'customer-a', empresaId: 'missing-business' });
+    prisma.cliente.findUnique.mockResolvedValue({
+      id: 'customer-a',
+      empresaId: 'missing-business',
+    });
     prisma.empresa.findUnique.mockResolvedValue(null);
 
     await expect(service.resolveForCustomer(customerAuth())).rejects.toThrow(NotFoundException);
@@ -138,15 +143,17 @@ describe('F-01 — canonical BusinessContext actors', () => {
       { id: 'membership-b', businessId: 'business-b', role: 'OWNER', status: 'ACTIVE' },
     ]);
 
-    await expect(service.resolveForAuthenticatedUser({
-      id: 'legacy-user-a',
-      email: 'user@example.test',
-      nombre: 'User A',
-      empresaId: 'legacy-business',
-      permisos: [],
-      rol: 'OWNER',
-      estadoLegajo: 'APROBADO',
-      type: 'usuario',
-    })).rejects.toThrow(ConflictException);
+    await expect(
+      service.resolveForAuthenticatedUser({
+        id: 'legacy-user-a',
+        email: 'user@example.test',
+        nombre: 'User A',
+        empresaId: 'legacy-business',
+        permisos: [],
+        rol: 'OWNER',
+        estadoLegajo: 'APROBADO',
+        type: 'usuario',
+      }),
+    ).rejects.toThrow(ConflictException);
   });
 });

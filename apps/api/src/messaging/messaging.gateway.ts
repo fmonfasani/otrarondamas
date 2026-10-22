@@ -207,7 +207,9 @@ export class MessagingGateway
             actorType: client.data.authenticatedUser.type,
           }),
         );
-        throw new Error('Authorization contract incomplete: viewerAccess missing from service response');
+        throw new Error(
+          'Authorization contract incomplete: viewerAccess missing from service response',
+        );
       }
       viewerAccess = rawAccess;
     } catch (error) {
@@ -320,8 +322,7 @@ export class MessagingGateway
     for (const socket of this.connectedSockets.values()) {
       try {
         const context = socket.data.businessContext;
-        const matchesUser =
-          event.userId !== null && context.userId === event.userId;
+        const matchesUser = event.userId !== null && context.userId === event.userId;
         const matchesCustomer =
           event.customerId !== null && context.customerId === event.customerId;
 

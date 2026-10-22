@@ -463,18 +463,16 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
         'contenido diferente',
       ).expect(409);
 
-      expect(retry.body.message).toEqual(
-        expect.stringContaining('clientMessageId'),
-      );
+      expect(retry.body.message).toEqual(expect.stringContaining('clientMessageId'));
       expect(
         await prisma.message.count({
           where: { conversationId: userConversationId },
         }),
       ).toBe(before + 1);
 
-      expect(
-        await prisma.message.findUnique({ where: { id: first.body.id } }),
-      ).toMatchObject({ content: 'contenido original' });
+      expect(await prisma.message.findUnique({ where: { id: first.body.id } })).toMatchObject({
+        content: 'contenido original',
+      });
     });
   });
 
@@ -504,9 +502,7 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
         .send({ customerId: inactiveCustomer.id });
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain(
-        'Uno o más Customers no pertenecen al Business',
-      );
+      expect(response.body.message).toContain('Uno o más Customers no pertenecen al Business');
 
       const persisted = await prisma.conversationParticipant.count({
         where: {
@@ -692,4 +688,3 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
     });
   });
 });
-

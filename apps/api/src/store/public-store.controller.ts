@@ -31,7 +31,12 @@ export class PublicStoreController {
     @Query('familiaId') familyId?: string,
     @Query('subfamiliaId') subfamilyId?: string,
   ) {
-    return this.storeService.catalog(search, familyId, subfamilyId, await this.companyId(businessSlug));
+    return this.storeService.catalog(
+      search,
+      familyId,
+      subfamilyId,
+      await this.companyId(businessSlug),
+    );
   }
 
   @Public()
@@ -48,10 +53,7 @@ export class PublicStoreController {
 
   @Public()
   @Get('pedidos/:id')
-  async tracking(
-    @Param('businessSlug') businessSlug: string,
-    @Param('id') id: string,
-  ) {
+  async tracking(@Param('businessSlug') businessSlug: string, @Param('id') id: string) {
     return this.storeService.tracking(id, await this.companyId(businessSlug));
   }
 }

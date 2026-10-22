@@ -7,5 +7,11 @@
   },
   "testEnvironment": "node",
   "detectOpenHandles": true,
-  "forceExit": false
+  "forceExit": false,
+  "transformIgnorePatterns": [
+    "node_modules/(?!(@nestjs|socket\\.io-client)/)"
+  ],
+  "setupFilesAfterEnv": [
+    "<rootDir>/test/setup-env.ts"
+  ]
 }

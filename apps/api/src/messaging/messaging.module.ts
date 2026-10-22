@@ -25,7 +25,14 @@ import { CartModule } from '../cart/cart.module';
  * source; prices are revalidated before confirmation.
  */
 @Module({
-  imports: [AuthJwtModule, BusinessContextModule, MembershipRevocationModule, PrismaModule, StoreModule, CartModule],
+  imports: [
+    AuthJwtModule,
+    BusinessContextModule,
+    MembershipRevocationModule,
+    PrismaModule,
+    StoreModule,
+    CartModule,
+  ],
   controllers: [MessagingController],
   providers: [MessagingService, MessagingGateway],
 })
