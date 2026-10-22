@@ -68,22 +68,35 @@ export class OrdersService {
       );
     }
 
+    // State transitions must be claimed atomically. The earlier read above
+    // is useful for a clear error, but cannot prevent two concurrent requests
+    // from both observing RECIBIDO. updateMany with the current state as a
+    // predicate makes exactly one request win; the loser never deducts stock.
     if (dto.estado === 'CANCELADO') {
-      return db.pedido.update({
-        where: { id },
+      const transition = await db.pedido.updateMany({
+        where: { id, estado: 'RECIBIDO' },
         data: { estado: 'CANCELADO', usuarioId: userId },
       });
+      if (transition.count !== 1) {
+        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+      }
+      return db.pedido.findUniqueOrThrow({ where: { id } });
     }
 
-    // CONFIRMADO: deducts stock reusing the same mechanism as SalesService
-    // (INV-DISP-01/INV-INV-04) — never a second parallel deduction path.
-    // All in one transaction: if stock is not enough for any item, the whole
-    // confirmation is rolled back (the order stays RECIBIDO, it is not left
-    // 'half confirmed').
+    // CONFIRMADO: the conditional update is inside the same transaction as
+    // stock deduction. If any item lacks stock, the whole transaction rolls
+    // back and the order remains RECIBIDO.
     return db.$transaction(async (tx) => {
-      const confirmedOrder = await tx.pedido.update({
-        where: { id },
+      const transition = await tx.pedido.updateMany({
+        where: { id, estado: 'RECIBIDO' },
         data: { estado: 'CONFIRMADO', usuarioId: userId },
+      });
+      if (transition.count !== 1) {
+        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+      }
+
+      const confirmedOrder = await tx.pedido.findUniqueOrThrow({
+        where: { id },
         include: { pedidoItems: true },
       });
 
