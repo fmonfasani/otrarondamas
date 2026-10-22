@@ -322,10 +322,24 @@ export class InventoryService {
         hadExpiredBatch = true;
       }
 
-      await tx.lote.update({
-        where: { id: batch.id },
+      // The availability read above is advisory under READ COMMITTED.
+      // Claim this quantity with a conditional write so concurrent sales cannot
+      // both consume the same batch. A failed claim aborts the caller's whole
+      // transaction, including any earlier batch deductions and sale/order rows.
+      const deduction = await tx.lote.updateMany({
+        where: {
+          id: batch.id,
+          empresaId: companyId,
+          productoId: productId,
+          cantidad: { gte: thisBatchQuantity },
+        },
         data: { cantidad: { decrement: thisBatchQuantity } },
       });
+      if (deduction.count !== 1) {
+        throw new BadRequestException(
+          `Stock insuficiente o modificado concurrentemente para el producto ${productId}`,
+        );
+      }
 
       await tx.movimientoStock.create({
         data: {
