@@ -314,7 +314,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(placed.body).toMatchObject({
       estado: 'RECIBIDO',
       canalOrigen: 'web',
-      total: '20',
+      total: 20,
     });
     const orderId = placed.body.id as string;
     const storedBefore = await prisma.pedido.findUniqueOrThrow({
