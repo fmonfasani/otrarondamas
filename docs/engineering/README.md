@@ -25,10 +25,11 @@ A repository-versioned operating layer for Claude Code that makes engineering wo
 6. Never report a gate as closed without the required evidence.
 
 ## Current phase
-**Phase 1 — Foundation.** Repository guidance and baseline rules only. No application code, database schema, production configuration, or business contracts are changed by this phase.
+**Phase 3 — Deterministic engineering tools (implementation in progress).** This branch adds read-only Git-state and CI-evidence collection plus a workspace validation runner. These tools produce evidence; they do not independently close quality or release gates. Phase 2 agent completion remains unverified and is intentionally deferred.
 
-## Delivery criteria for Phase 1
-- Guidance accurately describes the repository boundary and evidence rules.
-- Rules are concise, non-contradictory, and safe by default.
-- No application runtime behavior is changed.
-- Changes are reviewed in a dedicated branch and validated before merge.
+## Delivery criteria for Phase 3
+- Tools use only built-in Node.js modules and existing Git/npm/GitHub CLI capabilities.
+- Git and CI collection are read-only; workspace validation invokes only scripts already declared by the selected workspace.
+- Invalid arguments and unavailable prerequisites return explicit errors.
+- Smoke tests cover CLI help and representative invalid input.
+- Run smoke tests, inspect final diff, and verify PR CI on the final SHA before declaring the phase complete.
