@@ -383,10 +383,23 @@ export class PurchasesService {
 
         // Reduce the batch quantity if one was specified
         if (item.loteId) {
-          await tx.lote.update({
-            where: { id: item.loteId },
+          // Do not rely on the earlier batch/product checks: stock can
+          // change between read and write, and a DTO may reference a batch
+          // that does not belong to the requested product/business.
+          const deduction = await tx.lote.updateMany({
+            where: {
+              id: item.loteId,
+              empresaId: companyId,
+              productoId: item.productoId,
+              cantidad: { gte: item.cantidad },
+            },
             data: { cantidad: { decrement: item.cantidad } },
           });
+          if (deduction.count !== 1) {
+            throw new BadRequestException(
+              `Stock insuficiente o lote inválido para el producto ${item.productoId}`,
+            );
+          }
         }
       }
 
