@@ -68,7 +68,7 @@ for (const contract of skillContracts) {
     assert.ok(fs.existsSync(fullPath), 'Missing skill file: ' + contract.file);
     const content = fs.readFileSync(fullPath, 'utf8');
     assert.match(content, new RegExp('^---\\s*\\nname: ' + contract.name + '\\s*\\n'));
-    assert.match(content, /\\n---\\s*\\n/);
+    assert.ok(content.includes(newline + '---' + newline), contract.file + ' has no closing frontmatter delimiter');
     for (const marker of contract.required) {
       assert.ok(content.toLowerCase().includes(marker.toLowerCase()), contract.file + ' is missing required marker: ' + marker);
     }
