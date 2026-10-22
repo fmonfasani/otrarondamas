@@ -527,11 +527,11 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
   });
 
   it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
-    const product = await mkProduct(companyA.id, hierA, 10);
-    const order = await mkOrder(companyA.id, legacyUserA.id, [
-      { productoId: product.id, cantidad: 2 },
+    const product = await mkProduct(companyA.id, hierA);
+    const order = await mkOrder(companyA.id, customerA.id, [
+      { productId: product.id, quantity: 2 },
     ]);
-    const auth = bearer(legacyUserA.id, companyA.id);
+    const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`;
 
     const responses = await Promise.all([
       request(BASE).patch(`/pedidos/${order.id}/estado`).set('Authorization', auth).send({ estado: 'CONFIRMADO' }),
@@ -544,10 +544,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       include: { pedidoItems: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
-    const movements = await prisma.movimientoInventario.count({
-      where: { referenciaId: order.id, tipo: 'Venta' },
-    });
-    expect(movements).toBe(1);
+    expect(await movementCount(order.id)).toBe(1);
   });
 
   it('SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste', async () => {
