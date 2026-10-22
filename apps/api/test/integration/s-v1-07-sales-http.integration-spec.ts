@@ -755,7 +755,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     const movements = await cashMovements(paid.body.pago.id);
     expect(movements).toHaveLength(1);
     expect(movements[0]).toMatchObject({
-      cajaId: cajaA.id,
+      cajaId: cashRegisterA.id,
       aperturaCajaId: openingA.id,
       usuarioId: legacyUserA.id,
       tipo: 'Venta',
