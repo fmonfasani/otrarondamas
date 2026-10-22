@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { QuoteSaleDto } from './dto/quote-sale.dto';
-import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { ListSalesDto } from './dto/list-sales.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
@@ -85,20 +84,4 @@ export class SalesController {
     return this.salesService.getReceipt(id, await this.resolveCompanyIdFromContext(user));
   }
 
-  // Inc-3 (RF-VTA-14, RF-VTA-15, RF-VTA-16): record a payment on a sale.
-  @RequirePermission('ventas.crear')
-  @Post(':id/pagos')
-  @HttpCode(HttpStatus.CREATED)
-  async createPayment(
-    @Param('id') id: string,
-    @Body() dto: CreateSalePaymentDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.salesService.createPayment(
-      id,
-      dto,
-      await this.resolveCompanyIdFromContext(user),
-      user.id,
-    );
-  }
 }

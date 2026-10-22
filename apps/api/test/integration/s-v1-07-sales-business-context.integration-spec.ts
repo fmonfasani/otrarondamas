@@ -15,7 +15,6 @@ import { InventoryService } from '../../src/inventory/inventory.service';
 import { LoyaltyService } from '../../src/loyalty/loyalty.service';
 import { MembershipService } from '../../src/membership/membership.service';
 import { PaymentsController } from '../../src/payments/payments.controller';
-import { PaymentsService } from '../../src/payments/payments.service';
 import { SalesController } from '../../src/sales/sales.controller';
 import { SalesService } from '../../src/sales/sales.service';
 import { PermissionsGuard } from '../../src/auth/guards/permissions.guard';
@@ -218,7 +217,15 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
       ),
       businessContext,
     );
-    payments = new PaymentsController(new PaymentsService(prismaFactory), businessContext);
+    payments = new PaymentsController(
+      new SalesService(
+        prismaFactory,
+        new InventoryService(prismaFactory),
+        new LoyaltyService(prismaFactory),
+        new CustomersService(prismaFactory),
+      ),
+      businessContext,
+    );
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
@@ -607,7 +614,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
 
-    const result = await sales.createPayment(
+    const result = await payments.create(
       saleA.id,
       { medio: 'transferencia', monto: 5, referencia: 'REF-1' },
       sessionOf(usuarioA.id, companyB.id),
@@ -635,7 +642,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
 
     await setCashOpen(true);
-    const paid = await sales.createPayment(
+    const paid = await payments.create(
       saleA.id,
       { medio: 'efectivo', monto: 10, montoRecibido: 15 },
       sessionOf(usuarioA.id, companyA.id),
@@ -647,7 +654,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(await cashMovements(paid.pago.id)).toHaveLength(0);
 
     await expect(
-      sales.createPayment(
+      payments.create(
         saleA.id,
         { medio: 'efectivo', monto: 5, montoRecibido: 1 },
         sessionOf(usuarioA.id, companyA.id),
@@ -657,7 +664,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     await setCashOpen(false);
     try {
       await expect(
-        sales.createPayment(
+        payments.create(
           saleA.id,
           { medio: 'efectivo', monto: 5 },
           sessionOf(usuarioA.id, companyA.id),
@@ -676,10 +683,10 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     const session = sessionOf(usuarioA.id, companyA.id);
 
     await expect(
-      sales.createPayment(saleA.id, { medio: 'transferencia', monto: 21 }, session),
+      payments.create(saleA.id, { medio: 'transferencia', monto: 21 }, session),
     ).rejects.toThrow(BadRequestException);
     await expect(
-      sales.createPayment(annulled.id, { medio: 'transferencia', monto: 1 }, session),
+      payments.create(annulled.id, { medio: 'transferencia', monto: 1 }, session),
     ).rejects.toThrow(ConflictException);
     expect(await prisma.pago.count({ where: { ventaId: { in: [saleA.id, annulled.id] } } })).toBe(
       0,
@@ -691,7 +698,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     const saleB = await mkSale(companyB.id, usuarioB.id, productB.id);
 
     await expect(
-      sales.createPayment(
+      payments.create(
         saleB.id,
         { medio: 'transferencia', monto: 5 },
         sessionOf(usuarioA.id, companyB.id),
@@ -702,80 +709,8 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(await prisma.auditLog.count({ where: { ventaId: saleB.id } })).toBe(0);
   });
 
-  // ---------------------------------------------- Payments controller (Payments handler)
-
-  it('SBC-16: Payments.create cash — open register creates MovimientoCaja tipo Venta; closed register still registers the Pago without movement', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
-
-    await setCashOpen(true);
-    const withCash = await payments.create(
-      saleA.id,
-      { medio: 'efectivo', monto: 8 },
-      sessionOf(usuarioA.id, companyB.id),
-    );
-    expect(withCash).toMatchObject({
-      empresaId: companyA.id,
-      usuarioId: usuarioA.id,
-      ventaId: saleA.id,
-    });
-    const movements = await cashMovements(withCash.id);
-    expect(movements).toHaveLength(1);
-    expect(movements[0]).toMatchObject({
-      cajaId: cashRegisterA.id,
-      aperturaCajaId: openingA.id,
-      tipo: 'Venta',
-      usuarioId: usuarioA.id,
-    });
-    expect(Number(movements[0].monto)).toBe(8);
-
-    await setCashOpen(false);
-    try {
-      const closed = await payments.create(
-        saleA.id,
-        { medio: 'efectivo', monto: 2 },
-        sessionOf(usuarioA.id, companyA.id),
-      );
-      expect(closed.estado).toBe('APROBADO');
-      expect(await cashMovements(closed.id)).toHaveLength(0);
-    } finally {
-      await setCashOpen(true);
-    }
-
-    const transfer = await payments.create(
-      saleA.id,
-      { medio: 'transferencia', monto: 2 },
-      sessionOf(usuarioA.id, companyA.id),
-    );
-    expect(await cashMovements(transfer.id)).toHaveLength(0);
-  });
-
-  it('SBC-17: Payments.create overpay → 400; B sale → 404 and B intact; findAll is tenant-scoped', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const productB = await mkProduct(companyB.id, hierB);
-    const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
-    const saleB = await mkSale(companyB.id, usuarioB.id, productB.id);
-    const session = sessionOf(usuarioA.id, companyB.id);
-
-    await expect(
-      payments.create(saleA.id, { medio: 'transferencia', monto: 999 }, session),
-    ).rejects.toThrow(BadRequestException);
-    await expect(
-      payments.create(saleB.id, { medio: 'transferencia', monto: 5 }, session),
-    ).rejects.toThrow(NotFoundException);
-    expect(await prisma.pago.count({ where: { ventaId: saleB.id } })).toBe(0);
-
-    await payments.create(saleA.id, { medio: 'transferencia', monto: 5 }, session);
-    const list = await payments.findAll(saleA.id, session);
-    expect(list).toHaveLength(1);
-    expect(list[0].empresaId).toBe(companyA.id);
-
-    for (const claim of [companyA.id, companyB.id]) {
-      await expect(payments.findAll(saleB.id, sessionOf(usuarioA.id, claim))).rejects.toThrow(
-        NotFoundException,
-      );
-    }
-  });
+  // The canonical PaymentsController is covered above through the same
+  // SalesService contract; duplicate legacy PaymentsService tests were removed.
 
   // ------------------------------------------------------------ fail-closed
 
@@ -802,7 +737,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
       await expect(sales.findOne(saleA.id, session)).rejects.toThrow(ForbiddenException);
       await expect(sales.getReceipt(saleA.id, session)).rejects.toThrow(ForbiddenException);
       await expect(
-        sales.createPayment(saleA.id, { medio: 'transferencia', monto: 1 }, session),
+        payments.create(saleA.id, { medio: 'transferencia', monto: 1 }, session),
       ).rejects.toThrow(ForbiddenException);
       await expect(
         payments.create(saleA.id, { medio: 'transferencia', monto: 1 }, session),
@@ -834,7 +769,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     await expect(sales.findOne(saleA.id, session)).rejects.toThrow(ForbiddenException);
     await expect(sales.getReceipt(saleA.id, session)).rejects.toThrow(ForbiddenException);
     await expect(
-      sales.createPayment(saleA.id, { medio: 'transferencia', monto: 1 }, session),
+      payments.create(saleA.id, { medio: 'transferencia', monto: 1 }, session),
     ).rejects.toThrow(ForbiddenException);
     await expect(
       payments.create(saleA.id, { medio: 'transferencia', monto: 1 }, session),
@@ -867,8 +802,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     ][] = [
       [SalesController, sp.quote],
       [SalesController, sp.create],
-      [SalesController, sp.createPayment],
-      [PaymentsController, pp.create],
+            [PaymentsController, pp.create],
     ];
     for (const [controller, handler] of requiresCreate) {
       expect(() => guard.canActivate(contextFor(controller, handler, session([])))).toThrow(
@@ -937,7 +871,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(movements[0].empresaId).toBe(companyA.id);
     expect(movements[0].usuarioId).toBe(crossUsuario.id);
 
-    const payment = await sales.createPayment(
+    const payment = await payments.create(
       sale.id,
       { medio: 'transferencia', monto: 5 },
       sessionOf(crossUsuario.id, companyB.id),
@@ -997,7 +931,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect((await sales.findOne(saleB.id, session)).empresaId).toBe(companyB.id);
     await expect(sales.findOne(saleA.id, session)).rejects.toThrow(NotFoundException);
     await expect(
-      sales.createPayment(saleA.id, { medio: 'transferencia', monto: 5 }, session),
+      payments.create(saleA.id, { medio: 'transferencia', monto: 5 }, session),
     ).rejects.toThrow(NotFoundException);
     await expect(
       payments.create(saleA.id, { medio: 'transferencia', monto: 5 }, session),
