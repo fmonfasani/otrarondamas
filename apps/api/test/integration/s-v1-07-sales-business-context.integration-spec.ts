@@ -637,7 +637,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(await cashMovements(result.pago.id)).toHaveLength(0);
   });
 
-  it('SBC-13: Sales.createPayment cash — open register: Pago + vuelto, still NO MovimientoCaja; closed: 409 CAJA_CERRADA', async () => {
+  it('SBC-13: Sales.createPayment cash — open register records Pago + vuelto + MovimientoCaja; closed: 409 CAJA_CERRADA', async () => {
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, usuarioA.id, productA.id);
 
@@ -649,9 +649,16 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     );
     expect(paid.saldo).toBe('10');
     expect(Number(paid.pago.vuelto)).toBe(5);
-    // Characterization: the Sales handler (the one winning the route) never
-    // creates MovimientoCaja. Not corrected here (SAL-007-05).
-    expect(await cashMovements(paid.pago.id)).toHaveLength(0);
+    const movements = await cashMovements(paid.pago.id);
+    expect(movements).toHaveLength(1);
+    expect(movements[0]).toMatchObject({
+      cajaId: cashRegisterA.id,
+      aperturaCajaId: openingA.id,
+      usuarioId: usuarioA.id,
+      tipo: 'Venta',
+      referenciaId: paid.pago.id,
+    });
+    expect(Number(movements[0].monto)).toBe(10);
 
     await expect(
       payments.create(

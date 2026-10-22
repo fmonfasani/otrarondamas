@@ -345,6 +345,31 @@ export class SalesService {
         },
       });
 
+      // RF-09: every cash sale collection must be reflected in the active
+      // cash opening in the same transaction as Pago. Record the amount
+      // collected (not montoRecibido, which includes change returned).
+      if (dto.medio === 'efectivo') {
+        const cashRegister = await tx.caja.findUnique({ where: { empresaId: companyId } });
+        if (!cashRegister) throw new ConflictException('CAJA_CERRADA');
+        const opening = await tx.aperturaCaja.findFirst({
+          where: { cajaId: cashRegister.id, fechaCierre: null },
+          orderBy: { fechaApertura: 'desc' },
+        });
+        if (!opening) throw new ConflictException('CAJA_CERRADA');
+
+        await tx.movimientoCaja.create({
+          data: {
+            cajaId: cashRegister.id,
+            aperturaCajaId: opening.id,
+            usuarioId: userId,
+            tipo: 'Venta',
+            monto: amountDecimal,
+            descripcion: `Cobro en efectivo de venta ${sale.numero ?? saleId}`,
+            referenciaId: payment.id,
+          },
+        });
+      }
+
       // Inc-1 (RN-VTA-18): AuditLog of the collection
       await tx.auditLog.create({
         data: {
