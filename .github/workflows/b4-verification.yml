@@ -33,6 +33,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Run Engineering Kit smoke tests
+        run: node --test tools/engineering/test/smoke.test.js
       - run: npm ci
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npm run build --workspace=@otrarondamas/api
@@ -52,4 +54,4 @@ jobs:
         run: >-
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
-          'test/integration/(s-v1-|fs-1a-|messaging-http).*\.integration-spec\.ts'
+          'test/integration/(s-v1-|fs-1a-|messaging-http).*\\.integration-spec\\.ts'
