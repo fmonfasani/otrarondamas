@@ -752,9 +752,16 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .expect(201);
     expect(paid.body.saldo).toBe('10');
     expect(Number(paid.body.pago.vuelto)).toBe(5);
-    // Characterization (SAL-007-05): Sales' handler never creates
-    // MovimientoCaja; the Payments handler that would is not reachable here.
-    expect(await cashMovements(paid.body.pago.id)).toHaveLength(0);
+    const movements = await cashMovements(paid.body.pago.id);
+    expect(movements).toHaveLength(1);
+    expect(movements[0]).toMatchObject({
+      cajaId: cajaA.id,
+      aperturaCajaId: openingA.id,
+      usuarioId: legacyUserA.id,
+      tipo: 'Venta',
+      referenciaId: paid.body.pago.id,
+    });
+    expect(Number(movements[0].monto)).toBe(10);
 
     await request(BASE)
       .post(`/ventas/${saleA.id}/pagos`)
@@ -856,7 +863,10 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .expect(201);
     expect(res.body).toHaveProperty('pago');
     expect(res.body).toHaveProperty('saldo', '16');
-    expect(await cashMovements(res.body.pago.id)).toHaveLength(0);
+    const movements = await cashMovements(res.body.pago.id);
+    expect(movements).toHaveLength(1);
+    expect(movements[0].tipo).toBe('Venta');
+    expect(Number(movements[0].monto)).toBe(4);
   });
 
   // ---------------------------------------------------------- fail-closed
