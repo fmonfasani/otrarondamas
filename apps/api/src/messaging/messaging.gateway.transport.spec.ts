@@ -252,7 +252,11 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
 
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
+    expect(ack).toEqual({
+      ok: true,
+      room: 'conversation:conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     expect(messagingService.getConversation).toHaveBeenCalledWith(userAuth, 'conv-a');
     // Server-side truth: the connected server socket is inside the room.
     expect(serverSocketIds()).toHaveLength(1);
@@ -332,7 +336,11 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     expect(businessContextService.resolveForCustomer).toHaveBeenCalledWith(customerAuth);
     expect(businessContextService.resolveForAuthenticatedUser).not.toHaveBeenCalled();
     expect(messagingService.getConversation).toHaveBeenCalledWith(customerAuth, 'conv-a');
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
+    expect(ack).toEqual({
+      ok: true,
+      room: 'conversation:conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     expect(roomsOf().get('conversation:conv-a')).toEqual(new Set(serverSocketIds()));
     expect(client.connected).toBe(true);
   });
@@ -381,11 +389,19 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     }));
     const client = await connectClient('user-jwt');
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
+    expect(ack).toEqual({
+      ok: true,
+      room: 'conversation:conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
 
     const otherClient = await connectClient('user-jwt');
     const otherAck = await emitJoin(otherClient, { conversationId: 'conv-b' });
-    expect(otherAck).toEqual({ ok: true, room: 'conversation:conv-b', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
+    expect(otherAck).toEqual({
+      ok: true,
+      room: 'conversation:conv-b',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     const foreignRoomEvent = jest.fn();
     otherClient.on('conversation.message.created', foreignRoomEvent);
 
@@ -403,12 +419,14 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       authorUserId: 'canonical-user-a',
       authorCustomerId: null,
     });
-    expect(await createdPromise).toEqual(expect.objectContaining({
-      id: 'message-a',
-      conversationId: 'conv-a',
-      sequence: '1',
-      content: 'Hola',
-    }));
+    expect(await createdPromise).toEqual(
+      expect.objectContaining({
+        id: 'message-a',
+        conversationId: 'conv-a',
+        sequence: '1',
+        content: 'Hola',
+      }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(foreignRoomEvent).not.toHaveBeenCalled();
 
@@ -421,10 +439,12 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       content: 'Editado',
       editedAt: new Date('2026-10-09T12:01:00.000Z'),
     });
-    expect(await updatedPromise).toEqual(expect.objectContaining({
-      id: 'message-a',
-      content: 'Editado',
-    }));
+    expect(await updatedPromise).toEqual(
+      expect.objectContaining({
+        id: 'message-a',
+        content: 'Editado',
+      }),
+    );
 
     const deletedPromise = new Promise<unknown>((resolve) =>
       client.once('conversation.message.deleted', resolve),
@@ -434,7 +454,7 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       conversationId: 'conv-a',
       deletedAt: new Date('2026-10-09T12:02:00.000Z'),
     });
-    const deletedPayload = await deletedPromise as Record<string, unknown>;
+    const deletedPayload = (await deletedPromise) as Record<string, unknown>;
     expect(deletedPayload).toEqual(expect.objectContaining({ id: 'message-a' }));
     expect(deletedPayload).not.toHaveProperty('content');
 
@@ -446,10 +466,12 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
       conversationId: 'conv-a',
       readAt: new Date('2026-10-09T12:03:00.000Z'),
     });
-    expect(await readPromise).toEqual(expect.objectContaining({
-      messageId: 'message-a',
-      conversationId: 'conv-a',
-    }));
+    expect(await readPromise).toEqual(
+      expect.objectContaining({
+        messageId: 'message-a',
+        conversationId: 'conv-a',
+      }),
+    );
   }, 15000);
 
   it('suspension through the existing revocation service disconnects the joined socket', async () => {
@@ -470,7 +492,11 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     const client = await connectClient('user-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });
-    expect(ack).toEqual({ ok: true, room: 'conversation:conv-a', viewerAccess: { canSend: true, mode: 'PARTICIPANT' } });
+    expect(ack).toEqual({
+      ok: true,
+      room: 'conversation:conv-a',
+      viewerAccess: { canSend: true, mode: 'PARTICIPANT' },
+    });
     expect(roomsOf().get('conversation:conv-a')).toEqual(new Set(serverSocketIds()));
 
     const disconnected = new Promise<void>((resolve, reject) => {

@@ -83,17 +83,29 @@ export class OrdersService {
       return db.pedido.findUniqueOrThrow({ where: { id } });
     }
 
-    // CONFIRMADO: the conditional update is inside the same transaction as
-    // stock deduction. If any item lacks stock, the whole transaction rolls
-    // back and the order remains RECIBIDO.
+    // CONFIRMADO: use raw SQL with SELECT FOR UPDATE to serialize concurrent
+    // confirmations at the DB level. The first request wins and deducts stock;
+    // others see the order already CONFIRMADO and fail with 400.
+    // This prevents the race condition where both requests see RECIBIDO before
+    // either updates, resulting in duplicate stock deduction.
     return db.$transaction(async (tx) => {
-      const transition = await tx.pedido.updateMany({
-        where: { id, estado: 'RECIBIDO' },
-        data: { estado: 'CONFIRMADO', usuarioId: userId },
-      });
-      if (transition.count !== 1) {
+      // Raw query with FOR UPDATE ensures DB-level serialization.
+      const [lockRow] = await tx.$queryRaw<any[]>`
+        SELECT id, estado FROM "Pedido"
+        WHERE id = ${id} AND estado = 'RECIBIDO'
+        FOR UPDATE
+      `;
+
+      if (!lockRow) {
+        // Order is no longer RECIBIDO (already transitioned or was never RECIBIDO)
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
+
+      // Now safe to transition: we hold the row lock and confirmed it's RECIBIDO
+      await tx.pedido.update({
+        where: { id },
+        data: { estado: 'CONFIRMADO', usuarioId: userId },
+      });
 
       const confirmedOrder = await tx.pedido.findUniqueOrThrow({
         where: { id },

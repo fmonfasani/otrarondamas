@@ -32,7 +32,9 @@ export class CartService {
 
     let cart = await db.cart.findFirst({
       where: { customerId, businessId },
-      include: { items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } } },
+      include: {
+        items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } },
+      },
     });
 
     if (!cart) {
@@ -42,7 +44,9 @@ export class CartService {
           businessId,
           items: { create: [] },
         },
-        include: { items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } } },
+        include: {
+          items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } },
+        },
       });
     }
 
@@ -137,9 +141,7 @@ export class CartService {
     const productStock = stocks.find((s) => s.productoId === item.productoId);
     const availableStock = productStock?.stockTotal ?? 0;
     if (availableStock < cantidad) {
-      throw new BadRequestException(
-        `Stock insuficiente. Disponible: ${availableStock}`,
-      );
+      throw new BadRequestException(`Stock insuficiente. Disponible: ${availableStock}`);
     }
 
     return db.cartItem.update({

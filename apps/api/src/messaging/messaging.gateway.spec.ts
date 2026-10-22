@@ -430,7 +430,9 @@ describe('MessagingGateway — M4-03 conversation.join authorization', () => {
 
     await expect(
       gateway.handleJoinConversation(socket, { conversationId: 'conversation-a' }),
-    ).rejects.toThrow('Authorization contract incomplete: viewerAccess missing from service response');
+    ).rejects.toThrow(
+      'Authorization contract incomplete: viewerAccess missing from service response',
+    );
     expect(socket.join).not.toHaveBeenCalled();
     expect(socket.disconnect).not.toHaveBeenCalled();
   });

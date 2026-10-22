@@ -144,14 +144,15 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
       // Different conversations produce different keys
       const otherConversationId = '550e8400-e29b-41d4-a716-446655440001';
       expect(conversationId).not.toBe(otherConversationId);
-      console.log(`Different conversations have different keys`);
+      console.log('Different conversations have different keys');
     });
   });
 
   describe('D-002: Consistency — Atomic transaction and best-effort recovery', () => {
     it('transaction includes Pedido, PedidoItems, and ClienteCreateOrUpdate', () => {
       // Verify createOrder wraps all three operations in $transaction
-      const createOrderCode = require('./store.service').StoreService.prototype.createOrder.toString();
+      const createOrderCode =
+        require('./store.service').StoreService.prototype.createOrder.toString();
       expect(createOrderCode).toContain('$transaction');
       console.log('[CONSISTENCY] StoreService.createOrder uses $transaction');
     });
@@ -179,7 +180,9 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
         where: { empresaId: 'biz-1', idempotencyKey },
       });
       expect(existing.id).toBe(order1.id);
-      console.log(`[RECOVERY] Constraint would be avoided by returning existing order: ${order1.id}`);
+      console.log(
+        `[RECOVERY] Constraint would be avoided by returning existing order: ${order1.id}`,
+      );
     });
 
     it('best-effort recovery for association and cart clearing (logged, not thrown)', () => {
@@ -195,8 +198,12 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
       // } catch (error) {
       //   console.error(`Failed to remove cart items...`);
       // }
-      console.log('[RECOVERY] MessagingService.createOrderFromConversation() has try-catch for best-effort cleanup');
-      console.log('[RECOVERY] Failures in association creation and cart removal do not fail the order');
+      console.log(
+        '[RECOVERY] MessagingService.createOrderFromConversation() has try-catch for best-effort cleanup',
+      );
+      console.log(
+        '[RECOVERY] Failures in association creation and cart removal do not fail the order',
+      );
     });
   });
 
@@ -219,7 +226,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
       const remainingItems = allItems.filter((item) => !itemsToRemove.includes(item.id));
 
       expect(remainingItems).toEqual(concurrentAddedItems);
-      console.log(`[CONCURRENCY] Selective removal preserved concurrent additions`);
+      console.log('[CONCURRENCY] Selective removal preserved concurrent additions');
       console.log(`  Snapshot: ${snapshotItems.map((i) => i.id).join(', ')}`);
       console.log(`  Concurrent adds: ${concurrentAddedItems.map((i) => i.id).join(', ')}`);
       console.log(`  Remaining: ${remainingItems.map((i) => i.id).join(', ')}`);
@@ -234,7 +241,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
       const preClearResult = [];
       expect(preClearResult).toEqual([]); // All lost
       expect(preClearResult).not.toContain('item-3'); // Concurrent add lost!
-      console.log(`[PRE-C3 BUG] Full clear would lose all items including concurrent adds`);
+      console.log('[PRE-C3 BUG] Full clear would lose all items including concurrent adds');
     });
 
     it('concurrent modification safety: readonly snapshot during order creation', () => {
@@ -257,17 +264,22 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
       const surviving = allItems.filter((id) => !toRemove.includes(id));
       expect(surviving).toEqual(concurrentAddedItems);
 
-      console.log(`[SAFETY] Snapshot-based removal ensures concurrent adds survive`);
+      console.log('[SAFETY] Snapshot-based removal ensures concurrent adds survive');
     });
   });
 
   describe('Migration Precondition Validation', () => {
     it('migration 20261019214300 must execute before production deployment', () => {
       // This is a precondition check, not a test of the implementation
-      const migrationPath = 'prisma/migrations/20261019214300_add_idempotency_key_to_pedido/migration.sql';
-      console.log(`[PRECONDITION] Migration ${migrationPath} must be executed via 'prisma migrate deploy'`);
-      console.log(`[PRECONDITION] Until then, idempotencyKey field exists in schema but not in database`);
-      console.log(`[PRECONDITION] Prisma types are generated; code compiles`);
+      const migrationPath =
+        'prisma/migrations/20261019214300_add_idempotency_key_to_pedido/migration.sql';
+      console.log(
+        `[PRECONDITION] Migration ${migrationPath} must be executed via 'prisma migrate deploy'`,
+      );
+      console.log(
+        '[PRECONDITION] Until then, idempotencyKey field exists in schema but not in database',
+      );
+      console.log('[PRECONDITION] Prisma types are generated; code compiles');
     });
   });
 });

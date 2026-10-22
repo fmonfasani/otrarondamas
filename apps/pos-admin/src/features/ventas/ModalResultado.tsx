@@ -55,9 +55,7 @@ export function ModalResultado({ ventaId, cobrada, onNuevaVenta, onCobrar }: Pro
   }, [cargando, venta, onNuevaVenta, onCobrar]);
 
   const saldo = venta?.saldo ? parseFloat(venta.saldo) : 0;
-  const totalPagado = venta?.pagos
-    ? venta.pagos.reduce((a, p) => a + parseFloat(p.monto), 0)
-    : 0;
+  const totalPagado = venta?.pagos ? venta.pagos.reduce((a, p) => a + parseFloat(p.monto), 0) : 0;
   const descuento = venta ? parseFloat(venta.descuento) : 0;
 
   return (
@@ -119,8 +117,7 @@ export function ModalResultado({ ventaId, cobrada, onNuevaVenta, onCobrar }: Pro
                   </h3>
                   <div className="space-y-1">
                     {venta.ventaItems.map((item) => {
-                      const subtotal =
-                        parseFloat(item.precioUnitario) * parseFloat(item.cantidad);
+                      const subtotal = parseFloat(item.precioUnitario) * parseFloat(item.cantidad);
                       return (
                         <div
                           key={item.id}
@@ -172,9 +169,7 @@ export function ModalResultado({ ventaId, cobrada, onNuevaVenta, onCobrar }: Pro
                         <div>
                           <span className="capitalize font-medium text-brand-dark">{p.medio}</span>
                           {p.referencia && (
-                            <span className="text-gray-400 ml-2 text-xs">
-                              ref. {p.referencia}
-                            </span>
+                            <span className="text-gray-400 ml-2 text-xs">ref. {p.referencia}</span>
                           )}
                           {p.montoRecibido && parseFloat(p.montoRecibido) > 0 && (
                             <span className="text-gray-500 ml-2 text-xs">
@@ -221,9 +216,7 @@ export function ModalResultado({ ventaId, cobrada, onNuevaVenta, onCobrar }: Pro
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  window.open(`/ventas/${ventaId}/comprobante`, '_blank')
-                }
+                onClick={() => window.open(`/ventas/${ventaId}/comprobante`, '_blank')}
                 className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium text-gray-700"
               >
                 Imprimir ticket
@@ -237,7 +230,11 @@ export function ModalResultado({ ventaId, cobrada, onNuevaVenta, onCobrar }: Pro
               </button>
             </div>
 
-            <Button onClick={onNuevaVenta} variant={saldo > 0 ? 'secondary' : 'primary'} className="w-full">
+            <Button
+              onClick={onNuevaVenta}
+              variant={saldo > 0 ? 'secondary' : 'primary'}
+              className="w-full"
+            >
               {saldo > 0 ? 'Nueva venta' : 'Nueva venta (Enter)'}
             </Button>
           </div>

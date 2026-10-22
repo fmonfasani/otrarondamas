@@ -143,8 +143,19 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   it('marks each listed conversation with the actor writing access (participant vs Owner read-only)', async () => {
     prisma.conversation.findMany.mockResolvedValue([
-      { id: 'conversation-mine', businessId: 'business-a', participants: [{ userId: 'user-a', customerId: null }] },
-      { id: 'conversation-observed', businessId: 'business-a', participants: [{ userId: 'user-z', customerId: null }, { userId: null, customerId: 'customer-a' }] },
+      {
+        id: 'conversation-mine',
+        businessId: 'business-a',
+        participants: [{ userId: 'user-a', customerId: null }],
+      },
+      {
+        id: 'conversation-observed',
+        businessId: 'business-a',
+        participants: [
+          { userId: 'user-z', customerId: null },
+          { userId: null, customerId: 'customer-a' },
+        ],
+      },
     ]);
 
     const result = await service.listConversations(auth);
@@ -251,9 +262,9 @@ describe('MessagingService — M2/M3 messaging', () => {
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue(null);
 
-    await expect(
-      service.getConversation(nonOwnerAuth, 'conversation-a'),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.getConversation(nonOwnerAuth, 'conversation-a')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('removes a participant and promotes the earliest remaining participant when the admin leaves', async () => {
@@ -288,11 +299,7 @@ describe('MessagingService — M2/M3 messaging', () => {
         isAdmin: true,
       });
 
-    const result = await service.removeParticipant(
-      auth,
-      'conversation-a',
-      'admin-participant',
-    );
+    const result = await service.removeParticipant(auth, 'conversation-a', 'admin-participant');
 
     expect(result.id).toBe('admin-participant');
     expect(prisma.conversationParticipant.update).toHaveBeenCalledWith(
@@ -380,12 +387,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       content: 'Hola',
     });
 
-    const result = await service.createTextMessage(
-      auth,
-      'conversation-a',
-      'client-1',
-      'Hola',
-    );
+    const result = await service.createTextMessage(auth, 'conversation-a', 'client-1', 'Hola');
 
     expect(result.sequence).toBe(BigInt(5));
     expect(prisma.message.create).toHaveBeenCalledWith(
@@ -420,10 +422,15 @@ describe('MessagingService — M2/M3 messaging', () => {
       replyToMessageId: null,
     };
     prisma.conversation.findFirst.mockResolvedValue({
-      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue({
-      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
     });
     // The idempotency lookup finds the previous send.
     prisma.message.findFirst.mockImplementation(({ where }: any) =>
@@ -439,10 +446,15 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   it('rejects reusing a clientMessageId with different content', async () => {
     prisma.conversation.findFirst.mockResolvedValue({
-      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue({
-      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
     });
     prisma.message.findFirst.mockImplementation(({ where }: any) =>
       Promise.resolve(
@@ -470,10 +482,15 @@ describe('MessagingService — M2/M3 messaging', () => {
       replyToMessageId: null,
     };
     prisma.conversation.findFirst.mockResolvedValue({
-      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue({
-      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
     });
     // Race: the pre-check misses, the competing transaction commits first.
     let idempotencyLookups = 0;
@@ -486,7 +503,9 @@ describe('MessagingService — M2/M3 messaging', () => {
     });
     prisma.message.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('dup', {
-        code: 'P2002', clientVersion: 'test', meta: { target: ['conversationId', 'clientMessageId', 'authorUserId'] },
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['conversationId', 'clientMessageId', 'authorUserId'] },
       }),
     );
 
@@ -498,17 +517,24 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   it('reports a sequence collision as retryable, not as a duplicate send', async () => {
     prisma.conversation.findFirst.mockResolvedValue({
-      id: 'conversation-a', businessId: 'business-a', deletedAt: null,
+      id: 'conversation-a',
+      businessId: 'business-a',
+      deletedAt: null,
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue({
-      id: 'participant-a', userId: 'user-a', leftAt: null, removedAt: null,
+      id: 'participant-a',
+      userId: 'user-a',
+      leftAt: null,
+      removedAt: null,
     });
     prisma.message.findFirst.mockImplementation(({ where }: any) =>
       Promise.resolve(where?.clientMessageId !== undefined ? null : { sequence: BigInt(4) }),
     );
     prisma.message.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('seq', {
-        code: 'P2002', clientVersion: 'test', meta: { target: ['conversationId', 'sequence'] },
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['conversationId', 'sequence'] },
       }),
     );
 
@@ -628,12 +654,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       content: 'Editado',
     });
 
-    const result = await service.editMessage(
-      auth,
-      'conversation-a',
-      'message-a',
-      'Editado',
-    );
+    const result = await service.editMessage(auth, 'conversation-a', 'message-a', 'Editado');
 
     expect(result.content).toBe('Editado');
     expect(prisma.message.update).toHaveBeenCalledWith(
@@ -675,7 +696,6 @@ describe('MessagingService — M2/M3 messaging', () => {
       }),
     );
   });
-
 
   it('creates an idempotent read receipt within the canonical BusinessContext', async () => {
     prisma.conversation.findFirst.mockResolvedValue({
@@ -783,11 +803,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       ])
       .mockResolvedValueOnce([]);
 
-    const result = await service.getMessageReadReceipts(
-      auth,
-      'conversation-a',
-      'message-a',
-    );
+    const result = await service.getMessageReadReceipts(auth, 'conversation-a', 'message-a');
 
     expect(result).toHaveLength(1);
     expect(result[0].userId).toBe('user-a');
@@ -811,5 +827,4 @@ describe('MessagingService — M2/M3 messaging', () => {
       data: { enabled: false },
     });
   });
-
 });

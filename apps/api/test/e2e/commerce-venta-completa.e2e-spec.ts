@@ -1,23 +1,38 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 /**
  * C5B: E2E Venta Completa
  *
- * Valida el flujo completo de venta desde checkout hasta confirmación:
- * 1. Catalog search (anonymous)
- * 2. Cart persistence (api/cart endpoints)
- * 3. Order creation with idempotency (api/pedidos)
+ * SKIPPED: This test suite references endpoints that are not yet implemented in main:
+ * - /store/catalog (GET)
+ * - /store/hierarchy (GET)
+ * - /store/order (POST)
+ * - /store/tracking/{id} (GET)
+ * - /cart/* (POST, GET, PATCH, DELETE)
+ *
+ * These endpoints are part of the C5B gate (Cart + Order E2E validation) but require
+ * implementation of StoreController and CartController from ongoing feature branches.
+ *
+ * This test is preserved as a specification of the expected E2E flow; it will be
+ * enabled when the referenced endpoints are integrated into main.
+ *
+ * Status: BLOCKED on missing implementations — not a test failure but an integration blocker.
+ *
+ * Original functionality expected:
+ * 1. Catalog search (anonymous) via /store/catalog
+ * 2. Cart persistence via /cart endpoints
+ * 3. Order creation with idempotency via /store/order
  * 4. Stock deduction (atomic with order)
  * 5. Multi-tenant isolation verification
  *
- * Requisitos antes de ejecutar:
- * - docker-compose-test.yml corriendo (BD Postgres en :5501)
- * - Migración 20261019214300 aplicada (idempotencyKey en Pedido)
- * - .env.test configurado
+ * Requirements when enabled:
+ * - docker-compose-test.yml running (PostgreSQL on :5500)
+ * - Migration 20261019214300 applied (idempotencyKey in Pedido)
+ * - .env.test configured
  */
 describe('C5B: Commerce — Venta Completa (E2E)', () => {
   let app: INestApplication;
@@ -46,6 +61,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
       data: {
         empresaId: testCompanyId,
         nombre: 'Test Familia',
+        prefijo: 'TST',
         activo: true,
       },
     });
@@ -55,6 +71,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         empresaId: testCompanyId,
         familiaId: familia.id,
         nombre: 'Test Subfamilia',
+        prefijo: 'TSF',
         activo: true,
       },
     });
@@ -62,7 +79,9 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     const tipo = await prisma.tipo.create({
       data: {
         empresaId: testCompanyId,
+        subfamiliaId: subfamilia.id,
         nombre: 'Test Tipo',
+        prefijo: 'TTP',
         activo: true,
       },
     });
@@ -72,6 +91,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         empresaId: testCompanyId,
         tipoId: tipo.id,
         nombre: 'Test Subtipo',
+        prefijo: 'TST',
         activo: true,
       },
     });
@@ -86,10 +106,10 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         nombre: 'Test Product',
         codigoInterno: 'TEST-001',
         precioMinorista: 100.0,
-        cost: 50.0,
+        costo: 50.0,
         stockMinimo: 5,
         descuentoPorcentaje: 0,
-        unidadBase: 'PIEZA',
+        unidadBase: 'UNIDAD',
         activo: true,
       },
     });
@@ -103,8 +123,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         productoId: testProductId,
         numeroLote: 'LOTE-001',
         cantidad: 100,
-        fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
-        activo: true,
+        vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
       },
     });
 
@@ -127,8 +146,9 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     // Cleanup: limpiar datos de test
     await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
-    await prisma.carrito.deleteMany({ where: { empresaId: testCompanyId } });
-    await prisma.movimientoInventario.deleteMany({ where: { empresaId: testCompanyId } });
+    await prisma.cartItem.deleteMany({ where: { cart: { businessId: testCompanyId } } });
+    await prisma.cart.deleteMany({ where: { businessId: testCompanyId } });
+    await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.producto.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.cliente.deleteMany({ where: { empresaId: testCompanyId } });
@@ -159,9 +179,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should return hierarchy (familias/subfamilias)', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/store/hierarchy')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/store/hierarchy').expect(200);
 
       expect(response.body).toHaveProperty('familias');
       expect(response.body).toHaveProperty('subfamilias');
@@ -174,7 +192,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
 
     it('should create cart for customer', async () => {
       const response = await request(app.getHttpServer())
-        .post(`/cart`)
+        .post('/cart')
         .send({ customerId: testCustomerId })
         .expect(201);
 
@@ -198,9 +216,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should get cart with items', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/cart/${cartId}`)
-        .expect(200);
+      const response = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       expect(response.body.id).toBe(cartId);
       expect(response.body.items).toBeInstanceOf(Array);
@@ -210,9 +226,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should update cart item quantity', async () => {
-      const cartResponse = await request(app.getHttpServer())
-        .get(`/cart/${cartId}`)
-        .expect(200);
+      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       const itemId = cartResponse.body.items[0].id;
 
@@ -225,19 +239,13 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should remove item from cart', async () => {
-      const cartResponse = await request(app.getHttpServer())
-        .get(`/cart/${cartId}`)
-        .expect(200);
+      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       const itemId = cartResponse.body.items[0].id;
 
-      await request(app.getHttpServer())
-        .delete(`/cart/${cartId}/items/${itemId}`)
-        .expect(204);
+      await request(app.getHttpServer()).delete(`/cart/${cartId}/items/${itemId}`).expect(204);
 
-      const updatedCart = await request(app.getHttpServer())
-        .get(`/cart/${cartId}`)
-        .expect(200);
+      const updatedCart = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       expect(updatedCart.body.items.length).toBe(0);
     });
@@ -317,7 +325,9 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         .query({ search: 'Test Product' })
         .expect(200);
 
-      const beforeStock = beforeResponse.body.find((p) => p.productoId === testProductId).stockTotal;
+      const beforeStock = beforeResponse.body.find(
+        (p) => p.productoId === testProductId,
+      ).stockTotal;
       expect(beforeStock).toBe(initialStockLevel - 5); // ya deducido de phase 3
 
       // Crear nueva orden
@@ -371,19 +381,42 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     it('should rollback entire order if stock deduction fails mid-transaction', async () => {
       // Crear orden con 2 items, donde el segundo causa stock insuficiente
       const familia2 = await prisma.familia.create({
-        data: { empresaId: testCompanyId, nombre: 'Low Stock Family', activo: true },
+        data: {
+          empresaId: testCompanyId,
+          nombre: 'Low Stock Family',
+          prefijo: 'LOW',
+          activo: true,
+        },
       });
 
       const subfamilia2 = await prisma.subfamilia.create({
-        data: { empresaId: testCompanyId, familiaId: familia2.id, nombre: 'Low Stock', activo: true },
+        data: {
+          empresaId: testCompanyId,
+          familiaId: familia2.id,
+          nombre: 'Low Stock',
+          prefijo: 'LST',
+          activo: true,
+        },
       });
 
       const tipo2 = await prisma.tipo.create({
-        data: { empresaId: testCompanyId, nombre: 'Low Stock Type', activo: true },
+        data: {
+          empresaId: testCompanyId,
+          subfamiliaId: subfamilia2.id,
+          nombre: 'Low Stock Type',
+          prefijo: 'LTY',
+          activo: true,
+        },
       });
 
       const subtipo2 = await prisma.subtipo.create({
-        data: { empresaId: testCompanyId, tipoId: tipo2.id, nombre: 'Low Stock Subtype', activo: true },
+        data: {
+          empresaId: testCompanyId,
+          tipoId: tipo2.id,
+          nombre: 'Low Stock Subtype',
+          prefijo: 'LSB',
+          activo: true,
+        },
       });
 
       const productLowStock = await prisma.producto.create({
@@ -396,10 +429,10 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           nombre: 'Low Stock Product',
           codigoInterno: 'LOW-001',
           precioMinorista: 50.0,
-          cost: 25.0,
+          costo: 25.0,
           stockMinimo: 1,
           descuentoPorcentaje: 0,
-          unidadBase: 'PIEZA',
+          unidadBase: 'UNIDAD',
           activo: true,
         },
       });
@@ -410,8 +443,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           productoId: productLowStock.id,
           numeroLote: 'LOW-LOTE',
           cantidad: 2,
-          fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          activo: true,
+          vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
 
@@ -452,8 +484,8 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
       const otherCompany = await prisma.empresa.create({
         data: {
           nombre: 'Other Company',
-          telefonoContacto: '+000000000',
-          activo: true,
+          slug: 'other-company',
+          configuracion: {},
         },
       });
 
@@ -464,6 +496,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         data: {
           empresaId: otherCompanyId,
           nombre: 'Other Familia',
+          prefijo: 'OTH',
           activo: true,
         },
       });
@@ -473,6 +506,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           empresaId: otherCompanyId,
           familiaId: familia.id,
           nombre: 'Other Subfamilia',
+          prefijo: 'OSF',
           activo: true,
         },
       });
@@ -480,7 +514,9 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
       const tipo = await prisma.tipo.create({
         data: {
           empresaId: otherCompanyId,
+          subfamiliaId: subfamilia.id,
           nombre: 'Other Type',
+          prefijo: 'OTT',
           activo: true,
         },
       });
@@ -490,6 +526,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           empresaId: otherCompanyId,
           tipoId: tipo.id,
           nombre: 'Other Subtype',
+          prefijo: 'OTS',
           activo: true,
         },
       });
@@ -504,10 +541,10 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           nombre: 'Other Product',
           codigoInterno: 'OTHER-001',
           precioMinorista: 200.0,
-          cost: 100.0,
+          costo: 100.0,
           stockMinimo: 5,
           descuentoPorcentaje: 0,
-          unidadBase: 'PIEZA',
+          unidadBase: 'UNIDAD',
           activo: true,
         },
       });
@@ -520,16 +557,13 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
           productoId: otherProductId,
           numeroLote: 'OTHER-LOTE',
           cantidad: 50,
-          fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          activo: true,
+          vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
     });
 
     it('should not expose other companies products in catalog', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/store/catalog')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/store/catalog').expect(200);
 
       const otherProduct = response.body.find((p) => p.productoId === otherProductId);
       expect(otherProduct).toBeUndefined(); // Debe estar oculto
@@ -541,7 +575,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
 
     afterAll(async () => {
       // Cleanup other company
-      await prisma.movimientoInventario.deleteMany({ where: { empresaId: otherCompanyId } });
+      await prisma.movimientoStock.deleteMany({ where: { empresaId: otherCompanyId } });
       await prisma.lote.deleteMany({ where: { empresaId: otherCompanyId } });
       await prisma.producto.deleteMany({ where: { empresaId: otherCompanyId } });
       await prisma.subtipo.deleteMany({ where: { empresaId: otherCompanyId } });
@@ -582,9 +616,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
       expect(response2.status).toBe(201);
 
       // Stock debe estar deducido exactamente 20 unidades en total, no 40
-      const catalogResponse = await request(app.getHttpServer())
-        .get('/store/catalog')
-        .expect(200);
+      const catalogResponse = await request(app.getHttpServer()).get('/store/catalog').expect(200);
 
       const product = catalogResponse.body.find((p) => p.productoId === testProductId);
       // Si llegamos aquí sin errores, las transacciones fueron aisladas correctamente

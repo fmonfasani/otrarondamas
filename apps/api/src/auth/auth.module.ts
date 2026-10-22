@@ -13,13 +13,7 @@ import { MembershipModule } from '../membership/membership.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    MembershipModule,
-    BusinessContextModule,
-    PassportModule,
-    AuthJwtModule,
-  ],
+  imports: [PrismaModule, MembershipModule, BusinessContextModule, PassportModule, AuthJwtModule],
   controllers: [AuthController, AuthCustomerController],
   providers: [
     AuthService,

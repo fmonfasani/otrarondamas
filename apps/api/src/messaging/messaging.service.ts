@@ -105,10 +105,7 @@ export class MessagingService {
     private readonly cartService?: CartService,
   ) {}
 
-  async createConversation(
-    auth: AuthenticatedUser,
-    dto: CreateConversationDto,
-  ) {
+  async createConversation(auth: AuthenticatedUser, dto: CreateConversationDto) {
     const context = await this.resolveContext(auth);
     const actor = this.actorFromContext(context);
 
@@ -123,9 +120,7 @@ export class MessagingService {
       dto.type === ConversationTypeDto.DIRECT &&
       requestedUsers.length + requestedCustomers.length !== 1
     ) {
-      throw new ConflictException(
-        'Una conversación DIRECT requiere exactamente otro participante',
-      );
+      throw new ConflictException('Una conversación DIRECT requiere exactamente otro participante');
     }
 
     if (
@@ -200,85 +195,104 @@ export class MessagingService {
     );
   }
 
-  async createTextMessage(auth: AuthenticatedUser, conversationId: string, clientMessageId: string, content: string, replyToMessageId?: string) {
+  async createTextMessage(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    clientMessageId: string,
+    content: string,
+    replyToMessageId?: string,
+  ) {
     const context = await this.resolveContext(auth);
-    return this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.findFirst({
-        where: { id: conversationId, businessId: context.businessId, deletedAt: null },
-      });
-      if (!conversation) throw new NotFoundException('Conversación no encontrada');
-      await this.assertActiveParticipant(tx, conversationId, context);
-
-      if (replyToMessageId) {
-        const parent = await tx.message.findFirst({
-          where: { id: replyToMessageId, conversationId, businessId: context.businessId },
+    return this.prisma.$transaction(
+      async (tx) => {
+        const conversation = await tx.conversation.findFirst({
+          where: { id: conversationId, businessId: context.businessId, deletedAt: null },
         });
-        if (!parent) throw new NotFoundException('Mensaje de respuesta no encontrado');
-      }
+        if (!conversation) throw new NotFoundException('Conversación no encontrada');
+        await this.assertActiveParticipant(tx, conversationId, context);
 
-      // Idempotency (contract C-MSG-002 "no duplicados"): `clientMessageId` is
-      // the client's retry key. A retry of the SAME send must resolve to the
-      // same message, not to an error -- a 409 leaves the client unable to
-      // tell "my message was lost" from "my message is already there", which
-      // is exactly the ambiguous state the retry key exists to prevent.
-      //
-      // Checked BEFORE allocating a sequence: a retry must not consume one,
-      // and the two lookups stay independent of each other.
-      //
-      // The uniqueness is per (conversation, clientMessageId, author), so a
-      // pre-check cannot be trusted on its own: two concurrent retries can
-      // both miss it. The authority is the DB constraint, and the P2002 below
-      // resolves the race by returning the already-persisted row. Same-key-
-      // different-content is NOT a retry but a client bug, and fails loudly.
-      const existing = await this.findMessageByClientKey(tx, conversationId, context, clientMessageId);
-      if (existing) {
-        return this.assertSameContentOrConflict(existing, content, replyToMessageId);
-      }
+        if (replyToMessageId) {
+          const parent = await tx.message.findFirst({
+            where: { id: replyToMessageId, conversationId, businessId: context.businessId },
+          });
+          if (!parent) throw new NotFoundException('Mensaje de respuesta no encontrado');
+        }
 
-      const last = await tx.message.findFirst({
-        where: { conversationId, businessId: context.businessId },
-        orderBy: { sequence: 'desc' },
-        select: { sequence: true },
-      });
-      const sequence = (last?.sequence ?? BigInt(0)) + BigInt(1);
+        // Idempotency (contract C-MSG-002 "no duplicados"): `clientMessageId` is
+        // the client's retry key. A retry of the SAME send must resolve to the
+        // same message, not to an error -- a 409 leaves the client unable to
+        // tell "my message was lost" from "my message is already there", which
+        // is exactly the ambiguous state the retry key exists to prevent.
+        //
+        // Checked BEFORE allocating a sequence: a retry must not consume one,
+        // and the two lookups stay independent of each other.
+        //
+        // The uniqueness is per (conversation, clientMessageId, author), so a
+        // pre-check cannot be trusted on its own: two concurrent retries can
+        // both miss it. The authority is the DB constraint, and the P2002 below
+        // resolves the race by returning the already-persisted row. Same-key-
+        // different-content is NOT a retry but a client bug, and fails loudly.
+        const existing = await this.findMessageByClientKey(
+          tx,
+          conversationId,
+          context,
+          clientMessageId,
+        );
+        if (existing) {
+          return this.assertSameContentOrConflict(existing, content, replyToMessageId);
+        }
 
-      try {
-        return await tx.message.create({
-          data: {
-            conversationId,
-            businessId: context.businessId,
-            ...this.messageAuthorFromContext(context),
-            sequence,
-            clientMessageId,
-            type: 'TEXT',
-            content,
-            replyToMessageId,
-          },
+        const last = await tx.message.findFirst({
+          where: { conversationId, businessId: context.businessId },
+          orderBy: { sequence: 'desc' },
+          select: { sequence: true },
         });
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          const target = (error.meta as { target?: string[] } | undefined)?.target ?? [];
-          // `(conversationId, sequence)` losing a race is a concurrency
-          // collision, not a duplicate send: the caller may retry and will get
-          // the next sequence. Surfacing it as "duplicate clientMessageId"
-          // would be a false diagnosis.
-          if (target.includes('sequence')) {
+        const sequence = (last?.sequence ?? BigInt(0)) + BigInt(1);
+
+        try {
+          return await tx.message.create({
+            data: {
+              conversationId,
+              businessId: context.businessId,
+              ...this.messageAuthorFromContext(context),
+              sequence,
+              clientMessageId,
+              type: 'TEXT',
+              content,
+              replyToMessageId,
+            },
+          });
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            const target = (error.meta as { target?: string[] } | undefined)?.target ?? [];
+            // `(conversationId, sequence)` losing a race is a concurrency
+            // collision, not a duplicate send: the caller may retry and will get
+            // the next sequence. Surfacing it as "duplicate clientMessageId"
+            // would be a false diagnosis.
+            if (target.includes('sequence')) {
+              throw new ConflictException(
+                'Otro mensaje tomó esa posición en la conversación; reintentá el envío',
+              );
+            }
+
+            const concurrent = await this.findMessageByClientKey(
+              tx,
+              conversationId,
+              context,
+              clientMessageId,
+            );
+            if (concurrent) {
+              return this.assertSameContentOrConflict(concurrent, content, replyToMessageId);
+            }
             throw new ConflictException(
-              'Otro mensaje tomó esa posición en la conversación; reintentá el envío',
+              'El clientMessageId ya fue utilizado en esta conversación por el actor',
             );
           }
-
-          const concurrent = await this.findMessageByClientKey(
-            tx, conversationId, context, clientMessageId,
-          );
-          if (concurrent) {
-            return this.assertSameContentOrConflict(concurrent, content, replyToMessageId);
-          }
-          throw new ConflictException('El clientMessageId ya fue utilizado en esta conversación por el actor');
+          throw error;
         }
-        throw error;
-      }
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async getMessages(auth: AuthenticatedUser, conversationId: string) {
@@ -307,8 +321,15 @@ export class MessagingService {
     });
   }
 
-  async editMessage(auth: AuthenticatedUser, conversationId: string, messageId: string, content: string) {
+  async editMessage(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    messageId: string,
+    content: string,
+  ) {
     const context = await this.resolveContext(auth);
+    await this.assertActiveParticipant(this.prisma, conversationId, context);
+
     const message = await this.prisma.message.findFirst({
       where: { id: messageId, conversationId, businessId: context.businessId, deletedAt: null },
     });
@@ -335,7 +356,12 @@ export class MessagingService {
     const isAuthor =
       (context.userId !== null && message.authorUserId === context.userId) ||
       (context.customerId !== null && message.authorCustomerId === context.customerId);
-    if (!isAuthor) await this.assertConversationAdmin(this.prisma, conversationId, context);
+    if (!isAuthor) {
+      await this.assertConversationAdmin(this.prisma, conversationId, context);
+    } else {
+      // Author must still be an active participant to edit/delete their own message
+      await this.assertActiveParticipant(this.prisma, conversationId, context);
+    }
 
     return this.prisma.message.update({
       where: { id: messageId },
@@ -397,15 +423,17 @@ export class MessagingService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return Promise.all(associations.map(async (association) => ({
-      ...association,
-      label: await this.getAssociationLabel(
-        this.prisma,
-        context.businessId,
-        association.entityType,
-        association.entityId,
-      ),
-    })));
+    return Promise.all(
+      associations.map(async (association) => ({
+        ...association,
+        label: await this.getAssociationLabel(
+          this.prisma,
+          context.businessId,
+          association.entityType,
+          association.entityId,
+        ),
+      })),
+    );
   }
 
   async listConversationAssociationHistory(auth: AuthenticatedUser, conversationId: string) {
@@ -417,15 +445,17 @@ export class MessagingService {
       where: { conversationId, businessId: context.businessId },
       orderBy: { updatedAt: 'desc' },
     });
-    return Promise.all(associations.map(async (association) => ({
-      ...association,
-      label: await this.getAssociationLabel(
-        this.prisma,
-        context.businessId,
-        association.entityType,
-        association.entityId,
-      ),
-    })));
+    return Promise.all(
+      associations.map(async (association) => ({
+        ...association,
+        label: await this.getAssociationLabel(
+          this.prisma,
+          context.businessId,
+          association.entityType,
+          association.entityId,
+        ),
+      })),
+    );
   }
 
   async createConversationAssociation(
@@ -507,7 +537,9 @@ export class MessagingService {
     });
     if (!customer) throw new NotFoundException('Customer asociado no disponible en este Business');
     if (!customer.email) {
-      throw new BadRequestException('El Customer necesita email para crear el pedido con el motor Commerce actual');
+      throw new BadRequestException(
+        'El Customer necesita email para crear el pedido con el motor Commerce actual',
+      );
     }
     if (!this.storeService || !this.cartService) {
       throw new BadRequestException('El motor de Carrito o Commerce no está disponible');
@@ -730,9 +762,7 @@ export class MessagingService {
     const context = await this.resolveContext(auth);
 
     if (!!participantUserId === !!participantCustomerId) {
-      throw new ConflictException(
-        'Debe especificarse exactamente un User o un Customer',
-      );
+      throw new ConflictException('Debe especificarse exactamente un User o un Customer');
     }
 
     return this.prisma.$transaction(
@@ -823,11 +853,7 @@ export class MessagingService {
     );
   }
 
-  async removeParticipant(
-    auth: AuthenticatedUser,
-    conversationId: string,
-    participantId: string,
-  ) {
+  async removeParticipant(auth: AuthenticatedUser, conversationId: string, participantId: string) {
     const context = await this.resolveContext(auth);
 
     return this.prisma.$transaction(
@@ -898,11 +924,7 @@ export class MessagingService {
     );
   }
 
-  async transferAdmin(
-    auth: AuthenticatedUser,
-    conversationId: string,
-    participantId: string,
-  ) {
+  async transferAdmin(auth: AuthenticatedUser, conversationId: string, participantId: string) {
     const context = await this.resolveContext(auth);
 
     return this.prisma.$transaction(
@@ -983,9 +1005,7 @@ export class MessagingService {
         where: {
           messageId,
           businessId: context.businessId,
-          ...(context.userId
-            ? { userId: context.userId }
-            : { customerId: context.customerId! }),
+          ...(context.userId ? { userId: context.userId } : { customerId: context.customerId! }),
         },
       });
 
@@ -1008,11 +1028,7 @@ export class MessagingService {
     });
   }
 
-  async getMessageReadReceipts(
-    auth: AuthenticatedUser,
-    conversationId: string,
-    messageId: string,
-  ) {
+  async getMessageReadReceipts(auth: AuthenticatedUser, conversationId: string, messageId: string) {
     const context = await this.resolveContext(auth);
     const isOwner = context.role === 'OWNER' && context.userId !== null;
 
@@ -1050,8 +1066,10 @@ export class MessagingService {
 
     if (!receipts.length) return [];
 
-    const userIds = receipts.flatMap((receipt) => receipt.userId ? [receipt.userId] : []);
-    const customerIds = receipts.flatMap((receipt) => receipt.customerId ? [receipt.customerId] : []);
+    const userIds = receipts.flatMap((receipt) => (receipt.userId ? [receipt.userId] : []));
+    const customerIds = receipts.flatMap((receipt) =>
+      receipt.customerId ? [receipt.customerId] : [],
+    );
 
     const [userPreferences, customerPreferences] = await Promise.all([
       userIds.length
@@ -1075,7 +1093,9 @@ export class MessagingService {
     ]);
 
     const disabledUsers = new Set(
-      userPreferences.filter((preference) => !preference.enabled).map((preference) => preference.userId),
+      userPreferences
+        .filter((preference) => !preference.enabled)
+        .map((preference) => preference.userId),
     );
     const disabledCustomers = new Set(
       customerPreferences
@@ -1126,9 +1146,7 @@ export class MessagingService {
     const preference = await tx.messagingReadPreference.findFirst({
       where: {
         businessId: context.businessId,
-        ...(context.userId
-          ? { userId: context.userId }
-          : { customerId: context.customerId! }),
+        ...(context.userId ? { userId: context.userId } : { customerId: context.customerId! }),
       },
     });
 
@@ -1194,11 +1212,9 @@ export class MessagingService {
    * returning the old message would hide it -- the second message would be
    * lost without anyone noticing. That case keeps failing explicitly.
    */
-  private assertSameContentOrConflict<T extends { content: string | null; replyToMessageId: string | null }>(
-    existing: T,
-    content: string,
-    replyToMessageId: string | undefined,
-  ): T {
+  private assertSameContentOrConflict<
+    T extends { content: string | null; replyToMessageId: string | null },
+  >(existing: T, content: string, replyToMessageId: string | undefined): T {
     const sameContent = existing.content === content;
     const sameReply = (existing.replyToMessageId ?? undefined) === replyToMessageId;
     if (!sameContent || !sameReply) {
@@ -1253,6 +1269,7 @@ export class MessagingService {
         where: {
           empresaId: businessId,
           id: { in: customerIds },
+          activo: true,
         },
         select: { id: true },
       });
@@ -1268,7 +1285,9 @@ export class MessagingService {
   // writing, like for any other actor, requires active participation. Exposing
   // this lets the UI avoid offering a send that the API will reject, without
   // widening any permission: it only reports the existing rule.
-  private withViewerAccess<T extends { participants: Array<{ userId: string | null; customerId: string | null }> }>(
+  private withViewerAccess<
+    T extends { participants: Array<{ userId: string | null; customerId: string | null }> },
+  >(
     conversation: T,
     context: BusinessContext,
   ): T & { viewerAccess: { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' } } {
@@ -1362,9 +1381,10 @@ export class MessagingService {
       await this.assertActiveParticipant(tx, conversationId, context);
     }
 
-    const isActiveParticipant = conversation.participants.some((p) =>
-      (context.userId && p.userId === context.userId) ||
-      (context.customerId && p.customerId === context.customerId)
+    const isActiveParticipant = conversation.participants.some(
+      (p) =>
+        (context.userId && p.userId === context.userId) ||
+        (context.customerId && p.customerId === context.customerId),
     );
 
     const viewerAccess = {

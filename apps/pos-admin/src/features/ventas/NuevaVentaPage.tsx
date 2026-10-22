@@ -241,7 +241,9 @@ export function NuevaVentaPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-small text-gray-500">
-            <Link to="/ventas" className="hover:underline">Ventas</Link>{' '}
+            <Link to="/ventas" className="hover:underline">
+              Ventas
+            </Link>{' '}
             &rsaquo; Nueva venta
           </p>
           <h1 className="text-h2 font-bold text-brand-dark">Nueva venta</h1>
@@ -300,9 +302,7 @@ export function NuevaVentaPage() {
                 />
               </div>
 
-              {buscandoProducto && (
-                <p className="mt-2 text-small text-gray-500">Buscando…</p>
-              )}
+              {buscandoProducto && <p className="mt-2 text-small text-gray-500">Buscando…</p>}
               {errorBusqueda && (
                 <p className="mt-2 text-small text-brand-error" role="alert">
                   {errorBusqueda}
@@ -333,9 +333,7 @@ export function NuevaVentaPage() {
                             <code className="font-mono text-xs bg-gray-100 px-1 rounded">
                               {p.codigoInterno}
                             </code>
-                            {p.familia && (
-                              <span className="text-gray-400">{p.familia.nombre}</span>
-                            )}
+                            {p.familia && <span className="text-gray-400">{p.familia.nombre}</span>}
                             {sinStock && (
                               <span className="text-brand-error font-semibold">Sin stock</span>
                             )}
@@ -373,9 +371,7 @@ export function NuevaVentaPage() {
                 <h2 className="text-h3 font-semibold text-brand-dark">
                   Carrito{' '}
                   {carrito.items.length > 0 && (
-                    <span className="text-gray-500 font-normal">
-                      ({carrito.items.length})
-                    </span>
+                    <span className="text-gray-500 font-normal">({carrito.items.length})</span>
                   )}
                 </h2>
                 {carrito.items.length > 0 && !confirmandoVaciar && (
@@ -391,9 +387,7 @@ export function NuevaVentaPage() {
               {/* Confirmación de vaciar inline */}
               {confirmandoVaciar && (
                 <div className="mt-2 flex items-center gap-3 p-2 bg-red-50 rounded-md">
-                  <span className="text-small text-brand-error flex-1">
-                    ¿Vaciar el carrito?
-                  </span>
+                  <span className="text-small text-brand-error flex-1">¿Vaciar el carrito?</span>
                   <button
                     type="button"
                     onClick={() => setConfirmandoVaciar(false)}
@@ -590,12 +584,8 @@ export function NuevaVentaPage() {
                           )}
                     </span>
                   </div>
-                  {cotizando && (
-                    <p className="text-xs text-gray-400 text-right">Actualizando…</p>
-                  )}
-                  {errorCotizacion && (
-                    <p className="text-xs text-amber-600">{errorCotizacion}</p>
-                  )}
+                  {cotizando && <p className="text-xs text-gray-400 text-right">Actualizando…</p>}
+                  {errorCotizacion && <p className="text-xs text-amber-600">{errorCotizacion}</p>}
                 </div>
               )}
 
@@ -636,9 +626,7 @@ export function NuevaVentaPage() {
                 </div>
               )}
               {!cliente && (
-                <p className="text-small text-gray-400 mt-1">
-                  Consumidor final (sin identificar)
-                </p>
+                <p className="text-small text-gray-400 mt-1">Consumidor final (sin identificar)</p>
               )}
             </CardBody>
           </Card>

@@ -15,7 +15,7 @@ describe('StaffIdentityGuard', () => {
       getHandler: () => ({ name: 'testHandler' }),
       getClass: () => ({ name: 'TestController' }),
       switchToHttp: () => ({ getRequest: () => ({}) }),
-    } as any;
+    } as ExecutionContext;
   });
 
   describe('Cliente token rejection', () => {
@@ -33,13 +33,13 @@ describe('StaffIdentityGuard', () => {
       };
 
       const request = { user: clienteUser };
-      mockContext.switchToHttp = () => ({ getRequest: () => request }) as any;
+      mockContext.switchToHttp = () => ({ getRequest: () => request }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Los clientes no pueden acceder a endpoints internos'
+        'Los clientes no pueden acceder a endpoints internos',
       );
     });
 
@@ -57,7 +57,7 @@ describe('StaffIdentityGuard', () => {
       };
 
       const request = { user: usuarioUser };
-      mockContext.switchToHttp = () => ({ getRequest: () => request }) as any;
+      mockContext.switchToHttp = () => ({ getRequest: () => request }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 

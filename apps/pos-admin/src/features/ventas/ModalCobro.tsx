@@ -87,13 +87,13 @@ export function ModalCobro({ ventaId, total, numero, onCobrada, onClose }: Props
   const importeNum = parseFloat(importe) || 0;
   const recibidoNum = parseFloat(montoRecibido) || 0;
   const vuelto = medio === 'efectivo' && recibidoNum > 0 ? recibidoNum - importeNum : 0;
-  const faltante = medio === 'efectivo' && recibidoNum > 0 && recibidoNum < importeNum
-    ? importeNum - recibidoNum
-    : 0;
+  const faltante =
+    medio === 'efectivo' && recibidoNum > 0 && recibidoNum < importeNum
+      ? importeNum - recibidoNum
+      : 0;
 
   const puedeRegistrar =
-    importeNum > 0 &&
-    (medio !== 'efectivo' || recibidoNum === 0 || recibidoNum >= importeNum);
+    importeNum > 0 && (medio !== 'efectivo' || recibidoNum === 0 || recibidoNum >= importeNum);
 
   async function registrarPago() {
     setError(null);
@@ -368,8 +368,8 @@ export function ModalCobro({ ventaId, total, numero, onCobrada, onClose }: Props
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               El saldo pendiente de cobro es{' '}
-              <strong className="text-brand-error">{formatImporte(saldo)}</strong>. Podés
-              retomarla desde Ventas.
+              <strong className="text-brand-error">{formatImporte(saldo)}</strong>. Podés retomarla
+              desde Ventas.
             </p>
             <div className="flex gap-3">
               <Button
