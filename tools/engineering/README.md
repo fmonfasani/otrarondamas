@@ -1,6 +1,6 @@
 # Deterministic engineering tools
 
-Phase 3 introduces small, read-only or validation-only command-line tools that emit machine-readable evidence for Claude Code and human reviewers. They are aids, not release gates by themselves.
+Phase 3 provides small, read-only or validation-only command-line tools that emit machine-readable evidence for Claude Code and human reviewers. They are aids, not release gates by themselves.
 
 ## Prerequisites
 - Node.js (built-in modules only for these scripts).
@@ -27,6 +27,13 @@ Resolves a workspace declared under apps/* or packages/*, then invokes only its 
 node tools/engineering/collect-ci-evidence.js [commit-sha]
 ```
 Collects GitHub Actions runs for the exact commit SHA using gh run list. Defaults to local HEAD. It is read-only and does not rerun workflows. No returned run means CI is unverified, not passed. Review required checks and run recency before making a gate decision.
+
+## Tests
+Run the smoke suite locally with Node.js built-ins:
+```sh
+node --test tools/engineering/test/smoke.test.js
+```
+The same command runs in the B4 Verification workflow before dependency installation. It covers CLI help for all tools, rejects unsupported validation actions, and rejects malformed commit IDs before invoking `gh`.
 
 ## Safety and limitations
 - Tools are scoped to local repository metadata, existing workspace scripts, or GitHub Actions metadata.
