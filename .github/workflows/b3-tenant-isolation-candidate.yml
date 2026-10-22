@@ -18,6 +18,7 @@ on:
       - "apps/api/tsconfig.json"
       - "apps/api/tsconfig.build.json"
       - "package-lock.json"
+      - ".github/workflows/b4-verification.yml"
       - ".github/workflows/b3-tenant-isolation-candidate.yml"
   pull_request:
     branches: [main]
