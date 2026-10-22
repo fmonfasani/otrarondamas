@@ -88,7 +88,8 @@ export class OrdersService {
     // CONFIRMADO: atomically update with Prisma SERIALIZABLE isolation +
     // conditional updateMany. The updateMany will fail (count=0) if the order
     // is not RECIBIDO, ensuring exactly one concurrent request succeeds.
-    return db.$transaction(
+    try {
+      return await db.$transaction(
       async (tx) => {
         // Atomic: only transition if estado is RECIBIDO. This is the gate.
         const updated = await tx.pedido.updateMany({
@@ -122,6 +123,15 @@ export class OrdersService {
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
-    );
+      );
+    } catch (error) {
+      // PostgreSQL SERIALIZABLE can abort the losing concurrent confirmation
+      // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
+      // This is an expected state conflict, not an internal server error.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+      }
+      throw error;
+    }
   }
 }
