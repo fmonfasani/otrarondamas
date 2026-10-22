@@ -526,6 +526,30 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(await movementCount(orderA.id)).toBe(1);
   });
 
+  it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
+    const product = await mkProduct(companyA.id, hierA, 10);
+    const order = await mkOrder(companyA.id, legacyUserA.id, [
+      { productoId: product.id, cantidad: 2 },
+    ]);
+    const auth = bearer(legacyUserA.id, companyA.id);
+
+    const responses = await Promise.all([
+      request(BASE).patch(`/pedidos/${order.id}/estado`).set('Authorization', auth).send({ estado: 'CONFIRMADO' }),
+      request(BASE).patch(`/pedidos/${order.id}/estado`).set('Authorization', auth).send({ estado: 'CONFIRMADO' }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
+    const persisted = await prisma.pedido.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { pedidoItems: true },
+    });
+    expect(persisted.estado).toBe('CONFIRMADO');
+    const movements = await prisma.movimientoInventario.count({
+      where: { referenciaId: order.id, tipo: 'Venta' },
+    });
+    expect(movements).toBe(1);
+  });
+
   it('SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste', async () => {
     const productA = await mkProduct(companyA.id, hierA);
     const orderA = await mkOrder(companyA.id, customerA.id, [
