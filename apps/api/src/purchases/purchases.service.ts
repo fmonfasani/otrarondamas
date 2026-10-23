@@ -347,6 +347,91 @@ export class PurchasesService {
     const db = this.prismaFactory.forCompany(companyId);
 
     return db.$transaction(async (tx) => {
+      // Resolve a lot only from receipt movements linked to this purchase.
+      // If that evidence is missing, fail closed and require the operator to
+      // supply a loteId explicitly instead of silently selecting unrelated stock.
+      const reservedByLot = new Map<string, number>();
+      const resolvedItems: Array<CreateSupplierReturnDto['items'][number] & { loteId: string }> = [];
+
+      for (const item of dto.items) {
+        let selectedLot: { id: string; cantidad: Prisma.Decimal } | null = null;
+
+        if (item.loteId) {
+          // Explicit loteId is the manual-correction path. Validate ownership,
+          // product relation and available stock inside the same transaction.
+          selectedLot = await tx.lote.findFirst({
+            where: {
+              id: item.loteId,
+              empresaId: companyId,
+              productoId: item.productoId,
+            },
+            select: { id: true, cantidad: true },
+          });
+          if (!selectedLot) {
+            throw new BadRequestException(
+              `El lote indicado no pertenece a este negocio/producto (${item.productoId}); corregí el lote manualmente.`,
+            );
+          }
+        } else {
+          const receiptMovements = await tx.movimientoStock.findMany({
+            where: {
+              empresaId: companyId,
+              productoId: item.productoId,
+              tipoMovimiento: 'Entrada',
+              motivo: 'Compra',
+              referenciaId: purchaseId,
+              loteId: { not: null },
+            },
+            select: { loteId: true },
+          });
+          const candidateIds = [
+            ...new Set(
+              receiptMovements
+                .map((movement) => movement.loteId)
+                .filter((lotId): lotId is string => lotId !== null),
+            ),
+          ];
+
+          const candidates = candidateIds.length
+            ? await tx.lote.findMany({
+                where: {
+                  id: { in: candidateIds },
+                  empresaId: companyId,
+                  productoId: item.productoId,
+                },
+                orderBy: [{ vencimiento: 'asc' }, { createdAt: 'asc' }],
+                select: { id: true, cantidad: true },
+              })
+            : [];
+
+          selectedLot =
+            candidates.find(
+              (lot) =>
+                Number(lot.cantidad) - (reservedByLot.get(lot.id) ?? 0) >= item.cantidad,
+            ) ?? null;
+
+          if (!selectedLot) {
+            throw new BadRequestException(
+              `No se encontró un lote de esta compra con stock suficiente para el producto ${item.productoId}; seleccioná o corregí manualmente el loteId y reintentá.`,
+            );
+          }
+        }
+
+        const available =
+          Number(selectedLot.cantidad) - (reservedByLot.get(selectedLot.id) ?? 0);
+        if (available < item.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente en el lote ${selectedLot.id}; corregí manualmente el lote o la cantidad.`,
+          );
+        }
+
+        reservedByLot.set(
+          selectedLot.id,
+          (reservedByLot.get(selectedLot.id) ?? 0) + item.cantidad,
+        );
+        resolvedItems.push({ ...item, loteId: selectedLot.id });
+      }
+
       const returnRecord = await tx.devolucionProveedor.create({
         data: {
           empresaId: companyId,
@@ -355,7 +440,7 @@ export class PurchasesService {
           usuarioId: userId,
           motivo: dto.motivo,
           items: {
-            create: dto.items.map((item) => ({
+            create: resolvedItems.map((item) => ({
               productoId: item.productoId,
               loteId: item.loteId,
               cantidad: item.cantidad,
@@ -366,8 +451,22 @@ export class PurchasesService {
         include: { items: true },
       });
 
-      // Generate a 'Salida' MovimientoStock for each returned item
-      for (const item of dto.items) {
+      for (const item of resolvedItems) {
+        const deduction = await tx.lote.updateMany({
+          where: {
+            id: item.loteId,
+            empresaId: companyId,
+            productoId: item.productoId,
+            cantidad: { gte: item.cantidad },
+          },
+          data: { cantidad: { decrement: item.cantidad } },
+        });
+        if (deduction.count !== 1) {
+          throw new BadRequestException(
+            `Stock insuficiente o lote inválido para el producto ${item.productoId}; corregí manualmente el lote o la cantidad.`,
+          );
+        }
+
         await tx.movimientoStock.create({
           data: {
             empresaId: companyId,
@@ -380,27 +479,6 @@ export class PurchasesService {
             usuarioId: userId,
           },
         });
-
-        // Reduce the batch quantity if one was specified
-        if (item.loteId) {
-          // Do not rely on the earlier batch/product checks: stock can
-          // change between read and write, and a DTO may reference a batch
-          // that does not belong to the requested product/business.
-          const deduction = await tx.lote.updateMany({
-            where: {
-              id: item.loteId,
-              empresaId: companyId,
-              productoId: item.productoId,
-              cantidad: { gte: item.cantidad },
-            },
-            data: { cantidad: { decrement: item.cantidad } },
-          });
-          if (deduction.count !== 1) {
-            throw new BadRequestException(
-              `Stock insuficiente o lote inválido para el producto ${item.productoId}`,
-            );
-          }
-        }
       }
 
       return returnRecord;
