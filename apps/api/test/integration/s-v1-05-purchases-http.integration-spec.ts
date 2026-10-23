@@ -375,6 +375,57 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       .expect(403);
   });
 
+  it('SV5P-H-10: devolución con stock insuficiente revierte devolución, movimiento y lote', async () => {
+    const purchase = await request(BASE)
+      .post('/compras')
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send(purchaseDto(supplierA.id, productA.id))
+      .expect(201);
+
+    // The endpoint permits recording a return against the purchase. Stock
+    // deduction must still be atomic if quantity changed after earlier reads.
+    const batch = await prisma.lote.create({
+      data: {
+        empresaId: companyA.id,
+        productoId: productA.id,
+        numeroLote: `SV5P-RETURN-${suffix}`,
+        cantidad: 1,
+      },
+      select: { id: true, cantidad: true },
+    });
+    const returnsBefore = await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    });
+    const movementsBefore = await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    });
+
+    await request(BASE)
+      .post(`/compras/${purchase.body.id}/devoluciones`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send({
+        motivo: 'Prueba de rollback por stock insuficiente',
+        items: [{
+          productoId: productA.id,
+          loteId: batch.id,
+          cantidad: 2,
+          costoUnitario: 10,
+        }],
+      })
+      .expect(400);
+
+    expect(await prisma.lote.findUniqueOrThrow({
+      where: { id: batch.id },
+      select: { cantidad: true },
+    })).toMatchObject({ cantidad: 1 });
+    expect(await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    })).toBe(returnsBefore);
+    expect(await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    })).toBe(movementsBefore);
+  });
+
   it('SV5P-H-09: listado de compras → 200 y solo las de A', async () => {
     const res = await request(BASE)
       .get('/compras')
