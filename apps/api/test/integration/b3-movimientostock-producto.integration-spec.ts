@@ -510,4 +510,50 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       ),
     ).toBe('P2025');
   });
+
+  it('MS-P-14: concurrent negative adjustments cannot overdraw a batch or duplicate movements', async () => {
+    const batch = await prisma.lote.create({
+      data: {
+        empresaId: companyA.id,
+        productoId: productA.id,
+        numeroLote: `B3MS-CONCURRENT-${suffix}`,
+        vencimiento: future(),
+        cantidad: 1,
+      },
+      select: { id: true },
+    });
+    const reason = uniqueReason('14');
+    try {
+      const results = await Promise.allSettled([
+        inventory.registerAdjustment(
+          companyA.id,
+          { loteId: batch.id, cantidad: -1, motivo: reason },
+          userA.id,
+        ),
+        inventory.registerAdjustment(
+          companyA.id,
+          { loteId: batch.id, cantidad: -1, motivo: reason },
+          userA.id,
+        ),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+      const persistedBatch = await prisma.lote.findUniqueOrThrow({
+        where: { id: batch.id },
+        select: { cantidad: true },
+      });
+      expect(Number(persistedBatch.cantidad)).toBe(0);
+      expect(
+        await prisma.movimientoStock.count({
+          where: { loteId: batch.id, motivo: `AjusteManual: ${reason}` },
+        }),
+      ).toBe(1);
+    } finally {
+      await prisma.movimientoStock.deleteMany({ where: { loteId: batch.id } });
+      await prisma.lote.delete({ where: { id: batch.id } });
+    }
+  });
+
 });
