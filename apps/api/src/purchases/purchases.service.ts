@@ -389,25 +389,21 @@ export class PurchasesService {
           },
         });
 
-        // A return always has an explicit batch; missing or invalid batches fail atomically.
-        {
-          // Do not rely on the earlier batch/product checks: stock can
-          // change between read and write, and a DTO may reference a batch
-          // that does not belong to the requested product/business.
-          const deduction = await tx.lote.updateMany({
-            where: {
-              id: item.loteId,
-              empresaId: companyId,
-              productoId: item.productoId,
-              cantidad: { gte: item.cantidad },
-            },
-            data: { cantidad: { decrement: item.cantidad } },
-          });
-          if (deduction.count !== 1) {
-            throw new BadRequestException(
-              `Stock insuficiente o lote inválido para el producto ${item.productoId}`,
-            );
-          }
+        // Do not rely on earlier batch/product checks: stock can change
+        // between read and write, and a DTO may reference another tenant's lot.
+        const deduction = await tx.lote.updateMany({
+          where: {
+            id: item.loteId,
+            empresaId: companyId,
+            productoId: item.productoId,
+            cantidad: { gte: item.cantidad },
+          },
+          data: { cantidad: { decrement: item.cantidad } },
+        });
+        if (deduction.count !== 1) {
+          throw new BadRequestException(
+            `Stock insuficiente o lote inválido para el producto ${item.productoId}`,
+          );
         }
       }
 
