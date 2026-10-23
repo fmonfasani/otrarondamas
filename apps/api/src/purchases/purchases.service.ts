@@ -330,9 +330,10 @@ export class PurchasesService {
 
   /**
    * Records a return of goods to the supplier. For each item:
-   * - Validates that the batch (if specified) belongs to the product.
-   * - Generates a Salida/Devolucion MovimientoStock.
-   * - Reduces the Lote quantity.
+   * - Resolves the earliest-expiring lot linked to this purchase when possible.
+   * - Allows an explicit loteId for manual correction, validating tenant,
+   *   product, and stock before writing.
+   * - Atomically generates a Salida/Devolucion movement and reduces the lot.
    * It does not reduce the Compra total (the debt stays the same — the
    * return is negotiated with the supplier as a credit note or discount on
    * a future purchase, outside the system for now).
