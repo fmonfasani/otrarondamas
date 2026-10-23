@@ -417,10 +417,12 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       })
       .expect(400);
 
-    expect(await prisma.lote.findUniqueOrThrow({
+    // Prisma Decimal values may serialize as strings; compare the numeric
+    // quantity so this assertion verifies rollback rather than JSON shape.
+    expect(Number((await prisma.lote.findUniqueOrThrow({
       where: { id: batch.id },
       select: { cantidad: true },
-    })).toMatchObject({ cantidad: 1 });
+    })).cantidad)).toBe(1);
     expect(await prisma.devolucionProveedor.count({
       where: { empresaId: companyA.id },
     })).toBe(returnsBefore);
