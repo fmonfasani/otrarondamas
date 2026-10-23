@@ -384,6 +384,53 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
     expect(own[0].tipoMovimiento).toBe('Salida');
   });
 
+  it('MS-P-09A: resolves a purchase-linked lot automatically when loteId is omitted', async () => {
+    const reason = uniqueReason('09A');
+    const receiptMovement = await prisma.movimientoStock.create({
+      data: {
+        empresaId: companyA.id,
+        productoId: productA.id,
+        loteId: batchD.id,
+        tipoMovimiento: 'Entrada',
+        cantidad: 10,
+        motivo: 'Compra',
+        referenciaId: purchaseA.id,
+        usuarioId: userA.id,
+      },
+      select: { id: true },
+    });
+
+    try {
+      const before = await prisma.lote.findUniqueOrThrow({
+        where: { id: batchD.id },
+        select: { cantidad: true },
+      });
+      const created = await purchases.createReturn(
+        companyA.id,
+        purchaseA.id,
+        {
+          motivo: reason,
+          items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 5 }],
+        },
+        userA.id,
+      );
+
+      expect(created.items[0].loteId).toBe(batchD.id);
+      const after = await prisma.lote.findUniqueOrThrow({
+        where: { id: batchD.id },
+        select: { cantidad: true },
+      });
+      expect(Number(after.cantidad)).toBe(Number(before.cantidad) - 1);
+      expect(
+        await prisma.movimientoStock.count({
+          where: { referenciaId: created.id, motivo: 'Devolucion', loteId: batchD.id },
+        }),
+      ).toBe(1);
+    } finally {
+      await prisma.movimientoStock.delete({ where: { id: receiptMovement.id } });
+    }
+  });
+
   it('MS-P-10: productive devolucion flow with cross-Business Producto rejects and rolls back', async () => {
     const reason = uniqueReason('10');
 
