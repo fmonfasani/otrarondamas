@@ -353,7 +353,15 @@ export class PurchasesService {
       const reservedByLot = new Map<string, number>();
       const resolvedItems: Array<CreateSupplierReturnDto['items'][number] & { loteId: string }> = [];
 
+      const purchasedProductIds = new Set(purchase.items.map((purchaseItem) => purchaseItem.productoId));
+
       for (const item of dto.items) {
+        if (!purchasedProductIds.has(item.productoId)) {
+          throw new BadRequestException(
+            `El producto ${item.productoId} no pertenece a la compra ${purchaseId}.`,
+          );
+        }
+
         let selectedLot: { id: string; cantidad: Prisma.Decimal } | null = null;
 
         if (item.loteId) {
