@@ -391,6 +391,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
         empresaId: companyA.id,
         productoId: productA.id,
         numeroLote: `SV5P-RETURN-${suffix}`,
+        vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         cantidad: 1,
       },
       select: { id: true, cantidad: true },
