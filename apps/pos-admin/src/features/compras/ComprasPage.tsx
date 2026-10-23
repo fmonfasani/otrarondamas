@@ -247,6 +247,7 @@ export function ComprasPage() {
           ? {
               ...item,
               [campo]: campo === 'productoId' || campo === 'loteId' ? valor : Number(valor),
+              ...(campo === 'productoId' ? { loteId: undefined } : {}),
             }
           : item,
       ),
