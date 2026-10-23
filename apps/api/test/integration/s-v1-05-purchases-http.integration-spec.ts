@@ -431,6 +431,38 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     })).toBe(movementsBefore);
   });
 
+
+  it('SV5P-H-11: devolución sin lote → 400 y no persiste devolución ni movimiento', async () => {
+    const purchase = await request(BASE)
+      .post('/compras')
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send(purchaseDto(supplierA.id, productA.id))
+      .expect(201);
+
+    const returnsBefore = await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    });
+    const movementsBefore = await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    });
+
+    await request(BASE)
+      .post(`/compras/${purchase.body.id}/devoluciones`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send({
+        motivo: 'Prueba de lote obligatorio',
+        items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 10 }],
+      })
+      .expect(400);
+
+    expect(await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    })).toBe(returnsBefore);
+    expect(await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    })).toBe(movementsBefore);
+  });
+
   it('SV5P-H-09: listado de compras → 200 y solo las de A', async () => {
     const res = await request(BASE)
       .get('/compras')

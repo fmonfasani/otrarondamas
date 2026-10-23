@@ -330,10 +330,12 @@ export class PurchasesService {
 
   /**
    * Records a return of goods to the supplier. For each item:
+
    * - Resolves the earliest-expiring lot linked to this purchase when possible.
    * - Allows an explicit loteId for manual correction, validating tenant,
    *   product, and stock before writing.
    * - Atomically generates a Salida/Devolucion movement and reduces the lot.
+
    * It does not reduce the Compra total (the debt stays the same — the
    * return is negotiated with the supplier as a credit note or discount on
    * a future purchase, outside the system for now).
@@ -344,6 +346,14 @@ export class PurchasesService {
     dto: CreateSupplierReturnDto,
     userId: string,
   ) {
+    for (const item of dto.items) {
+      if (typeof item.loteId !== 'string' || item.loteId.trim().length === 0) {
+        throw new BadRequestException(
+          `Debe seleccionar el lote para devolver el producto ${item.productoId}. Revise el lote manualmente e intente nuevamente.`,
+        );
+      }
+    }
+
     const purchase = await this.getPurchase(companyId, purchaseId);
     const db = this.prismaFactory.forCompany(companyId);
 
@@ -488,6 +498,25 @@ export class PurchasesService {
             usuarioId: userId,
           },
         });
+
+
+        // Do not rely on earlier batch/product checks: stock can change
+        // between read and write, and a DTO may reference another tenant's lot.
+        const deduction = await tx.lote.updateMany({
+          where: {
+            id: item.loteId,
+            empresaId: companyId,
+            productoId: item.productoId,
+            cantidad: { gte: item.cantidad },
+          },
+          data: { cantidad: { decrement: item.cantidad } },
+        });
+        if (deduction.count !== 1) {
+          throw new BadRequestException(
+            `Stock insuficiente o lote inválido para el producto ${item.productoId}`,
+          );
+        }
+
       }
 
       return returnRecord;
