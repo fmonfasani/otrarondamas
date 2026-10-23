@@ -584,7 +584,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
   it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
     const product = await mkProduct(companyA.id, hierA);
-    await mkBatch(companyA.id, product.id, 10);
+    const batch = await mkBatch(companyA.id, product.id, 10);
     const order = await mkOrder(companyA.id, customerA.id, [
       { productId: product.id, quantity: 2 },
     ]);
@@ -601,6 +601,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       include: { pedidoItems: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
+    expect(await batchQuantity(batch.id)).toBe(8);
     expect(await movementCount(order.id)).toBe(1);
   });
 
