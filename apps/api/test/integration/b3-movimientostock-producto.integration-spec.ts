@@ -384,26 +384,51 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
     expect(own[0].tipoMovimiento).toBe('Salida');
   });
 
-  it('MS-P-10: productive devolucion flow with cross-Business Producto rejects with P2025 and rolls back', async () => {
+  it('MS-P-10: productive devolucion flow with cross-Business Producto rejects and rolls back', async () => {
     const reason = uniqueReason('10');
 
-    expect(
-      await rejectionCode(
-        purchases.createReturn(
-          companyA.id,
-          purchaseA.id,
-          {
-            motivo: reason,
-            items: [{ productoId: productB.id, cantidad: 1, costoUnitario: 5 }],
-          },
-          userA.id,
-        ),
+    await expect(
+      purchases.createReturn(
+        companyA.id,
+        purchaseA.id,
+        {
+          motivo: reason,
+          items: [{ productoId: productB.id, cantidad: 1, costoUnitario: 5 }],
+        },
+        userA.id,
       ),
-    ).toBe('P2025');
+    ).rejects.toThrow();
 
     expect(await prisma.devolucionProveedor.count({ where: { motivo: reason } })).toBe(0);
     const movements = await prisma.movimientoStock.findMany({ where: { motivo: 'Devolucion' } });
     expect(movements.filter((m) => m.productoId === productB.id).length).toBe(0);
+  });
+
+  it('MS-P-13: missing purchase-lot evidence fails closed and leaves no return or stock change', async () => {
+    const reason = uniqueReason('13');
+    const before = await prisma.lote.findUniqueOrThrow({
+      where: { id: batchD.id },
+      select: { cantidad: true },
+    });
+
+    await expect(
+      purchases.createReturn(
+        companyA.id,
+        purchaseA.id,
+        {
+          motivo: reason,
+          items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 5 }],
+        },
+        userA.id,
+      ),
+    ).rejects.toThrow(/loteId y reintentá/);
+
+    expect(await prisma.devolucionProveedor.count({ where: { motivo: reason } })).toBe(0);
+    const after = await prisma.lote.findUniqueOrThrow({
+      where: { id: batchD.id },
+      select: { cantidad: true },
+    });
+    expect(Number(after.cantidad)).toBe(Number(before.cantidad));
   });
 
   it('MS-P-11: productive FIFO discount flow keeps working (descontarStock, W-4)', async () => {
