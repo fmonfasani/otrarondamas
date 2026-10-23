@@ -182,6 +182,9 @@ export const api = {
   actualizarProveedor: (id: string, dto: UpdateProveedorRequest) =>
     request<Proveedor>(`/proveedores/${id}`, { method: 'PATCH', body: JSON.stringify(dto) }),
 
+  listarLotesProducto: (id: string) =>
+    request<Lote[]>(`/inventario/productos/${encodeURIComponent(id)}/lotes`),
+
   listarCompras: () => request<Compra[]>('/compras'),
   getCompra: (id: string) => request<Compra>(`/compras/${id}`),
   crearCompra: (dto: CreateCompraRequest) =>
