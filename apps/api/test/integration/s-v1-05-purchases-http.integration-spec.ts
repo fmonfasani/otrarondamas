@@ -243,6 +243,8 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.compraItem.deleteMany({
       where: { productoId: { in: [productA.id, productB.id] } },
     });
