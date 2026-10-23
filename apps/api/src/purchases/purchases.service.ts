@@ -346,14 +346,6 @@ export class PurchasesService {
     dto: CreateSupplierReturnDto,
     userId: string,
   ) {
-    for (const item of dto.items) {
-      if (typeof item.loteId !== 'string' || item.loteId.trim().length === 0) {
-        throw new BadRequestException(
-          `Debe seleccionar el lote para devolver el producto ${item.productoId}. Revise el lote manualmente e intente nuevamente.`,
-        );
-      }
-    }
-
     const purchase = await this.getPurchase(companyId, purchaseId);
     const db = this.prismaFactory.forCompany(companyId);
 
