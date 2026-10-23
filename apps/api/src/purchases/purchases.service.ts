@@ -330,9 +330,9 @@ export class PurchasesService {
 
   /**
    * Records a return of goods to the supplier. For each item:
-   * - Validates that the batch (if specified) belongs to the product.
+   * - Requires an explicit batch and validates that it belongs to the product.
    * - Generates a Salida/Devolucion MovimientoStock.
-   * - Reduces the Lote quantity.
+   * - Atomically reduces the selected Lote quantity; no return is recorded without a batch.
    * It does not reduce the Compra total (the debt stays the same — the
    * return is negotiated with the supplier as a credit note or discount on
    * a future purchase, outside the system for now).
@@ -343,6 +343,14 @@ export class PurchasesService {
     dto: CreateSupplierReturnDto,
     userId: string,
   ) {
+    for (const item of dto.items) {
+      if (typeof item.loteId !== 'string' || item.loteId.trim().length === 0) {
+        throw new BadRequestException(
+          `Debe seleccionar el lote para devolver el producto ${item.productoId}. Revise el lote manualmente e intente nuevamente.`,
+        );
+      }
+    }
+
     const purchase = await this.getPurchase(companyId, purchaseId);
     const db = this.prismaFactory.forCompany(companyId);
 
@@ -381,8 +389,8 @@ export class PurchasesService {
           },
         });
 
-        // Reduce the batch quantity if one was specified
-        if (item.loteId) {
+        // A return always has an explicit batch; missing or invalid batches fail atomically.
+        {
           // Do not rely on the earlier batch/product checks: stock can
           // change between read and write, and a DTO may reference a batch
           // that does not belong to the requested product/business.
