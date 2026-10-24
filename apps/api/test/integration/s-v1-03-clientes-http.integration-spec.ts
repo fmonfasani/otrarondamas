@@ -284,7 +284,8 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
     expect(row.nombre).toBe(name);
   });
 
-  it('SV3-H-09: POST sin permisos → 403 (PermissionsGuard legacy intacto)', async () => {
+  it('SV3-H-09: POST sin asignación actual → 403 aunque el JWT no declare permisos', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     await request(BASE)
       .post('/clientes')
       .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
@@ -294,6 +295,7 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
       where: { nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` },
     });
     expect(exists).toBeNull();
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['clientes.gestionar']);
   });
 
   it('SV3-H-10: legajo PENDIENTE sigue bloqueado por ApprovedDossierGuard', async () => {
