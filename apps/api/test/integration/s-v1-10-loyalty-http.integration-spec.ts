@@ -595,7 +595,8 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
 
   // ------------------------------------------------------------------ T3
 
-  it('LH-14: sin fidelizacion.gestionar → 403 en las 4 rutas (incluidos los GET) aunque la Membership sea válida', async () => {
+  it('LH-14: sin fidelizacion.gestionar en la base de datos → 403 aunque el JWT declare otros permisos', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'clientes.gestionar']);
     for (const permissions of [[], ['ventas.crear', 'clientes.gestionar']]) {
       const auth = bearer(legacyUserA.id, companyA.id, permissions);
       await request(BASE).get('/reglas-fidelizacion').set('Authorization', auth).expect(403);
@@ -617,6 +618,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     expect(
       await prisma.reglaFidelizacion.count({ where: { nombre: `S-V1-10 sin permiso ${suffix}` } }),
     ).toBe(0);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['fidelizacion.gestionar']);
   });
 
   it('LH-15: ApprovedDossierGuard preservado — estadoLegajo PENDIENTE → 403 aun con permiso y Membership', async () => {
