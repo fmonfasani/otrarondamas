@@ -350,7 +350,7 @@ operación para un `Authenticated User`. Este contexto **se deriva siempre de la
 
 Autenticación = verificar la identidad del `User` global. Mecanismos: credenciales (email + contraseña)
 y proveedores externos (p.ej. Google OAuth 2.0, ya soportado en AS-IS). Ciclo de vida: registro, login,
-recuperación de contraseña, cierre de sesión. **2FA/MFA = `OPEN DETAIL` / FUTURE** (no aprobado).
+recuperación de contraseña y cierre de sesión. **MFA/2FA es obligatorio para Owner/Admin** (Owner-accepted direction, 2026-10-24; ver `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`). El proveedor, protocolo, enrolamiento, desafío y recuperación segura permanecen `OPEN DETAIL`.
 
 ### 10.2 Session/Token — dirección `APPROVED` (D-006 `DERIVED`), diseño `OPEN`
 
@@ -468,7 +468,7 @@ Ninguno de estos está decidido; ninguno se resuelve en este documento.
 | 11 | **Rol de plataforma / superadministración** transversal | `OPEN DETAIL / FUTURE`; SPEC §7.2 `:144` |
 | 12 | **Estrategia de migración** `Empresa`→`Business`, `Usuario`→`User`+`Membership` | D-001/D-002 `OPEN`; dirección aprobada, plan no |
 | 13 | **Reconciliación `Usuario`/`Cliente`** (sin fusión) — mecánica de separación | D-002-bis dirección; mecánica `OPEN` |
-| 14 | **2FA/MFA** | `OPEN DETAIL / FUTURE`; SPEC §8.1 `:153` |
+| 14 | **2FA/MFA** | Obligatorio para Owner/Admin (cierre Owner 2026-10-24); mecanismo técnico `OPEN DETAIL` |
 | 15 | **Reglas de aprobación por operación** (no auto-autorización, casos críticos) | `TO-BE PROPOSED` / `OPEN`; **CON-018 OPEN** |
 | 16 | **Onboarding** de nuevos `Business` y registro de `User` | `OPEN DETAIL`; AS-IS usa variables de entorno fijas |
 | 17 | **Otros servicios globales** de plataforma (Billing, Onboarding) | `OPEN DETAIL`; SPEC §10 `:195` |
@@ -489,7 +489,7 @@ Ninguno de estos está decidido; ninguno se resuelve en este documento.
 | Flujo de autorización (Request→User→Context→Membership→Role→Permission→Action) | SPEC §6.1 `:117-126` |
 | Principios de Business Context (no confiar en cliente, aislar, impedir cross-tenant) | SPEC §7 `:136-144` |
 | Fronteras de seguridad (User, Business, Membership, Domain) | SPEC §10.1 `:175-178` |
-| Auth: credenciales + Google OAuth; 2FA abierto | SPEC §8 `:149-153` |
+| Auth: credenciales + Google OAuth; MFA obligatorio para Owner/Admin, mecanismo abierto | Cierre Owner 2026-10-24; decisión `48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md` |
 | Token: identidad User, sesión de plataforma, claims mínimos | SPEC §9 `:162-166`; D-006 |
 | Ausencia de Business/Tenant/Membership; `Empresa` 1:N con `Usuario`; email global | `05-ASIS/04-ASIS-IDENTITY.md:6-22` — **evidencia AS-IS** |
 | `RolUsuario` no autoriza; `Permiso`/`UsuarioPermiso` independientes | `05-ASIS/05-ASIS-AUTHORIZATION.md:7-9` — **evidencia AS-IS** |
@@ -500,3 +500,21 @@ Ninguno de estos está decidido; ninguno se resuelve en este documento.
 | Cadena AS-IS → TO-BE → GAP → Decision → OPEN DETAIL (14 filas) | §12 de este documento; fuentes por fila |
 
 **Contratos, invariantes y tests generados por este documento: 0.** Corresponden a fases posteriores.
+
+
+## 13. Owner-accepted technical security directions — 2026-10-24
+
+The Owner accepted T-01 through T-10 in `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`. Those directions are normative for downstream contract, invariant, test, and transformation work. In summary:
+
+- Normalize email consistently before identity lookup and comparison, with duplicate reconciliation before physical constraints are changed.
+- Require verified provider email for Google OAuth account linking; email-string equality alone is insufficient.
+- JWT authenticates/session-contextualizes but is not the authorization source; claims remain minimal.
+- Protected operations revalidate current server-side Membership and authorization state; revocation cannot depend solely on token expiry.
+- Business Switch validates an ACTIVE Membership and establishes Business Context server-side.
+- Application-level tenant isolation covers every protected read/write, including ORM bypasses and raw SQL.
+- API responses exclude secrets and authentication-/authorization-sensitive fields.
+- MFA/2FA is mandatory for Owner/Admin; mechanism remains an implementation detail.
+- Every route is explicitly classified as public/pre-context or Business-protected; protected Business operations fail closed.
+- Security-sensitive and commercially relevant operations are auditable.
+
+Exact token/session mechanics, MFA provider, physical schema, permission IDs/matrix, endpoint mapping, audit model, legacy coexistence duration, and cutover/rollback mechanics remain open downstream design tasks. This addendum does not authorize implementation, schema changes, migrations, or production cutover.
