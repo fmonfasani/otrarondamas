@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { GoogleProfile } from './google.strategy';
@@ -35,6 +35,12 @@ export class AuthGoogleService {
    * permission fix with the login feature (see conversation).
    */
   async loginWithGoogle(profile: GoogleProfile) {
+    // Defense in depth: the OAuth strategy enforces this, but this service
+    // must not link or create an identity if invoked through another caller.
+    if (profile.emailVerified !== true) {
+      throw new UnauthorizedException('Google debe confirmar que el email está verificado');
+    }
+
     let user = await this.prisma.usuario.findUnique({
       where: { googleId: profile.googleId },
       include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
