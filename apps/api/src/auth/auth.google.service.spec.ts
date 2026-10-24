@@ -1,10 +1,11 @@
 import { UnauthorizedException } from '@nestjs/common';
 
-// Prevent the Jest unit test from loading the ESM-only JwtService dependency.
-jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { AuthGoogleService } from './auth.google.service';
+// Prevent the Jest unit test from loading the ESM-only JwtService dependency.
+jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
+
 
 describe('AuthGoogleService verified email boundary', () => {
   it('does not look up, link, or create a staff identity for an unverified email', async () => {
