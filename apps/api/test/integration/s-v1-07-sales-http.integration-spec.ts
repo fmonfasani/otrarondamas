@@ -947,7 +947,8 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
 
   // -------------------------------------------------------- authorization
 
-  it('SV7-H-21: sin ventas.crear → 403 en cotizacion/create/pagos y no persiste; las rutas sin permiso siguen abiertas', async () => {
+  it('SV7-H-21: sin asignaciones actuales → 403 en rutas protegidas; rutas sin permiso siguen abiertas', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const productA = await mkProduct(companyA.id, hierA);
     await mkBatch(companyA.id, productA.id, 10);
     const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
@@ -982,9 +983,11 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     // No @RequirePermission on these two: Membership alone is enough.
     await request(BASE).get('/ventas/productos?search=ab').set('Authorization', auth).expect(200);
     await request(BASE).get(`/ventas/${saleA.id}/pagos`).set('Authorization', auth).expect(200);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'ventas.ver']);
   });
 
-  it('SV7-H-22 (ventas.ver, caracterización): con los permisos sembrados (ventas.crear) las lecturas dan 403; con ventas.ver dan 200', async () => {
+  it('SV7-H-22 (ventas.ver): la base de datos, no el JWT, determina acceso de lectura', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear']);
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
     const seededOnly = bearer(legacyUserA.id, companyA.id, ['ventas.crear']);
@@ -1005,6 +1008,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .get(`/ventas/${saleA.id}/comprobante`)
       .set('Authorization', withView)
       .expect(200);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'ventas.ver']);
   });
 
   // ------------------------------------------------------------------ J1
