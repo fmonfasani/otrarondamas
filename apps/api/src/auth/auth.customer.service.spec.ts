@@ -1,11 +1,10 @@
 import { UnauthorizedException } from '@nestjs/common';
-
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthCustomerService } from './auth.customer.service';
+
 // Prevent the Jest unit test from loading the ESM-only JwtService dependency.
 jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
-
 
 describe('AuthCustomerService verified email boundary', () => {
   it('does not look up, link, or create a customer identity for an unverified email', async () => {
