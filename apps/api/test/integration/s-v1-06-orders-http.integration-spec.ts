@@ -607,7 +607,8 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(await movementCount(order.id)).toBe(1);
   });
 
-  it('SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste', async () => {
+  it('SV6-H-11: sin asignación actual → 403 en los tres endpoints y no persiste', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const productA = await mkProduct(companyA.id, hierA);
     const orderA = await mkOrder(companyA.id, customerA.id, [
       { productId: productA.id, quantity: 1 },
@@ -624,6 +625,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
     expect(row.estado).toBe('RECIBIDO');
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['pedidos.gestionar']);
   });
 
   it('SV6-H-12: sin Membership ACTIVE o SUSPENDED → 403 fail-closed', async () => {
