@@ -18,6 +18,7 @@ import { UploadDocumentDto } from './dto/upload-document.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessContextService } from '../business-context/business-context.service';
 
 /**
  * RF-17 (docs/spec-login-roles.md): self-service dossier for the wholesale
@@ -39,6 +40,7 @@ export class CustomerDossierController {
   constructor(
     private readonly dossierService: DossierService,
     private readonly prisma: PrismaService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   private requireWholesale(user: AuthenticatedUser) {
@@ -93,11 +95,13 @@ export class CustomerDossierController {
    */
   @Get('pendientes')
   async listPending(@CurrentUser() user: AuthenticatedUser) {
-    if (user.type !== 'usuario') {
-      throw new ForbiddenException('Solo el dueño puede ver los legajos pendientes');
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (context.role !== 'OWNER') {
+      throw new ForbiddenException('Solo el Owner puede ver los legajos pendientes');
     }
+    const empresaId = await this.businessContext.resolveCompanyId(context.businessId);
     const customers = await this.prisma.cliente.findMany({
-      where: { empresaId: user.empresaId, esMayorista: true, estadoLegajo: 'PENDIENTE' },
+      where: { empresaId, esMayorista: true, estadoLegajo: 'PENDIENTE' },
       include: { legajo: true },
     });
     return customers.map((c) => ({
@@ -116,12 +120,19 @@ export class CustomerDossierController {
    */
   @Patch(':clienteId/aprobar')
   async approve(@Param('clienteId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
-    if (user.type !== 'usuario') {
-      throw new ForbiddenException('Solo el dueño puede aprobar legajos');
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (context.role !== 'OWNER') {
+      throw new ForbiddenException('Solo el Owner puede aprobar legajos');
     }
+    const empresaId = await this.businessContext.resolveCompanyId(context.businessId);
 
     const customer = await this.prisma.cliente.findFirst({
-      where: { id: customerId, empresaId: user.empresaId, esMayorista: true },
+      where: {
+        id: customerId,
+        empresaId,
+        esMayorista: true,
+        estadoLegajo: 'PENDIENTE',
+      },
     });
     if (!customer) {
       throw new NotFoundException('Cliente mayorista no encontrado');
@@ -133,10 +144,18 @@ export class CustomerDossierController {
       return { aprobado: false, faltantes: missing };
     }
 
-    await this.prisma.cliente.update({
-      where: { id: customerId },
+    const result = await this.prisma.cliente.updateMany({
+      where: {
+        id: customerId,
+        empresaId,
+        esMayorista: true,
+        estadoLegajo: 'PENDIENTE',
+      },
       data: { estadoLegajo: 'APROBADO' },
     });
+    if (result.count !== 1) {
+      throw new NotFoundException('Cliente mayorista no encontrado o ya no está pendiente');
+    }
     return { aprobado: true, faltantes: [] };
   }
 }
