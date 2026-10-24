@@ -383,3 +383,26 @@ This document specifies what must eventually be verified. It does not claim that
 **Technical Specification: NOT APPROVED**
 
 **Implementation: NOT AUTHORIZED**
+
+
+## T-01–T-10 security regression coverage — 2026-10-24
+
+**Authority:** Owner-accepted directions in `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`. The matrix below specifies required coverage; it is not evidence that tests exist or pass.
+
+The detailed case inventory is maintained in `06-AUTH-TENANCY-T01-T10-TEST-MATRIX-2026-10-24.md`.
+
+Required coverage includes:
+- normalized-email equivalence and duplicate/collision detection before constraints change;
+- OAuth linking rejected for unverified provider email;
+- valid JWT with absent/INACTIVE Membership or insufficient Permission is denied;
+- Membership/Permission revocation takes effect without waiting for token expiry;
+- Business Switch rejects absent/INACTIVE Membership and cannot trust a client-supplied context;
+- cross-Business read/write denial across ordinary ORM, bulk, `upsert`, `groupBy`, and raw SQL paths;
+- API response schemas omit password hashes, tokens, provider identifiers and sensitive internal fields;
+- Owner/Admin MFA policy is enforced at the authentication/authorization boundary;
+- route inventory has no unclassified routes and protected routes fail closed;
+- Membership/Role/Permission/context/security changes create auditable evidence.
+
+For each case, implementation planning must identify the owning endpoint/use case, test layer, deterministic fixtures, negative and positive controls, and required CI command. Do not mark a case PASS until the test has actually executed against the relevant code and environment.
+
+**Status:** SPECIFICATION PROPAGATED; execution and implementation remain unverified.
