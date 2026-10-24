@@ -297,7 +297,8 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('SV5P-H-04: crear proveedor sin permiso compras.gestionar → 403 y no persiste', async () => {
+  it('SV5P-H-04: crear proveedor sin asignación actual → 403 y no persiste', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const nombre = `S-V1-05 PUR HTTP Denied ${suffix}`;
     await request(BASE)
       .post('/proveedores')
@@ -305,6 +306,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       .send({ nombre })
       .expect(403);
     expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['compras.gestionar']);
   });
 
   it('SV5P-H-05: crear compra con claim B + Membership A → 201 BORRADOR en A', async () => {
