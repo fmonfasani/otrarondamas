@@ -219,3 +219,32 @@ R8-AUTH-001 is closed for downstream design when:
 **Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
 
 **Implementation:** NOT AUTHORIZED.
+
+
+## 17. T-01–T-10 security contract propagation — 2026-10-24
+
+**Authority:** Owner-accepted directions in `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`.
+
+The following are normative contract requirements for downstream implementation design. They do not approve a physical schema, a particular provider, a migration, or implementation.
+
+| ID | Contract requirement | Required observable behavior | Deferred detail |
+|---|---|---|---|
+| T-01 | Normalize email by trimming external whitespace and lowercasing before registration, lookup, and comparison. | Equivalent normalized inputs resolve to the same identity; distinct Users cannot be created for the same normalized email. | Existing duplicate/collision audit and physical uniqueness constraint. |
+| T-02 | Google OAuth account linking requires a provider-verified email. | Unverified provider email or email-string equality alone never links accounts. | Provider adapter specifics and remediation UX. |
+| T-03 | JWT is authentication/session context, not authorization truth. | No protected operation succeeds from JWT validity alone; authorization is re-evaluated server-side. | Exact claims, token transport, key management and lifetime. |
+| T-04 | Protected operations use current Membership and authorization state. | INACTIVE/revoked Membership or removed Permission is denied without relying solely on access-token expiry. | Revocation propagation/SLA and session storage. |
+| T-05 | Business Switch is server-controlled. | Requested Business is accepted only after ACTIVE Membership validation; effective Business Context is established by trusted server logic. | Endpoint contract, response shape and session persistence. |
+| T-06 | All protected reads/writes enforce Business isolation. | Cross-Business access is denied for normal ORM paths, bulk operations, upsert, groupBy and raw SQL paths. | Chosen isolation mechanism and per-query implementation. |
+| T-07 | Responses use explicit safe projections. | Password hashes, tokens, provider identifiers and other secrets/internal auth fields are absent from public/API DTOs. | Complete DTO/projection inventory. |
+| T-08 | MFA/2FA is mandatory for Owner and Admin. | Owner/Admin privileged access cannot be treated as fully authenticated until the required MFA policy is satisfied. | Provider/protocol, enrollment, challenge and recovery. |
+| T-09 | Every route is explicitly classified. | Public/pre-context routes are explicitly allowlisted; Business-protected routes fail closed when context, ACTIVE Membership or applicable authorization is absent. | Route inventory, atomic Permission IDs, Role→Permission matrix and endpoint mapping. |
+| T-10 | Security-sensitive identity/authorization/context changes are auditable. | Membership, Role/Permission, Business Context switches and sensitive session/security events produce traceable audit evidence. | Event schema, storage, retention and access controls. |
+
+### Contract acceptance rules
+
+- Client-supplied Business identifiers never override the server-established Business Context.
+- UI visibility is not an authorization boundary.
+- Customer identity does not imply User authentication or Membership.
+- No AS-IS authorization path is removed until an explicit capability mapping and regression evidence exist.
+- Every contract implementation must map its route/use case to the applicable invariant and test case.
+- These requirements remain design/contract requirements; this document does not claim they are implemented or passing.
