@@ -522,7 +522,8 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('SV4-H-17: POST sin permisos → 403 (PermissionsGuard legacy intacto)', async () => {
+  it('SV4-H-17: POST sin asignación actual → 403 aunque el JWT no declare permisos', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     await request(BASE)
       .post('/catalogo/productos')
       .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
@@ -531,5 +532,6 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     expect(
       await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
     ).toBeNull();
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['productos.gestionar']);
   });
 });
