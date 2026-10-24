@@ -344,7 +344,8 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     expect(Number(movements[0].cantidad)).toBe(5);
   });
 
-  it('SV5I-H-06: POST sin permiso inventario.ajustes → 403 y no cambia el lote', async () => {
+  it('SV5I-H-06: POST sin asignación actual → 403 y no cambia el lote', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const before = await prisma.lote.findUniqueOrThrow({
       where: { id: batchA.id },
       select: { cantidad: true },
@@ -361,6 +362,7 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
       select: { cantidad: true },
     });
     expect(Number(after.cantidad)).toBe(Number(before.cantidad));
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['inventario.ajustes']);
   });
 
   it('SV5I-H-07: ajuste cross-tenant sobre lote de B → 404 y B no cambia', async () => {
