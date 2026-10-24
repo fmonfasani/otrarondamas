@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of PURCHASES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -130,6 +131,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["compras.gestionar"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
