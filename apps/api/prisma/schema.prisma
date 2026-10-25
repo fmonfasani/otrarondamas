@@ -495,6 +495,7 @@ model DocumentoLegajo {
 model Empresa {
   id                      String                    @id @default(uuid())
   nombre                  String                    @unique
+  handle                  String?                   @unique
   configuracion           Json
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime @updatedAt

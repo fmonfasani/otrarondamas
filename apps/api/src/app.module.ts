@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { I18nModule } from './i18n/i18n.module';
 import { AuthModule } from './auth/auth.module';
+import { BusinessModule } from './business/business.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SalesModule } from './sales/sales.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -39,6 +40,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
 @Module({
   imports: [
     PrismaModule,
+    BusinessModule,
     // P13-1: Internationalization (i18n) - Multi-language support
     I18nModule,
     AuthModule,
