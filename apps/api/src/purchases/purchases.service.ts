@@ -330,9 +330,12 @@ export class PurchasesService {
 
   /**
    * Records a return of goods to the supplier. For each item:
-   * - Validates that the batch (if specified) belongs to the product.
-   * - Generates a Salida/Devolucion MovimientoStock.
-   * - Reduces the Lote quantity.
+
+   * - Resolves the earliest-expiring lot linked to this purchase when possible.
+   * - Allows an explicit loteId for manual correction, validating tenant,
+   *   product, and stock before writing.
+   * - Atomically generates a Salida/Devolucion movement and reduces the lot.
+
    * It does not reduce the Compra total (the debt stays the same — the
    * return is negotiated with the supplier as a credit note or discount on
    * a future purchase, outside the system for now).
@@ -347,6 +350,99 @@ export class PurchasesService {
     const db = this.prismaFactory.forCompany(companyId);
 
     return db.$transaction(async (tx) => {
+      // Resolve a lot only from receipt movements linked to this purchase.
+      // If that evidence is missing, fail closed and require the operator to
+      // supply a loteId explicitly instead of silently selecting unrelated stock.
+      const reservedByLot = new Map<string, number>();
+      const resolvedItems: Array<CreateSupplierReturnDto['items'][number] & { loteId: string }> = [];
+
+      const purchasedProductIds = new Set(purchase.items.map((purchaseItem) => purchaseItem.productoId));
+
+      for (const item of dto.items) {
+        if (!purchasedProductIds.has(item.productoId)) {
+          throw new BadRequestException(
+            `El producto ${item.productoId} no pertenece a la compra ${purchaseId}.`,
+          );
+        }
+
+        let selectedLot: { id: string; cantidad: Prisma.Decimal } | null = null;
+
+        if (item.loteId) {
+          // Explicit loteId is the manual-correction path. Validate ownership,
+          // product relation and available stock inside the same transaction.
+          selectedLot = await tx.lote.findFirst({
+            where: {
+              id: item.loteId,
+              empresaId: companyId,
+              productoId: item.productoId,
+            },
+            select: { id: true, cantidad: true },
+          });
+          if (!selectedLot) {
+            throw new BadRequestException(
+              `El lote indicado no pertenece a este negocio/producto (${item.productoId}); corregí el lote manualmente.`,
+            );
+          }
+        } else {
+          const receiptMovements = await tx.movimientoStock.findMany({
+            where: {
+              empresaId: companyId,
+              productoId: item.productoId,
+              tipoMovimiento: 'Entrada',
+              motivo: 'Compra',
+              referenciaId: purchaseId,
+              loteId: { not: null },
+            },
+            select: { loteId: true },
+          });
+          const candidateIds = [
+            ...new Set(
+              receiptMovements
+                .map((movement) => movement.loteId)
+                .filter((lotId): lotId is string => lotId !== null),
+            ),
+          ];
+
+          const candidates = candidateIds.length
+            ? await tx.lote.findMany({
+                where: {
+                  id: { in: candidateIds },
+                  empresaId: companyId,
+                  productoId: item.productoId,
+                },
+                orderBy: [{ vencimiento: 'asc' }, { createdAt: 'asc' }],
+                select: { id: true, cantidad: true },
+              })
+            : [];
+
+          selectedLot =
+            candidates.find(
+              (lot) =>
+                Number(lot.cantidad) - (reservedByLot.get(lot.id) ?? 0) >= item.cantidad,
+            ) ?? null;
+
+          if (!selectedLot) {
+            throw new BadRequestException(
+              `No se encontró un lote de esta compra con stock suficiente para el producto ${item.productoId}; seleccioná o corregí manualmente el loteId y reintentá.`,
+            );
+          }
+        }
+
+        const available =
+          Number(selectedLot.cantidad) - (reservedByLot.get(selectedLot.id) ?? 0);
+        if (available < item.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente en el lote ${selectedLot.id}; corregí manualmente el lote o la cantidad.`,
+          );
+        }
+
+        reservedByLot.set(
+          selectedLot.id,
+          (reservedByLot.get(selectedLot.id) ?? 0) + item.cantidad,
+        );
+        resolvedItems.push({ ...item, loteId: selectedLot.id });
+      }
+
       const returnRecord = await tx.devolucionProveedor.create({
         data: {
           empresaId: companyId,
@@ -355,7 +451,7 @@ export class PurchasesService {
           usuarioId: userId,
           motivo: dto.motivo,
           items: {
-            create: dto.items.map((item) => ({
+            create: resolvedItems.map((item) => ({
               productoId: item.productoId,
               loteId: item.loteId,
               cantidad: item.cantidad,
@@ -366,8 +462,22 @@ export class PurchasesService {
         include: { items: true },
       });
 
-      // Generate a 'Salida' MovimientoStock for each returned item
-      for (const item of dto.items) {
+      for (const item of resolvedItems) {
+        const deduction = await tx.lote.updateMany({
+          where: {
+            id: item.loteId,
+            empresaId: companyId,
+            productoId: item.productoId,
+            cantidad: { gte: item.cantidad },
+          },
+          data: { cantidad: { decrement: item.cantidad } },
+        });
+        if (deduction.count !== 1) {
+          throw new BadRequestException(
+            `Stock insuficiente o lote inválido para el producto ${item.productoId}; corregí manualmente el lote o la cantidad.`,
+          );
+        }
+
         await tx.movimientoStock.create({
           data: {
             empresaId: companyId,
@@ -381,13 +491,7 @@ export class PurchasesService {
           },
         });
 
-        // Reduce the batch quantity if one was specified
-        if (item.loteId) {
-          await tx.lote.update({
-            where: { id: item.loteId },
-            data: { cantidad: { decrement: item.cantidad } },
-          });
-        }
+
       }
 
       return returnRecord;

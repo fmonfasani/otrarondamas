@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of PURCHASES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -130,6 +131,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["compras.gestionar"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -243,6 +245,8 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.compraItem.deleteMany({
       where: { productoId: { in: [productA.id, productB.id] } },
     });
@@ -255,6 +259,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `pur-http-${suffix}` } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -293,14 +298,17 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('SV5P-H-04: crear proveedor sin permiso compras.gestionar → 403 y no persiste', async () => {
-    const nombre = `S-V1-05 PUR HTTP Denied ${suffix}`;
-    await request(BASE)
-      .post('/proveedores')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send({ nombre })
-      .expect(403);
-    expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
+  it('SV5P-H-04: crear proveedor sin asignación actual → 403 y no persiste', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['compras.gestionar'], async () => {
+      const nombre = `S-V1-05 PUR HTTP Denied ${suffix}`;
+      await request(BASE)
+        .post('/proveedores')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send({ nombre })
+        .expect(403);
+      expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
+
+    });
   });
 
   it('SV5P-H-05: crear compra con claim B + Membership A → 201 BORRADOR en A', async () => {
@@ -373,6 +381,92 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       .set('Authorization', `Bearer ${tokenFor(legacySuspendedUser.id, companyA.id)}`)
       .send(purchaseDto(supplierA.id, productA.id))
       .expect(403);
+  });
+
+  it('SV5P-H-10: devolución con stock insuficiente revierte devolución, movimiento y lote', async () => {
+    const purchase = await request(BASE)
+      .post('/compras')
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send(purchaseDto(supplierA.id, productA.id))
+      .expect(201);
+
+    // The endpoint permits recording a return against the purchase. Stock
+    // deduction must still be atomic if quantity changed after earlier reads.
+    const batch = await prisma.lote.create({
+      data: {
+        empresaId: companyA.id,
+        productoId: productA.id,
+        numeroLote: `SV5P-RETURN-${suffix}`,
+        vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        cantidad: 1,
+      },
+      select: { id: true, cantidad: true },
+    });
+    const returnsBefore = await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    });
+    const movementsBefore = await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    });
+
+    await request(BASE)
+      .post(`/compras/${purchase.body.id}/devoluciones`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send({
+        motivo: 'Prueba de rollback por stock insuficiente',
+        items: [{
+          productoId: productA.id,
+          loteId: batch.id,
+          cantidad: 2,
+          costoUnitario: 10,
+        }],
+      })
+      .expect(400);
+
+    // Prisma Decimal values may serialize as strings; compare the numeric
+    // quantity so this assertion verifies rollback rather than JSON shape.
+    expect(Number((await prisma.lote.findUniqueOrThrow({
+      where: { id: batch.id },
+      select: { cantidad: true },
+    })).cantidad)).toBe(1);
+    expect(await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    })).toBe(returnsBefore);
+    expect(await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    })).toBe(movementsBefore);
+  });
+
+
+  it('SV5P-H-11: devolución sin lote → 400 y no persiste devolución ni movimiento', async () => {
+    const purchase = await request(BASE)
+      .post('/compras')
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send(purchaseDto(supplierA.id, productA.id))
+      .expect(201);
+
+    const returnsBefore = await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    });
+    const movementsBefore = await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    });
+
+    await request(BASE)
+      .post(`/compras/${purchase.body.id}/devoluciones`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send({
+        motivo: 'Prueba de lote obligatorio',
+        items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 10 }],
+      })
+      .expect(400);
+
+    expect(await prisma.devolucionProveedor.count({
+      where: { empresaId: companyA.id },
+    })).toBe(returnsBefore);
+    expect(await prisma.movimientoStock.count({
+      where: { empresaId: companyA.id },
+    })).toBe(movementsBefore);
   });
 
   it('SV5P-H-09: listado de compras → 200 y solo las de A', async () => {

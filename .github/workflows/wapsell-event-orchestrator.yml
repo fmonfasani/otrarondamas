@@ -110,10 +110,7 @@ jobs:
   validate-demo-api:
     name: Validate API baseline for demo
     if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
-       github.event_name == 'pull_request') &&
-      (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+      github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -150,7 +147,7 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci --workspace=@otrarondamas/api --workspace=@otrarondamas/pos-admin --workspace=@otrarondamas/shared-types --include-workspace-root --ignore-scripts
 
       - name: Generate Prisma client
         run: npm run prisma:generate --workspace=@otrarondamas/api
@@ -167,16 +164,11 @@ jobs:
       - name: Run API unit and configured test suite
         run: npm test --workspace=@otrarondamas/api -- --runInBand
 
-      - name: Run BusinessContext HTTP regression
+      - name: Run BusinessContext integration regressions
         run: >-
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/fs-1a-customer-business-context-http.integration-spec.ts
-
-      - name: Run S-V1 BusinessContext regression
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/s-v1-02-business-context.integration-spec.ts
 
       - name: Summarize validation boundary
@@ -190,3 +182,37 @@ jobs:
             echo "- Database operations target the ephemeral PostgreSQL service in this workflow."
             echo "- No merge, deployment, production data change, or schema/migration file modification is performed."
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  # API build/unit/integration checks are owned by B4/B3 on PRs. Keep the
+  # admin frontend build as a focused PR check instead of rerunning the entire
+  # API baseline and all API tests in this orchestration workflow.
+  validate-admin-frontend:
+    name: Validate admin frontend for pull requests
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install admin frontend and shared types workspaces
+        run: npm ci --workspace=@otrarondamas/pos-admin --workspace=@otrarondamas/shared-types
+
+      - name: Build shared types
+        run: npm run build --workspace=@otrarondamas/shared-types
+
+      - name: Build admin frontend
+        run: npm run build --workspace=@otrarondamas/pos-admin

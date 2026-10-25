@@ -49,7 +49,12 @@ export class AuthController {
   async me(@CurrentUser() user: AuthenticatedUser): Promise<UserProfile> {
     const userRecord = await this.prisma.usuario.findUnique({
       where: { id: user.id },
-      include: { empresa: true },
+      include: {
+        empresa: true,
+        usuarioPermisos: {
+          include: { permiso: { select: { nombre: true } } },
+        },
+      },
     });
     if (!userRecord) {
       // The JWT is still valid but the user no longer exists in the database
@@ -64,7 +69,7 @@ export class AuthController {
       nombre: userRecord.nombre,
       empresaId: userRecord.empresaId,
       empresaNombre: userRecord.empresa.nombre,
-      permisos: user.permisos,
+      permisos: userRecord.usuarioPermisos.map((assignment) => assignment.permiso.nombre),
       fotoUrl: userRecord.fotoUrl,
       metodoLogin: userRecord.googleId ? 'google' : 'password',
       createdAt: userRecord.createdAt.toISOString(),

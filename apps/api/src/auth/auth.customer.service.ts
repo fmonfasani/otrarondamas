@@ -86,6 +86,12 @@ export class AuthCustomerService {
    * store.service.ts to identify which company the public store is.
    */
   async loginWithGoogle(profile: GoogleProfile) {
+    // Defense in depth: customer identity linking uses the same verified-email
+    // requirement as staff identity linking.
+    if (profile.emailVerified !== true) {
+      throw new UnauthorizedException('Google debe confirmar que el email está verificado');
+    }
+
     const companyId = process.env.TIENDA_EMPRESA_ID;
     if (!companyId) {
       throw new Error('TIENDA_EMPRESA_ID no configurado');

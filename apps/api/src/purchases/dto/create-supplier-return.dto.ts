@@ -4,7 +4,6 @@ import {
   IsArray,
   IsNotEmpty,
   IsNumber,
-  IsOptional,
   IsString,
   Min,
   ValidateNested,
@@ -16,8 +15,8 @@ export class CreateReturnItemDto {
   productoId: string;
 
   @IsString()
-  @IsOptional()
-  loteId?: string;
+  @IsNotEmpty()
+  loteId: string;
 
   @IsNumber()
   @Min(1)

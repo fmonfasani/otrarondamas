@@ -624,3 +624,35 @@ The canonical tenant authority remains **BusinessContext**. The legacy JWT `empr
 
 **Authority:** Owner approval, 2026-10-07.  
 **Authoritative document:** `03-DECISIONS/52-FS1A-CUSTOMER-BUSINESSCONTEXT-OWNER-DECISION-2026-10-07.md`.
+
+
+## 10. AUTH/TENANCY TECHNICAL DECISION CLOSURE — 2026-10-24
+
+**Authority:** Owner explicitly accepted recommendations T-01 through T-10 in the 2026-10-24 working session.  
+**Canonical closure:** `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`  
+**Status:** OWNER-ACCEPTED — CLOSED AT POLICY/DIRECTION LEVEL  
+**Implementation:** NOT AUTHORIZED by this closure alone.  
+**Schema / migrations / runtime / production cutover:** NOT AUTHORIZED by this closure alone.
+
+The following directions are now accepted for downstream propagation:
+
+| ID | Accepted direction | Remaining implementation detail |
+|---|---|---|
+| T-01 | Normalize email for identity lookup and comparison by trimming surrounding whitespace and normalizing to lowercase before registration, lookup, and comparison. | Audit existing duplicates/collisions and determine safe data cleanup and physical constraints before enforcing uniqueness. |
+| T-02 | Google OAuth identity linking requires a verified provider email. Never link an existing User solely because an unverified or otherwise untrusted email string matches. | Exact provider response handling, error UX, and account recovery flow. |
+| T-03 | JWT is an authentication/session-context mechanism, not the authorization source. Keep claims minimal; do not make embedded Permission lists authoritative. | Exact claims, signing/key management, token transport, lifetime, refresh/continuation, and storage. |
+| T-04 | Protected operations revalidate current server-side Membership and authorization state. Access revocation must not depend solely on access-token expiry. | Revocation/session mechanism and operational latency characteristics; no fixed SLA is established here. |
+| T-05 | Business Switch is a controlled server-side operation. A requested Business is accepted only after validating an ACTIVE Membership and establishing a server-trusted Business Context. | Endpoint/protocol, response contract, and context transport. |
+| T-06 | Application-level tenant isolation is mandatory across all protected reads and writes, including ORM operations that bypass existing extensions and raw database paths. | Exact enforcement architecture and endpoint/query-level implementation. |
+| T-07 | API responses must not expose passwords/hashes, tokens, authentication provider identifiers, or other secrets and authorization-sensitive fields. | Per-resource response DTO/projection and regression test coverage. |
+| T-08 | MFA/2FA is mandatory for Owner and Admin. | Provider/protocol, enrollment, challenge, recovery, and enforcement mechanics. |
+| T-09 | Every route must be explicitly classified as public/pre-context or Business-protected. Business-protected routes fail closed unless the applicable authorization is established. | Canonical atomic Permission IDs, complete Role→Permission matrix, and endpoint mapping. |
+| T-10 | Security-sensitive changes and commercially relevant operations require appropriate traceability, including Membership/Role/Permission changes, Business Context changes, and sensitive session events. | Event schema, retention, storage, access controls, and domain-specific audit coverage. |
+
+### Deferred by design
+
+The following remain downstream design decisions and must not be guessed during implementation: physical schema and constraints; legacy data reconciliation; exact token/session implementation; revocation storage; Business Switch API protocol; MFA technology; atomic Permission identifiers and complete permission matrix; endpoint-level permission assignments; audit event schema/retention; coexistence duration; cutover/rollback mechanics.
+
+### Gate
+
+These decisions authorize propagation into the canonical TO-BE, contracts, invariants, test specifications, and transformation traceability. They do **not** by themselves authorize schema changes, migrations, code implementation, destructive legacy retirement, deployment, or production cutover. Implementation readiness remains subject to the existing governance gates.

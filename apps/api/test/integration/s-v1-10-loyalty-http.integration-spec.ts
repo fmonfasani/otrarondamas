@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-10 — Loyalty / Fidelización: tenant boundary over real HTTP.
 //
@@ -184,6 +185,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     legacySuspended = await mkLegacyUser(companyA.id, 'susp');
     legacyUnlinked = await mkLegacyUser(companyA.id, 'sinuser'); // no canonical User
     legacyMulti = await mkLegacyUser(companyA.id, 'multi');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyNoMembership.id, legacySuspended.id, legacyUnlinked.id, legacyMulti.id], ["fidelizacion.gestionar"]);
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
@@ -285,6 +287,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -593,7 +596,8 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
 
   // ------------------------------------------------------------------ T3
 
-  it('LH-14: sin fidelizacion.gestionar → 403 en las 4 rutas (incluidos los GET) aunque la Membership sea válida', async () => {
+  it('LH-14: sin fidelizacion.gestionar en la base de datos → 403 aunque el JWT declare otros permisos', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'clientes.gestionar']);
     for (const permissions of [[], ['ventas.crear', 'clientes.gestionar']]) {
       const auth = bearer(legacyUserA.id, companyA.id, permissions);
       await request(BASE).get('/reglas-fidelizacion').set('Authorization', auth).expect(403);
@@ -615,6 +619,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     expect(
       await prisma.reglaFidelizacion.count({ where: { nombre: `S-V1-10 sin permiso ${suffix}` } }),
     ).toBe(0);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['fidelizacion.gestionar']);
   });
 
   it('LH-15: ApprovedDossierGuard preservado — estadoLegajo PENDIENTE → 403 aun con permiso y Membership', async () => {

@@ -795,8 +795,12 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
 
   // --------------------------------------------------------- authorization
 
-  it('SBC-20: permissions are unchanged (PermissionsGuard intact): ventas.crear / ventas.ver / none', () => {
-    const guard = new PermissionsGuard(new Reflector());
+  it('SBC-20: permission decisions use current DB assignments, not JWT claims', async () => {
+    const findUnique = jest.fn();
+    const guard = new PermissionsGuard(
+      new Reflector(),
+      { usuario: { findUnique } } as unknown as PrismaService,
+    );
     const contextFor = (
       controller: new (...args: never[]) => unknown,
       handler: (...args: never[]) => unknown,
@@ -808,6 +812,10 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
         switchToHttp: () => ({ getRequest: () => ({ user }) }),
       }) as unknown as ExecutionContext;
     const session = (permisos: string[]) => sessionOf(usuarioA.id, companyA.id, { permisos });
+    const dbAssignments = (...names: string[]) => ({
+      activo: true,
+      usuarioPermisos: names.map((nombre) => ({ permiso: { nombre } })),
+    });
 
     const sp = SalesController.prototype;
     const pp = PaymentsController.prototype;
@@ -817,38 +825,46 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     ][] = [
       [SalesController, sp.quote],
       [SalesController, sp.create],
-            [PaymentsController, pp.create],
+      [PaymentsController, pp.create],
     ];
     for (const [controller, handler] of requiresCreate) {
-      expect(() => guard.canActivate(contextFor(controller, handler, session([])))).toThrow(
-        ForbiddenException,
-      );
-      expect(() =>
-        guard.canActivate(contextFor(controller, handler, session(['ventas.ver']))),
-      ).toThrow(ForbiddenException);
-      expect(guard.canActivate(contextFor(controller, handler, session(['ventas.crear'])))).toBe(
-        true,
-      );
+      findUnique.mockResolvedValue(dbAssignments());
+      await expect(
+        guard.canActivate(contextFor(controller, handler, session(['ventas.crear']))),
+      ).rejects.toThrow(ForbiddenException);
+      findUnique.mockResolvedValue(dbAssignments('ventas.ver'));
+      await expect(
+        guard.canActivate(contextFor(controller, handler, session(['ventas.crear']))),
+      ).rejects.toThrow(ForbiddenException);
+      findUnique.mockResolvedValue(dbAssignments('ventas.crear'));
+      await expect(
+        guard.canActivate(contextFor(controller, handler, session([]))),
+      ).resolves.toBe(true);
     }
 
     for (const handler of [sp.findAll, sp.findOne, sp.getReceipt]) {
-      expect(() => guard.canActivate(contextFor(SalesController, handler, session([])))).toThrow(
-        ForbiddenException,
-      );
-      // `ventas.crear` alone does NOT grant read (the seeded users hold only it).
-      expect(() =>
-        guard.canActivate(contextFor(SalesController, handler, session(['ventas.crear']))),
-      ).toThrow(ForbiddenException);
-      expect(guard.canActivate(contextFor(SalesController, handler, session(['ventas.ver'])))).toBe(
-        true,
-      );
+      findUnique.mockResolvedValue(dbAssignments());
+      await expect(
+        guard.canActivate(contextFor(SalesController, handler, session(['ventas.ver']))),
+      ).rejects.toThrow(ForbiddenException);
+      findUnique.mockResolvedValue(dbAssignments('ventas.crear'));
+      await expect(
+        guard.canActivate(contextFor(SalesController, handler, session(['ventas.ver']))),
+      ).rejects.toThrow(ForbiddenException);
+      findUnique.mockResolvedValue(dbAssignments('ventas.ver'));
+      await expect(
+        guard.canActivate(contextFor(SalesController, handler, session([]))),
+      ).resolves.toBe(true);
     }
 
-    // No @RequirePermission: searchProducts and Payments.findAll.
-    expect(guard.canActivate(contextFor(SalesController, sp.searchProducts, session([])))).toBe(
-      true,
-    );
-    expect(guard.canActivate(contextFor(PaymentsController, pp.findAll, session([])))).toBe(true);
+    // No @RequirePermission: searchProducts and Payments.findAll remain authenticated-only.
+    expect(
+      await guard.canActivate(contextFor(SalesController, sp.searchProducts, session([]))),
+    ).toBe(true);
+    expect(
+      await guard.canActivate(contextFor(PaymentsController, pp.findAll, session([]))),
+    ).toBe(true);
+    expect(findUnique).toHaveBeenCalledTimes(18);
   });
 
   it('SBC-21 (ventas.ver, characterization): the permission is required by the code but absent from the seed catalog', () => {

@@ -753,3 +753,56 @@ These invariants are DOCUMENTED / OWNER-ACCEPTED. They are not verified by code,
 **Reference:** `03-DECISIONS/47-B2-OWNER-DECISION-CLOSURE-2026-10-04.md`.
 
 **Implementation:** NOT AUTHORIZED.
+
+
+## T-01–T-10 security invariants — Owner-accepted direction, 2026-10-24
+
+**Authority:** `03-DECISIONS/48-AUTH-TENANCY-TECHNICAL-DECISION-CLOSURE-2026-10-24.md`.
+
+The following invariant identifiers are introduced as traceable derived candidates for contract and test mapping. They do not assert runtime compliance.
+
+### INV-SEC-T01 — Email normalization is deterministic
+
+Before identity registration, lookup, or comparison, external whitespace is trimmed and the email is lowercased. Physical uniqueness constraints must not be changed until existing data has been audited and collisions reconciled.
+
+### INV-SEC-T02 — OAuth linking requires verified provider email
+
+Google OAuth account linking must require a provider-verified email. Equality of email strings without provider verification is insufficient to link identities.
+
+### INV-SEC-T03 — JWT validity is not authorization
+
+A valid JWT establishes authentication/session context only. Every protected operation must independently enforce current Business Context, ACTIVE Membership and applicable Role/Permission.
+
+### INV-SEC-T04 — Current Membership state governs access
+
+A Membership that is inactive or revoked cannot authorize a protected operation. Authorization must not depend solely on whether a previously issued access token has expired.
+
+### INV-SEC-T05 — Business Switch establishes trusted context
+
+A Business Switch succeeds only after the server validates an ACTIVE Membership for the target Business. Client-supplied identifiers cannot independently establish or override effective Business Context.
+
+### INV-SEC-T06 — Tenant isolation covers every data-access path
+
+Every protected read and write must be scoped to the effective Business. Isolation must also cover bulk ORM operations, `upsert`, `groupBy`, raw SQL and any path bypassing ordinary ORM extensions.
+
+### INV-SEC-T07 — API responses exclude secrets
+
+API response contracts must not expose password hashes, tokens, provider identifiers or other secrets/internal authentication fields. Responses must use explicit safe projections.
+
+### INV-SEC-T08 — Owner/Admin require MFA
+
+Owner and Admin privileged access requires MFA/2FA. A particular provider, protocol, enrollment or recovery mechanism is not implied by this invariant.
+
+### INV-SEC-T09 — Route classification is explicit and fail-closed
+
+Every route is classified as public/pre-context or Business-protected. Protected routes deny access when trusted context, ACTIVE Membership or applicable authorization is missing.
+
+### INV-SEC-T10 — Sensitive security changes are traceable
+
+Membership/Role/Permission changes, Business Context switches and sensitive session/security events must be auditable. The invariant does not prescribe physical event storage or retention.
+
+### Status and interpretation
+
+These are Owner-accepted policy directions propagated into the invariant layer. They are **not verified by code or test execution**. Existing identifiers are not silently redefined. If an identifier collision is discovered during implementation planning, stop and reconcile the registry before adopting a conflicting identifier.
+
+**Implementation:** NOT AUTHORIZED by this propagation alone.
