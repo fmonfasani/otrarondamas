@@ -286,7 +286,7 @@ export class OrdersService {
           // Return the cancelled order with cancellation metadata
           const cancelledOrder = await tx.pedido.findUniqueOrThrow({
             where: { id },
-            include: { pedidoItems: true },
+            include: { PedidoItem: true },
           });
 
           return {

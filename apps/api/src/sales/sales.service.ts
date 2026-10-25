@@ -116,10 +116,10 @@ export class SalesService {
       const db = this.prismaFactory.forCompany(companyId);
       const existing = await db.venta.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
-        include: { ventaItems: true, pagos: true },
+        include: { VentaItem: true, Pago: true },
       });
       if (existing) {
-        const totalPaid = existing.pagos
+        const totalPaid = existing.Pago
           .filter((p) => p.estado === 'APROBADO')
           .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
         const balance = new Prisma.Decimal(existing.total.toString()).minus(totalPaid);
@@ -170,7 +170,7 @@ export class SalesService {
           numero: sequenceNumber,
           estado: 'CONFIRMADA',
           idempotencyKey: dto.idempotencyKey ?? null,
-          ventaItems: {
+          VentaItem: {
             create: itemsWithPrice.map((item) => ({
               productoId: item.productoId,
               cantidad: new Prisma.Decimal(item.cantidad),
@@ -183,7 +183,7 @@ export class SalesService {
             })),
           },
         },
-        include: { ventaItems: true },
+        include: { VentaItem: true },
       });
 
       // Inc-1: AuditLog in the same transaction
@@ -294,13 +294,13 @@ export class SalesService {
 
     const sale = await db.venta.findUnique({
       where: { id: saleId },
-      include: { pagos: { where: { estado: 'APROBADO' } } },
+      include: { Pago: { where: { estado: 'APROBADO' } } },
     });
     if (!sale) throw new NotFoundException('Venta no encontrada');
     if (sale.empresaId !== companyId) throw new NotFoundException('Venta no encontrada');
     if (sale.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
 
-    const totalPaid = sale.pagos.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+    const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
     const balance = new Prisma.Decimal(sale.total.toString()).minus(totalPaid);
 
     if (balance.lessThanOrEqualTo(0)) {
@@ -434,10 +434,10 @@ export class SalesService {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          usuario: { select: { id: true, nombre: true } },
-          cliente: { select: { id: true, nombre: true } },
-          pagos: { where: { estado: 'APROBADO' }, select: { monto: true, medio: true } },
-          _count: { select: { pagos: true } },
+          Usuario: { select: { id: true, nombre: true } },
+          Cliente: { select: { id: true, nombre: true } },
+          Pago: { where: { estado: 'APROBADO' }, select: { monto: true, medio: true } },
+          _count: { select: { Pago: true } },
         },
       }),
       this.prismaFactory.forCompany(companyId).venta.count({ where }),
@@ -446,7 +446,7 @@ export class SalesService {
     // Compute balance and estadoCobro for filtering and the response
     const rows = sales.map((v) => {
       const totalDecimal = new Prisma.Decimal(v.total);
-      const paymentsSum = v.pagos.reduce(
+      const paymentsSum = v.Pago.reduce(
         (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
         new Prisma.Decimal(0),
       );
@@ -458,7 +458,7 @@ export class SalesService {
         saldo: balanceDecimal.toDecimalPlaces(2).toString(),
         estadoCobro: ec,
         numeroFormateado: formattedNumber,
-        medios: [...new Set(v.pagos.map((p) => p.medio))],
+        medios: [...new Set(v.Pago.map((p) => p.medio))],
       };
     });
 
@@ -474,18 +474,18 @@ export class SalesService {
     const sale = await this.prismaFactory.forCompany(companyId).venta.findFirst({
       where: { id },
       include: {
-        usuario: { select: { id: true, nombre: true } },
-        cliente: { select: { id: true, nombre: true } },
-        ventaItems: {
-          include: { producto: { select: { id: true, nombre: true, codigoInterno: true } } },
+        Usuario: { select: { id: true, nombre: true } },
+        Cliente: { select: { id: true, nombre: true } },
+        VentaItem: {
+          include: { Producto: { select: { id: true, nombre: true, codigoInterno: true } } },
         },
-        pagos: { orderBy: { createdAt: 'asc' } },
+        Pago: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!sale) throw new NotFoundException('Venta no encontrada');
 
     const totalDecimal = new Prisma.Decimal(sale.total);
-    const paymentsSum = sale.pagos
+    const paymentsSum = sale.Pago
       .filter((p) => p.estado === 'APROBADO')
       .reduce((acc, p) => acc.plus(new Prisma.Decimal(p.monto)), new Prisma.Decimal(0));
     const balanceDecimal = totalDecimal.minus(paymentsSum);
@@ -497,10 +497,10 @@ export class SalesService {
       saldo: balanceDecimal.toDecimalPlaces(2).toString(),
       estadoCobro: collectionStatus,
       numeroFormateado: formattedNumber,
-      ventaItems: sale.ventaItems.map((item) => ({
+      ventaItems: sale.VentaItem.map((item) => ({
         ...item,
-        nombre: item.producto?.nombre ?? item.productoId,
-        codigoInterno: item.producto?.codigoInterno ?? null,
+        nombre: item.Producto?.nombre ?? item.productoId,
+        codigoInterno: item.Producto?.codigoInterno ?? null,
       })),
     };
   }
