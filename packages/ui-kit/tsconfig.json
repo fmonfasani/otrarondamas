@@ -4,7 +4,11 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "lib": ["es2020", "dom", "dom.iterable"],
+    "strict": true,
+    "noImplicitAny": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.tsx", "src/**/*.stories.tsx"]
 }
