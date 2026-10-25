@@ -545,6 +545,10 @@ model Empresa {
   AnalyticsEvent          AnalyticsEvent[]
   AnalyticsAggregation    AnalyticsAggregation[]
   AnalyticsDashboard      AnalyticsDashboard[]
+  Payment                 Payment[]
+  PaymentIntent           PaymentIntent[]
+  PaymentWebhook          PaymentWebhook[]
+  Refund                  Refund[]
 }
 
 model AnalyticsEvent {
@@ -1300,6 +1304,7 @@ model Venta {
   Deuda             Deuda[]
   DevolucionCliente DevolucionCliente[]
   Pago              Pago[]
+  Payment           Payment[]
   Cliente           Cliente?    @relation(fields: [clienteId], references: [id])
   Empresa           Empresa     @relation(fields: [empresaId], references: [id])
   Usuario           Usuario     @relation(fields: [usuarioId], references: [id])
@@ -1697,5 +1702,95 @@ enum EstadoCampaign {
   ENVIANDO
   COMPLETADA
   CANCELADA
+}
+
+// P11-1: Payment Gateway Models
+model Payment {
+  id                String     @id @default(cuid())
+  empresaId         String
+  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+
+  ventaId           String
+  venta             Venta      @relation(fields: [ventaId], references: [id], onDelete: Restrict)
+
+  monto             Decimal    @db.Decimal(10, 2)
+  moneda            String     @default("ARS")
+
+  proveedor         String     // "STRIPE" | "MERCADOPAGO"
+  providerPaymentId String     @unique
+
+  estado            String     @default("PENDING")  // "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED"
+
+  metodo            String?    // "CARD" | "BANK_TRANSFER" | "QR" | "WALLET"
+  ultimosDigitos    String?
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  PaymentIntent     PaymentIntent[]
+  Refund            Refund[]
+
+  @@index([empresaId, estado])
+  @@index([ventaId])
+  @@index([empresaId, createdAt])
+}
+
+model PaymentIntent {
+  id                String     @id @default(cuid())
+  empresaId         String
+  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  paymentId         String
+  payment           Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  clientSecret      String     @unique
+  providerIntentId  String     @unique
+
+  metadata          Json?
+
+  createdAt         DateTime   @default(now())
+  expiresAt         DateTime
+
+  @@index([empresaId, expiresAt])
+  @@index([paymentId])
+}
+
+model PaymentWebhook {
+  id                String     @id @default(cuid())
+  empresaId         String
+  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+
+  tipo              String     // "payment.success" | "payment.failed" | "refund.completed" | etc
+  providerEventId   String     @unique
+
+  payload           Json
+
+  processed         Boolean    @default(false)
+  processedAt       DateTime?
+
+  createdAt         DateTime   @default(now())
+
+  @@index([empresaId, processed])
+  @@index([empresaId, createdAt])
+}
+
+model Refund {
+  id                String     @id @default(cuid())
+  empresaId         String
+  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+
+  paymentId         String
+  payment           Payment    @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  monto             Decimal    @db.Decimal(10, 2)
+  razon             String     // "CUSTOMER_REQUEST" | "MISTAKE" | "FRAUD_SUSPECTED" | "OTHER"
+
+  estado            String     @default("PENDING")  // "PENDING" | "COMPLETED" | "FAILED"
+  providerRefundId  String?    @unique
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([empresaId, estado])
+  @@index([paymentId])
 }
 
