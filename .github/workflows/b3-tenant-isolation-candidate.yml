@@ -62,7 +62,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
 
       - run: npm run prisma:generate --workspace=@otrarondamas/api
 
