@@ -1,0 +1,65 @@
+{
+  "name": "@wapsell/design-system",
+  "version": "0.1.0",
+  "description": "Wapsell Design System Core — semantic design tokens, utilities, and configuration.",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tokens": {
+      "import": "./dist/lib/design-tokens.js",
+      "types": "./dist/lib/design-tokens.d.ts"
+    },
+    "./constants": {
+      "import": "./dist/lib/constants.js",
+      "types": "./dist/lib/constants.d.ts"
+    },
+    "./cn": {
+      "import": "./dist/utils/cn.js",
+      "types": "./dist/utils/cn.d.ts"
+    },
+    "./styles": "./src/styles/globals.css"
+  },
+  "files": [
+    "dist",
+    "src/styles"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts{,x} --fix",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "design-system",
+    "tokens",
+    "wapsell",
+    "branding",
+    "tailwind"
+  ],
+  "dependencies": {
+    "react": "^18.3.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.45",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "tailwindcss": "^3.3.6",
+    "postcss": "^8.4.32",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "tailwindcss": "^3.0.0"
+  }
+}
