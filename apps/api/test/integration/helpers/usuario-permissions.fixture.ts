@@ -37,3 +37,14 @@ export async function replaceUsuarioPermissions(
   await prisma.usuarioPermiso.deleteMany({ where: { usuarioId } });
   await seedUsuarioPermissions(prisma, [usuarioId], permissionNames);
 }
+
+
+/** Remove assignments before deleting the related legacy Usuario fixtures. */
+export async function deleteUsuarioPermissionsForCompanies(
+  prisma: PrismaService,
+  companyIds: string[],
+): Promise<void> {
+  await prisma.usuarioPermiso.deleteMany({
+    where: { usuario: { empresaId: { in: companyIds } } },
+  });
+}
