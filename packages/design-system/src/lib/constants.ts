@@ -25,9 +25,12 @@ export const COLORS = COLOR_TOKENS;
 // ============================================================================
 
 export const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-primary text-brand-onPrimary hover:opacity-90 focus:ring-2 focus:ring-brand-focus',
-  secondary: 'bg-brand-secondary text-brand-onSecondary hover:opacity-90 focus:ring-2 focus:ring-brand-focus',
-  outline: 'border border-brand-border text-brand-onSurface hover:bg-brand-mutedSurface focus:ring-2 focus:ring-brand-focus',
+  primary:
+    'bg-brand-primary text-brand-onPrimary hover:opacity-90 focus:ring-2 focus:ring-brand-focus',
+  secondary:
+    'bg-brand-secondary text-brand-onSecondary hover:opacity-90 focus:ring-2 focus:ring-brand-focus',
+  outline:
+    'border border-brand-border text-brand-onSurface hover:bg-brand-mutedSurface focus:ring-2 focus:ring-brand-focus',
   ghost: 'text-brand-onSurface hover:bg-brand-mutedSurface focus:ring-2 focus:ring-brand-focus',
   danger: 'bg-status-error text-white hover:opacity-90 focus:ring-2 focus:ring-status-error',
 };

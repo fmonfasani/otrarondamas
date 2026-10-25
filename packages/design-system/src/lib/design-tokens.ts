@@ -15,27 +15,27 @@
 
 export const COLOR_TOKENS = {
   // Primary brand color
-  brand_primary: '#F9D82E',        // Warm yellow (from tienda-online baseline)
-  brand_onPrimary: '#111111',       // High contrast text on primary
+  brand_primary: '#F9D82E', // Warm yellow (from tienda-online baseline)
+  brand_onPrimary: '#111111', // High contrast text on primary
 
   // Secondary brand color
-  brand_secondary: '#6B5B4D',       // Warm brown
-  brand_onSecondary: '#FFFFFF',     // Text on secondary
+  brand_secondary: '#6B5B4D', // Warm brown
+  brand_onSecondary: '#FFFFFF', // Text on secondary
 
   // Surface colors
-  brand_surface: '#FFFFFF',         // Primary background
-  brand_onSurface: '#1F1F1F',       // Primary text
-  brand_mutedSurface: '#F5F5F2',    // Soft background (from Ventas baseline)
-  brand_border: '#E8E8E8',          // Border color
+  brand_surface: '#FFFFFF', // Primary background
+  brand_onSurface: '#1F1F1F', // Primary text
+  brand_mutedSurface: '#F5F5F2', // Soft background (from Ventas baseline)
+  brand_border: '#E8E8E8', // Border color
 
   // Focus and interaction
-  brand_focus: '#F9D82E',           // Focus indicator (links to primary)
+  brand_focus: '#F9D82E', // Focus indicator (links to primary)
 
   // Status colors (system semantics, not tenant-customizable)
-  status_success: '#10B981',        // Success state
-  status_warning: '#F59E0B',        // Warning state
-  status_error: '#EF4444',          // Error state
-  status_info: '#3B82F6',           // Information state
+  status_success: '#10B981', // Success state
+  status_warning: '#F59E0B', // Warning state
+  status_error: '#EF4444', // Error state
+  status_info: '#3B82F6', // Information state
 
   // Neutral grays
   neutral_50: '#F9FAFB',
