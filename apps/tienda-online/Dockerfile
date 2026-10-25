@@ -10,9 +10,11 @@ WORKDIR /repo
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/tienda-online/package.json apps/tienda-online/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/ui-kit/package.json packages/ui-kit/package.json
 RUN npm ci --legacy-peer-deps
 
 COPY packages/shared-types packages/shared-types
+COPY packages/ui-kit packages/ui-kit
 COPY apps/tienda-online apps/tienda-online
 
 ARG VITE_API_URL
