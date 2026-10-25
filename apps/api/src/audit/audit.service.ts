@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccionAudit, AuditLog } from '@prisma/client';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuditService {
@@ -13,7 +12,7 @@ export class AuditService {
   async log(event: CreateAuditLogDto): Promise<AuditLog> {
     return this.prisma.auditLog.create({
       data: {
-        id: uuidv4(),
+        id: randomUUID(),
         empresaId: event.empresaId,
         usuarioId: event.usuarioId,
         accion: event.accion.toString(),
@@ -45,7 +44,7 @@ export class AuditService {
     if (events.length === 0) return 0;
 
     const data = events.map((event) => ({
-      id: uuidv4(),
+      id: randomUUID(),
       empresaId: event.empresaId,
       usuarioId: event.usuarioId,
       accion: event.accion.toString(),
@@ -104,7 +103,6 @@ export class AuditService {
     });
   }
 
-  @Cron('0 2 * * *', { name: 'audit-retention-cleanup' })
   async cleanupOldLogs(): Promise<void> {
     const retentionDate = new Date();
     retentionDate.setFullYear(retentionDate.getFullYear() - 1);
@@ -223,10 +221,7 @@ export class AuditService {
       });
     } catch (err) {
       // Do not throw; audit failure should not block refund processing
-      console.error(
-        `[AuditLog] Failed to log ${details.accion}`,
-        err,
-      );
+      console.error(`[AuditLog] Failed to log ${details.accion}`, err);
     }
   }
 }

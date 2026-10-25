@@ -220,6 +220,7 @@ model Cliente {
   ConversationParticipant ConversationParticipant[]
   CuentaCorriente         CuentaCorriente[]
   Deuda                   Deuda[]
+  DevolucionCliente       DevolucionCliente[]
   Legajo                  Legajo?
   Message                 Message[]
   MessageReadReceipt      MessageReadReceipt[]
@@ -358,6 +359,95 @@ model Deuda {
   Venta             Venta?           @relation(fields: [ventaId], references: [id])
 }
 
+model DevolucionCliente {
+  id                    String                   @id @default(uuid())
+  empresaId             String
+  negocioId             String?
+  clienteId             String
+  ventaId               String
+  creadoPorId           String
+  numeroDevolucion      Int?
+  estado                EstadoDevolucion        @default(SOLICITADA)
+  fechaSolicitud        DateTime                @default(now())
+  fechaAutorizacion     DateTime?
+  fechaRecibida         DateTime?
+  fechaProcesada        DateTime?
+  ventaFecha            DateTime
+  diasDesdeVenta        Int?
+  montoTotal            Decimal  @db.Decimal(14, 2)
+  montoComisiones       Decimal  @db.Decimal(14, 2) @default(0)
+  montoReembolsable     Decimal  @db.Decimal(14, 2)
+  motivo                String
+  observaciones         String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  createdBy             String?
+
+  Cliente               Cliente                 @relation(fields: [clienteId], references: [id])
+  Empresa               Empresa                 @relation(fields: [empresaId], references: [id])
+  Venta                 Venta                   @relation(fields: [ventaId], references: [id])
+  CreadoPor             Usuario?                @relation("DevolucionCliente_creadoPorIdToUsuario", fields: [createdBy], references: [id])
+  DevolucionClienteItem DevolucionClienteItem[]
+  Reembolso             Reembolso?
+
+  @@unique([empresaId, numeroDevolucion])
+  @@index([empresaId, estado])
+  @@index([empresaId, clienteId])
+  @@index([empresaId, ventaId])
+  @@index([empresaId, createdAt])
+  @@index([estado, fechaSolicitud])
+}
+
+model DevolucionClienteItem {
+  id                      String   @id @default(uuid())
+  devolucionClienteId     String
+  ventaItemId             String
+  productoId              String
+  cantidad                Decimal  @db.Decimal(14, 2)
+  precioUnitarioOriginal  Decimal  @db.Decimal(14, 2)
+  precioDevuelto          Decimal  @db.Decimal(14, 2)
+  descuentoItem           Decimal  @db.Decimal(14, 2) @default(0)
+  montoLineaDevuelto      Decimal  @db.Decimal(14, 2)
+  motivo                  String?
+  observaciones           String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  DevolucionCliente       DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
+  VentaItem               VentaItem         @relation(fields: [ventaItemId], references: [id])
+  Producto                Producto          @relation(fields: [productoId], references: [id])
+
+  @@unique([devolucionClienteId, ventaItemId])
+  @@index([devolucionClienteId])
+  @@index([ventaItemId])
+}
+
+model Reembolso {
+  id                      String   @id @default(uuid())
+  devolucionClienteId     String   @unique
+  empresaId               String
+  referenceId             String?
+  estado                  EstadoReembolso     @default(PENDIENTE)
+  montoReembolsable       Decimal  @db.Decimal(14, 2)
+  montoActual             Decimal  @db.Decimal(14, 2)
+  metodoReembolso         String?
+  intentos                Int      @default(0)
+  ultimoIntento           DateTime?
+  proximoIntento          DateTime?
+  resultado               String?
+  motivoFalla             String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  procesadoEn             DateTime?
+
+  DevolucionCliente       DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
+  Empresa                 Empresa           @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, estado])
+  @@index([empresaId, createdAt])
+  @@index([estado, proximoIntento])
+}
+
 model DevolucionProveedor {
   id                      String                    @id
   empresaId               String
@@ -415,6 +505,7 @@ model Empresa {
   Conversation            Conversation[]
   CuentaCorriente         CuentaCorriente[]
   Deuda                   Deuda[]
+  DevolucionCliente       DevolucionCliente[]
   DevolucionProveedor     DevolucionProveedor[]
   Entrega                 Entrega[]
   Familia                 Familia[]
@@ -432,6 +523,7 @@ model Empresa {
   Producto                Producto[]
   ProductoProveedor       ProductoProveedor[]
   Proveedor               Proveedor[]
+  Reembolso               Reembolso[]
   RecepcionCompra         RecepcionCompra[]
   ReglaFidelizacion       ReglaFidelizacion[]
   Subfamilia              Subfamilia[]
@@ -803,6 +895,7 @@ model Producto {
   subtipoId               String
   CartItem                CartItem[]
   CompraItem              CompraItem[]
+  DevolucionClienteItem   DevolucionClienteItem[]
   DevolucionProveedorItem DevolucionProveedorItem[]
   Lote                    Lote[]
   MovimientoStock         MovimientoStock[]
@@ -1029,6 +1122,7 @@ model Usuario {
   Autorizacion                                     Autorizacion[]
   CierreCaja                                       CierreCaja[]
   Compra                                           Compra[]
+  DevolucionCliente                                DevolucionCliente[]   @relation("DevolucionCliente_creadoPorIdToUsuario")
   DevolucionProveedor                              DevolucionProveedor[]
   Entrega_Entrega_preparadorIdToUsuario            Entrega[]             @relation("Entrega_preparadorIdToUsuario")
   Entrega_Entrega_repartidorIdToUsuario            Entrega[]             @relation("Entrega_repartidorIdToUsuario")
@@ -1058,31 +1152,32 @@ model UsuarioPermiso {
 }
 
 model Venta {
-  id             String      @id
-  empresaId      String
-  usuarioId      String
-  clienteId      String?
-  canal          String
-  total          Decimal     @db.Decimal(14, 2)
-  descuento      Decimal     @default(0) @db.Decimal(14, 2)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime
-  estado         EstadoVenta @default(CONFIRMADA)
-  idempotencyKey String?     @unique
-  numero         Int?
-  AuditLog       AuditLog[]
-  Deuda          Deuda[]
-  Pago           Pago[]
-  Cliente        Cliente?    @relation(fields: [clienteId], references: [id])
-  Empresa        Empresa     @relation(fields: [empresaId], references: [id])
-  Usuario        Usuario     @relation(fields: [usuarioId], references: [id])
-  VentaItem      VentaItem[]
+  id                String               @id
+  empresaId         String
+  usuarioId         String
+  clienteId         String?
+  canal             String
+  total             Decimal     @db.Decimal(14, 2)
+  descuento         Decimal     @default(0) @db.Decimal(14, 2)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime
+  estado            EstadoVenta @default(CONFIRMADA)
+  idempotencyKey    String?     @unique
+  numero            Int?
+  AuditLog          AuditLog[]
+  Deuda             Deuda[]
+  DevolucionCliente DevolucionCliente[]
+  Pago              Pago[]
+  Cliente           Cliente?    @relation(fields: [clienteId], references: [id])
+  Empresa           Empresa     @relation(fields: [empresaId], references: [id])
+  Usuario           Usuario     @relation(fields: [usuarioId], references: [id])
+  VentaItem         VentaItem[]
 
   @@index([empresaId, numero])
 }
 
 model VentaItem {
-  id                              String             @id
+  id                              String                   @id
   ventaId                         String
   productoId                      String
   cantidad                        Decimal            @db.Decimal(14, 2)
@@ -1092,6 +1187,7 @@ model VentaItem {
   updatedAt                       DateTime
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
   reglaFidelizacionId             String?
+  DevolucionClienteItem           DevolucionClienteItem[]
   Producto                        Producto           @relation(fields: [productoId], references: [id])
   ReglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
   Venta                           Venta              @relation(fields: [ventaId], references: [id])
@@ -1100,6 +1196,22 @@ model VentaItem {
 enum CapabilityGrantType {
   GRANT
   DENY
+}
+
+enum EstadoDevolucion {
+  SOLICITADA
+  AUTORIZADA
+  RECIBIDA
+  PROCESADA
+}
+
+enum EstadoReembolso {
+  PENDIENTE
+  EN_PROCESO
+  EXITO
+  FALLIDO
+  RECHAZADO
+  PENDIENTE_MANUAL
 }
 
 enum EstadoCaja {
