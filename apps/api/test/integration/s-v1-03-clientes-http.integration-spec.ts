@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-03 — HTTP boundary of CLIENTES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). It goes through the
@@ -122,6 +123,7 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["clientes.gestionar"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -176,6 +178,7 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `${suffix}` } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -282,16 +285,19 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
     expect(row.nombre).toBe(name);
   });
 
-  it('SV3-H-09: POST sin permisos → 403 (PermissionsGuard legacy intacto)', async () => {
-    await request(BASE)
-      .post('/clientes')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send({ nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` })
-      .expect(403);
-    const exists = await prisma.cliente.findFirst({
-      where: { nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` },
+  it('SV3-H-09: POST sin asignación actual → 403 aunque el JWT no declare permisos', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['clientes.gestionar'], async () => {
+      await request(BASE)
+        .post('/clientes')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send({ nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` })
+        .expect(403);
+      const exists = await prisma.cliente.findFirst({
+        where: { nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` },
+      });
+      expect(exists).toBeNull();
+
     });
-    expect(exists).toBeNull();
   });
 
   it('SV3-H-10: legajo PENDIENTE sigue bloqueado por ApprovedDossierGuard', async () => {

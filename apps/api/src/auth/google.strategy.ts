@@ -5,6 +5,7 @@ import { Strategy, StrategyOptions, VerifyCallback, Profile } from 'passport-goo
 export interface GoogleProfile {
   googleId: string;
   email: string;
+  emailVerified: boolean;
   nombre: string;
   fotoUrl: string | null;
 }
@@ -45,9 +46,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       return;
     }
 
+    const emailVerified = profile._json?.email_verified === true;
+    if (!emailVerified) {
+      done(new Error('Google no confirmó que el email esté verificado'), false);
+      return;
+    }
+
     const googleProfile: GoogleProfile = {
       googleId: profile.id,
       email,
+      emailVerified,
       nombre: profile.displayName || email,
       fotoUrl: profile.photos?.[0]?.value ?? null,
     };

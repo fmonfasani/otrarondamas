@@ -473,8 +473,12 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     expect(row.estado).toBe('RECIBIDO');
   });
 
-  it('OBC-12: pedidos.gestionar is still required on the three handlers (PermissionsGuard intact)', () => {
-    const guard = new PermissionsGuard(new Reflector());
+  it('OBC-12: pedidos.gestionar is loaded from current DB assignments on the three handlers', async () => {
+    const findUnique = jest.fn();
+    const guard = new PermissionsGuard(
+      new Reflector(),
+      { usuario: { findUnique } } as unknown as PrismaService,
+    );
     const contextFor = (
       handler: (...args: never[]) => unknown,
       user: AuthenticatedUser,
@@ -487,14 +491,20 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
     const proto = OrdersController.prototype;
     for (const handler of [proto.list, proto.get, proto.updateStatus]) {
-      expect(() =>
+      findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
+      await expect(
         guard.canActivate(
-          contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] })),
+          contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: ['pedidos.gestionar'] })),
         ),
-      ).toThrow(ForbiddenException);
-      expect(guard.canActivate(contextFor(handler, sessionOf(usuarioA.id, companyA.id)))).toBe(
-        true,
-      );
+      ).rejects.toThrow(ForbiddenException);
+
+      findUnique.mockResolvedValue({
+        activo: true,
+        usuarioPermisos: [{ permiso: { nombre: 'pedidos.gestionar' } }],
+      });
+      await expect(
+        guard.canActivate(contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] }))),
+      ).resolves.toBe(true);
     }
   });
 

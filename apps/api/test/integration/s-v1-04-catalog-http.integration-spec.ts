@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-04 — HTTP boundary of CATALOG against the REAL compiled stack
 // (dist/src/main.js, the same production binary). It goes through the
@@ -194,6 +195,7 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["productos.gestionar"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -274,6 +276,7 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `${suffix}` } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -520,14 +523,17 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('SV4-H-17: POST sin permisos → 403 (PermissionsGuard legacy intacto)', async () => {
-    await request(BASE)
-      .post('/catalogo/productos')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send(dtoOfA(`H17-${suffix}`))
-      .expect(403);
-    expect(
-      await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
-    ).toBeNull();
+  it('SV4-H-17: POST sin asignación actual → 403 aunque el JWT no declare permisos', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['productos.gestionar'], async () => {
+      await request(BASE)
+        .post('/catalogo/productos')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send(dtoOfA(`H17-${suffix}`))
+        .expect(403);
+      expect(
+        await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
+      ).toBeNull();
+
+    });
   });
 });

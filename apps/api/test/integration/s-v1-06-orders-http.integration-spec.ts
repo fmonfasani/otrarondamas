@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-06 — HTTP boundary of ORDERS against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -221,6 +222,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["pedidos.gestionar"]);
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
@@ -268,7 +270,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     server = spawn('node', ['dist/src/main.js'], {
       cwd: process.cwd(),
-      env: { ...process.env, PORT },
+      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
       stdio: 'ignore',
     });
     await waitPort(Number(PORT));
@@ -288,10 +290,67 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();
+  });
+
+  it('P1.3 E2E: public store → order inbox → confirm → stock movement exactly once', async () => {
+    const product = await mkProduct(companyA.id, hierA);
+    const batch = await mkBatch(companyA.id, product.id, 10);
+    const startingQuantity = await batchQuantity(batch.id);
+    const buyerEmail = `p1-3-e2e-${suffix}@example.test`;
+
+    // Buyer places an order through the same public endpoint consumed by the
+    // online storefront; no order rows are inserted directly by the test.
+    const placed = await request(BASE)
+      .post('/tienda/pedidos')
+      .send({
+        nombre: 'P1.3 E2E Buyer',
+        email: buyerEmail,
+        items: [{ productoId: product.id, cantidad: 2 }],
+      })
+      .expect(201);
+
+    expect(placed.body).toMatchObject({
+      estado: 'RECIBIDO',
+      canalOrigen: 'web',
+      total: '20',
+    });
+    const orderId = placed.body.id as string;
+    const storedBefore = await prisma.pedido.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { pedidoItems: true },
+    });
+    expect(storedBefore.empresaId).toBe(companyA.id);
+    expect(storedBefore.pedidoItems).toHaveLength(1);
+    expect(storedBefore.pedidoItems[0].productoId).toBe(product.id);
+    expect(Number(storedBefore.pedidoItems[0].cantidad)).toBe(2);
+    expect(await batchQuantity(batch.id)).toBe(startingQuantity);
+
+    // Seller takes the order through the authenticated operational endpoint.
+    const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`;
+    const confirmed = await request(BASE)
+      .patch(`/pedidos/${orderId}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'CONFIRMADO' })
+      .expect(200);
+
+    expect(confirmed.body.estado).toBe('CONFIRMADO');
+    expect(confirmed.body.usuarioId).toBe(legacyUserA.id);
+    expect(await batchQuantity(batch.id)).toBe(startingQuantity - 2);
+    expect(await movementCount(orderId)).toBe(1);
+
+    // Retry must not deduct inventory again.
+    await request(BASE)
+      .patch(`/pedidos/${orderId}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'CONFIRMADO' })
+      .expect(400);
+    expect(await batchQuantity(batch.id)).toBe(startingQuantity - 2);
+    expect(await movementCount(orderId)).toBe(1);
   });
 
   it('SV6-H-01: sin token → 401 (JwtAuthGuard global intacto)', async () => {
@@ -528,6 +587,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
   it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
     const product = await mkProduct(companyA.id, hierA);
+    const batch = await mkBatch(companyA.id, product.id, 10);
     const order = await mkOrder(companyA.id, customerA.id, [
       { productId: product.id, quantity: 2 },
     ]);
@@ -544,26 +604,30 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       include: { pedidoItems: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
+    expect(await batchQuantity(batch.id)).toBe(8);
     expect(await movementCount(order.id)).toBe(1);
   });
 
-  it('SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const orderA = await mkOrder(companyA.id, customerA.id, [
-      { productId: productA.id, quantity: 1 },
-    ]);
-    const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`;
+  it('SV6-H-11: sin asignación actual → 403 en los tres endpoints y no persiste', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['pedidos.gestionar'], async () => {
+      const productA = await mkProduct(companyA.id, hierA);
+      const orderA = await mkOrder(companyA.id, customerA.id, [
+        { productId: productA.id, quantity: 1 },
+      ]);
+      const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`;
 
-    await request(BASE).get('/pedidos').set('Authorization', auth).expect(403);
-    await request(BASE).get(`/pedidos/${orderA.id}`).set('Authorization', auth).expect(403);
-    await request(BASE)
-      .patch(`/pedidos/${orderA.id}/estado`)
-      .set('Authorization', auth)
-      .send({ estado: 'CANCELADO' })
-      .expect(403);
+      await request(BASE).get('/pedidos').set('Authorization', auth).expect(403);
+      await request(BASE).get(`/pedidos/${orderA.id}`).set('Authorization', auth).expect(403);
+      await request(BASE)
+        .patch(`/pedidos/${orderA.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'CANCELADO' })
+        .expect(403);
 
-    const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
-    expect(row.estado).toBe('RECIBIDO');
+      const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
+      expect(row.estado).toBe('RECIBIDO');
+
+    });
   });
 
   it('SV6-H-12: sin Membership ACTIVE o SUSPENDED → 403 fail-closed', async () => {

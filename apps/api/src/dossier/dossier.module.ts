@@ -3,9 +3,10 @@ import { DossierController } from './dossier.controller';
 import { CustomerDossierController } from './dossier.customer.controller';
 import { DossierService } from './dossier.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BusinessContextModule } from '../business-context/business-context.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, BusinessContextModule],
   controllers: [DossierController, CustomerDossierController],
   providers: [DossierService],
   // InvitationsModule needs verifyRoleComplete() when activating an invited

@@ -26,16 +26,14 @@ Identify the smallest proven cause of a failing check and produce a safe, testab
    - For local failures, record the exact command, exit code, first meaningful error, and relevant stack/assertion.
    - If evidence is unavailable, report the task as BLOCKED rather than inferring the failure.
 
-3. **Classify**
-   Choose one primary category and note secondary factors:
-   - application implementation defect
-   - incorrect or stale test/fixture
-   - ambiguous or violated business/API contract
-   - database integrity, transaction, migration, or cleanup issue
-   - dependency, toolchain, generated-client, or lockfile issue
-   - missing service, environment, or configuration
-   - flaky/order-dependent test
-   - external CI/provider failure
+3. **Assign exactly one primary classification**
+   - **Implementation error** — changed or existing application code violates its required behavior or contract.
+   - **Test error** — assertion, fixture, mock, selector, or test setup is incorrect or stale relative to the approved contract.
+   - **Infrastructure problem** — runner, database service, network, provider, resource exhaustion, or external CI service fails independently of product/test logic.
+   - **Dependency or configuration** — incompatible/missing package, lockfile, runtime/toolchain, environment variable, generated client, or workflow configuration.
+   - **Regression** — behavior that previously passed or was explicitly supported now fails because of a change. Record the suspected introducing commit when evidence permits.
+
+   Add a secondary subtype where useful (for example: DB transaction/cleanup, API contract, flaky/order-dependent test, migration, or authorization). Do not use a secondary subtype instead of the five primary classes. If evidence cannot distinguish categories, mark the classification **provisional** and state what evidence is missing.
 
 4. **Trace causality**
    - Follow the failing path through test setup, request/DTO validation, controller, service, persistence, and teardown as applicable.
@@ -51,7 +49,7 @@ Identify the smallest proven cause of a failing check and produce a safe, testab
    - Do not edit assertions or fixtures merely to turn a check green.
 
 6. **Recommend remediation**
-   - State root cause only when the evidence links the observed failure to a specific code path or environment condition.
+   - State root cause only when evidence links the observed failure to a specific code path or environment condition.
    - Label unproven explanations as hypotheses.
    - Propose the smallest change, affected files, regression test, and exact validation commands.
    - Separate code fixes from environment fixes and business decisions requiring owner authorization.
@@ -60,10 +58,10 @@ Identify the smallest proven cause of a failing check and produce a safe, testab
 - Branch and failing SHA.
 - Workflow/run/job/step or exact local command and exit code.
 - Failure observation and source evidence.
-- Classification and proven root cause, or explicit hypotheses/blocker.
+- **Primary classification** (one of the five categories above), secondary subtype if useful, and proven root cause or explicit hypothesis/blocker.
 - Minimal remediation plan and regression coverage.
 - Checks passed, failed, skipped, and not run.
 - Status: **PASS**, **FAIL**, or **BLOCKED**, scoped to the specific check.
 
 ## Completion rule
-A successful focused test does not establish that the whole workflow or release gate is closed. Report only the checks supported by actual evidence.
+A successful focused test does not establish that the whole workflow or release gate is closed. Report only the checks supported by actual evidence. Do not rerun successful jobs just because a different job failed; rerun only failed jobs when a retry is justified by the classified cause.

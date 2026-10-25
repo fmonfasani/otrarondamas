@@ -55,40 +55,51 @@ jobs:
       DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: '**/package-lock.json'
 
-      - run: npm ci --ignore-scripts
 
+      - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
       - run: npm run prisma:generate --workspace=@otrarondamas/api
 
-      # Build gate: `nest build` compiles src/ via tsconfig.build.json and
-      # fails on any TypeScript error. It runs BEFORE db push and the test
-      # suites so a compile error fails fast, without spending database
-      # time. Non-mutating: output goes to the gitignored dist/ and no
-      # source file is rewritten (unlike `npm run lint`, which is
-      # `eslint --fix` and is deliberately NOT part of this gate).
-      - run: npm run build --workspace=@otrarondamas/api
+      # B4 owns the build and complete unit suite for pull requests and main.
+      # Keep those checks here only for direct pushes to candidate/chore branches,
+      # where B4 is not guaranteed to run. This removes duplicate work on PRs
+      # without weakening the pre-merge gate.
+      - name: Build API on candidate branch pushes
+        if: github.event_name == 'push'
+        run: npm run build --workspace=@otrarondamas/api
 
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
-      - run: npm test --workspace=@otrarondamas/api -- --maxWorkers=50%
 
-      - name: Discover and run B3 tenant isolation candidate suites
-        run: |
-          cd apps/api
-          mapfile -t test_files < <(
-            find test/integration -maxdepth 1 -type f -name 'b3-*.integration-spec.ts' | sort
-          )
-          if [ "${#test_files[@]}" -eq 0 ]; then
-            echo "No B3 integration tests found."
-            exit 1
-          fi
-          printf 'Running %d B3 candidate suites:\n' "${#test_files[@]}"
-          printf '  %s\n' "${test_files[@]}"
-          npm run test:integration -- --maxWorkers=50% "${test_files[@]}"
+      - name: Run unit suite on candidate branch pushes
+        if: github.event_name == 'push'
+        run: npm test --workspace=@otrarondamas/api -- --runInBand
+
+      # One Jest process for all candidate specs avoids repeating Jest startup
+      # and ts-jest initialization for each file. The full file list remains explicit.
+      - name: Run B3 tenant and relation candidates
+        run: >-
+          npm run test:integration --workspace=@otrarondamas/api --
+          --runInBand
+          test/integration/b3-tenant-isolation.integration-spec.ts
+          test/integration/b3-producto-familia.integration-spec.ts
+          test/integration/b3-producto-proveedor.integration-spec.ts
+          test/integration/b3-lote-producto.integration-spec.ts
+          test/integration/b3-producto-subfamilia.integration-spec.ts
+          test/integration/b3-producto-tipo.integration-spec.ts
+          test/integration/b3-producto-subtipo.integration-spec.ts
+          test/integration/b3-iso-006.integration-spec.ts
+          test/integration/b3-provider-payment-return-characterization.integration-spec.ts
+          test/integration/b3-devolucion-proveedor-item.integration-spec.ts
+          test/integration/b3-movimientostock-producto.integration-spec.ts
+          test/integration/b3-reglafidelizacion-subtipo.integration-spec.ts
+          test/integration/b3-reglafidelizacion-familia.integration-spec.ts
+          test/integration/b3-reglafidelizacion-subfamilia.integration-spec.ts
+

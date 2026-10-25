@@ -4,6 +4,7 @@ import type {
   Proveedor,
   Compra,
   Producto,
+  Lote,
   CreateCompraItemRequest,
   RecibirCompraItemRequest,
   PagoProveedor,
@@ -75,6 +76,8 @@ export function ComprasPage() {
     { productoId: '', cantidad: 1, costoUnitario: 0 },
   ]);
   const [busquedasItemDev, setBusquedasItemDev] = useState<string[]>(['']);
+  const [lotesPorProductoDev, setLotesPorProductoDev] = useState<Record<string, Lote[]>>({});
+  const [cargandoLotesDev, setCargandoLotesDev] = useState<Record<string, boolean>>({});
   const [registrandoDevolucion, setRegistrandoDevolucion] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -240,7 +243,13 @@ export function ComprasPage() {
   ) {
     setItemsDev((prev) =>
       prev.map((item, i) =>
-        i === index ? { ...item, [campo]: campo === 'productoId' ? valor : Number(valor) } : item,
+        i === index
+          ? {
+              ...item,
+              [campo]: campo === 'productoId' || campo === 'loteId' ? valor : Number(valor),
+              ...(campo === 'productoId' ? { loteId: undefined } : {}),
+            }
+          : item,
       ),
     );
   }
@@ -253,6 +262,20 @@ export function ComprasPage() {
     setBusquedasItemDev((prev) => prev.map((b, i) => (i === index ? producto.nombre : b)));
     setSugerenciasDevolucion([]);
     setBusquedaActivaDevIndex(null);
+    void cargarLotesDevolucion(producto.id);
+  }
+
+  async function cargarLotesDevolucion(productoId: string) {
+    if (productoId in lotesPorProductoDev || cargandoLotesDev[productoId]) return;
+    setCargandoLotesDev((prev) => ({ ...prev, [productoId]: true }));
+    try {
+      const lotes = await api.listarLotesProducto(productoId);
+      setLotesPorProductoDev((prev) => ({ ...prev, [productoId]: lotes }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los lotes del producto');
+    } finally {
+      setCargandoLotesDev((prev) => ({ ...prev, [productoId]: false }));
+    }
   }
 
   async function buscarProductoDevolucion(busqueda: string, index: number) {
@@ -853,6 +876,28 @@ export function ComprasPage() {
                                           </ul>
                                         )}
                                     </div>
+                                    {item.productoId && (
+                                      <select
+                                        aria-label="Lote manual para devolución"
+                                        value={item.loteId ?? ''}
+                                        onFocus={() => void cargarLotesDevolucion(item.productoId)}
+                                        onChange={(e) => actualizarItemDev(idx, 'loteId', e.target.value)}
+                                        className="w-36 px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                      >
+                                        <option value="">
+                                          {cargandoLotesDev[item.productoId]
+                                            ? 'Cargando lotes...'
+                                            : 'Lote automático'}
+                                        </option>
+                                        {(lotesPorProductoDev[item.productoId] ?? [])
+                                          .filter((lote) => Number(lote.cantidad) > 0)
+                                          .map((lote) => (
+                                            <option key={lote.id} value={lote.id}>
+                                              {lote.numeroLote} · stock {lote.cantidad}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    )}
                                     <input
                                       type="number"
                                       placeholder="Cant."

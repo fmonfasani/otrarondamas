@@ -1,12 +1,10 @@
 /**
  * Payload embedded in the JWT issued by /auth/login.
- * `permisos` travels as a list of names (e.g. 'caja.gastos') so that
- * PermissionsGuard does not need to query the database again on every
- * request.
- * Note: if a permission is revoked, the change is not reflected until
- * the user logs in again (the token is not invalidated immediately).
- * It is a known limitation of the 'permissions in the token' approach,
- * acceptable for this increment; there is no revocation mechanism yet.
+ * `permisos` remains for backwards compatibility with existing clients,
+ * but it is not an authorization source of truth: PermissionsGuard and
+ * GET /auth/me load current assignments from the database on each request.
+ * Other claims such as dossier status may remain stale until the next login;
+ * their enforcement and revocation semantics are tracked separately.
  */
 // RF-17 (docs/spec-login-roles.md): same values as the Prisma enum
 // UserRole — repeated here instead of importing @prisma/client so as

@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of INVENTORY against the REAL compiled stack
 // (dist/src/main.js, the same production binary). It goes through the
@@ -127,6 +128,7 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["inventario.ajustes"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -261,6 +263,7 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `inv-http-${suffix}` } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -342,23 +345,26 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     expect(Number(movements[0].cantidad)).toBe(5);
   });
 
-  it('SV5I-H-06: POST sin permiso inventario.ajustes → 403 y no cambia el lote', async () => {
-    const before = await prisma.lote.findUniqueOrThrow({
-      where: { id: batchA.id },
-      select: { cantidad: true },
-    });
+  it('SV5I-H-06: POST sin asignación actual → 403 y no cambia el lote', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['inventario.ajustes'], async () => {
+      const before = await prisma.lote.findUniqueOrThrow({
+        where: { id: batchA.id },
+        select: { cantidad: true },
+      });
 
-    await request(BASE)
-      .post('/inventario/ajustes')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send({ loteId: batchA.id, cantidad: 5, motivo: 'no debería entrar' })
-      .expect(403);
+      await request(BASE)
+        .post('/inventario/ajustes')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send({ loteId: batchA.id, cantidad: 5, motivo: 'no debería entrar' })
+        .expect(403);
 
-    const after = await prisma.lote.findUniqueOrThrow({
-      where: { id: batchA.id },
-      select: { cantidad: true },
+      const after = await prisma.lote.findUniqueOrThrow({
+        where: { id: batchA.id },
+        select: { cantidad: true },
+      });
+      expect(Number(after.cantidad)).toBe(Number(before.cantidad));
+
     });
-    expect(Number(after.cantidad)).toBe(Number(before.cantidad));
   });
 
   it('SV5I-H-07: ajuste cross-tenant sobre lote de B → 404 y B no cambia', async () => {
