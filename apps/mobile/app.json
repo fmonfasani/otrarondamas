@@ -1,0 +1,19 @@
+{
+  "name": "wapsell-mobile",
+  "displayName": "Wapsell",
+  "version": "0.1.0",
+  "description": "Wapsell Mobile App - iOS and Android",
+  "keywords": ["wapsell", "mobile", "react-native", "ecommerce"],
+  "author": "Wapsell Team",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\""
+  }
+}

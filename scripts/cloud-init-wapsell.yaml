@@ -1,0 +1,254 @@
+#cloud-config
+# Wapsell Cloud-Init Configuration for Hetzner Cloud
+#
+# INSTRUCTIONS:
+# 1. In Hetzner Console, create a new VPS
+# 2. Scroll down to "User data" field
+# 3. Copy and paste this entire file (starting with #cloud-config)
+# 4. The script will auto-run when the server boots
+#
+# Estimated execution time: 3-5 minutes
+# You will see "Wapsell VPS ready" when complete
+
+hostname: wapsell-prod
+locale: en_US.UTF-8
+timezone: America/Buenos_Aires
+
+# System packages to install
+packages:
+  - curl
+  - wget
+  - git
+  - docker.io
+  - docker-compose
+  - htop
+  - jq
+  - certbot
+  - python3-certbot-nginx
+  - unzip
+  - build-essential
+  - libssl-dev
+  - pkg-config
+
+# Commands to run after boot
+runcmd:
+  # Update system
+  - apt-get update && apt-get upgrade -y
+  - systemctl daemon-reload
+
+  # Add root to docker group
+  - usermod -aG docker root
+
+  # Create required directories with proper permissions
+  - mkdir -p /opt/wapsell
+  - mkdir -p /data/wapsell/{postgres,redis,elasticsearch,logs/api,assets}
+  - chmod 755 -R /opt/wapsell
+  - chmod 755 -R /data/wapsell
+
+  # UFW Firewall configuration
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp      # SSH
+  - ufw allow 80/tcp      # HTTP
+  - ufw allow 443/tcp     # HTTPS
+  - ufw enable -y
+
+  # Clone Wapsell repository
+  - cd /opt/wapsell
+  - git clone https://github.com/wapsell/platform.git . 2>/dev/null || git pull origin main
+  - git checkout main
+  - git pull origin main
+
+  # Make scripts executable
+  - chmod +x /opt/wapsell/scripts/*.sh
+
+  # Configure Docker daemon for optimal performance
+  - mkdir -p /etc/docker
+  - |
+    cat > /etc/docker/daemon.json << 'DOCKER_CONFIG'
+    {
+      "storage-driver": "overlay2",
+      "log-driver": "json-file",
+      "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+      },
+      "live-restore": true,
+      "restart-policy": {
+        "Name": "unless-stopped",
+        "MaximumRetryCount": 5
+      }
+    }
+DOCKER_CONFIG
+  - systemctl restart docker
+  - docker --version
+
+  # Verify Docker is running
+  - systemctl is-active --quiet docker && echo "Docker is running" || systemctl start docker
+
+  # Create a startup script that can be run manually
+  - |
+    cat > /opt/wapsell/START.sh << 'START_SCRIPT'
+    #!/bin/bash
+    echo "Starting Wapsell services..."
+    cd /opt/wapsell
+    docker-compose -f docker-compose.wapsell.yml up -d
+    echo "Services started. Check status with: docker-compose ps"
+START_SCRIPT
+  - chmod +x /opt/wapsell/START.sh
+
+  # Create diagnostic script
+  - |
+    cat > /opt/wapsell/DIAGNOSE.sh << 'DIAG_SCRIPT'
+    #!/bin/bash
+    echo "=== Wapsell Diagnostics ==="
+    echo ""
+    echo "Docker version:"
+    docker --version
+    echo ""
+    echo "Docker Compose version:"
+    docker-compose --version
+    echo ""
+    echo "Disk usage:"
+    df -h /
+    echo ""
+    echo "Memory usage:"
+    free -h
+    echo ""
+    echo "System uptime:"
+    uptime
+    echo ""
+    echo "Network interfaces:"
+    hostname -I
+DIAG_SCRIPT
+  - chmod +x /opt/wapsell/DIAGNOSE.sh
+
+# Write files for reference
+write_files:
+  - path: /opt/wapsell/CLOUD-INIT-README.md
+    permissions: '0644'
+    content: |
+      # Wapsell Cloud-Init Setup Complete
+
+      Your Hetzner VPS has been configured with:
+
+      ## Installed Components
+      - Docker & Docker Compose
+      - Git
+      - PostgreSQL (in container)
+      - Redis (in container)
+      - Elasticsearch (in container)
+      - NestJS API (in container)
+
+      ## What's Next
+
+      1. **From your local machine**, run the deployment script:
+         ```bash
+         export PROD_HOST=<your-vps-ip>
+         export SSH_KEY=~/.ssh/id_wapsell
+         ./scripts/deployment-hetzner.sh $PROD_HOST $SSH_KEY deploy
+         ```
+
+      2. **Monitor the deployment** (takes 15-25 minutes):
+         ```bash
+         ./scripts/deployment-hetzner.sh $PROD_HOST $SSH_KEY logs
+         ```
+
+      3. **Verify everything is running**:
+         ```bash
+         ./scripts/deployment-hetzner.sh $PROD_HOST $SSH_KEY verify
+         ```
+
+      ## Troubleshooting
+
+      If you need to diagnose issues:
+      ```bash
+      ssh -i ~/.ssh/id_wapsell root@<your-vps-ip> "bash /opt/wapsell/DIAGNOSE.sh"
+      ```
+
+      ## Important Files
+
+      - `/opt/wapsell/` - Main application directory
+      - `/data/wapsell/` - Persistent data (databases, cache, search index)
+      - `/etc/docker/daemon.json` - Docker configuration
+
+      ## Directories Created
+
+      ```
+      /opt/wapsell/
+        ├── docker-compose.wapsell.yml
+        ├── scripts/
+        │   ├── deployment-hetzner.sh
+        │   ├── health-check.sh
+        │   └── setup-ssl.sh
+        └── apps/
+            ├── api/
+            └── web/
+
+      /data/wapsell/
+        ├── postgres/          (database files)
+        ├── redis/             (cache files)
+        ├── elasticsearch/     (search index)
+        ├── logs/api/          (application logs)
+        └── assets/            (uploaded files)
+      ```
+
+      ## Firewall Status
+
+      Your UFW firewall allows:
+      - Port 22 (SSH) - for remote access
+      - Port 80 (HTTP) - for web traffic
+      - Port 443 (HTTPS) - for secure web traffic
+
+      All other ports are blocked by default.
+
+      ## Docker Service Management
+
+      ```bash
+      # View running services
+      docker-compose -f /opt/wapsell/docker-compose.wapsell.yml ps
+
+      # View logs
+      docker-compose -f /opt/wapsell/docker-compose.wapsell.yml logs -f api
+
+      # Stop all services
+      docker-compose -f /opt/wapsell/docker-compose.wapsell.yml down
+
+      # Start all services
+      docker-compose -f /opt/wapsell/docker-compose.wapsell.yml up -d
+      ```
+
+      ---
+
+      **Setup completed**: $(date)
+      **Next step**: Run deployment-hetzner.sh from your local machine
+
+# Final message shown when cloud-init completes
+final_message: |
+  ╔════════════════════════════════════════════════════════════════╗
+  ║        Wapsell VPS Initialization Complete! ✅                 ║
+  ║                                                                ║
+  ║  Your Hetzner Cloud VPS is ready for deployment.              ║
+  ║                                                                ║
+  ║  Next Steps:                                                   ║
+  ║  1. From your local machine, run:                             ║
+  ║     ./scripts/deployment-hetzner.sh <YOUR_IP> <SSH_KEY> deploy║
+  ║                                                                ║
+  ║  2. Monitor progress:                                          ║
+  ║     ./scripts/deployment-hetzner.sh <YOUR_IP> <SSH_KEY> logs  ║
+  ║                                                                ║
+  ║  Documentation:                                                ║
+  ║    • docs/HETZNER-QUICK-SETUP.md (Step-by-step guide)        ║
+  ║    • docs/DEPLOYMENT.md (Detailed guide)                      ║
+  ║    • /opt/wapsell/CLOUD-INIT-README.md (On your VPS)        ║
+  ║                                                                ║
+  ║  Your VPS IP:  (Check Hetzner Console)                       ║
+  ║  SSH Key:      ~/.ssh/id_wapsell                             ║
+  ║  User:         root                                            ║
+  ║                                                                ║
+  ║  Hostname:     wapsell-prod                                   ║
+  ║  Timezone:     America/Buenos_Aires                           ║
+  ║                                                                ║
+  ║  ⏱️  Estimated deployment time: 15-25 minutes                 ║
+  ║                                                                ║
+  ╚════════════════════════════════════════════════════════════════╝

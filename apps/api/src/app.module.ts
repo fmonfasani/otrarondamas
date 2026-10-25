@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { I18nModule } from './i18n/i18n.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SalesModule } from './sales/sales.module';
@@ -28,6 +29,9 @@ import { AuditModule } from './audit/audit.module';
 import { RefundQueueModule } from './refunds/refund-queue.module';
 import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SearchModule } from './search/search.module';
+import { AssetsModule } from './assets/assets.module';
+import { SeoModule } from './seo/seo.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
@@ -35,6 +39,8 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
 @Module({
   imports: [
     PrismaModule,
+    // P13-1: Internationalization (i18n) - Multi-language support
+    I18nModule,
     AuthModule,
     CatalogModule,
     SalesModule,
@@ -69,6 +75,12 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     SMSNotificationsModule,
     // P8-4: Notification Preferences & Digest Implementation
     NotificationsModule,
+    // P14-1: Full-Text Search with Elasticsearch
+    SearchModule,
+    // P12-1: CDN Infrastructure - Asset Management Service
+    AssetsModule,
+    // P15-1: SEO & Metadata - OG tags, JSON-LD, sitemaps
+    SeoModule,
   ],
   controllers: [AppController],
   providers: [
