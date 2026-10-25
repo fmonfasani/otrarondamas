@@ -1,0 +1,129 @@
+name: Messaging Browser E2E
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'apps/pos-admin/**'
+      - 'packages/shared-types/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.mjs'
+      - 'tests/e2e/**'
+      - '.github/workflows/messaging-browser-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'apps/pos-admin/**'
+      - 'packages/shared-types/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.mjs'
+      - 'tests/e2e/**'
+      - '.github/workflows/messaging-browser-e2e.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: messaging-browser-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-e2e:
+    name: Real API + Chromium browser persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      JWT_SECRET: s-v1-ci-only-jwt-secret
+      GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+      GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+      GOOGLE_CALLBACK_URL: http://127.0.0.1:3000/auth/google/callback
+      FRONTEND_URL: http://127.0.0.1:5173
+      CORS_ORIGINS: http://127.0.0.1:5173
+      PORT: 3000
+      VITE_API_URL: http://127.0.0.1:3000
+    steps:
+      - name: Checkout target SHA
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install application workspaces
+        run: npm ci --workspace=@otrarondamas/api --workspace=@otrarondamas/pos-admin --workspace=@otrarondamas/shared-types --include-workspace-root
+
+      - name: Install Playwright test runner without changing the lockfile
+        run: npm install --no-save --package-lock=false @playwright/test
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate Prisma client and build applications
+        run: |
+          npm run prisma:generate --workspace=@otrarondamas/api
+          npm run build --workspace=@otrarondamas/api
+          npm run build --workspace=@otrarondamas/pos-admin
+
+      - name: Prepare isolated test database
+        run: |
+          ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+          npm run prisma:seed --workspace=@otrarondamas/api
+          cd apps/api
+          npx ts-node prisma/seed-e2e-messaging.ts
+
+      - name: Start API and frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          (npm run start --workspace=@otrarondamas/api > /tmp/messaging-e2e-api.log 2>&1 & echo $! > /tmp/messaging-e2e-api.pid)
+          (npm run dev --workspace=@otrarondamas/pos-admin -- --host 127.0.0.1 --port 5173 > /tmp/messaging-e2e-vite.log 2>&1 & echo $! > /tmp/messaging-e2e-vite.pid)
+
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:3000/api/docs >/dev/null &&
+               curl --silent --fail http://127.0.0.1:5173/login >/dev/null; then
+              echo "API and frontend are accepting requests."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "API or frontend did not become ready."
+          cat /tmp/messaging-e2e-api.log || true
+          cat /tmp/messaging-e2e-vite.log || true
+          exit 1
+
+      - name: Run browser E2E against real API
+        run: npx playwright test --config=playwright.config.mjs
+
+      - name: Upload browser evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: messaging-browser-e2e-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/messaging-browser-e2e/
+            /tmp/messaging-e2e-api.log
+            /tmp/messaging-e2e-vite.log
+          if-no-files-found: warn
+          retention-days: 14
