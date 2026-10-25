@@ -35,23 +35,42 @@ jobs:
           cache: npm
       - name: Run Engineering Kit smoke tests
         run: node --test tools/engineering/test/smoke.test.js
-      - run: npm ci
+      - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npm run build --workspace=@otrarondamas/api
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
       - run: npm test --workspace=@otrarondamas/api -- --runInBand
-      - name: Run existing tenant isolation regression suite
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/tenant-isolation.integration-spec.ts
-      - name: Run S-V1 verification suites
+
+      # Run the tenant, S-V1, FS-1a and messaging HTTP integration suites in
+      # one Jest process. The previous separate invocations repeated Jest and
+      # ts-jest startup; discovery remains explicit and fails closed if empty.
+      - name: Run API integration verification suites
         env:
           JWT_SECRET: s-v1-ci-only-jwt-secret
           GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
           GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
           GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          'test/integration/(s-v1-|fs-1a-|messaging-http).*\.integration-spec\.ts'
+        shell: bash
+        run: |
+          cd apps/api
+
+          mapfile -t discovered_test_files < <(
+            find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \) -print | sort
+          )
+
+          if [ "${#discovered_test_files[@]}" -eq 0 ]; then
+            echo "No S-V1, FS-1a, or messaging HTTP integration tests found."
+            exit 1
+          fi
+          if [ ! -f test/integration/tenant-isolation.integration-spec.ts ]; then
+            echo "Required tenant isolation regression test is missing."
+            exit 1
+          fi
+
+          mapfile -t test_files < <(
+            printf '%s\n' test/integration/tenant-isolation.integration-spec.ts "${discovered_test_files[@]}" | sort -u
+          )
+
+          printf 'Running %d API integration test files in one Jest process:\n' "${#test_files[@]}"
+          printf '  %s\n' "${test_files[@]}"
+          npm run test:integration -- --runInBand "${test_files[@]}"
