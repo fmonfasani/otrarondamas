@@ -23,6 +23,9 @@ import { MembershipModule } from './membership/membership.module';
 import { MembershipRevocationModule } from './membership/membership-revocation.module';
 import { BusinessContextModule } from './business-context/business-context.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { DevolucionesModule } from './devoluciones/devoluciones.module';
+import { AuditModule } from './audit/audit.module';
+import { RefundQueueModule } from './refunds/refund-queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
@@ -54,6 +57,12 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     BusinessContextModule,
     // M1: Messaging module boundary; domain capabilities are introduced in later milestones.
     MessagingModule,
+    // P3-2: Devoluciones (Returns) API
+    DevolucionesModule,
+    // P3-3: Refund Queue & Async Execution
+    RefundQueueModule,
+    // P4-3: Audit Log Reporting API
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [
