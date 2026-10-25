@@ -55,8 +55,18 @@ jobs:
           cd apps/api
 
           mapfile -t test_files < <(
-            find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'p*.integration-spec.ts' -o -name 'c5b-*.integration-spec.ts' -o -name 'f*.integration-spec.ts' -o -name 'tenant-isolation.integration-spec.ts' -o -name '*-participation.integration-spec.ts' -o -name 'store-*.integration-spec.ts' \) | sort
+            find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'p*.integration-spec.ts' -o -name 'c5b-*.integration-spec.ts' -o -name 'b3-*.integration-spec.ts' -o -name 'f*.integration-spec.ts' -o -name 'tenant-isolation.integration-spec.ts' -o -name '*-participation.integration-spec.ts' -o -name 'store-*.integration-spec.ts' \) | sort
           )
+
+          if [ ! -f test/integration/tenant-isolation.integration-spec.ts ]; then
+            echo "Required tenant isolation regression test is missing."
+            exit 1
+          fi
+
+          if [ ! -f test/integration/b3-tenant-isolation.integration-spec.ts ]; then
+            echo "Required B3 tenant isolation regression test is missing."
+            exit 1
+          fi
 
           if [ "${#test_files[@]}" -eq 0 ]; then
             echo "No integration tests found."
