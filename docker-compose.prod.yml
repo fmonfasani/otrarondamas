@@ -72,7 +72,7 @@ services:
       context: .
       dockerfile: apps/pos-admin/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL_ADMIN:?falta VITE_API_URL_ADMIN en .env}
+        VITE_API_URL: ${VITE_API_URL_ADMIN:-https://api.otrarondamas.wapsell.com/businesses/otrarondamas/api}
     restart: always
     depends_on:
       - api
@@ -87,7 +87,7 @@ services:
       context: .
       dockerfile: apps/tienda-online/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL_TIENDA:?falta VITE_API_URL_TIENDA en .env}
+        VITE_API_URL: ${VITE_API_URL_TIENDA:-https://api.otrarondamas.wapsell.com/businesses/otrarondamas/api}
     restart: always
     depends_on:
       - api
