@@ -29,4 +29,28 @@ describe('AuthGoogleService verified email boundary', () => {
 
     expect(findUnique).not.toHaveBeenCalled();
   });
+
+  it('does not self-register a staff identity when no invited/existing account matches Google', async () => {
+    const findUnique = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    const prisma = {
+      usuario: { findUnique, create: jest.fn() },
+    } as unknown as PrismaService;
+    const issueSession = jest.fn();
+    const authService = { issueSession } as unknown as AuthService;
+    const service = new AuthGoogleService(prisma, authService);
+
+    await expect(
+      service.loginWithGoogle({
+        googleId: 'google-uninvited-user',
+        email: 'uninvited@example.com',
+        emailVerified: true,
+        nombre: 'Uninvited User',
+        fotoUrl: null,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(findUnique).toHaveBeenCalledTimes(2);
+    expect(prisma.usuario.create).not.toHaveBeenCalled();
+    expect(issueSession).not.toHaveBeenCalled();
+  });
 });
