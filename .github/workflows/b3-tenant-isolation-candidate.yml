@@ -65,98 +65,37 @@ jobs:
 
       - run: npm run prisma:generate --workspace=@otrarondamas/api
 
-      # Build gate: `nest build` compiles src/ via tsconfig.build.json and
-      # fails on any TypeScript error. It runs BEFORE db push and the test
-      # suites so a compile error fails fast, without spending database
-      # time. Non-mutating: output goes to the gitignored dist/ and no
-      # source file is rewritten (unlike `npm run lint`, which is
-      # `eslint --fix` and is deliberately NOT part of this gate).
-      - run: npm run build --workspace=@otrarondamas/api
+      # B4 owns the build and complete unit suite for pull requests and main.
+      # Keep those checks here only for direct pushes to candidate/chore branches,
+      # where B4 is not guaranteed to run. This removes duplicate work on PRs
+      # without weakening the pre-merge gate.
+      - name: Build API on candidate branch pushes
+        if: github.event_name == 'push'
+        run: npm run build --workspace=@otrarondamas/api
 
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
-      - run: npm test --workspace=@otrarondamas/api -- --runInBand
+      - name: Run unit suite on candidate branch pushes
+        if: github.event_name == 'push'
+        run: npm test --workspace=@otrarondamas/api -- --runInBand
 
-      - name: Run B3 tenant isolation candidate
+      # One Jest process for all candidate specs avoids repeating Jest startup
+      # and ts-jest initialization for each file. The full file list remains explicit.
+      - name: Run B3 tenant and relation candidates
         run: >-
           npm run test:integration --workspace=@otrarondamas/api --
           --runInBand
           test/integration/b3-tenant-isolation.integration-spec.ts
-
-      - name: Run Producto-Familia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-producto-familia.integration-spec.ts
-
-      - name: Run Producto-Proveedor candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-producto-proveedor.integration-spec.ts
-
-      - name: Run Lote-Producto candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-lote-producto.integration-spec.ts
-
-      - name: Run Producto-Subfamilia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-producto-subfamilia.integration-spec.ts
-
-      - name: Run Producto-Tipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-producto-tipo.integration-spec.ts
-
-      - name: Run Producto-Subtipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-producto-subtipo.integration-spec.ts
-
-      - name: Run ISO-006 candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-iso-006.integration-spec.ts
-
-      - name: Run provider payment-return characterization
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-provider-payment-return-characterization.integration-spec.ts
-
-      - name: Run DevolucionProveedorItem regression
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-devolucion-proveedor-item.integration-spec.ts
-
-      - name: Run MovimientoStock-Producto candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-movimientostock-producto.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Subtipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-reglafidelizacion-subtipo.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Familia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-reglafidelizacion-familia.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Subfamilia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
           test/integration/b3-reglafidelizacion-subfamilia.integration-spec.ts
