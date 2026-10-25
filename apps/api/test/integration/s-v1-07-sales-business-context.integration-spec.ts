@@ -797,10 +797,9 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
 
   it('SBC-20: permission decisions use current DB assignments, not JWT claims', async () => {
     const findUnique = jest.fn();
-    const guard = new PermissionsGuard(
-      new Reflector(),
-      { usuario: { findUnique } } as unknown as PrismaService,
-    );
+    const guard = new PermissionsGuard(new Reflector(), {
+      usuario: { findUnique },
+    } as unknown as PrismaService);
     const contextFor = (
       controller: new (...args: never[]) => unknown,
       handler: (...args: never[]) => unknown,
@@ -837,9 +836,9 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
         guard.canActivate(contextFor(controller, handler, session(['ventas.crear']))),
       ).rejects.toThrow(ForbiddenException);
       findUnique.mockResolvedValue(dbAssignments('ventas.crear'));
-      await expect(
-        guard.canActivate(contextFor(controller, handler, session([]))),
-      ).resolves.toBe(true);
+      await expect(guard.canActivate(contextFor(controller, handler, session([])))).resolves.toBe(
+        true,
+      );
     }
 
     for (const handler of [sp.findAll, sp.findOne, sp.getReceipt]) {
@@ -861,9 +860,9 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     expect(
       await guard.canActivate(contextFor(SalesController, sp.searchProducts, session([]))),
     ).toBe(true);
-    expect(
-      await guard.canActivate(contextFor(PaymentsController, pp.findAll, session([]))),
-    ).toBe(true);
+    expect(await guard.canActivate(contextFor(PaymentsController, pp.findAll, session([])))).toBe(
+      true,
+    );
     expect(findUnique).toHaveBeenCalledTimes(18);
   });
 

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, HttpCode } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { Public } from '../auth/decorators/public.decorator';
-import { CartResponseDto, CartItemResponseDto } from './dto/cart.response.dto';
+import { CartResponseDto } from './dto/cart.response.dto';
 
 /**
  * C5B: Cart API — Phase 2 of Online Store

@@ -39,10 +39,7 @@ describe('GoogleStrategy verified email', () => {
 
     strategy.validate('access-token', 'refresh-token', makeProfile(false), done);
 
-    expect(done).toHaveBeenCalledWith(
-      expect.any(Error),
-      false,
-    );
+    expect(done).toHaveBeenCalledWith(expect.any(Error), false);
   });
 
   it('passes a provider-verified email into the Google profile', () => {

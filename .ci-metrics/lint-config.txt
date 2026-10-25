@@ -1,0 +1,8 @@
+LINT & TYPE CHECKING
+====================
+
+ESLint:
+  ✓ ESLint config found
+
+TypeScript:
+  ✓ tsconfig.base.json found

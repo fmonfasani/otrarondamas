@@ -1,0 +1,17 @@
+
+> @otrarondamas/api@0.0.1 test:e2e
+> jest --config ./test/jest-e2e.json p0-cliente-access-guard-check
+
+PASS test/integration/p0-cliente-access-guard-check.integration-spec.ts (34.769 s)
+  P0 SECURITY — Cliente Token Type Validation
+    GET /clientes — Cliente Access Control
+      √ Usuario (internal) can GET /clientes (105 ms)
+      √ Cliente (customer) must be REJECTED from GET /clientes (17 ms)
+      √ No token must be rejected with 401 (17 ms)
+      √ Invalid token must be rejected with 401 (25 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        41.062 s
+Ran all test suites matching /p0-cliente-access-guard-check/i.

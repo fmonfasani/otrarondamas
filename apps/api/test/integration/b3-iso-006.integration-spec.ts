@@ -299,7 +299,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
   });
 
   it('RAW-01: the production raw-SQL surface updates an A-owned lote under A context', async () => {
-    const db = scopedPrisma.forCompany(companyA.id);
+    const _db = scopedPrisma.forCompany(companyA.id);
 
     await inventory.registerAdjustment(
       companyA.id,

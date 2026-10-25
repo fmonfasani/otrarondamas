@@ -557,7 +557,9 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
 
     const res = await request(BASE)
       .post('/tienda/pedidos')
-      .send(orderBody(email('insufficient-stock'), [{ productoId: productNoStock.id, cantidad: 1 }]));
+      .send(
+        orderBody(email('insufficient-stock'), [{ productoId: productNoStock.id, cantidad: 1 }]),
+      );
 
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Stock insuficiente');

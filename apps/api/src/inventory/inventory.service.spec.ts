@@ -26,15 +26,7 @@ describe('InventoryService.deductStock', () => {
     const tx = makeTx(0);
 
     await expect(
-      service.deductStock(
-        tx as never,
-        'company-a',
-        'product-a',
-        3,
-        'Venta',
-        'sale-a',
-        'user-a',
-      ),
+      service.deductStock(tx as never, 'company-a', 'product-a', 3, 'Venta', 'sale-a', 'user-a'),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(tx.lote.updateMany).toHaveBeenCalledWith({

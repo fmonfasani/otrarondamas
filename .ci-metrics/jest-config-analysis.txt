@@ -1,0 +1,13 @@
+JEST CONFIGURATION ANALYSIS
+===========================
+
+Unit Tests (apps/api/package.json jest config):
+  ✓ Jest config in package.json
+  Root: src/
+  Parallelization: Not explicitly set (default: num CPUs)
+
+Integration Tests (apps/api/test/jest-e2e.json):
+  ✓ jest-e2e.json found
+      "forceExit": false,
+      "maxWorkers": "50%",
+      "testTimeout": 30000,

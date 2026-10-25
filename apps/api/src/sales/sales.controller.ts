@@ -83,5 +83,4 @@ export class SalesController {
   async getReceipt(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.getReceipt(id, await this.resolveCompanyIdFromContext(user));
   }
-
 }

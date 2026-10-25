@@ -59,7 +59,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
     it('should return existing order when called twice with same idempotencyKey', async () => {
       const mockTx = createMockTx();
       const idempotencyKey = 'conv-550e8400-e29b-41d4-a716-446655440000';
-      const dto = {
+      const _dto = {
         nombre: 'John Doe',
         email: 'john@example.com',
         telefono: '123456789',
@@ -151,7 +151,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
   describe('D-002: Consistency — Atomic transaction and best-effort recovery', () => {
     it('transaction includes Pedido, PedidoItems, and ClienteCreateOrUpdate', () => {
       // Verify createOrder wraps all three operations in $transaction
-      const createOrderCode =
+      const createOrderCode = // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('./store.service').StoreService.prototype.createOrder.toString();
       expect(createOrderCode).toContain('$transaction');
       console.log('[CONSISTENCY] StoreService.createOrder uses $transaction');
@@ -235,7 +235,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
     it('pre-C3 bug: full clear would lose concurrent additions', () => {
       const snapshotItems = ['item-1', 'item-2'];
       const concurrentAdded = ['item-3', 'item-4'];
-      const allItems = [...snapshotItems, ...concurrentAdded];
+      const _allItems = [...snapshotItems, ...concurrentAdded];
 
       // Pre-C3: clearCart() deletes all
       const preClearResult = [];

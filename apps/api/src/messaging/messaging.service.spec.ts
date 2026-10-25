@@ -33,7 +33,7 @@ describe('MessagingService — M2/M3 messaging', () => {
   };
 
   const prisma = {
-    $transaction: jest.fn(async (callback: any) => callback(prisma)),
+    $transaction: jest.fn(async (callback: unknown) => callback(prisma)),
     conversation: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -76,7 +76,7 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new MessagingService(prisma as any, businessContext as any);
+    service = new MessagingService(prisma as unknown as any, businessContext as unknown as any);
   });
 
   it('resolves authenticated operations through canonical BusinessContext', async () => {
@@ -369,7 +369,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     // Two distinct `message.findFirst` calls happen in the send path and they
     // must not be conflated: first the idempotency lookup by clientMessageId
     // (no previous send -> null), then the last-sequence lookup.
-    prisma.message.findFirst.mockImplementation(({ where, orderBy }: any) =>
+    prisma.message.findFirst.mockImplementation(({ where, orderBy }: unknown) =>
       Promise.resolve(
         where?.clientMessageId !== undefined
           ? null
@@ -433,7 +433,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       removedAt: null,
     });
     // The idempotency lookup finds the previous send.
-    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+    prisma.message.findFirst.mockImplementation(({ where }: unknown) =>
       Promise.resolve(where?.clientMessageId !== undefined ? persisted : { sequence: BigInt(5) }),
     );
 
@@ -456,7 +456,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       leftAt: null,
       removedAt: null,
     });
-    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+    prisma.message.findFirst.mockImplementation(({ where }: unknown) =>
       Promise.resolve(
         where?.clientMessageId !== undefined
           ? { id: 'message-a', content: 'Hola', replyToMessageId: null }
@@ -494,7 +494,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     });
     // Race: the pre-check misses, the competing transaction commits first.
     let idempotencyLookups = 0;
-    prisma.message.findFirst.mockImplementation(({ where }: any) => {
+    prisma.message.findFirst.mockImplementation(({ where }: unknown) => {
       if (where?.clientMessageId !== undefined) {
         idempotencyLookups += 1;
         return Promise.resolve(idempotencyLookups === 1 ? null : persisted);
@@ -527,7 +527,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       leftAt: null,
       removedAt: null,
     });
-    prisma.message.findFirst.mockImplementation(({ where }: any) =>
+    prisma.message.findFirst.mockImplementation(({ where }: unknown) =>
       Promise.resolve(where?.clientMessageId !== undefined ? null : { sequence: BigInt(4) }),
     );
     prisma.message.create.mockRejectedValue(

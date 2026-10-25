@@ -1,0 +1,15 @@
+WORKSPACE ANALYSIS
+==================
+
+Packages:
+  api
+  pos-admin
+  tienda-online
+  shared-types
+  ui-kit
+
+Build Commands:
+  package.json:    "build": "npm run build --workspace=@otrarondamas/api",
+  apps/api/package.json:    "build": "nest build",
+  apps/pos-admin/package.json:    "build": "tsc -b && vite build",
+  apps/tienda-online/package.json:    "build": "tsc -b && vite build",

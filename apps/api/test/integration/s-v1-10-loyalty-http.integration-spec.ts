@@ -3,7 +3,11 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import {
+  deleteUsuarioPermissionsForCompanies,
+  replaceUsuarioPermissions,
+  seedUsuarioPermissions,
+} from './helpers/usuario-permissions.fixture';
 
 // S-V1-10 — Loyalty / Fidelización: tenant boundary over real HTTP.
 //
@@ -185,7 +189,18 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
     legacySuspended = await mkLegacyUser(companyA.id, 'susp');
     legacyUnlinked = await mkLegacyUser(companyA.id, 'sinuser'); // no canonical User
     legacyMulti = await mkLegacyUser(companyA.id, 'multi');
-    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyNoMembership.id, legacySuspended.id, legacyUnlinked.id, legacyMulti.id], ["fidelizacion.gestionar"]);
+    await seedUsuarioPermissions(
+      prisma,
+      [
+        legacyUserA.id,
+        legacyUserB.id,
+        legacyNoMembership.id,
+        legacySuspended.id,
+        legacyUnlinked.id,
+        legacyMulti.id,
+      ],
+      ['fidelizacion.gestionar'],
+    );
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({

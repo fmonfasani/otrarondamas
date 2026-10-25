@@ -475,10 +475,9 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
   it('OBC-12: pedidos.gestionar is loaded from current DB assignments on the three handlers', async () => {
     const findUnique = jest.fn();
-    const guard = new PermissionsGuard(
-      new Reflector(),
-      { usuario: { findUnique } } as unknown as PrismaService,
-    );
+    const guard = new PermissionsGuard(new Reflector(), {
+      usuario: { findUnique },
+    } as unknown as PrismaService);
     const contextFor = (
       handler: (...args: never[]) => unknown,
       user: AuthenticatedUser,
@@ -494,7 +493,10 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
       findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
       await expect(
         guard.canActivate(
-          contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: ['pedidos.gestionar'] })),
+          contextFor(
+            handler,
+            sessionOf(usuarioA.id, companyA.id, { permisos: ['pedidos.gestionar'] }),
+          ),
         ),
       ).rejects.toThrow(ForbiddenException);
 
@@ -503,7 +505,9 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
         usuarioPermisos: [{ permiso: { nombre: 'pedidos.gestionar' } }],
       });
       await expect(
-        guard.canActivate(contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] }))),
+        guard.canActivate(
+          contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] })),
+        ),
       ).resolves.toBe(true);
     }
   });

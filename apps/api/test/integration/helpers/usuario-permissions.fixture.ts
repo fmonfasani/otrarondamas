@@ -38,7 +38,6 @@ export async function replaceUsuarioPermissions(
   await seedUsuarioPermissions(prisma, [usuarioId], permissionNames);
 }
 
-
 /** Remove assignments before deleting the related legacy Usuario fixtures. */
 export async function deleteUsuarioPermissionsForCompanies(
   prisma: PrismaService,
@@ -48,7 +47,6 @@ export async function deleteUsuarioPermissionsForCompanies(
     where: { usuario: { empresaId: { in: companyIds } } },
   });
 }
-
 
 /**
  * Temporarily revoke a legacy user's permissions for a negative HTTP test.
