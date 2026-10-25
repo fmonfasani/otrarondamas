@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { StoreController } from './store.controller';
 import { PublicStoreController } from './public-store.controller';
+import { StoreOrderController } from './store-order.controller';
+import { StoreApiController } from './store-api.controller';
 import { StoreService } from './store.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { InventoryModule } from '../inventory/inventory.module';
@@ -14,7 +16,7 @@ import { BusinessContextModule } from '../business-context/business-context.modu
   // identified by email, never anonymous here) and the applicable automatic
   // discount, see store.service.ts.
   imports: [PrismaModule, InventoryModule, LoyaltyModule, CustomersModule, BusinessContextModule],
-  controllers: [StoreController, PublicStoreController],
+  controllers: [StoreController, PublicStoreController, StoreOrderController, StoreApiController],
   providers: [StoreService],
   exports: [StoreService],
 })

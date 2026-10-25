@@ -13,16 +13,16 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test": "npm run prisma:generate && jest",
+    "test:watch": "npm run prisma:generate && jest --watch",
+    "test:cov": "npm run prisma:generate && jest --coverage",
+    "test:debug": "npm run prisma:generate && node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "npm run prisma:generate && jest --config ./test/jest-e2e.json",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:sync-permisos": "ts-node prisma/sync-permisos-owner.ts",
     "prisma:generate": "prisma generate",
-    "test:integration": "jest --config ./test/jest-e2e.json"
+    "test:integration": "npm run prisma:generate && jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
