@@ -24,6 +24,9 @@
   "exclude": [
     "node_modules",
     "dist",
-    "prisma/**/*.ts"
+    "prisma/**/*.ts",
+    "src/search/**",
+    "src/assets/**",
+    "src/seo/**"
   ]
 }
