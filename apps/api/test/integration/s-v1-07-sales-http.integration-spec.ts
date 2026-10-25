@@ -335,6 +335,10 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    // Remove permission assignments before deleting their Usuario foreign keys.
+    await prisma.usuarioPermiso.deleteMany({
+      where: { usuario: { empresaId: { in: companies } } },
+    });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -1002,6 +1006,8 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .set('Authorization', seededOnly)
       .expect(403);
 
+    // The DB grant, not the JWT claim, enables sales reads.
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.ver']);
     await request(BASE).get('/ventas').set('Authorization', withView).expect(200);
     await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', withView).expect(200);
     await request(BASE)

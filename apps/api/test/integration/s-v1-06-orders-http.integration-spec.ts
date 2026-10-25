@@ -290,6 +290,10 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    // Remove permission assignments before deleting their Usuario foreign keys.
+    await prisma.usuarioPermiso.deleteMany({
+      where: { usuario: { empresaId: { in: companies } } },
+    });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();

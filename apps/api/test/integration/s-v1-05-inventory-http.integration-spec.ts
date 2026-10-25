@@ -263,6 +263,10 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `inv-http-${suffix}` } } });
+    // Remove permission assignments before deleting their Usuario foreign keys.
+    await prisma.usuarioPermiso.deleteMany({
+      where: { usuario: { empresaId: { in: companies } } },
+    });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();

@@ -38,7 +38,6 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
   let prisma: PrismaService;
   let suffix: number;
   let passwordHash: string;
-  let createdPermissionId: string | null = null;
 
   let companyA: { id: string };
   let companyB: { id: string };
@@ -236,19 +235,6 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
       [PERM],
     );
 
-    // caja.gastos: the permission already protects movimientos/cierre and is the
-    // one the authorizer must hold. Reuse it if the disposable DB was seeded.
-    let permission = await prisma.permiso.findUnique({ where: { nombre: PERM } });
-    if (!permission) {
-      permission = await prisma.permiso.create({ data: { nombre: PERM } });
-      createdPermissionId = permission.id;
-    }
-    for (const authorizer of [authorizerA, authorizerB]) {
-      await prisma.usuarioPermiso.create({
-        data: { usuarioId: authorizer.id, permisoId: permission.id },
-      });
-    }
-
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
         data: {
@@ -349,9 +335,6 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     await prisma.usuarioPermiso.deleteMany({
       where: { usuario: { empresaId: { in: companies } } },
     });
-    if (createdPermissionId) {
-      await prisma.permiso.deleteMany({ where: { id: createdPermissionId } });
-    }
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
