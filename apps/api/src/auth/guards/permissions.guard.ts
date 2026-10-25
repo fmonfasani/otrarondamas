@@ -1,23 +1,36 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
-import { AuthenticatedUser } from '../auth.types';
+import type { AuthenticatedUser } from '../auth.types';
 
 /**
  * Granular permission authorization (RF-02 / section 3.2 of the SDD).
  * It must always be applied AFTER JwtAuthGuard, because it depends on
  * request.user already populated by the JWT strategy.
  *
- * D-06 note: this covers permission-based access control for an
- * authenticated user. The 'owner authorization' mechanism for specific
- * exceptions (PIN or other) is a separate piece, not yet implemented
- * (see Autorizacion in the schema and the pending TODO(D-06)).
+ * Permissions are loaded from the current UsuarioPermiso relation for every
+ * permission-protected request. JWT permission claims are informational only:
+ * revoking a database assignment takes effect on the next request, without
+ * waiting for the token to expire.
+ *
+ * D-06 note: the 'owner authorization' mechanism for specific exceptions
+ * (PIN or other) is separate from this guard.
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(
       PERMISSION_KEY,
       [context.getHandler(), context.getClass()],
@@ -30,7 +43,31 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser | undefined;
 
-    if (!user || !user.permisos.includes(requiredPermission)) {
+    if (!user) {
+      throw new UnauthorizedException('Sesión no autenticada');
+    }
+    if (user.type !== 'usuario') {
+      throw new ForbiddenException('Este permiso requiere una identidad de usuario interno');
+    }
+
+    const currentUser = await this.prisma.usuario.findUnique({
+      where: { id: user.id },
+      select: {
+        activo: true,
+        usuarioPermisos: {
+          select: { permiso: { select: { nombre: true } } },
+        },
+      },
+    });
+
+    if (!currentUser || !currentUser.activo) {
+      throw new UnauthorizedException('La cuenta ya no está activa');
+    }
+
+    const currentPermissions = currentUser.usuarioPermisos.map(
+      (assignment) => assignment.permiso.nombre,
+    );
+    if (!currentPermissions.includes(requiredPermission)) {
       throw new ForbiddenException(`Requiere el permiso '${requiredPermission}'`);
     }
 

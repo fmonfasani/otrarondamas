@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of PURCHASES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -130,6 +131,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["compras.gestionar"]);
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -257,6 +259,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `pur-http-${suffix}` } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -295,14 +298,17 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     expect(row.empresaId).toBe(companyA.id);
   });
 
-  it('SV5P-H-04: crear proveedor sin permiso compras.gestionar → 403 y no persiste', async () => {
-    const nombre = `S-V1-05 PUR HTTP Denied ${suffix}`;
-    await request(BASE)
-      .post('/proveedores')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send({ nombre })
-      .expect(403);
-    expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
+  it('SV5P-H-04: crear proveedor sin asignación actual → 403 y no persiste', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['compras.gestionar'], async () => {
+      const nombre = `S-V1-05 PUR HTTP Denied ${suffix}`;
+      await request(BASE)
+        .post('/proveedores')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send({ nombre })
+        .expect(403);
+      expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
+
+    });
   });
 
   it('SV5P-H-05: crear compra con claim B + Membership A → 201 BORRADOR en A', async () => {

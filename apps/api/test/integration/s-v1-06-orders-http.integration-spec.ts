@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-06 — HTTP boundary of ORDERS against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -221,6 +222,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
+    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["pedidos.gestionar"]);
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
@@ -288,6 +290,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
@@ -605,23 +608,26 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(await movementCount(order.id)).toBe(1);
   });
 
-  it('SV6-H-11: sin permiso pedidos.gestionar → 403 en los tres endpoints y no persiste', async () => {
-    const productA = await mkProduct(companyA.id, hierA);
-    const orderA = await mkOrder(companyA.id, customerA.id, [
-      { productId: productA.id, quantity: 1 },
-    ]);
-    const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`;
+  it('SV6-H-11: sin asignación actual → 403 en los tres endpoints y no persiste', async () => {
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['pedidos.gestionar'], async () => {
+      const productA = await mkProduct(companyA.id, hierA);
+      const orderA = await mkOrder(companyA.id, customerA.id, [
+        { productId: productA.id, quantity: 1 },
+      ]);
+      const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`;
 
-    await request(BASE).get('/pedidos').set('Authorization', auth).expect(403);
-    await request(BASE).get(`/pedidos/${orderA.id}`).set('Authorization', auth).expect(403);
-    await request(BASE)
-      .patch(`/pedidos/${orderA.id}/estado`)
-      .set('Authorization', auth)
-      .send({ estado: 'CANCELADO' })
-      .expect(403);
+      await request(BASE).get('/pedidos').set('Authorization', auth).expect(403);
+      await request(BASE).get(`/pedidos/${orderA.id}`).set('Authorization', auth).expect(403);
+      await request(BASE)
+        .patch(`/pedidos/${orderA.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'CANCELADO' })
+        .expect(403);
 
-    const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
-    expect(row.estado).toBe('RECIBIDO');
+      const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
+      expect(row.estado).toBe('RECIBIDO');
+
+    });
   });
 
   it('SV6-H-12: sin Membership ACTIVE o SUSPENDED → 403 fail-closed', async () => {

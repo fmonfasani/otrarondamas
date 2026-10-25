@@ -6,6 +6,7 @@ import * as net from 'net';
 import * as bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-13 — Cash (/caja) + /autorizaciones: tenant boundary over real HTTP.
 //
@@ -37,7 +38,6 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
   let prisma: PrismaService;
   let suffix: number;
   let passwordHash: string;
-  let createdPermissionId: string | null = null;
 
   let companyA: { id: string };
   let companyB: { id: string };
@@ -229,19 +229,11 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     legacySuspended = await mkLegacyUser(companyA.id, 'susp');
     legacyUnlinked = await mkLegacyUser(companyA.id, 'sinuser'); // no canonical User
     legacyMulti = await mkLegacyUser(companyA.id, 'multi');
-
-    // caja.gastos: the permission already protects movimientos/cierre and is the
-    // one the authorizer must hold. Reuse it if the disposable DB was seeded.
-    let permission = await prisma.permiso.findUnique({ where: { nombre: PERM } });
-    if (!permission) {
-      permission = await prisma.permiso.create({ data: { nombre: PERM } });
-      createdPermissionId = permission.id;
-    }
-    for (const authorizer of [authorizerA, authorizerB]) {
-      await prisma.usuarioPermiso.create({
-        data: { usuarioId: authorizer.id, permisoId: permission.id },
-      });
-    }
+    await seedUsuarioPermissions(
+      prisma,
+      [legacyUserA.id, legacyUserA2.id, authorizerA.id, legacyUserB.id, legacyUserB2.id, authorizerB.id, legacyDivergent.id, legacyNoMembership.id, legacySuspended.id, legacyUnlinked.id, legacyMulti.id],
+      [PERM],
+    );
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
@@ -343,9 +335,6 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     await prisma.usuarioPermiso.deleteMany({
       where: { usuario: { empresaId: { in: companies } } },
     });
-    if (createdPermissionId) {
-      await prisma.permiso.deleteMany({ where: { id: createdPermissionId } });
-    }
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
@@ -457,7 +446,8 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
 
   // ------------------------------------------------------------------ authorization regression
 
-  it('CH-11: sin caja.gastos → 403 en POST movimientos y POST cierre; las demás rutas siguen abiertas', async () => {
+  it('CH-11: sin asignación actual de caja.gastos → 403 en POST movimientos/cierre; las demás rutas siguen abiertas', async () => {
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const auth = bearer(legacyUserA.id, companyB.id, []);
     const before = await snapshotCash(companyA.id);
     await call('post', '/caja/movimientos', auth, { tipo: 'Gasto', monto: 10 }).expect(403);
@@ -466,6 +456,7 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
 
     await call('get', '/caja/estado', auth).expect(200);
     await call('get', '/caja/movimientos', auth).expect(200);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, [PERM]);
   });
 
   // ------------------------------------------------------------------ cycle 1 on A (characterization)
