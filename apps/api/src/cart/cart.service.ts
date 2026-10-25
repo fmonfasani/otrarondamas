@@ -43,7 +43,7 @@ export class CartService {
     let cart = await db.cart.findFirst({
       where: { customerId, businessId },
       include: {
-        items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } },
+        CartItem: { include: { Producto: { select: { nombre: true, precioMinorista: true } } } },
       },
     });
 
@@ -52,10 +52,10 @@ export class CartService {
         data: {
           customerId,
           businessId,
-          items: { create: [] },
+          CartItem: { create: [] },
         },
         include: {
-          items: { include: { producto: { select: { nombre: true, precioMinorista: true } } } },
+          CartItem: { include: { Producto: { select: { nombre: true, precioMinorista: true } } } },
         },
       });
     }
@@ -242,9 +242,9 @@ export class CartService {
     const cart = await db.cart.findFirst({
       where: { customerId, businessId },
       include: {
-        items: {
+        CartItem: {
           include: {
-            producto: {
+            Producto: {
               select: {
                 id: true,
                 nombre: true,

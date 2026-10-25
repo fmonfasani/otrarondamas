@@ -43,7 +43,7 @@ export class AuthGoogleService {
 
     let user = await this.prisma.usuario.findUnique({
       where: { googleId: profile.googleId },
-      include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
+      include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
     });
 
     if (!user) {
@@ -52,14 +52,14 @@ export class AuthGoogleService {
       // user instead of creating a duplicate — same email, same person.
       const existing = await this.prisma.usuario.findUnique({
         where: { email: profile.email },
-        include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
+        include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
       });
 
       if (existing) {
         user = await this.prisma.usuario.update({
           where: { id: existing.id },
           data: { googleId: profile.googleId, fotoUrl: profile.fotoUrl },
-          include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
+          include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
         });
       } else {
         // RF-17 / approved access invariant: internal staff accounts are
@@ -75,7 +75,7 @@ export class AuthGoogleService {
       throw new InternalServerErrorException('Usuario deshabilitado');
     }
 
-    const permissions = user.usuarioPermisos.map((up) => up.permiso.nombre);
+    const permissions = user.UsuarioPermiso.map((up) => up.Permiso.nombre);
     return this.authService.issueSession(user, permissions);
   }
 }

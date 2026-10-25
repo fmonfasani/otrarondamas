@@ -102,13 +102,13 @@ export class CustomerDossierController {
     const empresaId = await this.businessContext.resolveCompanyId(context.businessId);
     const customers = await this.prisma.cliente.findMany({
       where: { empresaId, esMayorista: true, estadoLegajo: 'PENDIENTE' },
-      include: { legajo: true },
+      include: { Legajo: true },
     });
     return customers.map((c) => ({
       id: c.id,
       nombre: c.nombre,
       email: c.email,
-      legajo: c.legajo,
+      legajo: c.Legajo,
     }));
   }
 

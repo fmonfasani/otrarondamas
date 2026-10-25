@@ -84,14 +84,14 @@ export class DossierController {
   async listPending(@CurrentUser() user: AuthenticatedUser) {
     const users = await this.prisma.usuario.findMany({
       where: { empresaId: user.empresaId, estadoLegajo: 'PENDIENTE' },
-      include: { legajo: { include: { documentos: true } } },
+      include: { Legajo: { include: { DocumentoLegajo: true } } },
     });
     return users.map((u) => ({
       id: u.id,
       nombre: u.nombre,
       email: u.email,
       rol: u.rol,
-      legajo: u.legajo,
+      legajo: u.Legajo,
     }));
   }
 
@@ -143,9 +143,9 @@ export class DossierController {
   ) {
     const document = await this.prisma.documentoLegajo.findUnique({
       where: { id: documentId },
-      include: { legajo: { include: { usuario: true } } },
+      include: { Legajo: { include: { Usuario: true } } },
     });
-    if (!document || document.legajo.usuario?.empresaId !== user.empresaId) {
+    if (!document || document.Legajo.Usuario?.empresaId !== user.empresaId) {
       throw new NotFoundException('Documento no encontrado');
     }
 

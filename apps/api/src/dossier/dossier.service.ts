@@ -62,24 +62,24 @@ export class DossierService {
   async getOrCreateForUser(userId: string) {
     const existing = await this.prisma.legajo.findUnique({
       where: { usuarioId: userId },
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
     if (existing) return existing;
     return this.prisma.legajo.create({
       data: { usuarioId: userId },
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
   }
 
   async getOrCreateForCustomer(customerId: string) {
     const existing = await this.prisma.legajo.findUnique({
       where: { clienteId: customerId },
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
     if (existing) return existing;
     return this.prisma.legajo.create({
       data: { clienteId: customerId },
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
   }
 
@@ -88,7 +88,7 @@ export class DossierService {
     return this.prisma.legajo.update({
       where: { id: dossier.id },
       data: dto,
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
   }
 
@@ -97,7 +97,7 @@ export class DossierService {
     return this.prisma.legajo.update({
       where: { id: dossier.id },
       data: dto,
-      include: { documentos: true },
+      include: { DocumentoLegajo: true },
     });
   }
 
@@ -195,7 +195,7 @@ export class DossierService {
     const missing: string[] = requiredFields.filter((field) => !dossier[field]);
 
     if (ROLES_WITH_DOCUMENTS.includes(role)) {
-      const presentTypes = new Set(dossier.documentos.map((d) => d.tipo));
+      const presentTypes = new Set(dossier.DocumentoLegajo.map((d) => d.tipo));
       for (const type of REQUIRED_DOCUMENTS) {
         if (!presentTypes.has(type)) {
           missing.push(`documento:${type}`);

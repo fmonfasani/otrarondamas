@@ -54,8 +54,8 @@ export class PermissionsGuard implements CanActivate {
       where: { id: user.id },
       select: {
         activo: true,
-        usuarioPermisos: {
-          select: { permiso: { select: { nombre: true } } },
+        UsuarioPermiso: {
+          select: { Permiso: { select: { nombre: true } } },
         },
       },
     });
@@ -64,8 +64,8 @@ export class PermissionsGuard implements CanActivate {
       throw new UnauthorizedException('La cuenta ya no está activa');
     }
 
-    const currentPermissions = currentUser.usuarioPermisos.map(
-      (assignment) => assignment.permiso.nombre,
+    const currentPermissions = currentUser.UsuarioPermiso.map(
+      (assignment) => assignment.Permiso.nombre,
     );
     if (!currentPermissions.includes(requiredPermission)) {
       throw new ForbiddenException(`Requiere el permiso '${requiredPermission}'`);

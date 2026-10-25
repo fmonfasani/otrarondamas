@@ -40,10 +40,10 @@ export class LoyaltyService {
     const db = this.prismaFactory.forCompany(companyId);
     return db.reglaFidelizacion.findMany({
       include: {
-        familia: { select: { nombre: true } },
-        subfamilia: { select: { nombre: true } },
-        tipo: { select: { nombre: true } },
-        subtipo: { select: { nombre: true } },
+        Familia: { select: { nombre: true } },
+        Subfamilia: { select: { nombre: true } },
+        Tipo: { select: { nombre: true } },
+        Subtipo: { select: { nombre: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -54,10 +54,10 @@ export class LoyaltyService {
     const rule = await db.reglaFidelizacion.findUnique({
       where: { id },
       include: {
-        familia: { select: { nombre: true } },
-        subfamilia: { select: { nombre: true } },
-        tipo: { select: { nombre: true } },
-        subtipo: { select: { nombre: true } },
+        Familia: { select: { nombre: true } },
+        Subfamilia: { select: { nombre: true } },
+        Tipo: { select: { nombre: true } },
+        Subtipo: { select: { nombre: true } },
       },
     });
     if (!rule) {

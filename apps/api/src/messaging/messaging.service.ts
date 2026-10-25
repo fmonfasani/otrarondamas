@@ -317,7 +317,7 @@ export class MessagingService {
         ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
       },
       orderBy: { sequence: 'asc' },
-      include: { reactions: true },
+      include: { Reaction: true },
     });
   }
 
@@ -393,7 +393,7 @@ export class MessagingService {
           : {}),
       },
       include: {
-        participants: {
+        ConversationParticipant: {
           where: { leftAt: null, removedAt: null },
           orderBy: { joinedAt: 'asc' },
         },
@@ -548,13 +548,13 @@ export class MessagingService {
     // C3: Fetch the persistent cart for this customer.
     // CartService returns null if no cart exists; empty cart is an error.
     const cart = await this.cartService.getCartForCustomer(customerId, context.businessId);
-    if (!cart || !cart.items || cart.items.length === 0) {
+    if (!cart || !cart.CartItem || cart.CartItem.length === 0) {
       throw new ConflictException('El cliente no tiene un carrito con ítems para crear un pedido');
     }
 
     // C3: Extract items from the persistent cart. Prices are read from cart
     // snapshot (current `Producto.precioMinorista`); revalidation is storeService's responsibility.
-    const items = cart.items.map((item) => ({
+    const items = cart.CartItem.map((item) => ({
       productoId: item.productoId,
       cantidad: Number(item.cantidad), // CartItem.cantidad is Decimal; convert to number
     }));
@@ -594,7 +594,7 @@ export class MessagingService {
     // If an error occurs before this point, the cart is fully preserved (client can retry).
     // If removal fails, it's logged but does not fail the order (order is already committed).
     try {
-      const itemIdsToRemove = cart.items.map((item) => item.id);
+      const itemIdsToRemove = cart.CartItem.map((item) => item.id);
       for (const itemId of itemIdsToRemove) {
         await this.cartService.removeItem(itemId, context.businessId);
       }
@@ -1286,12 +1286,12 @@ export class MessagingService {
   // this lets the UI avoid offering a send that the API will reject, without
   // widening any permission: it only reports the existing rule.
   private withViewerAccess<
-    T extends { participants: Array<{ userId: string | null; customerId: string | null }> },
+    T extends { ConversationParticipant: Array<{ userId: string | null; customerId: string | null }> },
   >(
     conversation: T,
     context: BusinessContext,
   ): T & { viewerAccess: { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' } } {
-    const isParticipant = conversation.participants.some((participant) =>
+    const isParticipant = conversation.ConversationParticipant.some((participant) =>
       context.userId
         ? participant.userId === context.userId
         : participant.customerId === context.customerId,
@@ -1365,7 +1365,7 @@ export class MessagingService {
         deletedAt: null,
       },
       include: {
-        participants: {
+        ConversationParticipant: {
           where: { leftAt: null, removedAt: null },
           orderBy: { joinedAt: 'asc' },
         },
@@ -1381,7 +1381,7 @@ export class MessagingService {
       await this.assertActiveParticipant(tx, conversationId, context);
     }
 
-    const isActiveParticipant = conversation.participants.some(
+    const isActiveParticipant = conversation.ConversationParticipant.some(
       (p) =>
         (context.userId && p.userId === context.userId) ||
         (context.customerId && p.customerId === context.customerId),

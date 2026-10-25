@@ -530,9 +530,9 @@ export class SalesService {
       },
       take: 50,
       include: {
-        familia: { select: { id: true, nombre: true } },
-        subfamilia: { select: { id: true, nombre: true } },
-        lotes: { select: { cantidad: true } },
+        Familia: { select: { id: true, nombre: true } },
+        Subfamilia: { select: { id: true, nombre: true } },
+        Lote: { select: { cantidad: true } },
       },
       orderBy: { nombre: 'asc' },
     });
@@ -546,9 +546,9 @@ export class SalesService {
       precioMinorista: p.precioMinorista,
       unidadBase: p.unidadBase,
       activo: p.activo,
-      familia: p.familia,
-      subfamilia: p.subfamilia,
-      stockDisponible: p.lotes.reduce((sum, l) => sum + Number(l.cantidad), 0),
+      familia: p.Familia,
+      subfamilia: p.Subfamilia,
+      stockDisponible: p.Lote.reduce((sum, l) => sum + Number(l.cantidad), 0),
       stockMinimo: Number(p.stockMinimo),
     }));
   }

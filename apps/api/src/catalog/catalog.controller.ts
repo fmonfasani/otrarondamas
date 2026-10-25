@@ -199,7 +199,7 @@ export class CatalogController {
   ) {
     const subtype = await db.subtipo.findUnique({
       where: { id: ids.subtipoId },
-      include: { tipo: { include: { subfamilia: true } } },
+      include: { Tipo: { include: { Subfamilia: true } } },
     });
     if (!subtype) {
       throw new NotFoundException('Subtipo no encontrado');
@@ -207,10 +207,10 @@ export class CatalogController {
     if (subtype.tipoId !== ids.tipoId) {
       throw new NotFoundException('El Subtipo indicado no pertenece al Tipo indicado');
     }
-    if (subtype.tipo.subfamiliaId !== ids.subfamiliaId) {
+    if (subtype.Tipo.subfamiliaId !== ids.subfamiliaId) {
       throw new NotFoundException('El Tipo indicado no pertenece a la Subfamilia indicada');
     }
-    if (subtype.tipo.subfamilia.familiaId !== ids.familiaId) {
+    if (subtype.Tipo.Subfamilia.familiaId !== ids.familiaId) {
       throw new NotFoundException('La Subfamilia indicada no pertenece a la Familia indicada');
     }
   }

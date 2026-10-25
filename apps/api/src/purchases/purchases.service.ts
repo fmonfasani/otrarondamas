@@ -63,7 +63,7 @@ export class PurchasesService {
   async listPurchases(companyId: string) {
     const db = this.prismaFactory.forCompany(companyId);
     return db.compra.findMany({
-      include: { items: true, proveedor: true },
+      include: { CompraItem: true, Proveedor: true },
       orderBy: { fechaOrden: 'desc' },
     });
   }
@@ -72,7 +72,7 @@ export class PurchasesService {
     const db = this.prismaFactory.forCompany(companyId);
     const purchase = await db.compra.findUnique({
       where: { id },
-      include: { items: true, proveedor: true, recepciones: true },
+      include: { CompraItem: true, Proveedor: true, RecepcionCompra: true },
     });
     if (!purchase) {
       throw new NotFoundException('Compra no encontrada');
@@ -123,7 +123,7 @@ export class PurchasesService {
       estado: 'BORRADOR',
       total,
       fechaRecepcionEsperada: dto.fechaRecepcionEsperada,
-      items: {
+      CompraItem: {
         create: dto.items.map((item) => ({
           productoId: item.productoId,
           cantidadPedida: item.cantidadPedida,
@@ -131,7 +131,7 @@ export class PurchasesService {
         })),
       },
     };
-    return db.compra.create({ data, include: { items: true } });
+    return db.compra.create({ data, include: { CompraItem: true } });
   }
 
   /**
@@ -186,7 +186,7 @@ export class PurchasesService {
       );
     }
 
-    const itemsById = new Map(purchase.items.map((item) => [item.id, item]));
+    const itemsById = new Map(purchase.CompraItem.map((item) => [item.id, item]));
     for (const receipt of dto.items) {
       const item = itemsById.get(receipt.compraItemId);
       if (!item) {
@@ -247,7 +247,7 @@ export class PurchasesService {
 
       return tx.recepcionCompra.findUniqueOrThrow({
         where: { id: reception.id },
-        include: { movimientosStock: true },
+        include: { MovimientoStock: true },
       });
     });
   }
@@ -323,7 +323,7 @@ export class PurchasesService {
     const db = this.prismaFactory.forCompany(companyId);
     return db.devolucionProveedor.findMany({
       where: { compraId: purchase.id },
-      include: { items: true },
+      include: { DevolucionProveedorItem: true },
       orderBy: { fecha: 'desc' },
     });
   }
@@ -358,7 +358,7 @@ export class PurchasesService {
         [];
 
       const purchasedProductIds = new Set(
-        purchase.items.map((purchaseItem) => purchaseItem.productoId),
+        purchase.CompraItem.map((purchaseItem) => purchaseItem.productoId),
       );
 
       for (const item of dto.items) {
@@ -448,7 +448,7 @@ export class PurchasesService {
           proveedorId: purchase.proveedorId,
           usuarioId: userId,
           motivo: dto.motivo,
-          items: {
+          DevolucionProveedorItem: {
             create: resolvedItems.map((item) => ({
               productoId: item.productoId,
               loteId: item.loteId,
@@ -457,7 +457,7 @@ export class PurchasesService {
             })),
           },
         } as Prisma.DevolucionProveedorUncheckedCreateInput,
-        include: { items: true },
+        include: { DevolucionProveedorItem: true },
       });
 
       for (const item of resolvedItems) {

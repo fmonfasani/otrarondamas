@@ -12,7 +12,7 @@ interface UserForSession {
   fotoUrl: string | null;
   googleId: string | null;
   createdAt: Date;
-  empresa: { nombre: string };
+  Empresa: { nombre: string };
   rol: UserRole;
   estadoLegajo: DossierStatus;
 }
@@ -28,7 +28,7 @@ export class AuthService {
     const user = await this.verifyCredentials(email, password);
     return this.issueSession(
       user,
-      user.usuarioPermisos.map((up) => up.permiso.nombre),
+      user.UsuarioPermiso.map((up) => up.Permiso.nombre),
     );
   }
 
@@ -44,7 +44,7 @@ export class AuthService {
     // reveal which of the two was the reason for the rejection.
     const user = await this.prisma.usuario.findUnique({
       where: { email },
-      include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
+      include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
     });
 
     // passwordHash is null for users who only registered through Google
@@ -91,7 +91,7 @@ export class AuthService {
         nombre: user.nombre,
         email: user.email,
         empresaId: user.empresaId,
-        empresaNombre: user.empresa.nombre,
+        empresaNombre: user.Empresa.nombre,
         permisos: permissions,
         fotoUrl: user.fotoUrl,
         metodoLogin: (user.googleId ? 'google' : 'password') as 'google' | 'password',

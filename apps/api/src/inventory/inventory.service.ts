@@ -170,7 +170,7 @@ export class InventoryService {
     expiryLimit.setDate(expiryLimit.getDate() + noticeDays);
     const expiringBatches = await db.lote.findMany({
       where: { vencimiento: { lte: expiryLimit }, cantidad: { gt: 0 } },
-      include: { producto: { select: { nombre: true, codigoInterno: true } } },
+      include: { Producto: { select: { nombre: true, codigoInterno: true } } },
       orderBy: { vencimiento: 'asc' },
     });
 
@@ -180,8 +180,8 @@ export class InventoryService {
       lotesPorVencer: expiringBatches.map((batch) => ({
         loteId: batch.id,
         productoId: batch.productoId,
-        productoNombre: batch.producto.nombre,
-        codigoInterno: batch.producto.codigoInterno,
+        productoNombre: batch.Producto.nombre,
+        codigoInterno: batch.Producto.codigoInterno,
         numeroLote: batch.numeroLote,
         vencimiento: batch.vencimiento,
         cantidad: batch.cantidad,

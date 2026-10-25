@@ -33,8 +33,8 @@ export class OrdersService {
     return db.pedido.findMany({
       where: status ? { estado: status as never } : {},
       include: {
-        cliente: { select: { nombre: true, email: true, telefono: true } },
-        pedidoItems: { include: { producto: { select: { nombre: true } } } },
+        Cliente: { select: { nombre: true, email: true, telefono: true } },
+        PedidoItem: { include: { Producto: { select: { nombre: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -45,8 +45,8 @@ export class OrdersService {
     const order = await db.pedido.findUnique({
       where: { id },
       include: {
-        cliente: true,
-        pedidoItems: { include: { producto: { select: { nombre: true } } } },
+        Cliente: true,
+        PedidoItem: { include: { Producto: { select: { nombre: true } } } },
       },
     });
     if (!order) {
@@ -59,7 +59,7 @@ export class OrdersService {
     const db = this.prismaFactory.forCompany(companyId);
     const order = await db.pedido.findUnique({
       where: { id },
-      include: { pedidoItems: true },
+      include: { PedidoItem: true },
     });
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
@@ -88,7 +88,7 @@ export class OrdersService {
       }
       const order = await db.pedido.findUniqueOrThrow({
         where: { id },
-        include: { pedidoItems: true },
+        include: { PedidoItem: true },
       });
       return order;
     }
@@ -111,10 +111,10 @@ export class OrdersService {
 
           const confirmedOrder = await tx.pedido.findUniqueOrThrow({
             where: { id },
-            include: { pedidoItems: true },
+            include: { PedidoItem: true },
           });
 
-          for (const item of confirmedOrder.pedidoItems) {
+          for (const item of confirmedOrder.PedidoItem) {
             await this.inventoryService.deductStock(
               tx,
               companyId,
@@ -180,7 +180,7 @@ export class OrdersService {
           // Initial read to validate order exists and check state
           const order = await tx.pedido.findUnique({
             where: { id },
-            include: { pedidoItems: true },
+            include: { PedidoItem: true },
           });
 
           if (!order) {
@@ -225,7 +225,7 @@ export class OrdersService {
                 referenciaId: id,
                 tipoMovimiento: 'Salida',
               },
-              include: { lote: true },
+              include: { Lote: true },
             });
 
             // Create matching ENTRADA for each EGRESO to reverse stock
@@ -278,7 +278,7 @@ export class OrdersService {
               valoresPosteriores: {
                 estado: 'CANCELADO',
                 stockReversedItems,
-                itemsCount: order.pedidoItems.length,
+                itemsCount: order.PedidoItem.length,
               },
             },
           });

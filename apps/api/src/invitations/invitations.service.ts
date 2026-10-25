@@ -138,7 +138,7 @@ export class InvitationsService {
           // dossier).
           estadoLegajo: 'PENDIENTE',
         },
-        include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
+        include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
       }),
       this.prisma.invitacion.update({
         where: { id: invitation.id },
@@ -255,7 +255,7 @@ export class InvitationsService {
           // approval' (see spec-login-roles.md).
           estadoLegajo: 'PENDIENTE',
         },
-        include: { empresa: true },
+        include: { Empresa: true },
       }),
       this.prisma.invitacion.update({
         where: { id: invitation.id },

@@ -146,7 +146,7 @@ export class AuthCustomerService {
     esMayorista: boolean;
     estadoLegajo: DossierStatus | null;
     googleId: string | null;
-    empresa: { nombre: string };
+    Empresa: { nombre: string };
     createdAt: Date;
   }) {
     const dossierStatus: DossierStatus = customer.estadoLegajo ?? 'APROBADO';
@@ -174,7 +174,7 @@ export class AuthCustomerService {
         nombre: customer.nombre,
         email: customer.email,
         empresaId: customer.empresaId,
-        empresaNombre: customer.empresa.nombre,
+        empresaNombre: customer.Empresa.nombre,
         esMayorista: customer.esMayorista,
         estadoLegajo: dossierStatus,
         metodoLogin: (customer.googleId ? 'google' : 'password') as 'google' | 'password',
