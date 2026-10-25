@@ -16,8 +16,8 @@ describe('usePrevious', () => {
   it('should return previous value on subsequent renders', () => {
     const { result, rerender } = renderHook(
       ({ value }: { value: number }) => usePrevious(value),
-      { initialProps: { value: 10 } }
-    );
+      initialProps: { value: 10 },
+    });
 
     expect(result.current).toBeUndefined();
 
@@ -32,7 +32,7 @@ describe('usePrevious', () => {
     const { result, rerender } = renderHook(
       ({ value }: { value: string }) => usePrevious(value),
       { initialProps: { value: 'initial' } }
-    );
+    });
 
     expect(result.current).toBeUndefined();
 
@@ -50,7 +50,7 @@ describe('usePrevious', () => {
 
     const { result, rerender } = renderHook(
       ({ value }: { value: typeof obj1 }) => usePrevious(value),
-      { initialProps: { value: obj1 } }
+      { initialProps: { value: obj1 } },
     );
 
     expect(result.current).toBeUndefined();
@@ -67,8 +67,8 @@ describe('usePrevious', () => {
   it('should track boolean values', () => {
     const { result, rerender } = renderHook(
       ({ value }: { value: boolean }) => usePrevious(value),
-      { initialProps: { value: false } }
-    );
+      initialProps: { value: false },
+    });
 
     expect(result.current).toBeUndefined();
 
@@ -82,7 +82,7 @@ describe('usePrevious', () => {
   it('should track null and undefined values', () => {
     const { result, rerender } = renderHook(
       ({ value }: { value: string | null | undefined }) => usePrevious(value),
-      { initialProps: { value: 'initial' } }
+      { initialProps: { value: 'initial' } },
     );
 
     expect(result.current).toBeUndefined();
@@ -101,8 +101,8 @@ describe('usePrevious', () => {
     const values = [1, 2, 3, 4, 5];
     const { result, rerender } = renderHook(
       ({ value }: { value: number }) => usePrevious(value),
-      { initialProps: { value: values[0] } }
-    );
+      initialProps: { value: values[0] },
+    });
 
     expect(result.current).toBeUndefined();
 

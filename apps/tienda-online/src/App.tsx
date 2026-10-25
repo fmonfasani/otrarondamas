@@ -33,51 +33,51 @@ function App() {
     <AppProviders>
       <AuthProvider>
         <CarritoProvider>
-        <Router>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <RequiereAuth>
-                  <CatalogoPage />
-                </RequiereAuth>
-              }
-            />
-            <Route
-              path="/checkout"
-              element={
-                <RequiereAuth>
-                  <CheckoutPage />
-                </RequiereAuth>
-              }
-            />
-            {/* Seguimiento público: el cliente accede desde el email de confirmación */}
-            <Route path="/pedido/:id" element={<SeguimientoPedidoPage />} />
-            {/* RF-17: auth de clientes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/registro" element={<RegistroPage />} />
-            <Route
-              path="/activar-invitacion-mayorista"
-              element={<ActivarInvitacionMayoristaPage />}
-            />
-            <Route
-              path="/mi-cuenta"
-              element={
-                <RequiereAuth>
-                  <MiCuentaPage />
-                </RequiereAuth>
-              }
-            />
-            <Route
-              path="/mi-cuenta/legajo"
-              element={
-                <RequiereAuth>
-                  <LegajoMayoristaPage />
-                </RequiereAuth>
-              }
-            />
-          </Routes>
-        </Router>
+          <Router>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <RequiereAuth>
+                    <CatalogoPage />
+                  </RequiereAuth>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <RequiereAuth>
+                    <CheckoutPage />
+                  </RequiereAuth>
+                }
+              />
+              {/* Seguimiento público: el cliente accede desde el email de confirmación */}
+              <Route path="/pedido/:id" element={<SeguimientoPedidoPage />} />
+              {/* RF-17: auth de clientes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/registro" element={<RegistroPage />} />
+              <Route
+                path="/activar-invitacion-mayorista"
+                element={<ActivarInvitacionMayoristaPage />}
+              />
+              <Route
+                path="/mi-cuenta"
+                element={
+                  <RequiereAuth>
+                    <MiCuentaPage />
+                  </RequiereAuth>
+                }
+              />
+              <Route
+                path="/mi-cuenta/legajo"
+                element={
+                  <RequiereAuth>
+                    <LegajoMayoristaPage />
+                  </RequiereAuth>
+                }
+              />
+            </Routes>
+          </Router>
         </CarritoProvider>
       </AuthProvider>
     </AppProviders>

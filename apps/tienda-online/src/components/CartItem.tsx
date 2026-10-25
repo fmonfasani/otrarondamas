@@ -24,11 +24,7 @@ export interface CartItemProps {
  * - Remove from cart button
  * - Total price calculation (quantity * price)
  */
-export function CartItem({
-  item,
-  onUpdate,
-  onRemove,
-}: CartItemProps): ReactNode {
+export function CartItem({ item, onUpdate, onRemove }: CartItemProps): ReactNode {
   const canDecrement = item.quantity > 1;
   const canIncrement = item.quantity < item.maxQuantity;
   const totalPrice = item.quantity * item.price;

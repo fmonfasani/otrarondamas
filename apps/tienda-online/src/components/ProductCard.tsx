@@ -26,11 +26,7 @@ export interface ProductCardProps {
  * - Add to cart button with loading/disabled states
  * - Hover effects on image (scale and shadow)
  */
-export function ProductCard({
-  product,
-  onClick,
-  onAddToCart,
-}: ProductCardProps): ReactNode {
+export function ProductCard({ product, onClick, onAddToCart }: ProductCardProps): ReactNode {
   const hasDiscount = product.discountPrice && product.discountPrice < product.price;
   const lowStock = product.stock < 5 && product.stock > 0;
   const outOfStock = product.stock === 0;

@@ -41,17 +41,8 @@ interface UseNotificationReturn {
 export const useNotification = (): UseNotificationReturn => {
   const { toast } = useToast();
 
-  const notify = (
-    message: string,
-    type: ToastType = 'info',
-    options?: NotificationOptions
-  ) => {
-    toast(
-      message,
-      type,
-      options?.duration ?? 3000,
-      options?.position ?? 'top-right'
-    );
+  const notify = (message: string, type: ToastType = 'info', options?: NotificationOptions) => {
+    toast(message, type, options?.duration ?? 3000, options?.position ?? 'top-right');
   };
 
   const success = (message: string, options?: NotificationOptions) => {

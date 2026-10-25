@@ -122,8 +122,8 @@ describe('useClickOutside', () => {
 
     const { rerender } = renderHook(
       ({ cb }: { cb: () => void }) => useClickOutside(ref, cb),
-      { initialProps: { cb: callback1 } }
-    );
+      initialProps: { cb: callback1 },
+    });
 
     // First click uses callback1
     const clickEvent1 = new MouseEvent('mousedown', {

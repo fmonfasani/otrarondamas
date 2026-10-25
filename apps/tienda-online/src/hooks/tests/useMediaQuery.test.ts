@@ -39,7 +39,7 @@ describe('useMediaQuery', () => {
   });
 
   it('should update state when media query changes', () => {
-    let listeners: { [key: string]: Function } = {};
+    const listeners: { [key: string]: Function } = {};
     const matchMediaMock = vi.fn(() => ({
       matches: false,
       addEventListener: vi.fn((event: string, handler: Function) => {

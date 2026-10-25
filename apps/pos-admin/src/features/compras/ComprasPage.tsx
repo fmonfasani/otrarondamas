@@ -272,7 +272,9 @@ export function ComprasPage() {
       const lotes = await api.listarLotesProducto(productoId);
       setLotesPorProductoDev((prev) => ({ ...prev, [productoId]: lotes }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los lotes del producto');
+      setError(
+        err instanceof ApiError ? err.message : 'No se pudieron cargar los lotes del producto',
+      );
     } finally {
       setCargandoLotesDev((prev) => ({ ...prev, [productoId]: false }));
     }
@@ -881,7 +883,9 @@ export function ComprasPage() {
                                         aria-label="Lote manual para devolución"
                                         value={item.loteId ?? ''}
                                         onFocus={() => void cargarLotesDevolucion(item.productoId)}
-                                        onChange={(e) => actualizarItemDev(idx, 'loteId', e.target.value)}
+                                        onChange={(e) =>
+                                          actualizarItemDev(idx, 'loteId', e.target.value)
+                                        }
                                         className="w-36 px-2 py-1.5 border border-gray-300 rounded text-xs"
                                       >
                                         <option value="">

@@ -48,7 +48,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       onChange(category);
       setIsOpen(false);
     },
-    [onChange]
+    [onChange],
   );
 
   const displayText = selectedCategory || placeholder;
@@ -90,10 +90,14 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
           <>
             {/* "All Categories" option */}
             <Dropdown.Item
-              onSelect={handleSelect}
               value=""
+              onSelect={() => handleSelect('')}
             >
-              <span className={selectedCategory === '' || !selectedCategory ? 'font-semibold text-blue-600' : ''}>
+              <span
+                className={
+                  selectedCategory === '' || !selectedCategory ? 'font-semibold text-blue-600' : ''
+                }
+              >
                 All Categories
               </span>
             </Dropdown.Item>
@@ -105,9 +109,11 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
               <Dropdown.Item
                 key={category}
                 value={category}
-                onSelect={handleSelect}
+                onSelect={() => handleSelect(category)}
               >
-                <span className={selectedCategory === category ? 'font-semibold text-blue-600' : ''}>
+                <span
+                  className={selectedCategory === category ? 'font-semibold text-blue-600' : ''}
+                >
                   {category}
                 </span>
               </Dropdown.Item>

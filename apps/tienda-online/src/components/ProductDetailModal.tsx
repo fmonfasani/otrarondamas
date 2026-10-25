@@ -51,10 +51,7 @@ interface ProductDetailModalProps {
   onAddToCart?: (product: Product, quantity: number) => void;
 }
 
-export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
-  product,
-  onAddToCart,
-}) => {
+export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onAddToCart }) => {
   const { modal, closeModal } = useModal();
   const { notify } = useNotification();
   const [quantity, setQuantity] = React.useState(1);
@@ -75,11 +72,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   }, [product, quantity, onAddToCart, closeModal, notify]);
 
-  const handleQuantityChange = useCallback((newQuantity: number) => {
-    if (newQuantity > 0 && (!product || newQuantity <= product.stock)) {
-      setQuantity(newQuantity);
-    }
-  }, [product]);
+  const handleQuantityChange = useCallback(
+    (newQuantity: number) => {
+      if (newQuantity > 0 && (!product || newQuantity <= product.stock)) {
+        setQuantity(newQuantity);
+      }
+    },
+    [product],
+  );
 
   if (!modal.isOpen || !product) {
     return null;

@@ -25,11 +25,7 @@ export interface StoreCardProps {
  * - Message button
  * - View store button (click handler)
  */
-export function StoreCard({
-  store,
-  onClick,
-  onMessage,
-}: StoreCardProps): ReactNode {
+export function StoreCard({ store, onClick, onMessage }: StoreCardProps): ReactNode {
   return (
     <div
       data-testid="store-card"

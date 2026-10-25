@@ -50,7 +50,7 @@ export const useToast = () => {
 
       return id;
     },
-    [generateId]
+    [generateId],
   );
 
   const removeToast = useCallback((id: string) => {
