@@ -363,7 +363,7 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
         select: { cantidad: true },
       });
       expect(Number(after.cantidad)).toBe(Number(before.cantidad));
-      
+
     });
   });
 
