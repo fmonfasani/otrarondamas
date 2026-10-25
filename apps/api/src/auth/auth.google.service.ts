@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { GoogleProfile } from './google.strategy';
@@ -62,28 +62,12 @@ export class AuthGoogleService {
           include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
         });
       } else {
-        const companyId = process.env.GOOGLE_SIGNUP_EMPRESA_ID;
-        if (!companyId) {
-          // We do not invent which company to assign a new user to — without
-          // this variable, automatic sign-up is effectively disabled (it fails
-          // instead of assigning a guessed company).
-          throw new InternalServerErrorException(
-            'GOOGLE_SIGNUP_EMPRESA_ID no configurado: no se puede crear el usuario automáticamente',
-          );
-        }
-
-        user = await this.prisma.usuario.create({
-          data: {
-            empresaId: companyId,
-            nombre: profile.nombre,
-            email: profile.email,
-            googleId: profile.googleId,
-            fotoUrl: profile.fotoUrl,
-            passwordHash: null,
-            activo: true,
-          },
-          include: { usuarioPermisos: { include: { permiso: true } }, empresa: true },
-        });
+        // RF-17 / approved access invariant: internal staff accounts are
+        // created through an owner-controlled invitation, never by public
+        // self-registration through Google OAuth.
+        throw new UnauthorizedException(
+          'No existe una cuenta interna asociada. Solicita una invitación al dueño.',
+        );
       }
     }
 
