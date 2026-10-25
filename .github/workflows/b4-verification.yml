@@ -54,18 +54,23 @@ jobs:
         run: |
           cd apps/api
 
-          mapfile -t test_files < <(
-            {
-              printf '%s\n' test/integration/tenant-isolation.integration-spec.ts
-              find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \) -print
-            } | sort -u
+          mapfile -t discovered_test_files < <(
+            find test/integration -maxdepth 1 -type f \\( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \\) -print | sort
           )
 
-          if [ "${#test_files[@]}" -eq 0 ]; then
-            echo "No API integration verification tests found."
+          if [ "${#discovered_test_files[@]}" -eq 0 ]; then
+            echo "No S-V1, FS-1a, or messaging HTTP integration tests found."
+            exit 1
+          fi
+          if [ ! -f test/integration/tenant-isolation.integration-spec.ts ]; then
+            echo "Required tenant isolation regression test is missing."
             exit 1
           fi
 
-          printf 'Running %d API integration test files in one Jest process:\n' "${#test_files[@]}"
-          printf '  %s\n' "${test_files[@]}"
+          mapfile -t test_files < <(
+            printf '%s\\n' test/integration/tenant-isolation.integration-spec.ts "${discovered_test_files[@]}" | sort -u
+          )
+
+          printf 'Running %d API integration test files in one Jest process:\\n' "${#test_files[@]}"
+          printf '  %s\\n' "${test_files[@]}"
           npm run test:integration -- --runInBand "${test_files[@]}"
