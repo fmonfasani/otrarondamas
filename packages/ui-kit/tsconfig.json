@@ -8,6 +8,7 @@
     "lib": ["es2020", "dom", "dom.iterable"],
     "strict": true,
     "noImplicitAny": false,
+    "noEmit": false,
     "composite": true
   },
   "include": ["src"],
