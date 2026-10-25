@@ -9,7 +9,9 @@
     "strict": true,
     "noImplicitAny": false,
     "noEmit": false,
-    "composite": true
+    "composite": true,
+    "module": "ES2020",
+    "moduleResolution": "bundler"
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.tsx", "src/**/*.stories.tsx"]
