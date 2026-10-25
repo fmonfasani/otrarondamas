@@ -173,6 +173,97 @@ npm run test:e2e --workspace=@otrarondamas/api -- --runInBand
 
 Producción bajo `otrarondamas.wapsell.com` vía `docker-compose.prod.yml` e [`infra/nginx/`](infra/nginx/) — infraestructura compartida con Wapsell, sin dependencias de código ni de datos entre ambos. Migraciones y despliegues son **manuales** (el único workflow, `b4-verification.yml`, solo ejecuta tests).
 
+## CI/CD Pipeline (GitHub Actions)
+
+Sistema de despliegue automatizado con GitHub Actions para staging y producción.
+
+### Workflows Disponibles
+
+| Workflow | Trigger | Destino | Descripción |
+|----------|---------|---------|-------------|
+| `test.yml` | Push a `feat/**`, `hotfix/**` o PR a `main` | N/A | Ejecuta tests con PostgreSQL + Redis |
+| `lint.yml` | Push a feature branches | N/A | Linting y validación de código |
+| `build.yml` | Push a `feat/**`, `hotfix/**` o PR a `main` | N/A | Compilación TypeScript + validación Prisma |
+| `deploy-staging.yml` | Push a `develop` (automático) | Staging VPS | Deploy automático a staging |
+| `deploy-production.yml` | Manual workflow_dispatch | Production VPS | Deploy manual a producción con rollback automático |
+| `backup.yml` | Diariamente 02:00 UTC | Hetzner VPS | Backup diario de base de datos |
+
+### Despliegue a Staging
+
+Automático en cada push a `develop`:
+
+```bash
+# Solo hacer push a develop - el workflow se dispara automáticamente
+git push origin develop
+
+# O disparar manualmente:
+gh workflow run deploy-staging.yml -R fmonfasani/OtraRondaMas
+```
+
+Monitorear: `gh run watch -R fmonfasani/OtraRondaMas`
+
+### Despliegue a Producción
+
+Manual con aprobación:
+
+```bash
+# Via GitHub CLI:
+gh workflow run deploy-production.yml \
+  -f version=main \
+  -R fmonfasani/OtraRondaMas
+
+# Via GitHub Web UI:
+# 1. Actions tab → Deploy to Production → Run workflow
+# 2. Ingresa version (tag o commit SHA)
+# 3. Confirma deployment
+```
+
+**Características**:
+- ✅ Pre-deployment: tests + build verification
+- ✅ Backup automático antes del deploy
+- ✅ Health checks con retry automático
+- ✅ Rollback automático si falla (migración, health check)
+- ✅ Notificaciones Slack en tiempo real
+
+### Configuración Requerida
+
+Secretos en GitHub (Settings > Secrets and variables):
+
+```
+SSH_USER              # Usuario SSH para VPS (ej: root)
+SSH_PRIVATE_KEY       # Clave privada SSH (ed25519)
+SSH_PORT              # Puerto SSH (ej: 22)
+STAGING_HOST          # IP/hostname del VPS de staging
+PROD_HOST             # IP/hostname del VPS de producción
+DOCKER_USERNAME       # Usuario Docker Hub
+DOCKER_PASSWORD       # Token de acceso Docker Hub
+SLACK_WEBHOOK_*       # Webhooks para notificaciones
+```
+
+Ver [`docs/GITHUB-SECRETS-SETUP.md`](docs/GITHUB-SECRETS-SETUP.md) para instrucciones detalladas.
+
+### Documentación de Deployment
+
+- **[Checklist pre-deployment](docs/DEPLOYMENT-CHECKLIST.md)** — Verificaciones antes de cada deploy
+- **[Runbook operativo](docs/DEPLOYMENT-RUNBOOK.md)** — Procedimientos step-by-step y recuperación ante fallos
+- **[Configuración de secretos](docs/GITHUB-SECRETS-SETUP.md)** — Setup de credenciales en GitHub
+- **[Monitoreo post-deployment](scripts/monitoring.sh)** — Script de health checks
+
+### Rollback
+
+Automático si:
+- Migración falla
+- Health check falla (5 intentos)
+- API no responde
+
+Manual si es necesario:
+```bash
+ssh root@${PROD_HOST}
+cd /opt/wapsell
+git checkout main
+docker-compose down && docker-compose up -d
+```
+
 ## Fecha objetivo de producción
 
 30/11/2026

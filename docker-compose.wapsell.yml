@@ -1,0 +1,391 @@
+# Docker Compose stack para Wapsell (plataforma SaaS multi-tenant)
+# Deployable en un VPS de 2-4 CPUs con 8-16GB RAM
+# Ambiente: staging/producción
+#
+# Uso:
+#   docker compose -f docker-compose.wapsell.yml up -d
+#   docker compose -f docker-compose.wapsell.yml logs -f api
+
+version: '3.9'
+
+networks:
+  wapsell-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  logs_api:
+    driver: local
+  assets_data:
+    driver: local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wapsell-postgres
+    hostname: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: wapsell_prod
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: |
+        -c max_connections=200
+        -c shared_buffers=2GB
+        -c effective_cache_size=6GB
+        -c maintenance_work_mem=512MB
+        -c checkpoint_completion_target=0.9
+        -c wal_buffers=16MB
+        -c default_statistics_target=100
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c work_mem=10485kB
+        -c min_wal_size=1GB
+        -c max_wal_size=4GB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/01-schemas.sql
+      - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/02-extensions.sql
+      - ./postgres/backup.sh:/usr/local/bin/backup.sh
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d wapsell_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+
+  redis:
+    image: redis:7-alpine
+    container_name: wapsell-redis
+    hostname: redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --appendfilename appendonly.aof
+      --dir /data
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.3
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: wapsell-elasticsearch
+    hostname: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled=true
+      - xpack.ml.enabled=false
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:?ELASTICSEARCH_PASSWORD required}
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.4
+    healthcheck:
+      test: >
+        curl -s -u elastic:${ELASTICSEARCH_PASSWORD} http://localhost:9200/_cluster/health
+        | grep -q 'green\|yellow'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: wapsell-api
+    hostname: api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NODE_OPTIONS: --max-old-space-size=1024
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/wapsell_prod?schema=public&sslmode=require
+      DATABASE_POOL_SIZE: 20
+      DATABASE_STATEMENT_CACHE_SIZE: 200
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+      REDIS_POOL_SIZE: 10
+      ELASTICSEARCH_URL: https://elastic:${ELASTICSEARCH_PASSWORD:?}@elasticsearch:9200
+      ELASTICSEARCH_NODE: https://elasticsearch:9200
+      PORT: ${API_PORT:-3000}
+      API_BASE_URL: ${API_BASE_URL:?API_BASE_URL required}
+      API_VERSION: v1
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-}
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-wapsell-assets-prod}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-es-AR}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-es-AR,en-US,pt-BR}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: json
+      LOG_DIR: /app/logs
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3002}
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+    volumes:
+      - logs_api:/app/logs
+      - assets_data:/data/assets
+    ports:
+      - "127.0.0.1:3000:${API_PORT:-3000}"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.5
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "-w", "%{http_code}", "http://localhost:${API_PORT:-3000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  tienda-online:
+    build:
+      context: .
+      dockerfile: apps/tienda-online/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL_TIENDA:?VITE_API_URL_TIENDA required}
+    container_name: wapsell-tienda-online
+    hostname: tienda-online
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+    volumes:
+      - logs_api:/var/log/nginx
+    ports:
+      - "127.0.0.1:3001:80"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.6
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /var/run
+      - /var/cache/nginx
+
+  pos-admin:
+    build:
+      context: .
+      dockerfile: apps/pos-admin/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL_ADMIN:?VITE_API_URL_ADMIN required}
+    container_name: wapsell-pos-admin
+    hostname: pos-admin
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+    volumes:
+      - logs_api:/var/log/nginx
+    ports:
+      - "127.0.0.1:3002:80"
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.7
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: 5
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /var/run
+      - /var/cache/nginx
+
+
+  # ============================================================================
+  # NGINX Reverse Proxy - SSL/TLS, Rate Limiting, Security Headers
+  # ============================================================================
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: wapsell-nginx
+    hostname: nginx
+    restart: unless-stopped
+
+    depends_on:
+      - api
+      - tienda-online
+      - pos-admin
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /data/wapsell/letsencrypt:/etc/letsencrypt
+      - /data/wapsell/logs/nginx:/var/log/nginx
+
+    networks:
+      wapsell-network:
+        ipv4_address: 172.25.0.8
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    stop_grace_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: 5
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /var/run
+      - /var/cache/nginx

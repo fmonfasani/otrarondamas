@@ -1,0 +1,871 @@
+diff --git a/apps/api/prisma/backfill-role-grants.ts b/apps/api/prisma/backfill-role-grants.ts
+index 7307b16..e949e1c 100644
+--- a/apps/api/prisma/backfill-role-grants.ts
++++ b/apps/api/prisma/backfill-role-grants.ts
+@@ -52,7 +52,7 @@ async function backfillRoleGrants() {
+     // Find all Memberships without a RoleGrant
+     const membershipsToBackfill = await prisma.membership.findMany({
+       where: {
+-        roleGrant: null,
++        RoleGrant: null,
+       },
+     });
+ 
+@@ -82,10 +82,17 @@ async function backfillRoleGrants() {
+       }
+ 
+       try {
++        const { v4: uuid } = await import('uuid');
+         await prisma.roleGrant.create({
+           data: {
+-            membershipId: membership.id,
+-            roleTemplateId,
++            id: uuid(),
++            Membership: {
++              connect: { id: membership.id },
++            },
++            RoleTemplate: {
++              connect: { id: roleTemplateId },
++            },
++            updatedAt: new Date(),
+           },
+         });
+         created++;
+@@ -113,7 +120,7 @@ async function backfillRoleGrants() {
+     // Validation: Verify all Memberships now have RoleGrant
+     const stillMissing = await prisma.membership.findMany({
+       where: {
+-        roleGrant: null,
++        RoleGrant: null,
+       },
+     });
+ 
+diff --git a/apps/api/prisma/backfill-s-v1-01-user-membership.ts b/apps/api/prisma/backfill-s-v1-01-user-membership.ts
+index 57a3378..c340fd3 100644
+--- a/apps/api/prisma/backfill-s-v1-01-user-membership.ts
++++ b/apps/api/prisma/backfill-s-v1-01-user-membership.ts
+@@ -88,14 +88,17 @@ export async function runBackfill(prisma: PrismaClient): Promise<BackfillReport>
+     }
+ 
+     if (!user) {
++      const { v4: uuid } = await import('uuid');
+       user = await prisma.user.create({
+         data: {
++          id: uuid(),
+           email: u.email,
+           nombre: u.nombre,
+           passwordHash: u.passwordHash,
+           googleId: u.googleId,
+           fotoUrl: u.fotoUrl,
+           usuarioId: u.id,
++          updatedAt: new Date(),
+         },
+       });
+       report.usersCreados += 1;
+@@ -113,8 +116,16 @@ export async function runBackfill(prisma: PrismaClient): Promise<BackfillReport>
+     if (existing) {
+       report.membershipsExistentes += 1;
+     } else {
++      const { v4: uuid } = await import('uuid');
+       await prisma.membership.create({
+-        data: { userId: user.id, businessId: u.empresaId, role: u.rol, status },
++        data: {
++          id: uuid(),
++          userId: user.id,
++          businessId: u.empresaId,
++          role: u.rol,
++          status,
++          updatedAt: new Date(),
++        },
+       });
+       report.membershipsCreadas += 1;
+     }
+diff --git a/apps/api/prisma/migrate-categoria-a-jerarquia.ts b/apps/api/prisma/migrate-categoria-a-jerarquia.ts
+index a25401e..db47764 100644
+--- a/apps/api/prisma/migrate-categoria-a-jerarquia.ts
++++ b/apps/api/prisma/migrate-categoria-a-jerarquia.ts
+@@ -59,35 +59,53 @@ async function createFamilySubfamilyGen(companyId: string, oldCategoryName: stri
+   // created with the same name as the old Categoria, without trying to
+   // map it into the tree of 187 Subfamilias (those categories are empty
+   // or almost empty, they are not part of the consolidated real catalog).
++  const { v4: uuid } = await import('uuid');
+   const family = await prisma.familia.upsert({
+     where: { empresaId_nombre: { empresaId: companyId, nombre: oldCategoryName } },
+     update: {},
+-    create: { nombre: oldCategoryName, prefijo: PREFIX_GEN, empresaId: companyId },
++    create: {
++      id: uuid(),
++      nombre: oldCategoryName,
++      prefijo: PREFIX_GEN,
++      empresaId: companyId,
++      updatedAt: new Date(),
++    },
+   });
+   const subfamily = await prisma.subfamilia.upsert({
+     where: { familiaId_nombre: { familiaId: family.id, nombre: oldCategoryName } },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: oldCategoryName,
+       prefijo: PREFIX_GEN,
+       empresaId: companyId,
+       familiaId: family.id,
++      updatedAt: new Date(),
+     },
+   });
+   const type = await prisma.tipo.upsert({
+     where: { subfamiliaId_nombre: { subfamiliaId: subfamily.id, nombre: NAME_GEN } },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: NAME_GEN,
+       prefijo: PREFIX_GEN,
+       empresaId: companyId,
+       subfamiliaId: subfamily.id,
++      updatedAt: new Date(),
+     },
+   });
+   const subtype = await prisma.subtipo.upsert({
+     where: { tipoId_nombre: { tipoId: type.id, nombre: NAME_GEN } },
+     update: {},
+-    create: { nombre: NAME_GEN, prefijo: PREFIX_GEN, empresaId: companyId, tipoId: type.id },
++    create: {
++      id: uuid(),
++      nombre: NAME_GEN,
++      prefijo: PREFIX_GEN,
++      empresaId: companyId,
++      tipoId: type.id,
++      updatedAt: new Date(),
++    },
+   });
+   return { familia: family, subfamilia: subfamily, tipo: type, subtipo: subtype };
+ }
+@@ -111,11 +129,14 @@ async function main() {
+ 
+     // 1) Familias/Subfamilias/GEN of the real catalog (187 consolidated
+     // departments) — same as seed.ts, reuses them via skipDuplicates.
++    const { v4: uuid } = await import('uuid');
+     await prisma.familia.createMany({
+       data: hierarchyData.familias.map((f) => ({
++        id: uuid(),
+         nombre: f.nombre,
+         prefijo: f.prefijo,
+         empresaId: company.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -124,10 +145,12 @@ async function main() {
+ 
+     await prisma.subfamilia.createMany({
+       data: hierarchyData.subfamilias.map((s) => ({
++        id: uuid(),
+         nombre: s.nombre,
+         prefijo: s.prefijo,
+         empresaId: company.id,
+         familiaId: familyIdByPrefix.get(s.familiaPrefijo)!,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -146,10 +169,12 @@ async function main() {
+ 
+     await prisma.tipo.createMany({
+       data: subfamilies.map((s) => ({
++        id: uuid(),
+         nombre: NAME_GEN,
+         prefijo: PREFIX_GEN,
+         empresaId: company.id,
+         subfamiliaId: s.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -160,10 +185,12 @@ async function main() {
+ 
+     await prisma.subtipo.createMany({
+       data: types.map((t) => ({
++        id: uuid(),
+         nombre: NAME_GEN,
+         prefijo: PREFIX_GEN,
+         empresaId: company.id,
+         tipoId: t.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+diff --git a/apps/api/prisma/seed-e2e-messaging.ts b/apps/api/prisma/seed-e2e-messaging.ts
+index f18c42b..49fc7cf 100644
+--- a/apps/api/prisma/seed-e2e-messaging.ts
++++ b/apps/api/prisma/seed-e2e-messaging.ts
+@@ -19,13 +19,16 @@ async function main() {
+     throw new Error('E2E precondition failed: active owner@otrarondamas.com seed user is missing');
+   }
+ 
++  const { v4: uuid } = await import('uuid');
+   const user = await prisma.user.upsert({
+     where: { email: owner.email },
+     update: { nombre: owner.nombre, usuarioId: owner.id },
+     create: {
++      id: uuid(),
+       email: owner.email,
+       nombre: owner.nombre,
+       usuarioId: owner.id,
++      updatedAt: new Date(),
+     },
+   });
+ 
+@@ -38,10 +41,12 @@ async function main() {
+       status: 'ACTIVE',
+     },
+     create: {
++      id: uuid(),
+       userId: user.id,
+       businessId: owner.empresaId,
+       role: owner.rol,
+       status: 'ACTIVE',
++      updatedAt: new Date(),
+     },
+   });
+ 
+@@ -54,11 +59,13 @@ async function main() {
+     },
+     update: { nombre: 'Cliente E2E Mensajería', activo: true },
+     create: {
++      id: uuid(),
+       empresaId: owner.empresaId,
+       nombre: 'Cliente E2E Mensajería',
+       email: 'messaging-e2e-customer@otrarondamas.com',
+       telefono: '1100000000',
+       activo: true,
++      updatedAt: new Date(),
+     },
+   });
+ 
+diff --git a/apps/api/prisma/seed-role-hierarchy.ts b/apps/api/prisma/seed-role-hierarchy.ts
+index 295b7af..088f819 100644
+--- a/apps/api/prisma/seed-role-hierarchy.ts
++++ b/apps/api/prisma/seed-role-hierarchy.ts
+@@ -160,6 +160,7 @@ async function seed() {
+ 
+     // Step 1: Create CapabilityDefinition entities
+     console.log('\n✓ Creating CapabilityDefinition entities...');
++    const { v4: uuid } = await import('uuid');
+     for (const capDef of CAPABILITY_DEFS) {
+       const existing = await prisma.capabilityDefinition.findUnique({
+         where: { code: capDef.code },
+@@ -168,7 +169,11 @@ async function seed() {
+         console.log(`  - ${capDef.code} (already exists)`);
+       } else {
+         await prisma.capabilityDefinition.create({
+-          data: capDef,
++          data: {
++            id: uuid(),
++            ...capDef,
++            updatedAt: new Date(),
++          },
+         });
+         console.log(`  + ${capDef.code}`);
+       }
+@@ -188,9 +193,11 @@ async function seed() {
+       } else {
+         const roleTemplate = await prisma.roleTemplate.create({
+           data: {
++            id: uuid(),
+             name: roleConfig.name,
+             description: roleConfig.description,
+             // RoleCapability will be created separately
++            updatedAt: new Date(),
+           },
+         });
+         console.log(`  + ${roleConfig.name}`);
+@@ -207,6 +214,7 @@ async function seed() {
+ 
+           await prisma.roleCapability.create({
+             data: {
++              id: uuid(),
+               roleTemplateId: roleTemplate.id,
+               capabilityDefId: capDef.id,
+             },
+@@ -221,9 +229,9 @@ async function seed() {
+     const allCapabilities = await prisma.capabilityDefinition.findMany();
+     const allRoles = await prisma.roleTemplate.findMany({
+       include: {
+-        capabilities: {
++        RoleCapability: {
+           include: {
+-            capabilityDef: true,
++            CapabilityDefinition: true,
+           },
+         },
+       },
+@@ -232,7 +240,7 @@ async function seed() {
+     console.log(`  - ${allCapabilities.length} capabilities in catalog`);
+     for (const role of allRoles) {
+       console.log(
+-        `  - ${role.name}: ${role.capabilities.length} capabilities`,
++        `  - ${role.name}: ${role.RoleCapability.length} capabilities`,
+       );
+     }
+ 
+diff --git a/apps/api/prisma/seed.ts b/apps/api/prisma/seed.ts
+index deaa1c4..e2d5940 100644
+--- a/apps/api/prisma/seed.ts
++++ b/apps/api/prisma/seed.ts
+@@ -53,13 +53,16 @@ async function main() {
+   const hashedPassword = await bcrypt.hash('password123', 10);
+ 
+   // Empresa
++  const { v4: uuid } = await import('uuid');
+   const company = await prisma.empresa.upsert({
+     where: { nombre: 'Otra Roonda Más' },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: 'Otra Roonda Más',
+       slug: 'otra-roonda-mas',
+       configuracion: {},
++      updatedAt: new Date(),
+     },
+   });
+   console.log({ empresa: company });
+@@ -71,9 +74,11 @@ async function main() {
+     where: { nombre: 'Empresa Demo Aislamiento' },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: 'Empresa Demo Aislamiento',
+       slug: 'empresa-demo-aislamiento',
+       configuracion: {},
++      updatedAt: new Date(),
+     },
+   });
+   console.log({ empresaAislamiento: companyIsolation });
+@@ -125,34 +130,53 @@ async function main() {
+     await prisma.permiso.upsert({
+       where: { nombre: permissionName },
+       update: {},
+-      create: { nombre: permissionName },
++      create: {
++        id: uuid(),
++        nombre: permissionName,
++        updatedAt: new Date(),
++      },
+     });
+   }
+ 
+   const allPermissions = await prisma.permiso.findMany();
+-  const ownerPermissions = allPermissions.map((p) => ({ permisoId: p.id }));
++  const ownerPermissions = allPermissions.map((p) => ({
++    id: uuid(),
++    permisoId: p.id,
++    updatedAt: new Date(),
++  }));
+ 
+   // Usuarios
+   const ownerUser = await prisma.usuario.upsert({
+     where: { email: 'owner@otrarondamas.com' },
+     update: {},
+     create: {
++      id: uuid(),
+       empresaId: company.id,
+       nombre: 'Dueño de Prueba',
+       email: 'owner@otrarondamas.com',
+       passwordHash: hashedPassword,
+       activo: true,
+-      usuarioPermisos: {
++      updatedAt: new Date(),
++      UsuarioPermiso: {
+         create: ownerPermissions,
+       },
+     },
+   });
+   console.log({ ownerUser });
+ 
++  const sellerPermissions = ['ventas.crear', 'clientes.gestionar', 'productos.gestionar'];
++  const sellerPermissionIds = (
++    await prisma.permiso.findMany({
++      where: { nombre: { in: sellerPermissions } },
++      select: { id: true },
++    })
++  ).map((p) => p.id);
++
+   const sellerUser = await prisma.usuario.upsert({
+     where: { email: 'seller@otrarondamas.com' },
+     update: {},
+     create: {
++      id: uuid(),
+       empresaId: company.id,
+       nombre: 'Vendedor de Prueba',
+       email: 'seller@otrarondamas.com',
+@@ -163,12 +187,13 @@ async function main() {
+       // misclassified. ownerUser above does not need an explicit `rol`
+       // because OWNER is already the schema default.
+       rol: 'ASISTENTE_LOCAL',
+-      usuarioPermisos: {
+-        create: [
+-          { permiso: { connect: { nombre: 'ventas.crear' } } },
+-          { permiso: { connect: { nombre: 'clientes.gestionar' } } },
+-          { permiso: { connect: { nombre: 'productos.gestionar' } } },
+-        ],
++      updatedAt: new Date(),
++      UsuarioPermiso: {
++        create: sellerPermissionIds.map((permisoId) => ({
++          id: uuid(),
++          permisoId,
++          updatedAt: new Date(),
++        })),
+       },
+     },
+   });
+@@ -180,12 +205,14 @@ async function main() {
+     where: { email: 'owner@demo-aislamiento.com' },
+     update: {},
+     create: {
++      id: uuid(),
+       empresaId: companyIsolation.id,
+       nombre: 'Dueño Empresa Aislamiento',
+       email: 'owner@demo-aislamiento.com',
+       passwordHash: hashedPassword,
+       activo: true,
+-      usuarioPermisos: { create: ownerPermissions },
++      updatedAt: new Date(),
++      UsuarioPermiso: { create: ownerPermissions },
+     },
+   });
+   console.log({ ownerAislamiento: ownerIsolation });
+@@ -193,36 +220,48 @@ async function main() {
+   const familyIsolation = await prisma.familia.upsert({
+     where: { empresaId_nombre: { empresaId: companyIsolation.id, nombre: 'General' } },
+     update: {},
+-    create: { nombre: 'General', prefijo: 'GEN', empresaId: companyIsolation.id },
++    create: {
++      id: uuid(),
++      nombre: 'General',
++      prefijo: 'GEN',
++      empresaId: companyIsolation.id,
++      updatedAt: new Date(),
++    },
+   });
+   const subfamilyIsolation = await prisma.subfamilia.upsert({
+     where: { familiaId_nombre: { familiaId: familyIsolation.id, nombre: 'General' } },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: 'General',
+       prefijo: 'GEN',
+       empresaId: companyIsolation.id,
+       familiaId: familyIsolation.id,
++      updatedAt: new Date(),
+     },
+   });
+   const typeIsolation = await prisma.tipo.upsert({
+     where: { subfamiliaId_nombre: { subfamiliaId: subfamilyIsolation.id, nombre: NAME_GEN } },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: NAME_GEN,
+       prefijo: PREFIX_GEN,
+       empresaId: companyIsolation.id,
+       subfamiliaId: subfamilyIsolation.id,
++      updatedAt: new Date(),
+     },
+   });
+   const subtypeIsolation = await prisma.subtipo.upsert({
+     where: { tipoId_nombre: { tipoId: typeIsolation.id, nombre: NAME_GEN } },
+     update: {},
+     create: {
++      id: uuid(),
+       nombre: NAME_GEN,
+       prefijo: PREFIX_GEN,
+       empresaId: companyIsolation.id,
+       tipoId: typeIsolation.id,
++      updatedAt: new Date(),
+     },
+   });
+ 
+@@ -235,6 +274,7 @@ async function main() {
+     },
+     update: {},
+     create: {
++      id: uuid(),
+       empresaId: companyIsolation.id,
+       nombre: 'DEMO AISLAMIENTO - Producto de otra empresa',
+       codigoInterno: 'GEN-GEN-GEN-GEN-00000001',
+@@ -247,6 +287,7 @@ async function main() {
+       costo: 1,
+       precioMinorista: 1,
+       activo: true,
++      updatedAt: new Date(),
+     },
+   });
+   console.log({ productoAislamiento: productIsolation });
+@@ -256,9 +297,11 @@ async function main() {
+     where: { empresaId: company.id }, // Assuming one box per company for simplicity
+     update: {},
+     create: {
++      id: uuid(),
+       empresaId: company.id,
+       fondoFijo: 25000.0,
+       estado: 'CERRADA',
++      updatedAt: new Date(),
+       // No apertura inicial, se hace al iniciar el día
+     },
+   });
+@@ -318,9 +361,11 @@ async function main() {
+     // 1) Familias (11, fixed — see the definition in the catalog session).
+     await prisma.familia.createMany({
+       data: hierarchyData.familias.map((f) => ({
++        id: uuid(),
+         nombre: f.nombre,
+         prefijo: f.prefijo,
+         empresaId: company.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -332,10 +377,12 @@ async function main() {
+     // generated and reviewed by the owner, see session artifact).
+     await prisma.subfamilia.createMany({
+       data: hierarchyData.subfamilias.map((s) => ({
++        id: uuid(),
+         nombre: s.nombre,
+         prefijo: s.prefijo,
+         empresaId: company.id,
+         familiaId: familyIdByPrefix.get(s.familiaPrefijo)!,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -361,10 +408,12 @@ async function main() {
+     // than Familia/Subfamilia yet.
+     await prisma.tipo.createMany({
+       data: subfamilies.map((s) => ({
++        id: uuid(),
+         nombre: NAME_GEN,
+         prefijo: PREFIX_GEN,
+         empresaId: company.id,
+         subfamiliaId: s.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -375,10 +424,12 @@ async function main() {
+ 
+     await prisma.subtipo.createMany({
+       data: types.map((t) => ({
++        id: uuid(),
+         nombre: NAME_GEN,
+         prefijo: PREFIX_GEN,
+         empresaId: company.id,
+         tipoId: t.id,
++        updatedAt: new Date(),
+       })),
+       skipDuplicates: true,
+     });
+@@ -458,6 +509,7 @@ async function main() {
+       const batch = newRows.slice(i, i + BATCH_SIZE);
+       await prisma.producto.createMany({
+         data: batch.map((f) => ({
++          id: uuid(),
+           empresaId: company.id,
+           nombre: f.row.nombre,
+           codigoInterno: f.sku,
+@@ -472,6 +524,7 @@ async function main() {
+           precioMinorista: f.row.precioMinorista,
+           precioMayorista: null, // D-01: no viene en esta fuente, no se inventa
+           activo: true,
++          updatedAt: new Date(),
+         })),
+         skipDuplicates: true,
+       });
+@@ -495,11 +548,13 @@ async function main() {
+         const batch = createdProducts.slice(i, i + BATCH_SIZE);
+         await prisma.lote.createMany({
+           data: batch.map((p) => ({
++            id: uuid(),
+             empresaId: company.id,
+             productoId: p.id,
+             numeroLote: `DEMO-${p.codigoInterno}`,
+             vencimiento: expiryPlaceholder,
+             cantidad: 100,
++            updatedAt: new Date(),
+           })),
+           skipDuplicates: true,
+         });
+diff --git a/apps/api/prisma/sync-permisos-owner.ts b/apps/api/prisma/sync-permisos-owner.ts
+index df84a43..67ee487 100644
+--- a/apps/api/prisma/sync-permisos-owner.ts
++++ b/apps/api/prisma/sync-permisos-owner.ts
+@@ -34,7 +34,7 @@ async function main() {
+   for (const email of ownerEmails) {
+     const user = await prisma.usuario.findUnique({
+       where: { email },
+-      include: { usuarioPermisos: { select: { permisoId: true } } },
++      include: { UsuarioPermiso: { select: { permisoId: true } } },
+     });
+ 
+     if (!user) {
+@@ -42,7 +42,7 @@ async function main() {
+       continue;
+     }
+ 
+-    const alreadyAssigned = new Set(user.usuarioPermisos.map((up) => up.permisoId));
++    const alreadyAssigned = new Set(user.UsuarioPermiso.map((up) => up.permisoId));
+     const missing = allPermissions.filter((p) => !alreadyAssigned.has(p.id));
+ 
+     if (missing.length === 0) {
+@@ -50,8 +50,14 @@ async function main() {
+       continue;
+     }
+ 
++    const { v4: uuid } = await import('uuid');
+     await prisma.usuarioPermiso.createMany({
+-      data: missing.map((p) => ({ usuarioId: user.id, permisoId: p.id })),
++      data: missing.map((p) => ({
++        id: uuid(),
++        usuarioId: user.id,
++        permisoId: p.id,
++        updatedAt: new Date(),
++      })),
+       skipDuplicates: true,
+     });
+     console.log(
+diff --git a/apps/api/src/audit/audit.controller.ts b/apps/api/src/audit/audit.controller.ts
+index 752ecc6..e876711 100644
+--- a/apps/api/src/audit/audit.controller.ts
++++ b/apps/api/src/audit/audit.controller.ts
+@@ -177,8 +177,8 @@ export class AuditController {
+     const user = await this.prisma.usuario.findUnique({
+       where: { id: userId },
+       include: {
+-        usuarioPermisos: {
+-          include: { permiso: { select: { nombre: true } } },
++        UsuarioPermiso: {
++          include: { Permiso: { select: { nombre: true } } },
+         },
+       },
+     });
+@@ -189,7 +189,7 @@ export class AuditController {
+ 
+     return {
+       businessId: user.empresaId,
+-      capabilities: user.usuarioPermisos.map((assignment) => assignment.permiso.nombre),
++      capabilities: user.UsuarioPermiso.map((assignment) => assignment.Permiso.nombre),
+     };
+   }
+ }
+diff --git a/apps/api/src/audit/audit.service.ts b/apps/api/src/audit/audit.service.ts
+index d0a5ccd..0a0c2ad 100644
+--- a/apps/api/src/audit/audit.service.ts
++++ b/apps/api/src/audit/audit.service.ts
+@@ -1,7 +1,7 @@
+ import { Injectable } from '@nestjs/common';
+ import { randomUUID } from 'crypto';
+ import { PrismaService } from '../prisma/prisma.service';
+-import { AccionAudit, AuditLog } from '@prisma/client';
++import { AuditLog } from '@prisma/client';
+ import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+ import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
+ 
+@@ -207,7 +207,7 @@ export class AuditService {
+     try {
+       await this.prisma.auditLog.create({
+         data: {
+-          id: uuidv4(),
++          id: randomUUID(),
+           empresaId: details.empresaId,
+           usuarioId: null,
+           accion: details.accion,
+diff --git a/apps/api/src/sales/sales.service.ts b/apps/api/src/sales/sales.service.ts
+index 0ea6f23..8c2a51f 100644
+--- a/apps/api/src/sales/sales.service.ts
++++ b/apps/api/src/sales/sales.service.ts
+@@ -116,10 +116,10 @@ export class SalesService {
+       const db = this.prismaFactory.forCompany(companyId);
+       const existing = await db.venta.findUnique({
+         where: { idempotencyKey: dto.idempotencyKey },
+-        include: { ventaItems: true, pagos: true },
++        include: { VentaItem: true, Pago: true },
+       });
+       if (existing) {
+-        const totalPaid = existing.pagos
++        const totalPaid = existing.Pago
+           .filter((p) => p.estado === 'APROBADO')
+           .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+         const balance = new Prisma.Decimal(existing.total.toString()).minus(totalPaid);
+@@ -294,13 +294,13 @@ export class SalesService {
+ 
+     const sale = await db.venta.findUnique({
+       where: { id: saleId },
+-      include: { pagos: { where: { estado: 'APROBADO' } } },
++      include: { Pago: { where: { estado: 'APROBADO' } } },
+     });
+     if (!sale) throw new NotFoundException('Venta no encontrada');
+     if (sale.empresaId !== companyId) throw new NotFoundException('Venta no encontrada');
+     if (sale.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
+ 
+-    const totalPaid = sale.pagos.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
++    const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+     const balance = new Prisma.Decimal(sale.total.toString()).minus(totalPaid);
+ 
+     if (balance.lessThanOrEqualTo(0)) {
+@@ -434,10 +434,10 @@ export class SalesService {
+         skip: (page - 1) * pageSize,
+         take: pageSize,
+         include: {
+-          usuario: { select: { id: true, nombre: true } },
+-          cliente: { select: { id: true, nombre: true } },
+-          pagos: { where: { estado: 'APROBADO' }, select: { monto: true, medio: true } },
+-          _count: { select: { pagos: true } },
++          Usuario: { select: { id: true, nombre: true } },
++          Cliente: { select: { id: true, nombre: true } },
++          Pago: { where: { estado: 'APROBADO' }, select: { monto: true, medio: true } },
++          _count: { select: { Pago: true } },
+         },
+       }),
+       this.prismaFactory.forCompany(companyId).venta.count({ where }),
+@@ -446,7 +446,7 @@ export class SalesService {
+     // Compute balance and estadoCobro for filtering and the response
+     const rows = sales.map((v) => {
+       const totalDecimal = new Prisma.Decimal(v.total);
+-      const paymentsSum = v.pagos.reduce(
++      const paymentsSum = v.Pago.reduce(
+         (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
+         new Prisma.Decimal(0),
+       );
+@@ -458,7 +458,7 @@ export class SalesService {
+         saldo: balanceDecimal.toDecimalPlaces(2).toString(),
+         estadoCobro: ec,
+         numeroFormateado: formattedNumber,
+-        medios: [...new Set(v.pagos.map((p) => p.medio))],
++        medios: [...new Set(v.Pago.map((p) => p.medio))],
+       };
+     });
+ 
+@@ -474,18 +474,18 @@ export class SalesService {
+     const sale = await this.prismaFactory.forCompany(companyId).venta.findFirst({
+       where: { id },
+       include: {
+-        usuario: { select: { id: true, nombre: true } },
+-        cliente: { select: { id: true, nombre: true } },
+-        ventaItems: {
+-          include: { producto: { select: { id: true, nombre: true, codigoInterno: true } } },
++        Usuario: { select: { id: true, nombre: true } },
++        Cliente: { select: { id: true, nombre: true } },
++        VentaItem: {
++          include: { Producto: { select: { id: true, nombre: true, codigoInterno: true } } },
+         },
+-        pagos: { orderBy: { createdAt: 'asc' } },
++        Pago: { orderBy: { createdAt: 'asc' } },
+       },
+     });
+     if (!sale) throw new NotFoundException('Venta no encontrada');
+ 
+     const totalDecimal = new Prisma.Decimal(sale.total);
+-    const paymentsSum = sale.pagos
++    const paymentsSum = sale.Pago
+       .filter((p) => p.estado === 'APROBADO')
+       .reduce((acc, p) => acc.plus(new Prisma.Decimal(p.monto)), new Prisma.Decimal(0));
+     const balanceDecimal = totalDecimal.minus(paymentsSum);
+@@ -497,10 +497,10 @@ export class SalesService {
+       saldo: balanceDecimal.toDecimalPlaces(2).toString(),
+       estadoCobro: collectionStatus,
+       numeroFormateado: formattedNumber,
+-      ventaItems: sale.ventaItems.map((item) => ({
++      ventaItems: sale.VentaItem.map((item) => ({
+         ...item,
+-        nombre: item.producto?.nombre ?? item.productoId,
+-        codigoInterno: item.producto?.codigoInterno ?? null,
++        nombre: item.Producto?.nombre ?? item.productoId,
++        codigoInterno: item.Producto?.codigoInterno ?? null,
+       })),
+     };
+   }
+@@ -530,9 +530,9 @@ export class SalesService {
+       },
+       take: 50,
+       include: {
+-        familia: { select: { id: true, nombre: true } },
+-        subfamilia: { select: { id: true, nombre: true } },
+-        lotes: { select: { cantidad: true } },
++        Familia: { select: { id: true, nombre: true } },
++        Subfamilia: { select: { id: true, nombre: true } },
++        Lote: { select: { cantidad: true } },
+       },
+       orderBy: { nombre: 'asc' },
+     });
+@@ -546,9 +546,9 @@ export class SalesService {
+       precioMinorista: p.precioMinorista,
+       unidadBase: p.unidadBase,
+       activo: p.activo,
+-      familia: p.familia,
+-      subfamilia: p.subfamilia,
+-      stockDisponible: p.lotes.reduce((sum, l) => sum + Number(l.cantidad), 0),
++      familia: p.Familia,
++      subfamilia: p.Subfamilia,
++      stockDisponible: p.Lote.reduce((sum, l) => sum + Number(l.cantidad), 0),
+       stockMinimo: Number(p.stockMinimo),
+     }));
+   }
+diff --git a/apps/api/src/store/store.service.ts b/apps/api/src/store/store.service.ts
+index 8bae29b..1cba5ae 100644
+--- a/apps/api/src/store/store.service.ts
++++ b/apps/api/src/store/store.service.ts
+@@ -1,5 +1,6 @@
+ import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+ import { Prisma } from '@prisma/client';
++import { randomUUID } from 'crypto';
+ import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
+ import { InventoryService } from '../inventory/inventory.service';
+ import { LoyaltyService } from '../loyalty/loyalty.service';
+@@ -268,10 +269,12 @@ export class StoreService {
+           })
+         : await tx.cliente.create({
+             data: {
++              id: randomUUID(),
+               empresaId: resolvedCompanyId,
+               nombre: dto.nombre,
+               email: dto.email,
+               telefono: dto.telefono,
++              updatedAt: new Date(),
+             } satisfies Prisma.ClienteUncheckedCreateInput,
+           });
+       /* eslint-enable indent */
+@@ -301,6 +304,7 @@ export class StoreService {
+ 
+       const order = await tx.pedido.create({
+         data: {
++          id: randomUUID(),
+           empresaId: resolvedCompanyId,
+           clienteId: customer.id,
+           usuarioId: null,
+@@ -308,13 +312,16 @@ export class StoreService {
+           canalOrigen: channelOrigen,
+           total,
+           idempotencyKey: idempotencyKey ?? null,
++          updatedAt: new Date(),
+           PedidoItem: {
+             create: itemsWithPrice.map((item) => ({
++              id: randomUUID(),
+               productoId: item.productoId,
+               cantidad: item.cantidad,
+               precioUnitario: item.precioUnitario,
+               descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
+               reglaFidelizacionId: item.reglaFidelizacionId,
++              updatedAt: new Date(),
+             })),
+           },
+         } satisfies Prisma.PedidoUncheckedCreateInput,
+diff --git a/worktrees/e2e-tests b/worktrees/e2e-tests
+--- a/worktrees/e2e-tests
++++ b/worktrees/e2e-tests
+@@ -1 +1 @@
+-Subproject commit 8a7a015916755b0abc793cd3a5dcd4d9633fc4bf
++Subproject commit 8a7a015916755b0abc793cd3a5dcd4d9633fc4bf-dirty
+diff --git a/worktrees/p6-persistent-cart b/worktrees/p6-persistent-cart
+--- a/worktrees/p6-persistent-cart
++++ b/worktrees/p6-persistent-cart
+@@ -1 +1 @@
+-Subproject commit 1b78ad98d0feff5b386ce15d8e59bcb20249a86d
++Subproject commit 1b78ad98d0feff5b386ce15d8e59bcb20249a86d-dirty

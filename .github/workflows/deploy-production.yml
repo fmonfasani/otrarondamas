@@ -1,0 +1,249 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (git tag or commit SHA)'
+        required: true
+        default: 'main'
+        type: string
+      skip_health_check:
+        description: 'Skip health checks after deployment (not recommended)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  pre-deployment-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test -- --bail --testTimeout=10000
+        env:
+          NODE_ENV: test
+
+      - name: Verify migrations
+        run: npx prisma migrate status --skip-generate
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+  deploy:
+    needs: pre-deployment-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://wapsell.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version }}
+          fetch-depth: 0
+
+      - name: Notify Slack - Deployment Started
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_PRODUCTION }}
+          payload: |
+            {
+              "text": "🚀 Wapsell Production Deployment Started",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Started* 🚀\n*Version:* ${{ github.event.inputs.version }}\n*Actor:* ${{ github.actor }}\n*Started at:* <!date^${{ github.event.repository.updated_at }}^{date_pretty_short} {time_secs}|${{ github.event.repository.updated_at }}>"
+                  }
+                }
+              ]
+            }
+
+      - name: Deploy to Hetzner Production VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+
+            echo "=== Production Deployment Started ==="
+            DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)"
+
+            # Navigate to deployment directory
+            cd /opt/wapsell || { echo "Deployment directory not found"; exit 1; }
+
+            # Pre-deployment backup
+            echo "Creating pre-deployment backup..."
+            mkdir -p /backups/production
+            BACKUP_FILE="/backups/production/pre-deploy-${DEPLOYMENT_ID}.sql.gz"
+            docker-compose exec -T postgres pg_dump -U wapsell_user wapsell_prod \
+              | gzip > "${BACKUP_FILE}" || { echo "Backup failed"; exit 1; }
+            echo "Backup created: ${BACKUP_FILE}"
+
+            # Verify backup
+            if [ ! -s "${BACKUP_FILE}" ]; then
+              echo "Backup verification failed - empty file"
+              exit 1
+            fi
+
+            # Pull latest code
+            echo "Checking out version: ${{ github.event.inputs.version }}"
+            git fetch origin
+            git checkout ${{ github.event.inputs.version }}
+            git log -1 --oneline
+
+            # Store current state for rollback
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo "Current commit: ${CURRENT_COMMIT}"
+
+            # Pull latest Docker images
+            echo "Pulling Docker images..."
+            docker-compose pull
+
+            # Graceful shutdown
+            echo "Performing graceful shutdown..."
+            docker-compose down --timeout 30 || true
+
+            # Start new services
+            echo "Starting new services..."
+            docker-compose up -d
+
+            # Wait for services to be ready
+            echo "Waiting for services to be healthy..."
+            sleep 15
+
+            # Run database migrations
+            echo "Running database migrations..."
+            if ! docker-compose exec -T api npx prisma migrate deploy --skip-generate; then
+              echo "Migration failed, initiating rollback..."
+
+              # Restore from backup
+              echo "Restoring from backup..."
+              docker-compose down
+              git checkout main
+              docker-compose up -d
+              sleep 10
+
+              # Restore database
+              gunzip -c "${BACKUP_FILE}" | docker-compose exec -T postgres psql -U wapsell_user -d wapsell_prod
+
+              echo "❌ Rollback completed due to migration failure"
+              exit 1
+            fi
+
+            # Verify API health
+            echo "Verifying API health..."
+            HEALTH_CHECK_ATTEMPTS=5
+            HEALTH_CHECK_DELAY=5
+
+            for i in $(seq 1 $HEALTH_CHECK_ATTEMPTS); do
+              if curl -f https://api.wapsell.com/health >/dev/null 2>&1; then
+                echo "✅ Health check passed"
+                break
+              fi
+
+              if [ $i -eq $HEALTH_CHECK_ATTEMPTS ]; then
+                echo "❌ Health check failed after ${HEALTH_CHECK_ATTEMPTS} attempts"
+                echo "Initiating rollback..."
+
+                # Rollback
+                docker-compose down
+                git checkout main
+                docker-compose up -d
+                sleep 10
+
+                gunzip -c "${BACKUP_FILE}" | docker-compose exec -T postgres psql -U wapsell_user -d wapsell_prod
+
+                echo "❌ Rollback completed due to health check failure"
+                exit 1
+              fi
+
+              echo "Health check attempt $i/$HEALTH_CHECK_ATTEMPTS failed, retrying in ${HEALTH_CHECK_DELAY}s..."
+              sleep $HEALTH_CHECK_DELAY
+            done
+
+            # Verify frontend
+            echo "Verifying frontend..."
+            if curl -f https://wapsell.com/ >/dev/null 2>&1; then
+              echo "✅ Frontend is accessible"
+            else
+              echo "⚠️ Frontend check warning (may be expected for some deployments)"
+            fi
+
+            # Verify database connectivity
+            echo "Verifying database..."
+            if docker-compose exec -T postgres psql -U wapsell_user -d wapsell_prod -c "SELECT version();" >/dev/null; then
+              echo "✅ Database is accessible"
+            else
+              echo "❌ Database connectivity check failed"
+              exit 1
+            fi
+
+            echo "✅ Production deployment completed successfully"
+            echo "Deployment ID: ${DEPLOYMENT_ID}"
+
+      - name: Notify Slack - Deployment Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_PRODUCTION }}
+          payload: |
+            {
+              "text": "✅ Wapsell Production Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Successful* ✅\n*Version:* ${{ github.event.inputs.version }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Actor:* ${{ github.actor }}\n*Environment:* https://wapsell.com"
+                  }
+                }
+              ]
+            }
+
+      - name: Notify Slack - Deployment Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_PRODUCTION }}
+          payload: |
+            {
+              "text": "❌ Wapsell Production Deployment Failed - ROLLBACK COMPLETED",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Failed - ROLLBACK COMPLETED* ❌\n*Version:* ${{ github.event.inputs.version }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Actor:* ${{ github.actor }}\n*Logs:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }

@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1156.0",
+    "@elastic/elasticsearch": "^8.19.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/jwt": "^12.0.2",

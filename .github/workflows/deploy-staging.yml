@@ -1,0 +1,139 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    environment:
+      name: staging
+      url: https://staging.wapsell.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npm run prisma:generate
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy to Hetzner Staging VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+
+            echo "=== Staging Deployment Started ==="
+
+            # Navigate to deployment directory
+            cd /opt/wapsell-staging || { echo "Deployment directory not found"; exit 1; }
+
+            # Backup current state
+            echo "Creating backup..."
+            mkdir -p /backups/staging
+            docker-compose exec -T postgres pg_dump -U wapsell_user wapsell_staging \
+              | gzip > /backups/staging/pre-deploy-$(date +%Y%m%d-%H%M%S).sql.gz || true
+
+            # Pull latest code
+            echo "Pulling latest code..."
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+
+            # Pull latest Docker images
+            echo "Pulling Docker images..."
+            docker-compose pull
+
+            # Start services
+            echo "Starting services..."
+            docker-compose up -d
+
+            # Wait for services to be healthy
+            echo "Waiting for services to be healthy..."
+            sleep 10
+
+            # Run migrations
+            echo "Running database migrations..."
+            docker-compose exec -T api npx prisma migrate deploy --skip-generate || {
+              echo "Migration failed, checking status..."
+              exit 1
+            }
+
+            # Health check
+            echo "Performing health check..."
+            if curl -f http://localhost:3000/health >/dev/null 2>&1; then
+              echo "✅ Health check passed"
+            else
+              echo "❌ Health check failed"
+              exit 1
+            fi
+
+            # Check API endpoint
+            if curl -f http://localhost:3000/api/v1/ping >/dev/null 2>&1; then
+              echo "✅ API endpoint healthy"
+            else
+              echo "❌ API endpoint unhealthy"
+              exit 1
+            fi
+
+            echo "✅ Staging deployment completed successfully"
+
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_STAGING }}
+          payload: |
+            {
+              "text": "✅ Wapsell Staging Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment Successful* ✅\n*Branch:* develop\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Actor:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_STAGING }}
+          payload: |
+            {
+              "text": "❌ Wapsell Staging Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment Failed* ❌\n*Branch:* develop\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Actor:* ${{ github.actor }}\n*Logs:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }

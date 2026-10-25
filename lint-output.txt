@@ -1,0 +1,233 @@
+
+> @otrarondamas/otrarondamas@1.0.0 lint
+> npm run lint --workspace=@otrarondamas/api
+
+
+> @otrarondamas/api@0.0.1 lint
+> eslint "{src,apps,libs,test}/**/*.ts" --fix
+
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\audit\audit-reporting.service.ts
+  343:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\audit\audit.controller.spec.ts
+  109:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  223:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  272:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  287:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  310:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  337:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  358:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  381:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  414:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  459:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  482:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  505:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  530:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  557:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\audit\audit.controller.ts
+  2:25  error  'ApiExcludeEndpoint' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\audit\audit.service.spec.ts
+   46:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   66:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  217:77  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  233:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  291:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  324:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  325:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  329:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  343:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  344:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  347:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\audit\audit.service.ts
+   16:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   17:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   46:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   47:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   70:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  245:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  246:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\auth\guards\authorization.guard.spec.ts
+    5:10  error  'CAPABILITY_KEY' is defined but never used  @typescript-eslint/no-unused-vars
+   91:13  error  'user' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  132:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  143:13  error  'user' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  184:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  231:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  264:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  331:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  398:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  482:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  507:13  error  'user' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  525:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  542:12  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  549:24  error  'capability' is defined but never used      @typescript-eslint/no-unused-vars
+  562:35  error  'capability' is defined but never used      @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\devoluciones\__tests__\devoluciones.controller.spec.ts
+  117:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  157:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  203:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  254:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  305:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\membership\membership-revocation.service.spec.ts
+  25:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\messaging\messaging-associations.controller.spec.ts
+  39:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  57:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\messaging\messaging.controller.spec.ts
+   51:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  177:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  198:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  209:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\messaging\messaging.controller.ts
+  96:13  error  '_dto' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\messaging\messaging.service.spec.ts
+  79:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  79:92  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\orders\orders.service.ts
+  174:94  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\payments\payment-provider.module.ts
+  18:15  error  'provider' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\refunds\refund-queue.service.spec.ts
+   28:10  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   33:10  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   45:10  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   52:10  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   74:13  error  'originalSetInterval' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  114:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  180:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  183:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  227:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  230:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  281:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  285:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  332:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  336:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  372:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  376:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  414:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  417:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  476:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  479:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  519:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  522:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  534:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  585:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  645:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  687:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  690:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  729:63  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  732:25  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\refunds\refund-queue.service.ts
+  165:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\src\store\c3-idempotency.functional.spec.ts
+   62:13  error  '_dto' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  238:13  error  '_allItems' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\e2e\commerce-venta-completa.e2e-spec.ts
+  120:11  error  '_lote' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  465:13  error  '_ordersCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\fixtures\inventory-test-factory.ts
+  137:16  error  '_e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\helpers\fixture-factory.integration-spec.ts
+  376:13  error  'proveedor' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  377:13  error  'usuario' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  378:13  error  'lote' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  379:13  error  'regla' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  487:13  error  'tenant' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\helpers\fixture-factory.ts
+  414:16  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\helpers\generate-relation-tests.ts
+  54:9  error  'prisma' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\helpers\relation-test-generator.ts
+    1:10  error  'Prisma' is defined but never used        @typescript-eslint/no-unused-vars
+   17:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   22:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   59:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  341:49  error  Unnecessary escape character: \$          no-useless-escape
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\b3-iso-006.integration-spec.ts
+  302:11  error  '_db' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\f1-inventory-security.integration-spec.ts
+   85:30  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  105:30  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  137:13  error  '_lote' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  171:13  error  '_initialQuantity' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  181:30  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  192:16  error  '_e' is defined but never used                         @typescript-eslint/no-unused-vars
+  215:13  error  'lote' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  231:28  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  344:19  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\f2-seller-confirmation.integration-spec.ts
+  138:8  error  Strings must use singlequote  quotes
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\p2-3-order-cancellation.integration-spec.ts
+   58:7   error  'customerB' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   60:7   error  'hierB' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  738:13  error  'batch' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  752:13  error  'cancelResponse' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\relations\PedidoItem-Producto.spec.ts
+   1:10  error  'Test' is defined but never used           @typescript-eslint/no-unused-vars
+   1:16  error  'TestingModule' is defined but never used  @typescript-eslint/no-unused-vars
+  10:7   error  'pedidoItemA' is defined but never used    @typescript-eslint/no-unused-vars
+  12:7   error  'productoB' is defined but never used      @typescript-eslint/no-unused-vars
+
+D:\Software Development\Porfolio\OtraRondaMas\apps\api\test\integration\relations\VentaItem-Producto.spec.ts
+   1:10  error  'Test' is defined but never used           @typescript-eslint/no-unused-vars
+   1:16  error  'TestingModule' is defined but never used  @typescript-eslint/no-unused-vars
+  10:7   error  'ventaItemA' is defined but never used     @typescript-eslint/no-unused-vars
+  12:7   error  'productoB' is defined but never used      @typescript-eslint/no-unused-vars
+
+✖ 156 problems (156 errors, 0 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
+npm error Lifecycle script `lint` failed with error:
+npm error code 1
+npm error path D:\Software Development\Porfolio\OtraRondaMas\apps\api
+npm error workspace @otrarondamas/api@0.0.1
+npm error location D:\Software Development\Porfolio\OtraRondaMas\apps\api
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c eslint "{src,apps,libs,test}/**/*.ts" --fix
