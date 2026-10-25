@@ -10,6 +10,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 
+/**
+ * C5B Cart Service — Multi-Tenant Isolation
+ *
+ * IMPORTANT: Cart and CartItem models are NOT included in CompanyScopedPrisma's
+ * automatic filtering (MODELS_WITH_COMPANY_ID). This means every query MUST
+ * explicitly include businessId validation. Do not add Cart queries without
+ * verifying businessId scoping.
+ *
+ * Pattern: Use `where: { id, cart: { businessId } }` for CartItem queries,
+ * or `where: { id, businessId }` for Cart queries. Verify at query time,
+ * not post-query.
+ */
 @Injectable()
 export class CartService {
   constructor(
@@ -89,8 +101,13 @@ export class CartService {
     }
 
     // Check if item already exists in cart
+    // SECURITY: Include cart.businessId in where to prevent cross-tenant access
     const existingItem = await db.cartItem.findFirst({
-      where: { cartId, productoId },
+      where: {
+        cartId,
+        productoId,
+        cart: { businessId } // Explicit businessId validation at query time
+      },
     });
 
     let item;
@@ -123,17 +140,18 @@ export class CartService {
 
     const db = this.prismaFactory.forCompany(businessId);
 
+    // SECURITY: Include cart.businessId in where clause for primary validation
+    // Do not rely on post-query checks alone (defense in depth)
     const item = await db.cartItem.findFirst({
-      where: { id: cartItemId },
+      where: {
+        id: cartItemId,
+        cart: { businessId } // Validate at query time, not post-query
+      },
       include: { cart: true, producto: true },
     });
 
     if (!item) {
       throw new NotFoundException('Item del carrito no encontrado');
-    }
-
-    if (item.cart.businessId !== businessId) {
-      throw new ForbiddenException('No tienes acceso a este carrito');
     }
 
     // Verify stock availability
@@ -154,17 +172,17 @@ export class CartService {
   async removeItem(cartItemId: string, businessId: string) {
     const db = this.prismaFactory.forCompany(businessId);
 
+    // SECURITY: Include cart.businessId in where clause for primary validation
     const item = await db.cartItem.findFirst({
-      where: { id: cartItemId },
+      where: {
+        id: cartItemId,
+        cart: { businessId } // Validate at query time, not post-query
+      },
       include: { cart: true },
     });
 
     if (!item) {
       throw new NotFoundException('Item del carrito no encontrado');
-    }
-
-    if (item.cart.businessId !== businessId) {
-      throw new ForbiddenException('No tienes acceso a este carrito');
     }
 
     await db.cartItem.delete({
