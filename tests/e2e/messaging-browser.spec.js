@@ -13,9 +13,9 @@ test('login → create conversation → send message → reload and verify persi
   await expect(page.getByRole('heading', { name: 'Mensajería' })).toBeVisible();
 
   await page.getByLabel('Nueva conversación').waitFor({ state: 'visible' });
-  await expect(page.locator('#messaging-customer option')).not.toHaveCount(0);
+  await page.locator('#messaging-customer').selectOption({ label: 'Cliente E2E Mensajería' });
   await page.getByRole('button', { name: 'Crear conversación' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Conversación creada y guardada.' })).toBeVisible();
+  await expect(page.getByText('Conversación creada y guardada.', { exact: true })).toBeVisible();
 
   const composer = page.getByLabel('Escribir mensaje');
   await expect(composer).toBeVisible();
