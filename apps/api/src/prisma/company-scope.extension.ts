@@ -72,6 +72,16 @@ const MODELS_WITH_COMPANY_ID = [
   // VentaItem/AperturaCaja/etc.: the code that queries them always goes
   // through its parent with empresaId already filtered).
   'Invitacion',
+
+  // NOTE: Cart and CartItem are deliberately NOT in this list (C5B — Phase 2).
+  // They use 'businessId' (not 'empresaId') and are scoped via CompanyScopedPrismaService.
+  // However, the Prisma extension does NOT automatically filter them.
+  // CRITICAL: All CartService queries MUST include explicit businessId validation
+  // in the where clause (e.g., where: { id, cart: { businessId } } for CartItem).
+  // See apps/api/src/cart/cart.service.ts for examples.
+  // This is a known limitation; if Cart queries grow, consider either:
+  // 1. Adding Cart/CartItem to this extension (requires schema mapping for businessId → empresaId)
+  // 2. Creating a separate extension for Cart models
 ] as const;
 
 type ModelWithCompanyId = (typeof MODELS_WITH_COMPANY_ID)[number];
