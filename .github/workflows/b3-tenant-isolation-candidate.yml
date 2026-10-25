@@ -61,9 +61,10 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: '**/package-lock.json'
+
 
       - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
-
       - run: npm run prisma:generate --workspace=@otrarondamas/api
 
       # B4 owns the build and complete unit suite for pull requests and main.
@@ -75,6 +76,7 @@ jobs:
         run: npm run build --workspace=@otrarondamas/api
 
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
 
       - name: Run unit suite on candidate branch pushes
         if: github.event_name == 'push'
@@ -100,3 +102,4 @@ jobs:
           test/integration/b3-reglafidelizacion-subtipo.integration-spec.ts
           test/integration/b3-reglafidelizacion-familia.integration-spec.ts
           test/integration/b3-reglafidelizacion-subfamilia.integration-spec.ts
+

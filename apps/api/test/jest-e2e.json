@@ -14,5 +14,12 @@
   "forceExit": false,
   "transformIgnorePatterns": [
     "node_modules/(?!(@nestjs|socket\\.io-client)/)"
-  ]
+  ],
+  "setupFilesAfterEnv": [
+    "<rootDir>/test/setup-env.ts"
+  ],
+  "maxWorkers": "50%",
+  "testTimeout": 30000,
+  "verbose": true,
+  "bail": false
 }

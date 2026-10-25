@@ -1,0 +1,183 @@
+name: CI Failure Diagnostic
+
+on:
+  workflow_run:
+    workflows:
+      - B3 Tenant Isolation Candidate
+      - B4 Verification Infrastructure
+      - Post-Merge Verification
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      target_workflow_run:
+        description: 'Target workflow run ID (leave empty for latest failed)'
+        required: false
+
+permissions:
+  contents: read
+  checks: read
+  statuses: read
+
+jobs:
+  diagnose-failure:
+    name: Analyze workflow failure
+    if: github.event.workflow_run.conclusion == 'failure' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Retrieve workflow logs
+        id: fetch-logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.target_workflow_run }}
+        run: |
+          if [ -z "$WORKFLOW_RUN_ID" ]; then
+            echo "No workflow run ID provided."
+            exit 0
+          fi
+
+          echo "Fetching logs for workflow run: $WORKFLOW_RUN_ID"
+
+          # Download all logs
+          gh run view "$WORKFLOW_RUN_ID" --log > workflow-run.log 2>&1 || true
+          gh run view "$WORKFLOW_RUN_ID" --json jobs -q '.jobs[] | {id, name, conclusion, databaseId}' > jobs.json 2>&1 || true
+
+          # Extract failure patterns
+          if grep -q "ERR\|ERROR\|FAIL\|Exception" workflow-run.log; then
+            grep -E "ERR|ERROR|FAIL|Exception" workflow-run.log | head -20 > failure-patterns.txt || true
+          fi
+
+      - name: Classify failure reason
+        id: classify
+        run: |
+          failure_type="unknown"
+          remediation="Check logs manually"
+          confidence="low"
+
+          if [ ! -f workflow-run.log ]; then
+            echo "No logs available."
+            exit 0
+          fi
+
+          # Database service failures
+          if grep -qi "postgres\|database\|connection refused\|could not connect" workflow-run.log; then
+            failure_type="database_service"
+            remediation="Database service failed to start or timed out. Retry the workflow."
+            confidence="high"
+          fi
+
+          # Build/TypeScript errors
+          if grep -qi "typescript error\|TS[0-9]\|nest build\|compilation failed" workflow-run.log; then
+            failure_type="build_error"
+            remediation="Fix TypeScript compilation errors in src/"
+            confidence="high"
+          fi
+
+          # Timeout errors
+          if grep -qi "timeout\|ETIMEDOUT\|ESOCKETTIMEDOUT" workflow-run.log; then
+            failure_type="timeout"
+            remediation="Tests exceeded timeout. Increase testTimeout or optimize slow suites."
+            confidence="high"
+          fi
+
+          # Memory/resource exhaustion
+          if grep -qi "ENOMEM\|out of memory\|heap\|OOM" workflow-run.log; then
+            failure_type="resource_exhaustion"
+            remediation="Reduce --maxWorkers or increase runner memory."
+            confidence="high"
+          fi
+
+          # NPM/dependency issues
+          if grep -qi "npm ERR\|npm install\|dependencies\|ERESOLVE" workflow-run.log; then
+            failure_type="dependency_error"
+            remediation="Update package-lock.json and retry, or check for conflicting versions."
+            confidence="medium"
+          fi
+
+          # Test assertion failures (not infrastructure)
+          if grep -qi "✕\|FAIL\|AssertionError" workflow-run.log && ! grep -qi "database\|postgres\|timeout" workflow-run.log; then
+            failure_type="test_failure"
+            remediation="Review failing test assertions and fix the code."
+            confidence="high"
+          fi
+
+          # Prisma schema/migration issues
+          if grep -qi "prisma\|schema\|migration" workflow-run.log; then
+            failure_type="schema_error"
+            remediation="Verify schema.prisma syntax and migration history."
+            confidence="medium"
+          fi
+
+          {
+            echo "failure_type=$failure_type"
+            echo "remediation=$remediation"
+            echo "confidence=$confidence"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report diagnostic results
+        if: always()
+        run: |
+          cat > $GITHUB_STEP_SUMMARY << 'EOF'
+          ## CI Failure Diagnostic
+
+          **Workflow:** ${{ github.event.workflow_run.name }}
+          **Run ID:** ${{ github.event.workflow_run.id }}
+          **Conclusion:** ${{ github.event.workflow_run.conclusion }}
+
+          ### Diagnosis
+
+          - **Type:** ${{ steps.classify.outputs.failure_type }}
+          - **Confidence:** ${{ steps.classify.outputs.confidence }}
+          - **Remediation:** ${{ steps.classify.outputs.remediation }}
+
+          ### Recommended Actions
+
+          1. **If infrastructure (database/timeout):** Retry the workflow with `workflow_dispatch`
+          2. **If test failure:** Review assertions and fix code
+          3. **If build error:** Check TypeScript compilation
+          4. **If dependency error:** Run `npm install` locally and commit lock file
+
+          ### Evidence
+
+          Logs preserved in this run for further investigation.
+          EOF
+
+      - name: Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostic-${{ github.event.workflow_run.id }}
+          path: |
+            workflow-run.log
+            jobs.json
+            failure-patterns.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+  retry-on-transient:
+    name: Auto-retry transient failures
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      (contains(github.event.workflow_run.name, 'Verification') ||
+       contains(github.event.workflow_run.name, 'Candidate'))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Check if database-related failure (auto-retry candidate)
+        id: should-retry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          should_retry="false"
+          # Placeholder: in production, fetch logs and analyze
+          # For now, manual trigger of `workflow_dispatch` is recommended
+          echo "should_retry=$should_retry" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger retry (manual approval in production)
+        if: steps.should-retry.outputs.should_retry == 'true'
+        run: |
+          echo "⚠️  Auto-retry disabled for safety. Manual retry via workflow_dispatch recommended."
+          echo "Run: gh workflow run b4-verification.yml -f ref=<branch>"
