@@ -148,9 +148,7 @@ describe('AuditService', () => {
         entidadAfectada: 'System',
       };
 
-      jest
-        .spyOn(prisma.auditLog, 'create')
-        .mockRejectedValue(new Error('DB Error'));
+      jest.spyOn(prisma.auditLog, 'create').mockRejectedValue(new Error('DB Error'));
       jest.spyOn(console, 'error').mockImplementation();
 
       await service.logAsync(dto);
@@ -179,9 +177,7 @@ describe('AuditService', () => {
         },
       ];
 
-      jest
-        .spyOn(prisma.auditLog, 'createMany')
-        .mockResolvedValue({ count: 2 });
+      jest.spyOn(prisma.auditLog, 'createMany').mockResolvedValue({ count: 2 });
 
       const count = await service.logBatch(dtos);
 
@@ -332,14 +328,11 @@ describe('AuditService', () => {
 
       jest.spyOn(prisma.auditLog, 'groupBy').mockResolvedValue(mockGroups as any);
 
-      const summary = await service.getUserActivitySummary(
-        mockEmpresaId,
-        mockUsuarioId,
-      );
+      const summary = await service.getUserActivitySummary(mockEmpresaId, mockUsuarioId);
 
       expect(summary).toEqual({
-        'CREAR_VENTA': 5,
-        'ACTUALIZAR_VENTA': 3,
+        CREAR_VENTA: 5,
+        ACTUALIZAR_VENTA: 3,
       });
     });
   });
@@ -356,8 +349,8 @@ describe('AuditService', () => {
       const distribution = await service.getActionDistribution(mockEmpresaId);
 
       expect(distribution).toEqual({
-        'LOGIN': 150,
-        'LOGOUT': 145,
+        LOGIN: 150,
+        LOGOUT: 145,
       });
     });
   });

@@ -221,9 +221,9 @@ async function seed() {
     const allCapabilities = await prisma.capabilityDefinition.findMany();
     const allRoles = await prisma.roleTemplate.findMany({
       include: {
-        capabilities: {
+        RoleCapability: {
           include: {
-            capabilityDef: true,
+            CapabilityDefinition: true,
           },
         },
       },
@@ -232,7 +232,7 @@ async function seed() {
     console.log(`  - ${allCapabilities.length} capabilities in catalog`);
     for (const role of allRoles) {
       console.log(
-        `  - ${role.name}: ${role.capabilities.length} capabilities`,
+        `  - ${role.name}: ${role.RoleCapability.length} capabilities`,
       );
     }
 

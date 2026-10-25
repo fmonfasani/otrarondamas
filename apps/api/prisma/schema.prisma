@@ -227,6 +227,9 @@ model Cliente {
   MessagingReadPreference MessagingReadPreference[]
   Pedido                  Pedido[]
   Venta                   Venta[]
+  PhoneNumber             PhoneNumber[]
+  SMSAlert                SMSAlert[]
+  EmailPreference         EmailPreference?      @relation("EmailPreference_cliente")
 
   @@unique([empresaId, email])
   @@unique([id, empresaId])
@@ -531,6 +534,71 @@ model Empresa {
   Tipo                    Tipo[]
   Usuario                 Usuario[]
   Venta                   Venta[]
+  PhoneNumber             PhoneNumber[]
+  SMSAlert                SMSAlert[]
+  NotificationPreference  NotificationPreference[]
+  NotificationDigest      NotificationDigest[]
+  EmailTemplate           EmailTemplate[]
+  EmailLog                EmailLog[]
+  EmailPreference         EmailPreference[]
+  EmailCampaign           EmailCampaign[]
+  AnalyticsEvent          AnalyticsEvent[]
+  AnalyticsAggregation    AnalyticsAggregation[]
+  AnalyticsDashboard      AnalyticsDashboard[]
+}
+
+model AnalyticsEvent {
+  id                String   @id @default(uuid())
+  empresaId         String
+  userId            String?
+  eventType         String   // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE', 'CUSTOM'
+  eventName         String   // e.g., 'checkout_started', 'product_viewed'
+  category          String?  // e.g., 'sales', 'inventory', 'users'
+  timestamp         DateTime @default(now())
+  metadata          Json?    // {productId, quantity, value, customerId, orderId, errorMessage, duration, ...}
+  sessionId         String?  // For session-based tracking
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, eventType, timestamp])
+  @@index([empresaId, userId, timestamp])
+  @@index([sessionId])
+}
+
+model AnalyticsAggregation {
+  id                String   @id @default(uuid())
+  empresaId         String
+  period            String   // 'DAILY', 'WEEKLY', 'MONTHLY'
+  periodStart       DateTime
+  periodEnd         DateTime
+  eventType         String   // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE'
+  eventName         String?  // NULL for aggregated by type
+  count             Int
+  uniqueUsers       Int
+  avgValue          Decimal? // For conversions/revenue
+  metadata          Json?    // {topProducts, topPages, errorRate, ...}
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, period, periodStart, eventType, eventName])
+  @@index([empresaId, period, periodStart])
+}
+
+model AnalyticsDashboard {
+  id                String   @id @default(uuid())
+  empresaId         String
+  name              String
+  description       String?
+  dashboardConfig   Json     // {widgets: [{type, metric, period, filters}]}
+  isPublic          Boolean  @default(false)
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
 }
 
 model Entrega {
@@ -1137,6 +1205,70 @@ model Usuario {
   Empresa                                          Empresa               @relation(fields: [empresaId], references: [id])
   UsuarioPermiso                                   UsuarioPermiso[]
   Venta                                            Venta[]
+  PhoneNumber                                      PhoneNumber[]
+  SMSAlert                                         SMSAlert[]
+  NotificationPreference                           NotificationPreference[]
+  NotificationDigest                               NotificationDigest[]
+  EmailPreference                                  EmailPreference?      @relation("EmailPreference_usuario")
+}
+
+/// Notification Preferences - User notification settings and delivery preferences
+model NotificationPreference {
+  id                        String                   @id @default(uuid())
+  usuarioId                 String
+  empresaId                 String
+
+  /// Channel settings
+  pushEnabled               Boolean                  @default(true)
+  emailEnabled              Boolean                  @default(true)
+  smsEnabled                Boolean                  @default(false)
+
+  /// Frequency settings (per notification type)
+  orderNotifications        NotificationFrequency    @default(REAL_TIME)
+  messageNotifications      NotificationFrequency    @default(REAL_TIME)
+  inventoryNotifications    NotificationFrequency    @default(DAILY)
+  systemNotifications       NotificationFrequency    @default(REAL_TIME)
+
+  /// Quiet hours (24-hour format HH:MM)
+  quietHoursEnabled         Boolean                  @default(false)
+  quietHoursStart           String?                  /// "22:00"
+  quietHoursEnd             String?                  /// "08:00"
+
+  /// Digest settings
+  digestFrequency           DigestPeriod             @default(DAILY)
+  digestTime                String                   @default("09:00") /// preferred send time HH:MM
+
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+
+  Usuario                   Usuario                  @relation(fields: [usuarioId], references: [id])
+  Empresa                   Empresa                  @relation(fields: [empresaId], references: [id])
+
+  @@unique([usuarioId, empresaId])
+  @@index([empresaId, usuarioId])
+}
+
+/// Notification Digest - Batched notifications sent at scheduled intervals
+model NotificationDigest {
+  id                String      @id @default(uuid())
+  usuarioId         String
+  empresaId         String
+  period            DigestPeriod
+  startDate         DateTime
+  endDate           DateTime
+  summary           Json        /// { orders: 5, messages: 12, inventory: 3 }
+  content           String      /// HTML digest content
+  sentAt            DateTime?
+  openedAt          DateTime?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  Usuario           Usuario     @relation(fields: [usuarioId], references: [id])
+  Empresa           Empresa     @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, usuarioId, period])
+  @@index([usuarioId, sentAt])
 }
 
 model UsuarioPermiso {
@@ -1303,6 +1435,32 @@ enum TipoDocumentoLegajo {
   CONSTANCIA_CUIL
 }
 
+enum NotificationFrequency {
+  REAL_TIME
+  DAILY
+  WEEKLY
+  OFF
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+}
+
+enum NotificationType {
+  ORDER
+  MESSAGE
+  INVENTORY
+  SYSTEM
+}
+
+enum DigestPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
 enum UnidadBase {
   UNIDAD
   KILOGRAMO
@@ -1310,5 +1468,234 @@ enum UnidadBase {
   METRO
   PACK
   CAJA
+}
+
+enum SMSType {
+  OTP
+  ALERT
+  TRANSACTIONAL
+  BULK
+}
+
+enum SMSStatus {
+  SENT
+  DELIVERED
+  FAILED
+  PENDING
+}
+
+enum OTPPurpose {
+  LOGIN
+  PAYMENT
+  ACCOUNT_VERIFICATION
+  PASSWORD_RESET
+}
+
+model PhoneNumber {
+  id                    String      @id @default(uuid())
+  usuarioId             String?
+  clienteId             String?
+  empresaId             String
+  phoneNumber           String
+  countryCode           String      @default("+54") // Argentina by default
+  isVerified            Boolean     @default(false)
+  isPrimary             Boolean     @default(false)
+  verificationCode      String?
+  verificationCodeExpires DateTime?
+  lastUsedAt            DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  Usuario               Usuario?    @relation(fields: [usuarioId], references: [id])
+  Cliente               Cliente?    @relation(fields: [clienteId], references: [id])
+  Empresa               Empresa     @relation(fields: [empresaId], references: [id])
+  smsLogs               SMSLog[]
+  otpSessions           OTPSession[]
+  smsAlerts             SMSAlert[]
+
+  @@unique([empresaId, phoneNumber])
+  @@index([usuarioId])
+  @@index([clienteId])
+  @@index([empresaId])
+}
+
+model OTPSession {
+  id                    String      @id @default(uuid())
+  phoneNumberId         String
+  purpose               OTPPurpose
+  code                  String
+  attempts              Int         @default(0)
+  maxAttempts           Int         @default(3)
+  expiresAt             DateTime
+  verifiedAt            DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  phoneNumber           PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumberId])
+  @@index([expiresAt])
+}
+
+model SMSLog {
+  id                    String      @id @default(uuid())
+  phoneNumberId         String
+  toPhone               String      @db.VarChar(20)
+  message               String      @db.VarChar(160)
+  type                  SMSType
+  status                SMSStatus   @default(PENDING)
+  twilioSid             String?     @unique
+  errorCode             String?
+  errorMessage          String?
+  sentAt                DateTime    @default(now())
+  deliveredAt           DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  phoneNumber           PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumberId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([twilioSid])
+}
+
+model SMSAlert {
+  id                    String      @id @default(uuid())
+  empresaId             String
+  usuarioId             String?
+  clienteId             String?
+  trigger               String      // "order_confirmation", "inventory_low", "payment_received", etc
+  message               String
+  isActive              Boolean     @default(true)
+  phoneNumberId         String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  Empresa               Empresa     @relation(fields: [empresaId], references: [id])
+  Usuario               Usuario?    @relation(fields: [usuarioId], references: [id])
+  Cliente               Cliente?    @relation(fields: [clienteId], references: [id])
+  PhoneNumber           PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@index([clienteId])
+}
+
+// P8-2: Email Notifications models
+model EmailTemplate {
+  id            String    @id @default(uuid())
+  empresaId     String
+  nombre        String
+  tipo          TipoEmail @default(TRANSACCIONAL)
+  asunto        String
+  contenidoHtml String    // Handlebars template: {{variable}}
+  variables     Json?     // Schema: {"required": ["userId"], "optional": ["orderId"]}
+  activo        Boolean   @default(true)
+  versionActual Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  Empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  EmailLog      EmailLog[]
+  EmailCampaign EmailCampaign[]
+
+  @@unique([empresaId, nombre, versionActual])
+  @@index([empresaId, tipo, activo])
+}
+
+model EmailLog {
+  id                String      @id @default(uuid())
+  empresaId         String
+  templateId        String?
+  destinatario      String
+  asunto            String
+  contenido         String?     // Rendered HTML
+  evento            String      @default("ENVIADO")  // ENVIADO, ABIERTO, CLICK, REBOTE, QUEJA
+  proveedor         String      @default("RESEND")   // RESEND, SENDGRID, SES
+  providerMessageId String?     @unique             // Provider's message ID for tracking
+  metadata          Json?       // tracking: {openedAt, clicks: [{url, clickedAt}]}
+  idReferencia      String?     // orderId, ventaId, etc
+  tipoReferencia    String?     // "Venta", "Pedido", "Invitacion"
+  intentos          Int         @default(1)
+  errorMensaje      String?
+  proxRetento       DateTime?   // Null = no retry needed
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  Empresa           Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  EmailTemplate     EmailTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, destinatario, createdAt])
+  @@index([empresaId, tipoReferencia, idReferencia])
+  @@index([proveedor, providerMessageId])
+  @@index([proxRetento])  // For retry queries
+}
+
+model EmailPreference {
+  id            String      @id @default(uuid())
+  empresaId     String
+  usuarioId     String?     @unique
+  clienteId     String?     @unique // For non-staff customers
+  email         String
+  categoriasOptIn Json?     // {"transaccional": true, "marketing": true, "newsletters": false}
+  frecuencia    String      @default("TODAS")  // TODAS, SEMANAL, MENSUAL, NUNCA
+  suscrito      Boolean     @default(true)
+  desuscritaEn  DateTime?
+  motivoDesuscripcion String?
+  unsubscribeToken String   @unique @db.VarChar(128)  // For anonymous unsubscribe links
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  Empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  Usuario       Usuario?  @relation("EmailPreference_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  Cliente       Cliente?  @relation("EmailPreference_cliente", fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, email])
+  @@index([empresaId, suscrito])
+  @@index([empresaId, desuscritaEn])
+}
+
+model EmailCampaign {
+  id              String           @id @default(uuid())
+  empresaId       String
+  templateId      String
+  nombre          String
+  descripcion     String?
+  estadio         EstadoCampaign   @default(BORRADOR)
+  audiencia       String           @default("CLIENTES")  // CLIENTES, USUARIOS, SUSCRIPTORES, MANUAL
+  filtroAudiencia Json?            // {status: "ACTIVO", createdAfter: "2024-01-01"}
+  programadaPara  DateTime?
+  iniciadaEn      DateTime?
+  finalizadaEn    DateTime?
+  destinatariosTotal Int?
+  destinatariosEnviados Int         @default(0)
+  destinatariosFallidos Int         @default(0)
+  tasaApertura    Decimal?         @db.Decimal(5, 2)
+  tasaClick       Decimal?         @db.Decimal(5, 2)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  Empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  EmailTemplate   EmailTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+
+  @@index([empresaId, estadio])
+  @@index([empresaId, programadaPara])
+  @@index([empresaId, iniciadaEn])
+}
+
+// P8-2: Email enums
+enum TipoEmail {
+  TRANSACCIONAL   // Order confirmations, password reset, invitations
+  MARKETING       // Promotions, newsletters
+  ALERTAS         // Stock alerts, payment reminders
+}
+
+enum EstadoCampaign {
+  BORRADOR
+  PROGRAMADA
+  ENVIANDO
+  COMPLETADA
+  CANCELADA
 }
 

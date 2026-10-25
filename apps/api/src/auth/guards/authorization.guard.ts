@@ -69,20 +69,20 @@ export class AuthorizationGuard implements CanActivate {
         },
       },
       include: {
-        roleGrant: {
+        RoleGrant: {
           include: {
-            roleTemplate: {
+            RoleTemplate: {
               include: {
-                capabilities: {
+                RoleCapability: {
                   include: {
-                    capabilityDef: true,
+                    CapabilityDefinition: true,
                   },
                 },
               },
             },
-            capabilityGrants: {
+            CapabilityGrant: {
               include: {
-                capability: true,
+                CapabilityDefinition: true,
               },
             },
           },
@@ -98,7 +98,7 @@ export class AuthorizationGuard implements CanActivate {
       throw new UnauthorizedException('La membresía no está activa');
     }
 
-    if (!membership.roleGrant) {
+    if (!membership.RoleGrant) {
       // Phase 2 P1-2: RoleGrant may be null during migration.
       // After backfill is complete, this should be treated as an error.
       this.logger.warn(
@@ -111,20 +111,20 @@ export class AuthorizationGuard implements CanActivate {
     const capabilities = new Set<string>();
 
     // Step 1: Add role defaults (capabilities from RoleTemplate)
-    if (membership.roleGrant.roleTemplate.capabilities) {
-      membership.roleGrant.roleTemplate.capabilities.forEach((roleCapability) => {
-        capabilities.add(roleCapability.capabilityDef.code);
+    if (membership.RoleGrant.RoleTemplate.RoleCapability) {
+      membership.RoleGrant.RoleTemplate.RoleCapability.forEach((roleCapability) => {
+        capabilities.add(roleCapability.CapabilityDefinition.code);
       });
     }
 
     // Step 2: Apply grants/denials (CapabilityGrant overrides)
-    if (membership.roleGrant.capabilityGrants) {
-      membership.roleGrant.capabilityGrants.forEach((grant) => {
+    if (membership.RoleGrant.CapabilityGrant) {
+      membership.RoleGrant.CapabilityGrant.forEach((grant) => {
         if (grant.grantType === 'GRANT') {
-          capabilities.add(grant.capability.code);
+          capabilities.add(grant.CapabilityDefinition.code);
         } else if (grant.grantType === 'DENY') {
           // Phase 3+: explicit denials
-          capabilities.delete(grant.capability.code);
+          capabilities.delete(grant.CapabilityDefinition.code);
         }
       });
     }

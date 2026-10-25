@@ -52,7 +52,7 @@ export class AuthCustomerService {
         // estadoLegajo null para minorista — no aplica (solo mayorista
         // pasa por el flujo de legajo + aprobación del dueño).
       },
-      include: { empresa: true },
+      include: { Empresa: true },
     });
 
     return this.issueCustomerSession(customer);
@@ -61,7 +61,7 @@ export class AuthCustomerService {
   async login(companyId: string, dto: LoginDto) {
     const customer = await this.prisma.cliente.findFirst({
       where: { empresaId: companyId, email: dto.email },
-      include: { empresa: true },
+      include: { Empresa: true },
     });
 
     if (!customer || !customer.passwordHash) {
@@ -99,20 +99,20 @@ export class AuthCustomerService {
 
     let customer = await this.prisma.cliente.findUnique({
       where: { googleId: profile.googleId },
-      include: { empresa: true },
+      include: { Empresa: true },
     });
 
     if (!customer) {
       const existing = await this.prisma.cliente.findFirst({
         where: { empresaId: companyId, email: profile.email },
-        include: { empresa: true },
+        include: { Empresa: true },
       });
 
       if (existing) {
         customer = await this.prisma.cliente.update({
           where: { id: existing.id },
           data: { googleId: profile.googleId },
-          include: { empresa: true },
+          include: { Empresa: true },
         });
       } else {
         customer = await this.prisma.cliente.create({
@@ -123,7 +123,7 @@ export class AuthCustomerService {
             googleId: profile.googleId,
             esMayorista: false,
           },
-          include: { empresa: true },
+          include: { Empresa: true },
         });
       }
     }

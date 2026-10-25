@@ -89,9 +89,7 @@ describe('DevolucionClienteController', () => {
       ],
     }).compile();
 
-    controller = module.get<DevolucionClienteController>(
-      DevolucionClienteController,
-    );
+    controller = module.get<DevolucionClienteController>(DevolucionClienteController);
     service = module.get<DevolucionesService>(DevolucionesService);
     businessContext = module.get<BusinessContextService>(BusinessContextService);
   });
@@ -124,11 +122,7 @@ describe('DevolucionClienteController', () => {
 
       expect(result).toEqual(mockDevoluccionDto);
       expect(result.estado).toBe('SOLICITADA');
-      expect(service.createDevolucione).toHaveBeenCalledWith(
-        mockBusinessId,
-        mockUserId,
-        dto,
-      );
+      expect(service.createDevolucione).toHaveBeenCalledWith(mockBusinessId, mockUserId, dto);
     });
   });
 
@@ -148,15 +142,11 @@ describe('DevolucionClienteController', () => {
       const result = await controller.listDevoluciones(mockUser);
 
       expect(result).toEqual(mockResponse);
-      expect(service.listDevoluciones).toHaveBeenCalledWith(
-        mockBusinessId,
-        mockUser,
-        {
-          estado: undefined,
-          limit: undefined,
-          offset: undefined,
-        },
-      );
+      expect(service.listDevoluciones).toHaveBeenCalledWith(mockBusinessId, mockUser, {
+        estado: undefined,
+        limit: undefined,
+        offset: undefined,
+      });
     });
   });
 
@@ -219,11 +209,7 @@ describe('DevolucionClienteController', () => {
         roles: ['admin'],
       };
 
-      const result = await controller.authorizeDevolucione(
-        mockDevolucionId,
-        dto,
-        adminUser,
-      );
+      const result = await controller.authorizeDevolucione(mockDevolucionId, dto, adminUser);
 
       expect(result.estado).toBe('AUTORIZADA');
       expect(service.authorizeDevolucione).toHaveBeenCalledWith(
@@ -274,11 +260,7 @@ describe('DevolucionClienteController', () => {
         roles: ['admin'],
       };
 
-      const result = await controller.receiveDevolucione(
-        mockDevolucionId,
-        dto,
-        adminUser,
-      );
+      const result = await controller.receiveDevolucione(mockDevolucionId, dto, adminUser);
 
       expect(result.estado).toBe('RECIBIDA');
       expect(service.receiveDevolucione).toHaveBeenCalledWith(
@@ -332,11 +314,7 @@ describe('DevolucionClienteController', () => {
         roles: ['admin'],
       };
 
-      const result = await controller.processRefund(
-        mockDevolucionId,
-        dto,
-        adminUser,
-      );
+      const result = await controller.processRefund(mockDevolucionId, dto, adminUser);
 
       expect(result.devoluccion.estado).toBe('PROCESADA');
       expect(result.refund.estado).toBe('PENDIENTE');

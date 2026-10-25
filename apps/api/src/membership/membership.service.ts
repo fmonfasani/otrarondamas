@@ -30,7 +30,7 @@ export class MembershipService {
   async getMembershipsForUser(userId: string) {
     const memberships = await this.prisma.membership.findMany({
       where: { userId },
-      include: { business: { select: { id: true, nombre: true } } },
+      include: { Empresa: { select: { id: true, nombre: true } } },
       orderBy: { createdAt: 'asc' },
     });
     return memberships.map((m) => ({
@@ -38,7 +38,7 @@ export class MembershipService {
       role: m.role,
       status: m.status,
       businessId: m.businessId,
-      businessNombre: m.business.nombre,
+      businessNombre: m.Empresa.nombre,
       createdAt: m.createdAt.toISOString(),
     }));
   }

@@ -67,7 +67,8 @@ export class AuthorizationsService {
     const requiredPermission = REQUIRED_PERMISSION_BY_OPERATION[dto.operacion];
     const db = this.prismaFactory.forCompany(companyId);
     const hasPermission = await db.usuarioPermiso.findFirst({
-      where: { usuarioId: authorizer.id, permiso: { nombre: requiredPermission } },
+      where: { usuarioId: authorizer.id, Permiso: { nombre: requiredPermission } },
+      include: { Permiso: true },
     });
     if (!hasPermission) {
       throw new ForbiddenException(

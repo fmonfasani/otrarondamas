@@ -50,9 +50,9 @@ export class AuthController {
     const userRecord = await this.prisma.usuario.findUnique({
       where: { id: user.id },
       include: {
-        empresa: true,
-        usuarioPermisos: {
-          include: { permiso: { select: { nombre: true } } },
+        Empresa: true,
+        UsuarioPermiso: {
+          include: { Permiso: { select: { nombre: true } } },
         },
       },
     });
@@ -68,8 +68,8 @@ export class AuthController {
       email: userRecord.email,
       nombre: userRecord.nombre,
       empresaId: userRecord.empresaId,
-      empresaNombre: userRecord.empresa.nombre,
-      permisos: userRecord.usuarioPermisos.map((assignment) => assignment.permiso.nombre),
+      empresaNombre: userRecord.Empresa.nombre,
+      permisos: userRecord.UsuarioPermiso.map((assignment) => assignment.Permiso.nombre),
       fotoUrl: userRecord.fotoUrl,
       metodoLogin: userRecord.googleId ? 'google' : 'password',
       createdAt: userRecord.createdAt.toISOString(),

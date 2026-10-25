@@ -97,7 +97,7 @@ export class AuthCustomerController {
     const db = this.prisma.forCompany(context.businessId);
     const customer = await db.cliente.findUnique({
       where: { id: context.customerId },
-      include: { empresa: true },
+      include: { Empresa: true },
     });
     if (!customer) {
       throw new NotFoundException('Cliente no encontrado');
@@ -107,7 +107,7 @@ export class AuthCustomerController {
       nombre: customer.nombre,
       email: customer.email,
       empresaId: customer.empresaId,
-      empresaNombre: customer.empresa.nombre,
+      empresaNombre: customer.Empresa.nombre,
       esMayorista: customer.esMayorista,
       estadoLegajo: customer.estadoLegajo,
       metodoLogin: customer.googleId ? 'google' : 'password',

@@ -119,9 +119,10 @@ export class SalesService {
         include: { VentaItem: true, Pago: true },
       });
       if (existing) {
-        const totalPaid = existing.Pago
-          .filter((p) => p.estado === 'APROBADO')
-          .reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
+        const totalPaid = existing.Pago.filter((p) => p.estado === 'APROBADO').reduce(
+          (s, p) => s.plus(p.monto),
+          new Prisma.Decimal(0),
+        );
         const balance = new Prisma.Decimal(existing.total.toString()).minus(totalPaid);
         return { ...existing, saldo: balance.toString(), advertenciasStockVencido: [] };
       }
@@ -485,9 +486,10 @@ export class SalesService {
     if (!sale) throw new NotFoundException('Venta no encontrada');
 
     const totalDecimal = new Prisma.Decimal(sale.total);
-    const paymentsSum = sale.Pago
-      .filter((p) => p.estado === 'APROBADO')
-      .reduce((acc, p) => acc.plus(new Prisma.Decimal(p.monto)), new Prisma.Decimal(0));
+    const paymentsSum = sale.Pago.filter((p) => p.estado === 'APROBADO').reduce(
+      (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
+      new Prisma.Decimal(0),
+    );
     const balanceDecimal = totalDecimal.minus(paymentsSum);
     const collectionStatus = this.calculateCollectionStatus(balanceDecimal, totalDecimal);
     const formattedNumber = sale.numero ? `#${String(sale.numero).padStart(8, '0')}` : null;

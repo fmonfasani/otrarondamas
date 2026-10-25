@@ -1286,7 +1286,9 @@ export class MessagingService {
   // this lets the UI avoid offering a send that the API will reject, without
   // widening any permission: it only reports the existing rule.
   private withViewerAccess<
-    T extends { ConversationParticipant: Array<{ userId: string | null; customerId: string | null }> },
+    T extends {
+      ConversationParticipant: Array<{ userId: string | null; customerId: string | null }>;
+    },
   >(
     conversation: T,
     context: BusinessContext,

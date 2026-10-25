@@ -99,12 +99,12 @@ export class CartService {
     }
 
     // Check if item already exists in cart
-    // SECURITY: Include cart.businessId in where to prevent cross-tenant access
+    // SECURITY: Include Cart.businessId in where to prevent cross-tenant access
     const existingItem = await db.cartItem.findFirst({
       where: {
         cartId,
         productoId,
-        cart: { businessId }, // Explicit businessId validation at query time
+        Cart: { businessId }, // Explicit businessId validation at query time
       },
     });
 
@@ -114,7 +114,7 @@ export class CartService {
       item = await db.cartItem.update({
         where: { id: existingItem.id },
         data: { cantidad: existingItem.cantidad.plus(cantidad) },
-        include: { producto: { select: { nombre: true, precioMinorista: true } } },
+        include: { Producto: { select: { nombre: true, precioMinorista: true } } },
       });
     } else {
       // Create new item
@@ -124,7 +124,7 @@ export class CartService {
           productoId,
           cantidad,
         },
-        include: { producto: { select: { nombre: true, precioMinorista: true } } },
+        include: { Producto: { select: { nombre: true, precioMinorista: true } } },
       });
     }
 
@@ -138,14 +138,14 @@ export class CartService {
 
     const db = this.prismaFactory.forCompany(businessId);
 
-    // SECURITY: Include cart.businessId in where clause for primary validation
+    // SECURITY: Include Cart.businessId in where clause for primary validation
     // Do not rely on post-query checks alone (defense in depth)
     const item = await db.cartItem.findFirst({
       where: {
         id: cartItemId,
-        cart: { businessId }, // Validate at query time, not post-query
+        Cart: { businessId }, // Validate at query time, not post-query
       },
-      include: { cart: true, producto: true },
+      include: { Cart: true, Producto: true },
     });
 
     if (!item) {
@@ -163,20 +163,20 @@ export class CartService {
     return db.cartItem.update({
       where: { id: cartItemId },
       data: { cantidad },
-      include: { producto: { select: { nombre: true, precioMinorista: true } } },
+      include: { Producto: { select: { nombre: true, precioMinorista: true } } },
     });
   }
 
   async removeItem(cartItemId: string, businessId: string) {
     const db = this.prismaFactory.forCompany(businessId);
 
-    // SECURITY: Include cart.businessId in where clause for primary validation
+    // SECURITY: Include Cart.businessId in where clause for primary validation
     const item = await db.cartItem.findFirst({
       where: {
         id: cartItemId,
-        cart: { businessId }, // Validate at query time, not post-query
+        Cart: { businessId }, // Validate at query time, not post-query
       },
-      include: { cart: true },
+      include: { Cart: true },
     });
 
     if (!item) {
@@ -194,9 +194,9 @@ export class CartService {
     const cart = await db.cart.findFirst({
       where: { id: cartId, businessId },
       include: {
-        items: {
+        CartItem: {
           include: {
-            producto: {
+            Producto: {
               select: {
                 id: true,
                 nombre: true,
@@ -207,7 +207,7 @@ export class CartService {
           },
           orderBy: { createdAt: 'asc' },
         },
-        customer: {
+        Cliente: {
           select: { id: true, nombre: true, email: true },
         },
       },

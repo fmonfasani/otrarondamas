@@ -26,6 +26,8 @@ import { MessagingModule } from './messaging/messaging.module';
 import { DevolucionesModule } from './devoluciones/devoluciones.module';
 import { AuditModule } from './audit/audit.module';
 import { RefundQueueModule } from './refunds/refund-queue.module';
+import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
@@ -63,6 +65,10 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     RefundQueueModule,
     // P4-3: Audit Log Reporting API
     AuditModule,
+    // P8-3: SMS Notifications (OTP, alerts, transactional)
+    SMSNotificationsModule,
+    // P8-4: Notification Preferences & Digest Implementation
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

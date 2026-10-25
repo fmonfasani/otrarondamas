@@ -177,8 +177,8 @@ export class AuditController {
     const user = await this.prisma.usuario.findUnique({
       where: { id: userId },
       include: {
-        usuarioPermisos: {
-          include: { permiso: { select: { nombre: true } } },
+        UsuarioPermiso: {
+          include: { Permiso: { select: { nombre: true } } },
         },
       },
     });
@@ -189,7 +189,7 @@ export class AuditController {
 
     return {
       businessId: user.empresaId,
-      capabilities: user.usuarioPermisos.map((assignment) => assignment.permiso.nombre),
+      capabilities: user.UsuarioPermiso.map((assignment) => assignment.Permiso.nombre),
     };
   }
 }

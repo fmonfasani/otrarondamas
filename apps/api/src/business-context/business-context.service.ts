@@ -147,9 +147,9 @@ export class BusinessContextService {
   private async legacyPermissions(userId: string): Promise<string[]> {
     const user = await this.prisma.usuario.findUnique({
       where: { id: userId },
-      include: { usuarioPermisos: { include: { permiso: true } } },
+      include: { UsuarioPermiso: { include: { Permiso: true } } },
     });
     if (!user) return [];
-    return user.usuarioPermisos.map((up) => up.permiso.nombre);
+    return user.UsuarioPermiso.map((up) => up.Permiso.nombre);
   }
 }

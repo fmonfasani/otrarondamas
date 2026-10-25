@@ -142,7 +142,7 @@ async function main() {
       email: 'owner@otrarondamas.com',
       passwordHash: hashedPassword,
       activo: true,
-      usuarioPermisos: {
+      UsuarioPermiso: {
         create: ownerPermissions,
       },
     },
@@ -163,11 +163,11 @@ async function main() {
       // misclassified. ownerUser above does not need an explicit `rol`
       // because OWNER is already the schema default.
       rol: 'ASISTENTE_LOCAL',
-      usuarioPermisos: {
+      UsuarioPermiso: {
         create: [
-          { permiso: { connect: { nombre: 'ventas.crear' } } },
-          { permiso: { connect: { nombre: 'clientes.gestionar' } } },
-          { permiso: { connect: { nombre: 'productos.gestionar' } } },
+          { Permiso: { connect: { nombre: 'ventas.crear' } } },
+          { Permiso: { connect: { nombre: 'clientes.gestionar' } } },
+          { Permiso: { connect: { nombre: 'productos.gestionar' } } },
         ],
       },
     },
@@ -185,7 +185,7 @@ async function main() {
       email: 'owner@demo-aislamiento.com',
       passwordHash: hashedPassword,
       activo: true,
-      usuarioPermisos: { create: ownerPermissions },
+      UsuarioPermiso: { create: ownerPermissions },
     },
   });
   console.log({ ownerAislamiento: ownerIsolation });

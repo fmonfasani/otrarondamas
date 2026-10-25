@@ -34,7 +34,7 @@ async function main() {
   for (const email of ownerEmails) {
     const user = await prisma.usuario.findUnique({
       where: { email },
-      include: { usuarioPermisos: { select: { permisoId: true } } },
+      include: { UsuarioPermiso: { select: { permisoId: true } } },
     });
 
     if (!user) {
@@ -42,7 +42,7 @@ async function main() {
       continue;
     }
 
-    const alreadyAssigned = new Set(user.usuarioPermisos.map((up) => up.permisoId));
+    const alreadyAssigned = new Set(user.UsuarioPermiso.map((up) => up.permisoId));
     const missing = allPermissions.filter((p) => !alreadyAssigned.has(p.id));
 
     if (missing.length === 0) {

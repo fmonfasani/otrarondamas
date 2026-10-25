@@ -1,22 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AccionAudit, AuditLog } from '@prisma/client';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-import { AuditLogFilterDto } from './dto/audit-log-filter.dto';
+import { AuditLog } from '@prisma/client';
 
 @Injectable()
 export class AuditService {
   constructor(private prisma: PrismaService) {}
 
-  async log(event: CreateAuditLogDto): Promise<AuditLog> {
+  async log(event: {
+    empresaId: string;
+    usuarioId?: string;
+    accion: string;
+    entidadAfectada: string;
+    entidadId?: string;
+    valoresAnteriores?: any;
+    valoresPosteriores?: any;
+    motivo?: string;
+    autorizacionId?: string;
+    ventaId?: string;
+  }): Promise<AuditLog> {
     return this.prisma.auditLog.create({
       data: {
         id: randomUUID(),
         empresaId: event.empresaId,
         usuarioId: event.usuarioId,
-        accion: event.accion.toString(),
-        accionEnum: event.accion,
+        accion: event.accion,
         entidadAfectada: event.entidadAfectada,
         entidadId: event.entidadId,
         valoresAnteriores: event.valoresAnteriores,
@@ -29,7 +37,18 @@ export class AuditService {
     });
   }
 
-  async logAsync(event: CreateAuditLogDto): Promise<void> {
+  async logAsync(event: {
+    empresaId: string;
+    usuarioId?: string;
+    accion: string;
+    entidadAfectada: string;
+    entidadId?: string;
+    valoresAnteriores?: any;
+    valoresPosteriores?: any;
+    motivo?: string;
+    autorizacionId?: string;
+    ventaId?: string;
+  }): Promise<void> {
     this.log(event).catch((err) => {
       console.error('[AuditService] Failed to log async event:', {
         accion: event.accion,
@@ -40,15 +59,27 @@ export class AuditService {
     });
   }
 
-  async logBatch(events: CreateAuditLogDto[]): Promise<number> {
+  async logBatch(
+    events: Array<{
+      empresaId: string;
+      usuarioId?: string;
+      accion: string;
+      entidadAfectada: string;
+      entidadId?: string;
+      valoresAnteriores?: any;
+      valoresPosteriores?: any;
+      motivo?: string;
+      autorizacionId?: string;
+      ventaId?: string;
+    }>,
+  ): Promise<number> {
     if (events.length === 0) return 0;
 
     const data = events.map((event) => ({
       id: randomUUID(),
       empresaId: event.empresaId,
       usuarioId: event.usuarioId,
-      accion: event.accion.toString(),
-      accionEnum: event.accion,
+      accion: event.accion,
       entidadAfectada: event.entidadAfectada,
       entidadId: event.entidadId,
       valoresAnteriores: event.valoresAnteriores,
@@ -67,11 +98,17 @@ export class AuditService {
     return result.count;
   }
 
-  async getLogs(filters: AuditLogFilterDto): Promise<AuditLog[]> {
+  async getLogs(filters: {
+    empresaId: string;
+    accion?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+  }): Promise<AuditLog[]> {
     return this.prisma.auditLog.findMany({
       where: {
         empresaId: filters.empresaId,
-        ...(filters.accion && { accionEnum: filters.accion }),
+        ...(filters.accion && { accion: filters.accion }),
         ...(filters.startDate || filters.endDate
           ? {
               fechaHora: {
@@ -86,11 +123,16 @@ export class AuditService {
     });
   }
 
-  async countLogs(filters: AuditLogFilterDto): Promise<number> {
+  async countLogs(filters: {
+    empresaId: string;
+    accion?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<number> {
     return this.prisma.auditLog.count({
       where: {
         empresaId: filters.empresaId,
-        ...(filters.accion && { accionEnum: filters.accion }),
+        ...(filters.accion && { accion: filters.accion }),
         ...(filters.startDate || filters.endDate
           ? {
               fechaHora: {
@@ -129,7 +171,7 @@ export class AuditService {
     endDate?: Date,
   ): Promise<Record<string, number>> {
     const logs = await this.prisma.auditLog.groupBy({
-      by: ['accionEnum'],
+      by: ['accion'],
       where: {
         empresaId,
         usuarioId,
@@ -149,8 +191,8 @@ export class AuditService {
 
     const summary: Record<string, number> = {};
     logs.forEach((log) => {
-      if (log.accionEnum) {
-        summary[log.accionEnum] = log._count.id;
+      if (log.accion) {
+        summary[log.accion] = log._count.id;
       }
     });
 
@@ -163,7 +205,7 @@ export class AuditService {
     endDate?: Date,
   ): Promise<Record<string, number>> {
     const logs = await this.prisma.auditLog.groupBy({
-      by: ['accionEnum'],
+      by: ['accion'],
       where: {
         empresaId,
         ...(startDate || endDate
@@ -182,8 +224,8 @@ export class AuditService {
 
     const distribution: Record<string, number> = {};
     logs.forEach((log) => {
-      if (log.accionEnum) {
-        distribution[log.accionEnum] = log._count.id;
+      if (log.accion) {
+        distribution[log.accion] = log._count.id;
       }
     });
 
@@ -207,7 +249,7 @@ export class AuditService {
     try {
       await this.prisma.auditLog.create({
         data: {
-          id: uuidv4(),
+          id: randomUUID(),
           empresaId: details.empresaId,
           usuarioId: null,
           accion: details.accion,
