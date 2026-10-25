@@ -57,11 +57,7 @@ jobs:
           mapfile -t test_files < <(
             {
               printf '%s\n' test/integration/tenant-isolation.integration-spec.ts
-              find test/integration -maxdepth 1 -type f \(
-                -name 's-v1-*.integration-spec.ts' -o
-                -name 'fs-1a-*.integration-spec.ts' -o
-                -name 'messaging-http*.integration-spec.ts'
-              \) -print
+              find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \) -print
             } | sort -u
           )
 
