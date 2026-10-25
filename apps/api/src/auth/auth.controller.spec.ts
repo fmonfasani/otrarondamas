@@ -5,6 +5,14 @@ import type { AuthGoogleService } from './auth.google.service';
 import type { MembershipService } from '../membership/membership.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
+jest.mock('./auth.service', () => ({ AuthService: class AuthService {} }));
+jest.mock('./auth.google.service', () => ({
+  AuthGoogleService: class AuthGoogleService {},
+}));
+jest.mock('../membership/membership.service', () => ({
+  MembershipService: class MembershipService {},
+}));
+
 describe('AuthController GET /auth/me', () => {
   it('returns current database permissions instead of stale JWT claims', async () => {
     const findUnique = jest.fn().mockResolvedValue({
