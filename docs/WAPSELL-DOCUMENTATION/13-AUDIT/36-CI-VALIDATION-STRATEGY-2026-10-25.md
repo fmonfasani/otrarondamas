@@ -30,6 +30,8 @@ Current workflow ownership:
 - **B3 Tenant Isolation Candidate** owns the additional B3 relation/tenant candidate suites when API-related paths change.
 - B3 no longer repeats the build and full unit suite on PR events because B4 already runs them. B3 retains those checks on direct push events, where B4 is not guaranteed to trigger.
 - B4 and B3 each group their compatible integration specs into one Jest invocation to avoid repeated Jest/ts-jest startup.
+- B3 and B4 install only the API workspace plus root tooling, rather than every frontend workspace, while retaining the root Prisma CLI needed by the checks.
+- On pull requests, Wapsell Demo Orchestrator keeps its routing/evidence job and a focused admin frontend build. The full API/demo regression runs only on the demo branch push or manual dispatch; its API suites are already covered by B4/B3 on PRs.
 - Keep B3's push.paths and pull_request.paths lists aligned. Do not make required checks disappear through path filters.
 
 ### Level 3 — Before declaring delivery complete
@@ -66,7 +68,9 @@ Record a secondary subtype where helpful (API contract, database transaction/cle
 
 The workflow changes in this revision reduce duplicate work and Jest process startups:
 - B3: skips duplicate build and full unit checks on pull-request events (B4 owns those gates), while retaining them for direct pushes.
+- B3/B4: limit npm ci to the API and root workspaces instead of installing both frontends as well.
 - B3: runs its 14 explicit candidate integration specs in one Jest process rather than one process per spec.
 - B4: runs tenant isolation plus discovered S-V1, FS-1a, and messaging HTTP integration specs in one Jest process.
+- Demo orchestrator: avoids rerunning the full API/unit/integration baseline on every PR while retaining an admin frontend build check.
 
 Measure actual elapsed time from GitHub Actions before/after runs on comparable commits. If the next run shows no improvement, inspect step durations rather than adding speculative caches or weakening test coverage.
