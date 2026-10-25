@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-07 — HTTP boundary of SALES and PAYMENTS against the REAL compiled
 // stack (dist/src/main.js, the same production binary):
@@ -949,42 +949,43 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
   // -------------------------------------------------------- authorization
 
   it('SV7-H-21: sin asignaciones actuales → 403 en rutas protegidas; rutas sin permiso siguen abiertas', async () => {
-    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
-    const productA = await mkProduct(companyA.id, hierA);
-    await mkBatch(companyA.id, productA.id, 10);
-    const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
-    const auth = bearer(legacyUserA.id, companyA.id, []);
-    const key = randomUUID();
-    const body = {
-      canal: 'presencial',
-      items: [{ productoId: productA.id, cantidad: 1 }],
-      idempotencyKey: key,
-    };
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'ventas.ver'], async () => {
+      const productA = await mkProduct(companyA.id, hierA);
+      await mkBatch(companyA.id, productA.id, 10);
+      const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
+      const auth = bearer(legacyUserA.id, companyA.id, []);
+      const key = randomUUID();
+      const body = {
+        canal: 'presencial',
+        items: [{ productoId: productA.id, cantidad: 1 }],
+        idempotencyKey: key,
+      };
 
-    await request(BASE)
-      .post('/ventas/cotizacion')
-      .set('Authorization', auth)
-      .send(body)
-      .expect(403);
-    await request(BASE).post('/ventas').set('Authorization', auth).send(body).expect(403);
-    await request(BASE)
-      .post(`/ventas/${saleA.id}/pagos`)
-      .set('Authorization', auth)
-      .send({ medio: 'transferencia', monto: 1 })
-      .expect(403);
-    await request(BASE).get('/ventas').set('Authorization', auth).expect(403);
-    await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', auth).expect(403);
-    await request(BASE)
-      .get(`/ventas/${saleA.id}/comprobante`)
-      .set('Authorization', auth)
-      .expect(403);
-    expect(await prisma.venta.count({ where: { idempotencyKey: key } })).toBe(0);
-    expect(await prisma.pago.count({ where: { ventaId: saleA.id } })).toBe(0);
+      await request(BASE)
+        .post('/ventas/cotizacion')
+        .set('Authorization', auth)
+        .send(body)
+        .expect(403);
+      await request(BASE).post('/ventas').set('Authorization', auth).send(body).expect(403);
+      await request(BASE)
+        .post(`/ventas/${saleA.id}/pagos`)
+        .set('Authorization', auth)
+        .send({ medio: 'transferencia', monto: 1 })
+        .expect(403);
+      await request(BASE).get('/ventas').set('Authorization', auth).expect(403);
+      await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', auth).expect(403);
+      await request(BASE)
+        .get(`/ventas/${saleA.id}/comprobante`)
+        .set('Authorization', auth)
+        .expect(403);
+      expect(await prisma.venta.count({ where: { idempotencyKey: key } })).toBe(0);
+      expect(await prisma.pago.count({ where: { ventaId: saleA.id } })).toBe(0);
 
-    // No @RequirePermission on these two: Membership alone is enough.
-    await request(BASE).get('/ventas/productos?search=ab').set('Authorization', auth).expect(200);
-    await request(BASE).get(`/ventas/${saleA.id}/pagos`).set('Authorization', auth).expect(200);
-    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'ventas.ver']);
+      // No @RequirePermission on these two: Membership alone is enough.
+      await request(BASE).get('/ventas/productos?search=ab').set('Authorization', auth).expect(200);
+      await request(BASE).get(`/ventas/${saleA.id}/pagos`).set('Authorization', auth).expect(200);
+      
+    });
   });
 
   it('SV7-H-22 (ventas.ver): la base de datos, no el JWT, determina acceso de lectura', async () => {
