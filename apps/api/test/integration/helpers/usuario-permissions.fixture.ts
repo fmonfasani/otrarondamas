@@ -48,3 +48,22 @@ export async function deleteUsuarioPermissionsForCompanies(
     where: { usuario: { empresaId: { in: companyIds } } },
   });
 }
+
+
+/**
+ * Temporarily revoke a legacy user's permissions for a negative HTTP test.
+ * The original fixture assignments are restored even when an assertion fails.
+ */
+export async function withRevokedUsuarioPermissions<T>(
+  prisma: PrismaService,
+  usuarioId: string,
+  restorePermissionNames: string[],
+  assertion: () => Promise<T>,
+): Promise<T> {
+  await replaceUsuarioPermissions(prisma, usuarioId, []);
+  try {
+    return await assertion();
+  } finally {
+    await replaceUsuarioPermissions(prisma, usuarioId, restorePermissionNames);
+  }
+}
