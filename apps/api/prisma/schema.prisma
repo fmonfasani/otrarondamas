@@ -9,14 +9,14 @@ datasource db {
 }
 
 model AperturaCaja {
-  id             String           @id
+  id             String           @id @default(uuid())
   cajaId         String
   usuarioId      String
   montoInicial   Decimal
   fechaApertura  DateTime         @default(now())
   fechaCierre    DateTime?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   Caja           Caja             @relation(fields: [cajaId], references: [id])
   Usuario        Usuario          @relation(fields: [usuarioId], references: [id])
   ArqueoCaja     ArqueoCaja[]
@@ -25,12 +25,12 @@ model AperturaCaja {
 }
 
 model AplicacionPago {
-  id            String   @id
+  id            String   @id @default(uuid())
   pagoId        String
   deudaId       String
   montoAplicado Decimal
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   Deuda         Deuda    @relation(fields: [deudaId], references: [id])
   Pago          Pago     @relation(fields: [pagoId], references: [id])
 
@@ -38,7 +38,7 @@ model AplicacionPago {
 }
 
 model ArqueoCaja {
-  id                                            String        @id
+  id                                            String        @id @default(uuid())
   cajaId                                        String
   aperturaCajaId                                String
   usuarioId                                     String
@@ -52,7 +52,7 @@ model ArqueoCaja {
   autorizacionId                                String?
   fechaArqueo                                   DateTime      @default(now())
   createdAt                                     DateTime      @default(now())
-  updatedAt                                     DateTime
+  updatedAt                                     DateTime @updatedAt
   usuarioEntranteId                             String
   AperturaCaja                                  AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
   Autorizacion                                  Autorizacion? @relation(fields: [autorizacionId], references: [id])
@@ -62,7 +62,7 @@ model ArqueoCaja {
 }
 
 model Attachment {
-  id          String    @id
+  id          String    @id @default(uuid())
   messageId   String
   storageKey  String
   filename    String
@@ -79,7 +79,7 @@ model Attachment {
 }
 
 model AuditLog {
-  id                 String        @id
+  id                 String        @id @default(uuid())
   empresaId          String
   usuarioId          String?
   fechaHora          DateTime      @default(now())
@@ -92,7 +92,7 @@ model AuditLog {
   autorizacionId     String?
   ventaId            String?
   createdAt          DateTime      @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
   Autorizacion       Autorizacion? @relation(fields: [autorizacionId], references: [id])
   Empresa            Empresa       @relation(fields: [empresaId], references: [id])
   Usuario            Usuario?      @relation(fields: [usuarioId], references: [id])
@@ -100,7 +100,7 @@ model AuditLog {
 }
 
 model Autorizacion {
-  id                String       @id
+  id                String       @id @default(uuid())
   empresaId         String
   autorizadorId     String
   operacion         String
@@ -109,7 +109,7 @@ model Autorizacion {
   motivo            String?
   fechaAutorizacion DateTime     @default(now())
   createdAt         DateTime     @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   ArqueoCaja        ArqueoCaja[]
   AuditLog          AuditLog[]
   Usuario           Usuario      @relation(fields: [autorizadorId], references: [id])
@@ -117,13 +117,13 @@ model Autorizacion {
 }
 
 model Caja {
-  id             String           @id
+  id             String           @id @default(uuid())
   empresaId      String           @unique
   nombre         String           @default("Caja Principal")
   fondoFijo      Decimal
   estado         EstadoCaja       @default(CERRADA)
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   AperturaCaja   AperturaCaja[]
   ArqueoCaja     ArqueoCaja[]
   Empresa        Empresa          @relation(fields: [empresaId], references: [id])
@@ -131,25 +131,25 @@ model Caja {
 }
 
 model CapabilityDefinition {
-  id              String            @id
+  id              String            @id @default(uuid())
   code            String            @unique
   description     String?
   category        String?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   CapabilityGrant CapabilityGrant[]
   RoleCapability  RoleCapability[]
 }
 
 model CapabilityGrant {
-  id                   String               @id
+  id                   String               @id @default(uuid())
   roleGrantId          String
   capabilityDefId      String
   grantType            String               @default("GRANT")
   reason               String?
   grantedBy            String?
   createdAt            DateTime             @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime @updatedAt
   CapabilityDefinition CapabilityDefinition @relation(fields: [capabilityDefId], references: [id])
   RoleGrant            RoleGrant            @relation(fields: [roleGrantId], references: [id], onDelete: Cascade)
 
@@ -158,11 +158,11 @@ model CapabilityGrant {
 }
 
 model Cart {
-  id         String     @id
+  id         String     @id @default(uuid())
   customerId String
   businessId String
   createdAt  DateTime   @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime @updatedAt
   Empresa    Empresa    @relation(fields: [businessId], references: [id])
   Cliente    Cliente    @relation(fields: [customerId], references: [id])
   CartItem   CartItem[]
@@ -172,12 +172,12 @@ model Cart {
 }
 
 model CartItem {
-  id         String   @id
+  id         String   @id @default(uuid())
   cartId     String
   productoId String
   cantidad   Decimal
   createdAt  DateTime @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime @updatedAt
   Cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   Producto   Producto @relation(fields: [productoId], references: [id])
 
@@ -186,19 +186,19 @@ model CartItem {
 }
 
 model CierreCaja {
-  id             String       @id
+  id             String       @id @default(uuid())
   aperturaCajaId String       @unique
   usuarioId      String
   fechaCierre    DateTime     @default(now())
   montoFinal     Decimal
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   AperturaCaja   AperturaCaja @relation(fields: [aperturaCajaId], references: [id])
   Usuario        Usuario      @relation(fields: [usuarioId], references: [id])
 }
 
 model Cliente {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   empresaId               String
   nombre                  String
   email                   String?
@@ -207,7 +207,7 @@ model Cliente {
   limiteCredito           Decimal?
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   condicionIva            String?
   cuit                    String?
   esMayorista             Boolean                   @default(false)
@@ -233,7 +233,7 @@ model Cliente {
 }
 
 model Compra {
-  id                     String                @id
+  id                     String                @id @default(uuid())
   empresaId              String
   proveedorId            String
   usuarioId              String
@@ -242,7 +242,7 @@ model Compra {
   fechaOrden             DateTime              @default(now())
   fechaRecepcionEsperada DateTime?
   createdAt              DateTime              @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime @updatedAt
   fechaVencimientoPago   DateTime?
   numeroFactura          String?
   saldo                  Decimal               @default(0)
@@ -257,24 +257,24 @@ model Compra {
 }
 
 model CompraItem {
-  id               String   @id
+  id               String   @id @default(uuid())
   compraId         String
   productoId       String
   cantidadPedida   Decimal
   cantidadRecibida Decimal  @default(0)
   costoUnitario    Decimal
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   Compra           Compra   @relation(fields: [compraId], references: [id])
   Producto         Producto @relation(fields: [productoId], references: [id])
 }
 
 model Conversation {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   businessId              String
   type                    MessagingConversationType
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   deletedAt               DateTime?
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
   ConversationAssociation ConversationAssociation[]
@@ -287,7 +287,7 @@ model Conversation {
 }
 
 model ConversationAssociation {
-  id             String                   @id
+  id             String                   @id @default(uuid())
   conversationId String
   businessId     String
   entityType     MessagingAssociationType
@@ -296,7 +296,7 @@ model ConversationAssociation {
   changedBy      String?
   reason         String?
   createdAt      DateTime                 @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   Conversation   Conversation             @relation(fields: [conversationId, businessId], references: [id, businessId])
 
   @@index([businessId, conversationId, active])
@@ -305,7 +305,7 @@ model ConversationAssociation {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model ConversationParticipant {
-  id                   String       @id
+  id                   String       @id @default(uuid())
   conversationId       String
   businessId           String
   userId               String?
@@ -327,12 +327,12 @@ model ConversationParticipant {
 }
 
 model CuentaCorriente {
-  id        String   @id
+  id        String   @id @default(uuid())
   empresaId String
   clienteId String
   saldo     Decimal  @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Cliente   Cliente  @relation(fields: [clienteId], references: [id])
   Empresa   Empresa  @relation(fields: [empresaId], references: [id])
   Deuda     Deuda[]
@@ -342,7 +342,7 @@ model CuentaCorriente {
 }
 
 model Deuda {
-  id                String           @id
+  id                String           @id @default(uuid())
   empresaId         String
   clienteId         String
   ventaId           String?
@@ -350,7 +350,7 @@ model Deuda {
   montoPendiente    Decimal
   fechaVencimiento  DateTime?
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   cuentaCorrienteId String?
   AplicacionPago    AplicacionPago[]
   Cliente           Cliente          @relation(fields: [clienteId], references: [id])
@@ -449,7 +449,7 @@ model Reembolso {
 }
 
 model DevolucionProveedor {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   empresaId               String
   compraId                String
   proveedorId             String
@@ -457,7 +457,7 @@ model DevolucionProveedor {
   motivo                  String
   fecha                   DateTime                  @default(now())
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   Compra                  Compra                    @relation(fields: [compraId], references: [id])
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   Proveedor               Proveedor                 @relation(fields: [proveedorId], references: [id])
@@ -466,7 +466,7 @@ model DevolucionProveedor {
 }
 
 model DevolucionProveedorItem {
-  id                  String              @id
+  id                  String              @id @default(uuid())
   devolucionId        String
   productoId          String
   loteId              String?
@@ -478,23 +478,23 @@ model DevolucionProveedorItem {
 }
 
 model DocumentoLegajo {
-  id            String              @id
+  id            String              @id @default(uuid())
   legajoId      String
   tipo          TipoDocumentoLegajo
   rutaArchivo   String
   nombreArchivo String
   vencimiento   DateTime
   createdAt     DateTime            @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   Legajo        Legajo              @relation(fields: [legajoId], references: [id])
 }
 
 model Empresa {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   nombre                  String                    @unique
   configuracion           Json
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   slug                    String                    @unique
   AuditLog                AuditLog[]
   Autorizacion            Autorizacion[]
@@ -534,7 +534,7 @@ model Empresa {
 }
 
 model Entrega {
-  id                                    String    @id
+  id                                    String    @id @default(uuid())
   empresaId                             String
   pedidoId                              String    @unique
   preparadorId                          String?
@@ -543,7 +543,7 @@ model Entrega {
   medioCobro                            String?
   fechaEntrega                          DateTime?
   createdAt                             DateTime  @default(now())
-  updatedAt                             DateTime
+  updatedAt                             DateTime @updatedAt
   Empresa                               Empresa   @relation(fields: [empresaId], references: [id])
   Pedido                                Pedido    @relation(fields: [pedidoId], references: [id])
   Usuario_Entrega_preparadorIdToUsuario Usuario?  @relation("Entrega_preparadorIdToUsuario", fields: [preparadorId], references: [id])
@@ -551,13 +551,13 @@ model Entrega {
 }
 
 model Familia {
-  id                String              @id
+  id                String              @id @default(uuid())
   empresaId         String
   nombre            String
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
@@ -568,7 +568,7 @@ model Familia {
 }
 
 model Invitacion {
-  id            String     @id
+  id            String     @id @default(uuid())
   empresaId     String
   email         String
   rol           RolUsuario
@@ -577,13 +577,13 @@ model Invitacion {
   expiraEn      DateTime
   usadaEn       DateTime?
   createdAt     DateTime   @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   Empresa       Empresa    @relation(fields: [empresaId], references: [id])
   Usuario       Usuario    @relation(fields: [invitadoPorId], references: [id])
 }
 
 model Legajo {
-  id               String            @id
+  id               String            @id @default(uuid())
   usuarioId        String?           @unique
   clienteId        String?           @unique
   cuit             String?
@@ -596,21 +596,21 @@ model Legajo {
   vehiculoDatos    String?
   licenciaConducir String?
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   DocumentoLegajo  DocumentoLegajo[]
   Cliente          Cliente?          @relation(fields: [clienteId], references: [id])
   Usuario          Usuario?          @relation(fields: [usuarioId], references: [id])
 }
 
 model Lote {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   empresaId               String
   productoId              String
   numeroLote              String
   vencimiento             DateTime
   cantidad                Decimal
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   DevolucionProveedorItem DevolucionProveedorItem[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   Producto                Producto                  @relation(fields: [productoId], references: [id])
@@ -620,13 +620,13 @@ model Lote {
 }
 
 model Membership {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   userId                  String
   businessId              String
   role                    RolUsuario
   status                  MembershipStatus          @default(ACTIVE)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   ConversationParticipant ConversationParticipant[]
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
   User                    User                      @relation(fields: [userId], references: [id])
@@ -641,7 +641,7 @@ model Membership {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model Message {
-  id                         String               @id
+  id                         String               @id @default(uuid())
   conversationId             String
   businessId                 String
   authorUserId               String?
@@ -676,7 +676,7 @@ model Message {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model MessageReadReceipt {
-  id                   String      @id
+  id                   String      @id @default(uuid())
   messageId            String
   businessId           String
   userId               String?
@@ -698,7 +698,7 @@ model MessageReadReceipt {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model MessagingReadPreference {
-  id                   String      @id
+  id                   String      @id @default(uuid())
   businessId           String
   userId               String?
   membershipBusinessId String?
@@ -706,7 +706,7 @@ model MessagingReadPreference {
   customerBusinessId   String?
   enabled              Boolean     @default(true)
   createdAt            DateTime    @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime @updatedAt
   Empresa              Empresa     @relation(fields: [businessId], references: [id])
   Cliente              Cliente?    @relation(fields: [customerId, customerBusinessId], references: [id, empresaId])
   Membership           Membership? @relation(fields: [userId, membershipBusinessId], references: [userId, businessId])
@@ -718,7 +718,7 @@ model MessagingReadPreference {
 }
 
 model MovimientoCaja {
-  id             String        @id
+  id             String        @id @default(uuid())
   cajaId         String
   aperturaCajaId String?
   usuarioId      String
@@ -727,14 +727,14 @@ model MovimientoCaja {
   descripcion    String?
   referenciaId   String?
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   AperturaCaja   AperturaCaja? @relation(fields: [aperturaCajaId], references: [id])
   Caja           Caja          @relation(fields: [cajaId], references: [id])
   Usuario        Usuario       @relation(fields: [usuarioId], references: [id])
 }
 
 model MovimientoStock {
-  id                   String           @id
+  id                   String           @id @default(uuid())
   empresaId            String
   productoId           String
   loteId               String?
@@ -745,7 +745,7 @@ model MovimientoStock {
   usuarioId            String?
   recepcionCompraId    String?
   createdAt            DateTime         @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime @updatedAt
   loteVencidoAlMomento Boolean          @default(false)
   Empresa              Empresa          @relation(fields: [empresaId], references: [id])
   Lote                 Lote?            @relation(fields: [loteId], references: [id])
@@ -755,7 +755,7 @@ model MovimientoStock {
 }
 
 model Notificacion {
-  id           String   @id
+  id           String   @id @default(uuid())
   empresaId    String
   pedidoId     String?
   evento       String
@@ -764,13 +764,13 @@ model Notificacion {
   estadoEnvio  String
   mensaje      String?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   Empresa      Empresa  @relation(fields: [empresaId], references: [id])
   Pedido       Pedido?  @relation(fields: [pedidoId], references: [id])
 }
 
 model Pago {
-  id              String           @id
+  id              String           @id @default(uuid())
   empresaId       String
   usuarioId       String?
   ventaId         String?
@@ -780,7 +780,7 @@ model Pago {
   estado          EstadoPago       @default(PENDIENTE)
   comision        Decimal          @default(0)
   createdAt       DateTime         @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   pedidoId        String?
   montoRecibido   Decimal?
   vuelto          Decimal?
@@ -794,7 +794,7 @@ model Pago {
 }
 
 model PagoProveedor {
-  id          String    @id
+  id          String    @id @default(uuid())
   empresaId   String
   compraId    String
   proveedorId String
@@ -805,7 +805,7 @@ model PagoProveedor {
   fecha       DateTime  @default(now())
   notas       String?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Compra      Compra    @relation(fields: [compraId], references: [id])
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
   Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
@@ -813,7 +813,7 @@ model PagoProveedor {
 }
 
 model Pedido {
-  id             String         @id
+  id             String         @id @default(uuid())
   empresaId      String
   clienteId      String
   usuarioId      String?
@@ -822,7 +822,7 @@ model Pedido {
   total          Decimal
   descuento      Decimal        @default(0)
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   idempotencyKey String?
   Entrega        Entrega?
   Notificacion   Notificacion[]
@@ -834,14 +834,14 @@ model Pedido {
 }
 
 model PedidoItem {
-  id                              String             @id
+  id                              String             @id @default(uuid())
   pedidoId                        String
   productoId                      String
   cantidad                        Decimal
   precioUnitario                  Decimal
   descuentoItem                   Decimal            @default(0)
   createdAt                       DateTime           @default(now())
-  updatedAt                       DateTime
+  updatedAt                       DateTime @updatedAt
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
   reglaFidelizacionId             String?
   Pedido                          Pedido             @relation(fields: [pedidoId], references: [id])
@@ -850,23 +850,23 @@ model PedidoItem {
 }
 
 model Permiso {
-  id             String           @id
+  id             String           @id @default(uuid())
   nombre         String           @unique
   descripcion    String?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   UsuarioPermiso UsuarioPermiso[]
 }
 
 model Presentacion {
-  id               String   @id
+  id               String   @id @default(uuid())
   empresaId        String
   productoId       String
   nombre           String
   factorConversion Decimal
   activo           Boolean  @default(true)
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   Empresa          Empresa  @relation(fields: [empresaId], references: [id])
   Producto         Producto @relation(fields: [productoId], references: [id])
 
@@ -874,7 +874,7 @@ model Presentacion {
 }
 
 model Producto {
-  id                      String                    @id
+  id                      String                    @id @default(uuid())
   empresaId               String
   nombre                  String
   codigoInterno           String
@@ -886,7 +886,7 @@ model Producto {
   precioMayorista         Decimal?
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   stockMinimo             Decimal                   @default(0)
   descuentoPorcentaje     Decimal?                  @db.Decimal(5, 2)
   familiaId               String
@@ -913,12 +913,12 @@ model Producto {
 }
 
 model ProductoProveedor {
-  id          String    @id
+  id          String    @id @default(uuid())
   empresaId   String
   productoId  String
   proveedorId String
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
   Producto    Producto  @relation(fields: [productoId], references: [id])
   Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
@@ -927,14 +927,14 @@ model ProductoProveedor {
 }
 
 model Proveedor {
-  id                  String                @id
+  id                  String                @id @default(uuid())
   empresaId           String
   nombre              String
   email               String?
   telefono            String?
   direccion           String?
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
   Compra              Compra[]
   DevolucionProveedor DevolucionProveedor[]
   PagoProveedor       PagoProveedor[]
@@ -945,7 +945,7 @@ model Proveedor {
 }
 
 model Reaction {
-  id        String   @id
+  id        String   @id @default(uuid())
   messageId String
   userId    String
   emoji     String
@@ -958,14 +958,14 @@ model Reaction {
 }
 
 model RecepcionCompra {
-  id              String            @id
+  id              String            @id @default(uuid())
   empresaId       String
   compraId        String
   usuarioId       String
   fechaRecepcion  DateTime          @default(now())
   observaciones   String?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   MovimientoStock MovimientoStock[]
   Compra          Compra            @relation(fields: [compraId], references: [id])
   Empresa         Empresa           @relation(fields: [empresaId], references: [id])
@@ -973,7 +973,7 @@ model RecepcionCompra {
 }
 
 model ReglaFidelizacion {
-  id                  String         @id
+  id                  String         @id @default(uuid())
   empresaId           String
   nombre              String
   nivelRequerido      NivelFidelidad
@@ -982,7 +982,7 @@ model ReglaFidelizacion {
   cantidadMinima      Int?
   activo              Boolean        @default(true)
   createdAt           DateTime       @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
   familiaId           String?
   subfamiliaId        String?
   tipoId              String?
@@ -997,7 +997,7 @@ model ReglaFidelizacion {
 }
 
 model RoleCapability {
-  id                   String               @id
+  id                   String               @id @default(uuid())
   roleTemplateId       String
   capabilityDefId      String
   createdAt            DateTime             @default(now())
@@ -1009,11 +1009,11 @@ model RoleCapability {
 }
 
 model RoleGrant {
-  id              String            @id
+  id              String            @id @default(uuid())
   membershipId    String            @unique
   roleTemplateId  String
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   CapabilityGrant CapabilityGrant[]
   Membership      Membership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   RoleTemplate    RoleTemplate      @relation(fields: [roleTemplateId], references: [id])
@@ -1022,25 +1022,25 @@ model RoleGrant {
 }
 
 model RoleTemplate {
-  id             String           @id
+  id             String           @id @default(uuid())
   name           String           @unique
   description    String?
   empresaId      String?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   RoleCapability RoleCapability[]
   RoleGrant      RoleGrant[]
 }
 
 model Subfamilia {
-  id                String              @id
+  id                String              @id @default(uuid())
   empresaId         String
   familiaId         String
   nombre            String
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
@@ -1052,14 +1052,14 @@ model Subfamilia {
 }
 
 model Subtipo {
-  id                String              @id
+  id                String              @id @default(uuid())
   empresaId         String
   tipoId            String
   nombre            String
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
@@ -1070,14 +1070,14 @@ model Subtipo {
 }
 
 model Tipo {
-  id                String              @id
+  id                String              @id @default(uuid())
   empresaId         String
   subfamiliaId      String
   nombre            String
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Subtipo           Subtipo[]
@@ -1089,7 +1089,7 @@ model Tipo {
 }
 
 model User {
-  id           String       @id
+  id           String       @id @default(uuid())
   email        String       @unique
   nombre       String
   passwordHash String?
@@ -1097,20 +1097,20 @@ model User {
   fotoUrl      String?
   usuarioId    String?      @unique
   createdAt    DateTime     @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   Membership   Membership[]
   Reaction     Reaction[]
 }
 
 model Usuario {
-  id                                               String                @id
+  id                                               String                @id @default(uuid())
   empresaId                                        String
   nombre                                           String
   email                                            String                @unique
   passwordHash                                     String?
   activo                                           Boolean               @default(true)
   createdAt                                        DateTime              @default(now())
-  updatedAt                                        DateTime
+  updatedAt                                        DateTime @updatedAt
   fotoUrl                                          String?
   googleId                                         String?               @unique
   estadoLegajo                                     EstadoLegajo          @default(APROBADO)
@@ -1140,11 +1140,11 @@ model Usuario {
 }
 
 model UsuarioPermiso {
-  id        String   @id
+  id        String   @id @default(uuid())
   usuarioId String
   permisoId String
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Permiso   Permiso  @relation(fields: [permisoId], references: [id])
   Usuario   Usuario  @relation(fields: [usuarioId], references: [id])
 
@@ -1152,7 +1152,7 @@ model UsuarioPermiso {
 }
 
 model Venta {
-  id                String               @id
+  id                String               @id @default(uuid())
   empresaId         String
   usuarioId         String
   clienteId         String?
@@ -1160,7 +1160,7 @@ model Venta {
   total             Decimal     @db.Decimal(14, 2)
   descuento         Decimal     @default(0) @db.Decimal(14, 2)
   createdAt         DateTime    @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   estado            EstadoVenta @default(CONFIRMADA)
   idempotencyKey    String?     @unique
   numero            Int?
@@ -1177,14 +1177,14 @@ model Venta {
 }
 
 model VentaItem {
-  id                              String                   @id
+  id                              String                   @id @default(uuid())
   ventaId                         String
   productoId                      String
   cantidad                        Decimal            @db.Decimal(14, 2)
   precioUnitario                  Decimal            @db.Decimal(14, 2)
   descuentoItem                   Decimal            @default(0) @db.Decimal(14, 2)
   createdAt                       DateTime           @default(now())
-  updatedAt                       DateTime
+  updatedAt                       DateTime @updatedAt
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
   reglaFidelizacionId             String?
   DevolucionClienteItem           DevolucionClienteItem[]
@@ -1311,3 +1311,4 @@ enum UnidadBase {
   PACK
   CAJA
 }
+
