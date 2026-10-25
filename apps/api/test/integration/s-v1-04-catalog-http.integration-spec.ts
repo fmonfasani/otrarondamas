@@ -533,7 +533,7 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
       expect(
         await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
       ).toBeNull();
-      
+
     });
   });
 });
