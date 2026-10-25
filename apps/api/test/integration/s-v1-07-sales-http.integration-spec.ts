@@ -984,7 +984,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       // No @RequirePermission on these two: Membership alone is enough.
       await request(BASE).get('/ventas/productos?search=ab').set('Authorization', auth).expect(200);
       await request(BASE).get(`/ventas/${saleA.id}/pagos`).set('Authorization', auth).expect(200);
-      
+
     });
   });
 
