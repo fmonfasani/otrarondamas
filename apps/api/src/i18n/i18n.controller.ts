@@ -72,9 +72,9 @@ export class I18nController {
    */
   @Get('translate')
   translate(
+    @Req() req: any,
     @Query('key') key?: string,
     @Query('locale') locale?: string,
-    @Req() req: any,
   ): { key: string; value: string; locale: string } {
     if (!key) {
       throw new BadRequestException('Translation key is required');

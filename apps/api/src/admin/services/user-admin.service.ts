@@ -37,8 +37,8 @@ export class userAdminService {
       this.prisma.membership.findMany({
         where,
         include: {
-          user: true,
-          roleGrant: {
+          User: true,
+          RoleGrant: {
             include: {
               roleTemplate: true,
             },
@@ -52,16 +52,16 @@ export class userAdminService {
     ]);
 
     const data: ListusersAdminResponseDto[] = memberships.map((m) => ({
-      id: m.user.id,
-      email: m.user.email,
-      nombre: m.user.nombre,
-      fotoUrl: m.user.fotoUrl,
+      id: m.User.id,
+      email: m.User.email,
+      nombre: m.User.nombre,
+      fotoUrl: m.User.fotoUrl,
       membership: {
         businessId: m.businessId,
         role: m.role,
         status: m.status,
       },
-      roleTemplateId: m.roleGrant?.roleTemplateId,
+      roleTemplateId: m.RoleGrant?.roleTemplateId,
       createdAt: m.createdAt,
     }));
 
@@ -80,12 +80,12 @@ export class userAdminService {
         userId_businessId: { userId, businessId },
       },
       include: {
-        user: true,
-        roleGrant: {
+        User: true,
+        RoleGrant: {
           include: {
             roleTemplate: {
               include: {
-                roleCapability: {
+                RoleCapability: {
                   include: {
                     capabilityDefinition: true,
                   },
@@ -105,7 +105,7 @@ export class userAdminService {
       where: { id: businessId },
     });
 
-    const capabilities = membership.roleGrant?.roleTemplate?.roleCapability?.map((rc) => ({
+    const capabilities = membership.RoleGrant?.roleTemplate?.RoleCapability?.map((rc) => ({
       id: rc.capabilityDefinition.id,
       code: rc.capabilityDefinition.code,
       description: rc.capabilityDefinition.description,
@@ -113,10 +113,10 @@ export class userAdminService {
     })) || [];
 
     return {
-      id: membership.user.id,
-      email: membership.user.email,
-      nombre: membership.user.nombre,
-      fotoUrl: membership.user.fotoUrl,
+      id: membership.User.id,
+      email: membership.User.email,
+      nombre: membership.User.nombre,
+      fotoUrl: membership.User.fotoUrl,
       membership: {
         businessId: membership.businessId,
         businessName: empresa?.nombre || 'Unknown',
@@ -124,16 +124,16 @@ export class userAdminService {
         status: membership.status,
         createdAt: membership.createdAt,
       },
-      roleGrant: membership.roleGrant
+      roleGrant: membership.RoleGrant
         ? {
-            id: membership.roleGrant.id,
-            roleTemplateId: membership.roleGrant.roleTemplateId,
-            roleName: membership.roleGrant.roleTemplate.name,
+            id: membership.RoleGrant.id,
+            roleTemplateId: membership.RoleGrant.roleTemplateId,
+            roleName: membership.RoleGrant.roleTemplate.name,
             capabilities,
           }
         : undefined,
-      createdAt: membership.user.createdAt,
-      updatedAt: membership.user.updatedAt,
+      createdAt: membership.User.createdAt,
+      updatedAt: membership.User.updatedAt,
     };
   }
 
@@ -281,7 +281,7 @@ export class userAdminService {
       where: {
         userId_businessId: { userId, businessId },
       },
-      include: { user: true },
+      include: { User: true },
     });
     if (!membership) {
       throw new NotFoundException('user not found in this business');
@@ -305,7 +305,7 @@ export class userAdminService {
         OR: [{ empresaId: businessId }, { empresaId: null }],
       },
       include: {
-        roleCapabilities: {
+        RoleCapability: {
           include: {
             capabilityDefinition: true,
           },
@@ -318,7 +318,7 @@ export class userAdminService {
       name: role.name,
       description: role.description,
       isGlobal: role.empresaId === null,
-      capabilities: role.roleCapabilities.map((rc) => ({
+      capabilities: role.RoleCapability.map((rc) => ({
         id: rc.capabilityDefinition.id,
         code: rc.capabilityDefinition.code,
         description: rc.capabilityDefinition.description,
@@ -332,7 +332,7 @@ export class userAdminService {
       where: {
         userId_businessId: { userId, businessId },
       },
-      include: { roleGrant: true },
+      include: { RoleGrant: true },
     });
     if (!membership) {
       throw new NotFoundException('user not found in this business');
@@ -345,10 +345,10 @@ export class userAdminService {
       throw new NotFoundException('Role template not found');
     }
 
-    if (membership.roleGrant) {
+    if (membership.RoleGrant) {
       // Update existing role grant
       await this.prisma.roleGrant.update({
-        where: { id: membership.roleGrant.id },
+        where: { id: membership.RoleGrant.id },
         data: { roleTemplateId },
       });
     } else {
@@ -367,15 +367,15 @@ export class userAdminService {
       where: {
         userId_businessId: { userId, businessId },
       },
-      include: { roleGrant: true },
+      include: { RoleGrant: true },
     });
     if (!membership) {
       throw new NotFoundException('user not found in this business');
     }
 
-    if (membership.roleGrant) {
+    if (membership.RoleGrant) {
       await this.prisma.roleGrant.delete({
-        where: { id: membership.roleGrant.id },
+        where: { id: membership.RoleGrant.id },
       });
     }
   }
