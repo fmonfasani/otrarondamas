@@ -30,8 +30,8 @@ module.exports = {
   ],
   rules: {
     'indent': ['error', 2],
-    'linebreak-style': ['error', 'windows'],
-    'prettier/prettier': ['error', { endOfLine: 'crlf' }],
+    'linebreak-style': ['error', 'LF'],
+    'prettier/prettier': ['error', { endOfLine: 'lf' }],
     'quotes': ['error', 'single'],
     'semi': ['error', 'always'],
   },
