@@ -22,7 +22,7 @@ interface RecentOrder {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats] = useState<DashboardStats>({
     totalRevenue: 45230,
     totalOrders: 128,
     totalCustomers: 342,
@@ -31,7 +31,7 @@ export const AdminDashboard: React.FC = () => {
     ordersChange: 8.3,
   });
 
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([
+  const [recentOrders] = useState<RecentOrder[]>([
     { id: '1', customer: 'John Doe', amount: 1250, status: 'completed', date: '2024-01-20' },
     { id: '2', customer: 'Jane Smith', amount: 890, status: 'processing', date: '2024-01-19' },
     { id: '3', customer: 'Bob Johnson', amount: 2100, status: 'completed', date: '2024-01-19' },

@@ -22,5 +22,6 @@
     }
   },
   "include": ["src"],
+  "exclude": ["src/**/*.test.tsx", "src/**/*.test.ts", "src/**/*.stories.tsx"],
   "references": [{ "path": "../../packages/shared-types" }]
 }

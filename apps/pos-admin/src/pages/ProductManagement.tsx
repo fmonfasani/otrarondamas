@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Edit2, Trash2, Plus, Search } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardHeader, CardBody, CardFooter } from '../components/Card';
+import { Card, CardBody } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
