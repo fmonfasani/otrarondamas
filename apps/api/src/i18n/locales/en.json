@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "login_success": "Login successful",
+    "login_error": "Invalid credentials",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Access forbidden",
+    "invalid_token": "Invalid or expired token",
+    "token_expired": "Token has expired",
+    "missing_token": "Missing token"
+  },
+  "products": {
+    "not_found": "Product not found",
+    "out_of_stock": "Product out of stock",
+    "invalid_quantity": "Invalid quantity",
+    "created": "Product created successfully",
+    "updated": "Product updated successfully",
+    "deleted": "Product deleted successfully"
+  },
+  "orders": {
+    "not_found": "Order not found",
+    "created": "Order created successfully",
+    "updated": "Order updated successfully",
+    "cancelled": "Order cancelled successfully",
+    "invalid_status": "Invalid order status",
+    "insufficient_stock": "Insufficient stock to complete order"
+  },
+  "customers": {
+    "not_found": "Customer not found",
+    "created": "Customer created successfully",
+    "updated": "Customer updated successfully",
+    "deleted": "Customer deleted successfully",
+    "duplicate_email": "Email is already registered"
+  },
+  "payments": {
+    "not_found": "Payment not found",
+    "processing": "Processing payment...",
+    "success": "Payment completed successfully",
+    "failed": "Error processing payment",
+    "cancelled": "Payment cancelled",
+    "invalid_amount": "Invalid amount"
+  },
+  "inventory": {
+    "not_found": "Inventory item not found",
+    "stock_updated": "Stock updated successfully",
+    "insufficient_stock": "Insufficient stock",
+    "low_stock_warning": "Warning: Low stock"
+  },
+  "errors": {
+    "server_error": "Internal server error",
+    "validation_error": "Invalid data",
+    "not_found": "Resource not found",
+    "bad_request": "Bad request",
+    "conflict": "Conflict: Resource already exists",
+    "internal_error": "Internal server error. Please try again later"
+  },
+  "common": {
+    "success": "Operation completed successfully",
+    "error": "An error occurred",
+    "warning": "Warning",
+    "info": "Information",
+    "loading": "Loading...",
+    "no_data": "No data available"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "login_success": "Inicio de sesión exitoso",
+    "login_error": "Credenciales inválidas",
+    "unauthorized": "No autorizado",
+    "forbidden": "Acceso prohibido",
+    "invalid_token": "Token inválido o expirado",
+    "token_expired": "El token ha expirado",
+    "missing_token": "Token ausente"
+  },
+  "products": {
+    "not_found": "Producto no encontrado",
+    "out_of_stock": "Producto agotado",
+    "invalid_quantity": "Cantidad inválida",
+    "created": "Producto creado exitosamente",
+    "updated": "Producto actualizado exitosamente",
+    "deleted": "Producto eliminado exitosamente"
+  },
+  "orders": {
+    "not_found": "Pedido no encontrado",
+    "created": "Pedido creado exitosamente",
+    "updated": "Pedido actualizado exitosamente",
+    "cancelled": "Pedido cancelado exitosamente",
+    "invalid_status": "Estado de pedido inválido",
+    "insufficient_stock": "Stock insuficiente para completar el pedido"
+  },
+  "customers": {
+    "not_found": "Cliente no encontrado",
+    "created": "Cliente creado exitosamente",
+    "updated": "Cliente actualizado exitosamente",
+    "deleted": "Cliente eliminado exitosamente",
+    "duplicate_email": "El correo electrónico ya está registrado"
+  },
+  "payments": {
+    "not_found": "Pago no encontrado",
+    "processing": "Procesando pago...",
+    "success": "Pago completado exitosamente",
+    "failed": "Error al procesar el pago",
+    "cancelled": "Pago cancelado",
+    "invalid_amount": "Monto inválido"
+  },
+  "inventory": {
+    "not_found": "Artículo de inventario no encontrado",
+    "stock_updated": "Stock actualizado exitosamente",
+    "insufficient_stock": "Stock insuficiente",
+    "low_stock_warning": "Advertencia: Stock bajo"
+  },
+  "errors": {
+    "server_error": "Error interno del servidor",
+    "validation_error": "Datos inválidos",
+    "not_found": "Recurso no encontrado",
+    "bad_request": "Solicitud inválida",
+    "conflict": "Conflicto: El recurso ya existe",
+    "internal_error": "Error interno del servidor. Por favor, intente más tarde"
+  },
+  "common": {
+    "success": "Operación completada exitosamente",
+    "error": "Ocurrió un error",
+    "warning": "Advertencia",
+    "info": "Información",
+    "loading": "Cargando...",
+    "no_data": "No hay datos disponibles"
+  }
+}
