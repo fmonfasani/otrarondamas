@@ -34,7 +34,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Run Engineering Kit smoke tests
-        run: node --test tools/engineering/test/smoke.test.js
+        run: node --test tools/engineering/test/*.test.js
       - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npm run build --workspace=@otrarondamas/api
