@@ -19,12 +19,7 @@ import { AlertModule } from '../alerts/alert.module';
  * - AlertModule: AlertService for admin notifications
  */
 @Module({
-  imports: [
-    PrismaModule,
-    PaymentProviderModule,
-    AuditModule,
-    AlertModule,
-  ],
+  imports: [PrismaModule, PaymentProviderModule, AuditModule, AlertModule],
   providers: [RefundQueueService],
   exports: [RefundQueueService],
 })

@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-  OnModuleDestroy,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { IPaymentProvider } from '../payments/payment-provider.interface';
@@ -43,18 +37,10 @@ export class RefundQueueService implements OnModuleInit, OnModuleDestroy {
    * Polling runs every REFUND_POLLING_INTERVAL_MS (default: 30s)
    */
   async onModuleInit(): Promise<void> {
-    const intervalMs = parseInt(
-      process.env.REFUND_POLLING_INTERVAL_MS || '30000',
-      10,
-    );
-    this.logger.log(
-      `[RefundQueue] Polling job registered: every ${intervalMs}ms`,
-    );
+    const intervalMs = parseInt(process.env.REFUND_POLLING_INTERVAL_MS || '30000', 10);
+    this.logger.log(`[RefundQueue] Polling job registered: every ${intervalMs}ms`);
 
-    this.pollingJob = setInterval(
-      () => this.processNextBatch(),
-      intervalMs,
-    );
+    this.pollingJob = setInterval(() => this.processNextBatch(), intervalMs);
   }
 
   /**
@@ -124,9 +110,7 @@ export class RefundQueueService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      this.logger.debug(
-        `[RefundQueue] Refund enqueued: ${devolucionClienteId} → ${reembolso.id}`,
-      );
+      this.logger.debug(`[RefundQueue] Refund enqueued: ${devolucionClienteId} → ${reembolso.id}`);
     } catch (err) {
       this.logger.error(
         `[RefundQueue] Failed to enqueue refund ${devolucionClienteId}`,
@@ -236,7 +220,7 @@ export class RefundQueueService implements OnModuleInit, OnModuleDestroy {
           // Attempt 1 fails → Retry at +5 min (300_000 * 2^0 = 300_000 ms = 5 min)
           // Attempt 2 fails → Retry at +10 min (300_000 * 2^1 = 600_000 ms = 10 min)
           // Attempt 3 fails → Retry at +20 min (300_000 * 2^2 = 1_200_000 ms = 20 min)
-          const backoffMs = 300_000 * (2 ** refund.intentos);
+          const backoffMs = 300_000 * 2 ** refund.intentos;
           const nextRetryAt = new Date(Date.now() + backoffMs);
 
           await db.reembolso.update({
@@ -332,7 +316,7 @@ export class RefundQueueService implements OnModuleInit, OnModuleDestroy {
           },
         });
       } catch (updateErr) {
-        logger.error(`[RefundQueue] Failed to update error state`, updateErr as Error);
+        logger.error('[RefundQueue] Failed to update error state', updateErr as Error);
       }
     }
   }

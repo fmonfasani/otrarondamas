@@ -46,9 +46,7 @@ export class MockPaymentProvider implements IPaymentProvider {
 
     if (mode === 'SUCCESS') {
       const refundId = `mock_ref_${uuidv4()}`;
-      this.logger.log(
-        `[MockPaymentProvider] SUCCESS: ${request.devolucionId} → ${refundId}`,
-      );
+      this.logger.log(`[MockPaymentProvider] SUCCESS: ${request.devolucionId} → ${refundId}`);
       return {
         success: true,
         provider_refund_id: refundId,
