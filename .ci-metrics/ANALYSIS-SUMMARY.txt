@@ -1,0 +1,30 @@
+CI/CD ANALYSIS SUMMARY
+======================
+
+Generated: $(date)
+Repository: $(pwd)
+
+Files analyzed:
+  - Workflows: $(find .github/workflows -name "*.yml" -o -name "*.yaml" | wc -l)
+  - Jest configs: $(find . -name "jest*.json" 2>/dev/null | grep -v node_modules | wc -l)
+  - Test files: $(find apps/api/test -name "*.spec.ts" | wc -l)
+
+Key findings:
+  - Integration tests run in serial (--runInBand)
+  - No explicit Jest parallelization configured
+  - npm caching could improve by 30-40s/job
+  - B3 and Post-Merge workflows have redundancy
+
+Estimated improvements:
+  - Phase 1: 30-40 min per run (35-40% reduction)
+  - Phase 2: +20-30 min (additional savings)
+  - Total potential: 50-70 min savings (35-50% reduction in total CI time)
+
+Next steps:
+  1. Review optimization-recommendations.txt
+  2. Implement Phase 1 changes
+  3. Validate with workflow runs
+  4. Measure and iterate
+
+For details, see individual reports in $OUTPUT_DIR/
+

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://schemas.anthropic.com/claude-code/settings.schema.json",
+  "description": "Wapsell Software Factory — Claude Code local settings",
+
+  "permissions": [
+    "read:repository",
+    "read:tests",
+    "read:git",
+    "exec:npm",
+    "exec:bash"
+  ],
+
+  "env": {
+    "NODE_ENV": "test",
+    "DATABASE_URL": "sqlite::memory:"
+  },
+
+  "hooks": {
+    "pre-commit": {
+      "enabled": false,
+      "description": "pre-commit hooks not enabled locally — manual verification via /coordinator required"
+    }
+  },
+
+  "models": {
+    "agents": "claude-opus-5-5",
+    "analysis": "claude-opus-5-5"
+  },
+
+  "agents": [
+    {
+      "name": "architect",
+      "path": ".claude/agents/architect.md",
+      "description": "Design, architecture, contracts"
+    },
+    {
+      "name": "ci-recovery",
+      "path": ".claude/agents/ci-recovery.md",
+      "description": "Diagnose and fix CI failures"
+    },
+    {
+      "name": "independent-reviewer",
+      "path": ".claude/agents/independent-reviewer.md",
+      "description": "Code review and security audit"
+    },
+    {
+      "name": "git-local-remote-sync",
+      "path": ".claude/agents/git-local-remote-sync.md",
+      "description": "Git state reconciliation"
+    },
+    {
+      "name": "coordinator",
+      "path": ".claude/coordinator.md",
+      "description": "Task orchestration and execution"
+    }
+  ],
+
+  "skills": [
+    {
+      "name": "sdd-workflow",
+      "path": ".claude/skills/sdd-workflow/SKILL.md",
+      "description": "Spec-Driven Development 6-phase workflow"
+    },
+    {
+      "name": "ci-failure-triage",
+      "path": ".claude/skills/ci-failure-triage/SKILL.md",
+      "description": "Classify and diagnose CI failures"
+    },
+    {
+      "name": "tenant-isolation-audit",
+      "path": ".claude/skills/tenant-isolation-audit/SKILL.md",
+      "description": "Audit multi-tenant security"
+    },
+    {
+      "name": "api-contract-audit",
+      "path": ".claude/skills/api-contract-audit/SKILL.md",
+      "description": "Audit API contracts and integration"
+    }
+  ],
+
+  "validation": {
+    "pre-test": [
+      "npm run build --workspace=@otrarondamas/api",
+      "npm run lint --workspace=@otrarondamas/api"
+    ],
+    "test-commands": [
+      "npm test --workspace=@otrarondamas/api -- --runInBand",
+      "npm run test:integration --workspace=@otrarondamas/api -- --runInBand"
+    ],
+    "post-test": []
+  },
+
+  "delivery": {
+    "require-evidence": true,
+    "require-tests-passing": true,
+    "require-no-secrets": true,
+    "require-no-regressions": true,
+    "preserve-untracked": true
+  }
+}

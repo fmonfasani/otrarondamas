@@ -18,7 +18,6 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
   let customerB: { id: string };
   let productA: { id: string };
   let productB: { id: string };
-  let loteA: { id: string };
 
   const mkHierarchy = async (companyId: string, tag: string) => {
     const family = await prisma.familia.create({
@@ -142,7 +141,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     productB = await mkProduct(companyA.id, hierA);
 
     // Create batches with stock for both products
-    loteA = await mkBatch(companyA.id, productA.id, 10);
+    await mkBatch(companyA.id, productA.id, 10);
     await mkBatch(companyA.id, productB.id, 10);
   });
 

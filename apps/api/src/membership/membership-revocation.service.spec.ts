@@ -8,7 +8,7 @@ describe('MembershipRevocationService', () => {
   const businessContext = { resolveForAuthenticatedUser: jest.fn() };
   let service: MembershipRevocationService;
 
-  const ownerAuth = { id: 'legacy-owner', type: 'usuario' } as any;
+  const ownerAuth = { id: 'legacy-owner', type: 'usuario' } as unknown;
   const ownerContext = {
     businessId: 'business-a',
     membershipId: 'membership-owner',
@@ -21,7 +21,10 @@ describe('MembershipRevocationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new MembershipRevocationService(prisma as any, businessContext as any);
+    service = new MembershipRevocationService(
+      prisma as unknown as any,
+      businessContext as unknown as any,
+    );
     businessContext.resolveForAuthenticatedUser.mockResolvedValue(ownerContext);
   });
 

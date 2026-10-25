@@ -3,7 +3,11 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import {
+  deleteUsuarioPermissionsForCompanies,
+  seedUsuarioPermissions,
+  withRevokedUsuarioPermissions,
+} from './helpers/usuario-permissions.fixture';
 
 // S-V1-06 — HTTP boundary of ORDERS against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -198,11 +202,19 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 ORD HTTP A ${suffix}`, slug: `s-v1-06-orders-http-a-${suffix}`, configuracion: {} },
+      data: {
+        nombre: `S-V1-06 ORD HTTP A ${suffix}`,
+        slug: `s-v1-06-orders-http-a-${suffix}`,
+        configuracion: {},
+      },
       select: { id: true },
     });
     companyB = await prisma.empresa.create({
-      data: { nombre: `S-V1-06 ORD HTTP B ${suffix}`, slug: `s-v1-06-orders-http-b-${suffix}`, configuracion: {} },
+      data: {
+        nombre: `S-V1-06 ORD HTTP B ${suffix}`,
+        slug: `s-v1-06-orders-http-b-${suffix}`,
+        configuracion: {},
+      },
       select: { id: true },
     });
 
@@ -222,7 +234,11 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
-    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["pedidos.gestionar"]);
+    await seedUsuarioPermissions(
+      prisma,
+      [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id],
+      ['pedidos.gestionar'],
+    );
 
     const mkUser = (usuarioId: string, tag: string) =>
       prisma.user.create({
@@ -594,8 +610,14 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     const auth = `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`;
 
     const responses = await Promise.all([
-      request(BASE).patch(`/pedidos/${order.id}/estado`).set('Authorization', auth).send({ estado: 'CONFIRMADO' }),
-      request(BASE).patch(`/pedidos/${order.id}/estado`).set('Authorization', auth).send({ estado: 'CONFIRMADO' }),
+      request(BASE)
+        .patch(`/pedidos/${order.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'CONFIRMADO' }),
+      request(BASE)
+        .patch(`/pedidos/${order.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'CONFIRMADO' }),
     ]);
 
     expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
@@ -626,7 +648,6 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
       const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
       expect(row.estado).toBe('RECIBIDO');
-
     });
   });
 

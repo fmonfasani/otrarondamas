@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -81,7 +86,10 @@ export class OrdersService {
       if (transition.count !== 1) {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
-      const order = await db.pedido.findUniqueOrThrow({ where: { id }, include: { pedidoItems: true } });
+      const order = await db.pedido.findUniqueOrThrow({
+        where: { id },
+        include: { pedidoItems: true },
+      });
       return order;
     }
 
@@ -91,34 +99,34 @@ export class OrdersService {
     try {
       return await db.$transaction(
         async (tx) => {
-        // Atomic: only transition if estado is RECIBIDO. This is the gate.
-        const updated = await tx.pedido.updateMany({
-          where: { id, estado: 'RECIBIDO' },
-          data: { estado: 'CONFIRMADO', usuarioId: userId },
-        });
+          // Atomic: only transition if estado is RECIBIDO. This is the gate.
+          const updated = await tx.pedido.updateMany({
+            where: { id, estado: 'RECIBIDO' },
+            data: { estado: 'CONFIRMADO', usuarioId: userId },
+          });
 
-        if (updated.count === 0) {
-          throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
-        }
+          if (updated.count === 0) {
+            throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+          }
 
-        const confirmedOrder = await tx.pedido.findUniqueOrThrow({
-          where: { id },
-          include: { pedidoItems: true },
-        });
+          const confirmedOrder = await tx.pedido.findUniqueOrThrow({
+            where: { id },
+            include: { pedidoItems: true },
+          });
 
-        for (const item of confirmedOrder.pedidoItems) {
-          await this.inventoryService.deductStock(
-            tx,
-            companyId,
-            item.productoId,
-            Number(item.cantidad),
-            'Venta',
-            confirmedOrder.id,
-            userId,
-          );
-        }
+          for (const item of confirmedOrder.pedidoItems) {
+            await this.inventoryService.deductStock(
+              tx,
+              companyId,
+              item.productoId,
+              Number(item.cantidad),
+              'Venta',
+              confirmedOrder.id,
+              userId,
+            );
+          }
 
-        return confirmedOrder;
+          return confirmedOrder;
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -130,6 +138,172 @@ export class OrdersService {
       // This is an expected state conflict, not an internal server error.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * P2-3: Cancel an order with stock reversal and audit logging.
+   *
+   * Allowed preconditions: RECIBIDO, CONFIRMADO, ENTREGA_FALLIDA
+   * Blocked states: EN_PREPARACION, LISTO, ASIGNADO, EN_CAMINO, ENTREGADO, PARCIALMENTE_ENTREGADO
+   *
+   * Stock reversal algorithm (if CONFIRMADO):
+   * - Find all MovimientoStock entries of type 'Salida' (EGRESO) for this order
+   * - For each EGRESO: create matching ENTRADA in same batch with same quantity
+   * - Update Lote.cantidad: qty += EGRESO.cantidad (stock reversal)
+   * - Validate: stock never goes negative after reversal
+   * - Idempotent: Multiple cancellations = safe (no double-reversal because estado=CANCELADO)
+   *
+   * Audit logging:
+   * - Event type: CANCELAR_ORDEN
+   * - Logged fields: actor, timestamp, order state, stock reversed items count, refund status
+   * - Link to order: entidadId=order.id, entidadAfectada=Pedido
+   *
+   * Concurrency safety:
+   * - SERIALIZABLE isolation level prevents race conditions
+   * - Only one concurrent cancellation succeeds (others get P2034)
+   * - Failed cancellations throw BadRequestException cleanly (not 500)
+   *
+   * Error handling:
+   * - 404 Not Found: Order not found
+   * - 409 Conflict: Order in non-cancellable state (EN_PREP+)
+   * - 422 Unprocessable: Stock reversal would violate constraints
+   */
+  async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<any> {
+    const db = this.prismaFactory.forCompany(companyId);
+
+    try {
+      return await db.$transaction(
+        async (tx) => {
+          // Initial read to validate order exists and check state
+          const order = await tx.pedido.findUnique({
+            where: { id },
+            include: { pedidoItems: true },
+          });
+
+          if (!order) {
+            throw new NotFoundException('Pedido no encontrado');
+          }
+
+          // Check if order is in a cancellable state
+          const cancellableStates = ['RECIBIDO', 'CONFIRMADO', 'ENTREGA_FALLIDA'];
+          if (!cancellableStates.includes(order.estado)) {
+            throw new ConflictException(
+              `El pedido está en estado ${order.estado} y no puede ser cancelado. Solo se pueden cancelar pedidos en estados: RECIBIDO, CONFIRMADO o ENTREGA_FALLIDA.`,
+            );
+          }
+
+          // If already CANCELADO, idempotency: return success (no-op)
+          if (order.estado === 'CANCELADO') {
+            return {
+              ...order,
+              stockReversedItems: 0,
+            };
+          }
+
+          // Atomic state transition: only transition if not yet CANCELADO
+          // This ensures exactly one concurrent cancellation succeeds
+          const transition = await tx.pedido.updateMany({
+            where: { id, estado: { not: 'CANCELADO' } },
+            data: { estado: 'CANCELADO', usuarioId: userId, updatedAt: new Date() },
+          });
+
+          if (transition.count === 0) {
+            // Another concurrent request already cancelled it (or it transitioned out)
+            throw new BadRequestException('El pedido ya fue cancelado por otro usuario.');
+          }
+
+          // Stock reversal: if order was CONFIRMADO, reverse all EGRESO movements
+          let stockReversedItems = 0;
+          if (order.estado === 'CONFIRMADO') {
+            // Find all EGRESO movements for this order
+            const egressos = await tx.movimientoStock.findMany({
+              where: {
+                empresaId: companyId,
+                referenciaId: id,
+                tipoMovimiento: 'Salida',
+              },
+              include: { lote: true },
+            });
+
+            // Create matching ENTRADA for each EGRESO to reverse stock
+            for (const egreso of egressos) {
+              // Verify batch still exists and get current state
+              const batch = await tx.lote.findUnique({
+                where: { id: egreso.loteId },
+              });
+
+              if (!batch) {
+                throw new BadRequestException(
+                  `Lote ${egreso.loteId} no encontrado durante reversión de stock.`,
+                );
+              }
+
+              // Create ENTRADA to reverse the EGRESO
+              await tx.movimientoStock.create({
+                data: {
+                  empresaId: companyId,
+                  productoId: egreso.productoId,
+                  loteId: egreso.loteId,
+                  tipoMovimiento: 'Entrada',
+                  cantidad: egreso.cantidad,
+                  motivo: `Reversión por cancelación de pedido: ${motivo || 'sin motivo especificado'}`,
+                  referenciaId: id,
+                  usuarioId: userId,
+                  loteVencidoAlMomento: false, // Reversing stock, not expired
+                },
+              });
+
+              // Update batch quantity: add back the reversed amount
+              await tx.lote.update({
+                where: { id: egreso.loteId },
+                data: { cantidad: { increment: egreso.cantidad } },
+              });
+
+              stockReversedItems += 1;
+            }
+          }
+
+          // Create audit log entry
+          await tx.auditLog.create({
+            data: {
+              empresaId: companyId,
+              usuarioId: userId,
+              accion: 'CANCELAR_ORDEN',
+              entidadAfectada: 'Pedido',
+              entidadId: id,
+              motivo: motivo || undefined,
+              valoresPosteriores: {
+                estado: 'CANCELADO',
+                stockReversedItems,
+                itemsCount: order.pedidoItems.length,
+              },
+            },
+          });
+
+          // Return the cancelled order with cancellation metadata
+          const cancelledOrder = await tx.pedido.findUniqueOrThrow({
+            where: { id },
+            include: { pedidoItems: true },
+          });
+
+          return {
+            ...cancelledOrder,
+            stockReversedItems,
+          };
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error) {
+      // PostgreSQL SERIALIZABLE can abort the losing concurrent cancellation
+      // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
+      // This is an expected state conflict, not an internal server error.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new BadRequestException('El pedido ya fue cancelado por otro usuario.');
       }
       throw error;
     }

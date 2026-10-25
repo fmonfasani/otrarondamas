@@ -1,0 +1,22 @@
+TEST INVENTORY
+==============
+
+Unit Tests:
+  Count: 12
+    - apps/api/src/auth/guards/staff-identity.guard.spec.ts
+    - apps/api/src/health/health.controller.spec.ts
+    - apps/api/src/membership/membership-revocation.service.spec.ts
+    - apps/api/src/messaging/messaging-associations.controller.spec.ts
+    - apps/api/src/messaging/messaging.controller.spec.ts
+    - apps/api/src/messaging/messaging.gateway.spec.ts
+    - apps/api/src/messaging/messaging.gateway.transport.spec.ts
+    - apps/api/src/messaging/messaging.module.spec.ts
+    - apps/api/src/messaging/messaging.service.spec.ts
+    - apps/api/src/prisma/relation-ownership.spec.ts
+
+Integration Tests:
+  Count: 46
+  Estimated serial time: ~46m @ 2-3m/file
+
+E2E Tests:
+  Count: 1

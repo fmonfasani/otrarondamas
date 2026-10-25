@@ -555,5 +555,4 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       await prisma.lote.delete({ where: { id: batch.id } });
     }
   });
-
 });

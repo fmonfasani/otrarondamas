@@ -1,0 +1,33 @@
+CI WORKFLOW SUMMARY
+===================
+
+Workflow: b3-tenant-isolation-candidate
+  Path: .github/workflows/b3-tenant-isolation-candidate.yml
+  Jobs: 2
+  Parallelization: ✓ Enabled
+
+Workflow: b4-verification
+  Path: .github/workflows/b4-verification.yml
+  Jobs: 3
+  Parallelization: ✓ Enabled
+
+Workflow: ci-failure-diagnostic
+  Path: .github/workflows/ci-failure-diagnostic.yml
+  Jobs: 7
+  Parallelization: ✓ Enabled
+
+Workflow: post-merge-verification
+  Path: .github/workflows/post-merge-verification.yml
+  Jobs: 4
+  Parallelization: ✓ Enabled
+
+Workflow: wapsell-event-orchestrator
+  Path: .github/workflows/wapsell-event-orchestrator.yml
+  Jobs: 9
+  Parallelization: ⚠ Not detected
+
+Workflow: wapsell-issue-autodev
+  Path: .github/workflows/wapsell-issue-autodev.yml
+  Jobs: 8
+  Parallelization: ✓ Enabled
+

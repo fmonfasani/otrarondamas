@@ -3,7 +3,11 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import {
+  deleteUsuarioPermissionsForCompanies,
+  seedUsuarioPermissions,
+  withRevokedUsuarioPermissions,
+} from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of PURCHASES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -131,7 +135,11 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
-    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["compras.gestionar"]);
+    await seedUsuarioPermissions(
+      prisma,
+      [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id],
+      ['compras.gestionar'],
+    );
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -307,7 +315,6 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
         .send({ nombre })
         .expect(403);
       expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
-
     });
   });
 
@@ -414,29 +421,40 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
       .send({
         motivo: 'Prueba de rollback por stock insuficiente',
-        items: [{
-          productoId: productA.id,
-          loteId: batch.id,
-          cantidad: 2,
-          costoUnitario: 10,
-        }],
+        items: [
+          {
+            productoId: productA.id,
+            loteId: batch.id,
+            cantidad: 2,
+            costoUnitario: 10,
+          },
+        ],
       })
       .expect(400);
 
     // Prisma Decimal values may serialize as strings; compare the numeric
     // quantity so this assertion verifies rollback rather than JSON shape.
-    expect(Number((await prisma.lote.findUniqueOrThrow({
-      where: { id: batch.id },
-      select: { cantidad: true },
-    })).cantidad)).toBe(1);
-    expect(await prisma.devolucionProveedor.count({
-      where: { empresaId: companyA.id },
-    })).toBe(returnsBefore);
-    expect(await prisma.movimientoStock.count({
-      where: { empresaId: companyA.id },
-    })).toBe(movementsBefore);
+    expect(
+      Number(
+        (
+          await prisma.lote.findUniqueOrThrow({
+            where: { id: batch.id },
+            select: { cantidad: true },
+          })
+        ).cantidad,
+      ),
+    ).toBe(1);
+    expect(
+      await prisma.devolucionProveedor.count({
+        where: { empresaId: companyA.id },
+      }),
+    ).toBe(returnsBefore);
+    expect(
+      await prisma.movimientoStock.count({
+        where: { empresaId: companyA.id },
+      }),
+    ).toBe(movementsBefore);
   });
-
 
   it('SV5P-H-11: devolución sin lote → 400 y no persiste devolución ni movimiento', async () => {
     const purchase = await request(BASE)
@@ -461,12 +479,16 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       })
       .expect(400);
 
-    expect(await prisma.devolucionProveedor.count({
-      where: { empresaId: companyA.id },
-    })).toBe(returnsBefore);
-    expect(await prisma.movimientoStock.count({
-      where: { empresaId: companyA.id },
-    })).toBe(movementsBefore);
+    expect(
+      await prisma.devolucionProveedor.count({
+        where: { empresaId: companyA.id },
+      }),
+    ).toBe(returnsBefore);
+    expect(
+      await prisma.movimientoStock.count({
+        where: { empresaId: companyA.id },
+      }),
+    ).toBe(movementsBefore);
   });
 
   it('SV5P-H-09: listado de compras → 200 y solo las de A', async () => {

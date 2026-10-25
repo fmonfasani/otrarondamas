@@ -4,11 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
-import type { BusinessContext } from '../business-context/business-context.types';
 
 /**
  * C5B Cart Service — Multi-Tenant Isolation
@@ -106,7 +104,7 @@ export class CartService {
       where: {
         cartId,
         productoId,
-        cart: { businessId } // Explicit businessId validation at query time
+        cart: { businessId }, // Explicit businessId validation at query time
       },
     });
 
@@ -145,7 +143,7 @@ export class CartService {
     const item = await db.cartItem.findFirst({
       where: {
         id: cartItemId,
-        cart: { businessId } // Validate at query time, not post-query
+        cart: { businessId }, // Validate at query time, not post-query
       },
       include: { cart: true, producto: true },
     });
@@ -176,7 +174,7 @@ export class CartService {
     const item = await db.cartItem.findFirst({
       where: {
         id: cartItemId,
-        cart: { businessId } // Validate at query time, not post-query
+        cart: { businessId }, // Validate at query time, not post-query
       },
       include: { cart: true },
     });

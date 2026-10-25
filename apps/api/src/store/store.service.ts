@@ -176,9 +176,7 @@ export class StoreService {
     // Validate stock availability (always validate, deduction only if deductStock=true).
     // Phase 1-3 (/tienda/pedidos, deductStock=false): validate only, no deduction.
     // Phase 3 (/store/order, deductStock=true): validate + deduct atomically in transaction.
-    const productsWithStock = await this.inventoryService.consolidatedStock(
-      resolvedCompanyId,
-    );
+    const productsWithStock = await this.inventoryService.consolidatedStock(resolvedCompanyId);
     for (const item of dto.items) {
       const product = productsWithStock.find((p) => p.productoId === item.productoId);
       if (!product || product.stockTotal < item.cantidad) {
@@ -293,7 +291,7 @@ export class StoreService {
             empresaId: resolvedCompanyId,
             idempotencyKey,
           },
-          include: { pedidoItems: true },
+          include: { PedidoItem: true },
         });
         if (existingOrder) {
           // Order already created with this key; return it idempotently.
@@ -310,7 +308,7 @@ export class StoreService {
           canalOrigen: channelOrigen,
           total,
           idempotencyKey: idempotencyKey ?? null,
-          pedidoItems: {
+          PedidoItem: {
             create: itemsWithPrice.map((item) => ({
               productoId: item.productoId,
               cantidad: item.cantidad,
@@ -320,7 +318,7 @@ export class StoreService {
             })),
           },
         } satisfies Prisma.PedidoUncheckedCreateInput,
-        include: { pedidoItems: true },
+        include: { PedidoItem: true },
       });
 
       // C5A: Deduct stock for each item in the order (within same transaction).
@@ -328,7 +326,7 @@ export class StoreService {
       // Ensures atomic order creation + stock deduction: either both succeed or
       // both roll back on conflict/insufficient stock.
       if (deductStock) {
-        for (const item of order.pedidoItems) {
+        for (const item of order.PedidoItem) {
           await this.inventoryService.deductStock(
             tx,
             resolvedCompanyId,
@@ -356,7 +354,7 @@ export class StoreService {
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
     const order = await db.pedido.findUnique({
       where: { id: orderId },
-      include: { pedidoItems: { include: { producto: { select: { nombre: true } } } } },
+      include: { PedidoItem: { include: { Producto: { select: { nombre: true } } } } },
     });
     if (!order) {
       throw new BadRequestException('Pedido no encontrado');
@@ -366,8 +364,8 @@ export class StoreService {
       estado: order.estado,
       total: order.total,
       createdAt: order.createdAt,
-      items: order.pedidoItems.map((i) => ({
-        producto: i.producto.nombre,
+      items: order.PedidoItem.map((i) => ({
+        producto: i.Producto.nombre,
         cantidad: i.cantidad,
         precioUnitario: i.precioUnitario,
       })),

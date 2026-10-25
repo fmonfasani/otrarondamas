@@ -1,0 +1,59 @@
+OPTIMIZATION RECOMMENDATIONS
+==============================
+
+Phase 1: Quick Wins (Expected: 30-40 min savings)
+-------------------------------------------------
+
+□ Enable Jest parallelization
+  - Update jest-e2e.json: "maxWorkers": "50%"
+  - Update unit test config: "maxWorkers": "50%"
+  - Expected gain: 60-70% reduction in test time
+
+□ Implement npm caching
+  - Add to all workflows: cache-dependency-path: '**/package-lock.json'
+  - Expected gain: 30-40s per job
+
+□ Consolidate test jobs
+  - Merge unit + integration into single parallel job
+  - Expected gain: 10-15 min overhead reduction
+
+Phase 2: Structural Improvements (Expected: 20-30 min savings)
+-------------------------------------------------------------
+
+□ Remove Post-Merge B3 duplication
+  - Post-Merge runs full regression, B3 already validated on push
+  - Expected gain: 20-30 min per merge
+
+□ Refactor hardcoded test steps
+  - Replace 17 B3 test steps with dynamic glob discovery
+  - Expected gain: Maintenance, 0 runtime impact
+
+□ Add incremental Prisma generation
+  - Cache .prisma/ output if schema unchanged
+  - Expected gain: 10-15s per job
+
+Phase 3: Advanced (Optional)
+----------------------------
+
+□ Test selection by git diff
+  - Only run tests touching modified files on PRs
+  - Expected gain: 30-60% on typical PRs
+  - Risk: Medium (false negatives if mapping incomplete)
+
+□ Job-level artifact caching
+  - Cache dist/, coverage/, results for faster retries
+  - Expected gain: 5 min on retry
+
+□ Auto-retry infrastructure failures
+  - Retry transient database/timeout errors
+  - Expected gain: Eliminate 5-10% false failures
+
+IMPLEMENTATION ORDER
+--------------------
+
+1. Enable Jest parallelization (immediate, high-impact)
+2. Implement npm caching (immediate, quick)
+3. Remove Post-Merge duplication (structural)
+4. Consolidate test jobs (structural)
+5. Test selection by git diff (advanced, requires setup)
+

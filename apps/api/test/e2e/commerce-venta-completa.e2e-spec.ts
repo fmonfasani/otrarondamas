@@ -117,7 +117,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     testProductId = producto.id;
 
     // Crear lote de inventario con stock
-    const lote = await prisma.lote.create({
+    const _lote = await prisma.lote.create({
       data: {
         empresaId: testCompanyId,
         productoId: testProductId,
@@ -462,7 +462,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         .expect(400);
 
       // Verificar que NO se creó orden (rollback completo)
-      const ordersCount = await prisma.pedido.count({
+      const _ordersCount = await prisma.pedido.count({
         where: {
           empresaId: testCompanyId,
           clienteId: testCustomerId, // debe buscar por email real

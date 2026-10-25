@@ -7,7 +7,7 @@ import type { MessagingService } from './messaging.service';
 import type { MessagingGateway } from './messaging.gateway';
 
 describe('MessagingController — HTTP JSON contract', () => {
-  const user = { id: 'user-a' } as any;
+  const user = { id: 'user-a' } as unknown as { id: string };
   const message = {
     id: 'message-a',
     conversationId: 'conversation-a',
@@ -48,7 +48,7 @@ describe('MessagingController — HTTP JSON contract', () => {
     const result = await controller.createMessage(user, 'conversation-a', {
       clientMessageId: 'client-a',
       content: 'Hola',
-    } as any);
+    } as unknown as any);
 
     expect(gateway.publishMessageCreated).toHaveBeenCalledWith(
       expect.objectContaining({ sequence: BigInt(7), conversationId: 'conversation-a' }),
@@ -73,7 +73,7 @@ describe('MessagingController — HTTP JSON contract', () => {
 
     const result = await controller.editMessage(user, 'conversation-a', 'message-a', {
       content: 'Editado',
-    } as any);
+    } as unknown as any);
 
     // The committed edit is answered with the canonical wire shape: BigInt
     // sequence as a string and Dates as ISO strings, so the body is JSON-safe
@@ -174,10 +174,10 @@ describe('MessagingController — HTTP JSON contract', () => {
     const created = await controller.createMessage(user, 'conversation-a', {
       clientMessageId: 'client-a',
       content: 'Hola',
-    } as any);
+    } as unknown as any);
     const edited = await controller.editMessage(user, 'conversation-a', 'message-a', {
       content: 'Editado',
-    } as any);
+    } as unknown as any);
     const deleted = await controller.deleteMessage(user, 'conversation-a', 'message-a');
     const read = await controller.markMessageRead(user, 'conversation-a', 'message-a');
 
@@ -195,7 +195,7 @@ describe('MessagingController — HTTP JSON contract', () => {
       controller.createMessage(user, 'conversation-a', {
         clientMessageId: 'client-a',
         content: 'Hola',
-      } as any),
+      } as unknown as any),
     ).rejects.toThrow('database unavailable');
     expect(gateway.publishMessageCreated).not.toHaveBeenCalled();
   });
@@ -206,7 +206,7 @@ describe('MessagingController — HTTP JSON contract', () => {
     await expect(
       controller.editMessage(user, 'conversation-a', 'message-a', {
         content: 'Editado',
-      } as any),
+      } as unknown as any),
     ).rejects.toThrow('write failed');
     expect(gateway.publishMessageUpdated).not.toHaveBeenCalled();
   });

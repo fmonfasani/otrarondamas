@@ -7,7 +7,7 @@ import type { MessagingService } from './messaging.service';
 import type { MessagingGateway } from './messaging.gateway';
 
 describe('MessagingController — commercial context P2', () => {
-  const user = { id: 'owner-a' } as any;
+  const user = { id: 'owner-a' } as unknown as { id: string };
   const service = {
     listConversationAssociations: jest.fn(),
     createConversationAssociation: jest.fn(),
@@ -36,7 +36,7 @@ describe('MessagingController — commercial context P2', () => {
         entityType: 'PRODUCT',
         entityId: 'product-a',
         reason: 'Producto elegido desde el chat',
-      } as any),
+      } as unknown as any),
     ).resolves.toEqual(association);
     expect(service.createConversationAssociation).toHaveBeenCalledWith(
       user,
@@ -54,7 +54,7 @@ describe('MessagingController — commercial context P2', () => {
     await expect(
       controller.createOrder(user, 'conversation-a', {
         items: [{ productoId: 'product-a', cantidad: 2 }], // Request body ignored by service
-      } as any),
+      } as unknown as any),
     ).resolves.toEqual(order);
     expect(service.createOrderFromConversation).toHaveBeenCalledWith(user, 'conversation-a');
   });

@@ -354,9 +354,12 @@ export class PurchasesService {
       // If that evidence is missing, fail closed and require the operator to
       // supply a loteId explicitly instead of silently selecting unrelated stock.
       const reservedByLot = new Map<string, number>();
-      const resolvedItems: Array<CreateSupplierReturnDto['items'][number] & { loteId: string }> = [];
+      const resolvedItems: Array<CreateSupplierReturnDto['items'][number] & { loteId: string }> =
+        [];
 
-      const purchasedProductIds = new Set(purchase.items.map((purchaseItem) => purchaseItem.productoId));
+      const purchasedProductIds = new Set(
+        purchase.items.map((purchaseItem) => purchaseItem.productoId),
+      );
 
       for (const item of dto.items) {
         if (!purchasedProductIds.has(item.productoId)) {
@@ -417,8 +420,7 @@ export class PurchasesService {
 
           selectedLot =
             candidates.find(
-              (lot) =>
-                Number(lot.cantidad) - (reservedByLot.get(lot.id) ?? 0) >= item.cantidad,
+              (lot) => Number(lot.cantidad) - (reservedByLot.get(lot.id) ?? 0) >= item.cantidad,
             ) ?? null;
 
           if (!selectedLot) {
@@ -428,18 +430,14 @@ export class PurchasesService {
           }
         }
 
-        const available =
-          Number(selectedLot.cantidad) - (reservedByLot.get(selectedLot.id) ?? 0);
+        const available = Number(selectedLot.cantidad) - (reservedByLot.get(selectedLot.id) ?? 0);
         if (available < item.cantidad) {
           throw new BadRequestException(
             `Stock insuficiente en el lote ${selectedLot.id}; corregí manualmente el lote o la cantidad.`,
           );
         }
 
-        reservedByLot.set(
-          selectedLot.id,
-          (reservedByLot.get(selectedLot.id) ?? 0) + item.cantidad,
-        );
+        reservedByLot.set(selectedLot.id, (reservedByLot.get(selectedLot.id) ?? 0) + item.cantidad);
         resolvedItems.push({ ...item, loteId: selectedLot.id });
       }
 
@@ -490,8 +488,6 @@ export class PurchasesService {
             usuarioId: userId,
           },
         });
-
-
       }
 
       return returnRecord;

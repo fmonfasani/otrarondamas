@@ -5,7 +5,6 @@ import type { AuthGoogleService } from './auth.google.service';
 import type { MembershipService } from '../membership/membership.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
-
 // Keep the controller unit tests independent of auth implementation dependencies.
 jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
 

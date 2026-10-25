@@ -6,7 +6,10 @@ import * as net from 'net';
 import * as bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import {
+  replaceUsuarioPermissions,
+  seedUsuarioPermissions,
+} from './helpers/usuario-permissions.fixture';
 
 // S-V1-13 — Cash (/caja) + /autorizaciones: tenant boundary over real HTTP.
 //
@@ -231,7 +234,19 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     legacyMulti = await mkLegacyUser(companyA.id, 'multi');
     await seedUsuarioPermissions(
       prisma,
-      [legacyUserA.id, legacyUserA2.id, authorizerA.id, legacyUserB.id, legacyUserB2.id, authorizerB.id, legacyDivergent.id, legacyNoMembership.id, legacySuspended.id, legacyUnlinked.id, legacyMulti.id],
+      [
+        legacyUserA.id,
+        legacyUserA2.id,
+        authorizerA.id,
+        legacyUserB.id,
+        legacyUserB2.id,
+        authorizerB.id,
+        legacyDivergent.id,
+        legacyNoMembership.id,
+        legacySuspended.id,
+        legacyUnlinked.id,
+        legacyMulti.id,
+      ],
       [PERM],
     );
 

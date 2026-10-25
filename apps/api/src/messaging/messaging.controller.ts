@@ -93,10 +93,10 @@ export class MessagingController {
   createOrder(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body() dto: CreateConversationOrderDto,
+    @Body() _dto: CreateConversationOrderDto,
   ) {
     // C3: Order items come from the persistent cart, not the request body.
-    // dto is empty; the conversation must have exactly one associated customer with a non-empty cart.
+    // _dto is empty; the conversation must have exactly one associated customer with a non-empty cart.
     return this.messagingService.createOrderFromConversation(user, id);
   }
 

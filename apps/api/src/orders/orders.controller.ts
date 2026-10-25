@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
@@ -57,6 +58,31 @@ export class OrdersController {
       await this.resolveCompanyIdFromContext(user),
       dto,
       user.id,
+    );
+  }
+
+  /**
+   * P2-3: Cancel an order with optional reason and automatic stock reversal.
+   *
+   * Allowed states: RECIBIDO, CONFIRMADO, ENTREGA_FALLIDA
+   * Blocked states: EN_PREPARACION+ (409 Conflict)
+   * Stock reversal: If CONFIRMADO, creates ENTRADA for each EGRESO
+   * Audit: Full event logging with actor, timestamp, stock status
+   * Idempotency: Cancelling twice is safe (no double-reversal)
+   * Concurrency: SERIALIZABLE isolation prevents race conditions
+   */
+  @RequirePermission('pedidos.gestionar')
+  @Post(':id/cancel')
+  async cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.ordersService.cancelOrder(
+      id,
+      await this.resolveCompanyIdFromContext(user),
+      user.id,
+      dto.motivo,
     );
   }
 }

@@ -3,7 +3,11 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import {
+  deleteUsuarioPermissionsForCompanies,
+  seedUsuarioPermissions,
+  withRevokedUsuarioPermissions,
+} from './helpers/usuario-permissions.fixture';
 
 // S-V1-05 — HTTP boundary of INVENTORY against the REAL compiled stack
 // (dist/src/main.js, the same production binary). It goes through the
@@ -128,7 +132,11 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
     legacyUserB = await mkLegacyUser(companyB.id, 'b');
     legacyUserWithoutMemberships = await mkLegacyUser(companyA.id, 'sinnmemb');
     legacySuspendedUser = await mkLegacyUser(companyA.id, 'susp');
-    await seedUsuarioPermissions(prisma, [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id], ["inventario.ajustes"]);
+    await seedUsuarioPermissions(
+      prisma,
+      [legacyUserA.id, legacyUserB.id, legacyUserWithoutMemberships.id, legacySuspendedUser.id],
+      ['inventario.ajustes'],
+    );
 
     const mkUser = async (userId: string, tag: string) =>
       prisma.user.create({
@@ -346,25 +354,29 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
   });
 
   it('SV5I-H-06: POST sin asignación actual → 403 y no cambia el lote', async () => {
-    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['inventario.ajustes'], async () => {
-      const before = await prisma.lote.findUniqueOrThrow({
-        where: { id: batchA.id },
-        select: { cantidad: true },
-      });
+    await withRevokedUsuarioPermissions(
+      prisma,
+      legacyUserA.id,
+      ['inventario.ajustes'],
+      async () => {
+        const before = await prisma.lote.findUniqueOrThrow({
+          where: { id: batchA.id },
+          select: { cantidad: true },
+        });
 
-      await request(BASE)
-        .post('/inventario/ajustes')
-        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-        .send({ loteId: batchA.id, cantidad: 5, motivo: 'no debería entrar' })
-        .expect(403);
+        await request(BASE)
+          .post('/inventario/ajustes')
+          .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+          .send({ loteId: batchA.id, cantidad: 5, motivo: 'no debería entrar' })
+          .expect(403);
 
-      const after = await prisma.lote.findUniqueOrThrow({
-        where: { id: batchA.id },
-        select: { cantidad: true },
-      });
-      expect(Number(after.cantidad)).toBe(Number(before.cantidad));
-
-    });
+        const after = await prisma.lote.findUniqueOrThrow({
+          where: { id: batchA.id },
+          select: { cantidad: true },
+        });
+        expect(Number(after.cantidad)).toBe(Number(before.cantidad));
+      },
+    );
   });
 
   it('SV5I-H-07: ajuste cross-tenant sobre lote de B → 404 y B no cambia', async () => {

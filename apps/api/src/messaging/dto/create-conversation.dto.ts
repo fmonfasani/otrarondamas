@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsOptional, IsString, ArrayUnique, IsUUID } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, ArrayUnique, IsUUID } from 'class-validator';
 
 export enum ConversationTypeDto {
   DIRECT = 'DIRECT',
