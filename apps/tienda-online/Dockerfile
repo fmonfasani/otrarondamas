@@ -17,6 +17,8 @@ COPY packages/shared-types packages/shared-types
 COPY packages/ui-kit packages/ui-kit
 COPY apps/tienda-online apps/tienda-online
 
+RUN npm run build --workspace=@otrarondamas/ui-kit
+
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build --workspace=@otrarondamas/tienda-online
