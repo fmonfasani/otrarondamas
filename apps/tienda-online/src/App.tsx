@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CarritoProvider } from './features/carrito/CarritoContext';
 import { AuthProvider, useAuth } from './features/auth/AuthContext';
+import { AppProviders } from './providers/AppProviders';
 import { CatalogoPage } from './features/catalogo/CatalogoPage';
 import { CheckoutPage } from './features/checkout/CheckoutPage';
 import { SeguimientoPedidoPage } from './features/pedido/SeguimientoPedidoPage';
@@ -23,58 +24,63 @@ function RequiereAuth({ children }: { children: React.ReactNode }) {
  * Tienda online privada (RF-17): requiere login para acceder al catálogo
  * y al checkout. Las rutas de auth (/login, /registro, activar-invitacion)
  * y seguimiento de pedido son públicas.
+ *
+ * P6-2 Integration: AppProviders adds ModalProvider + ToastProvider
+ * for modal dialogs and toast notifications throughout the app.
  */
 function App() {
   return (
-    <AuthProvider>
-      <CarritoProvider>
-        <Router>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <RequiereAuth>
-                  <CatalogoPage />
-                </RequiereAuth>
-              }
-            />
-            <Route
-              path="/checkout"
-              element={
-                <RequiereAuth>
-                  <CheckoutPage />
-                </RequiereAuth>
-              }
-            />
-            {/* Seguimiento público: el cliente accede desde el email de confirmación */}
-            <Route path="/pedido/:id" element={<SeguimientoPedidoPage />} />
-            {/* RF-17: auth de clientes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/registro" element={<RegistroPage />} />
-            <Route
-              path="/activar-invitacion-mayorista"
-              element={<ActivarInvitacionMayoristaPage />}
-            />
-            <Route
-              path="/mi-cuenta"
-              element={
-                <RequiereAuth>
-                  <MiCuentaPage />
-                </RequiereAuth>
-              }
-            />
-            <Route
-              path="/mi-cuenta/legajo"
-              element={
-                <RequiereAuth>
-                  <LegajoMayoristaPage />
-                </RequiereAuth>
-              }
-            />
-          </Routes>
-        </Router>
-      </CarritoProvider>
-    </AuthProvider>
+    <AppProviders>
+      <AuthProvider>
+        <CarritoProvider>
+          <Router>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <RequiereAuth>
+                    <CatalogoPage />
+                  </RequiereAuth>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <RequiereAuth>
+                    <CheckoutPage />
+                  </RequiereAuth>
+                }
+              />
+              {/* Seguimiento público: el cliente accede desde el email de confirmación */}
+              <Route path="/pedido/:id" element={<SeguimientoPedidoPage />} />
+              {/* RF-17: auth de clientes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/registro" element={<RegistroPage />} />
+              <Route
+                path="/activar-invitacion-mayorista"
+                element={<ActivarInvitacionMayoristaPage />}
+              />
+              <Route
+                path="/mi-cuenta"
+                element={
+                  <RequiereAuth>
+                    <MiCuentaPage />
+                  </RequiereAuth>
+                }
+              />
+              <Route
+                path="/mi-cuenta/legajo"
+                element={
+                  <RequiereAuth>
+                    <LegajoMayoristaPage />
+                  </RequiereAuth>
+                }
+              />
+            </Routes>
+          </Router>
+        </CarritoProvider>
+      </AuthProvider>
+    </AppProviders>
   );
 }
 

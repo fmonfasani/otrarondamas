@@ -18,9 +18,11 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@otrarondamas/shared-types": ["../../packages/shared-types/src"]
+      "@otrarondamas/shared-types": ["../../packages/shared-types/src"],
+      "@wapsell/ui-kit": ["../../packages/ui-kit/src"]
     }
   },
   "include": ["src"],
-  "references": [{ "path": "../../packages/shared-types" }]
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "**/*.test.tsx", "node_modules", "src/hooks/tests"],
+  "references": [{ "path": "../../packages/shared-types" }, { "path": "../../packages/ui-kit" }]
 }

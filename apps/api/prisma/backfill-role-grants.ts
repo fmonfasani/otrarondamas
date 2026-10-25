@@ -52,7 +52,7 @@ async function backfillRoleGrants() {
     // Find all Memberships without a RoleGrant
     const membershipsToBackfill = await prisma.membership.findMany({
       where: {
-        roleGrant: null,
+        RoleGrant: null,
       },
     });
 
@@ -113,7 +113,7 @@ async function backfillRoleGrants() {
     // Validation: Verify all Memberships now have RoleGrant
     const stillMissing = await prisma.membership.findMany({
       where: {
-        roleGrant: null,
+        RoleGrant: null,
       },
     });
 

@@ -26,11 +26,7 @@ export class ApiError extends Error {
 // en localStorage. Se importa con el token como argumento para no
 // acoplar api.ts a localStorage directamente (más fácil de testear y
 // de reusar desde contextos distintos).
-async function requestAuth<T>(
-  path: string,
-  token: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function requestAuth<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   return request<T>(path, {
     ...options,
     headers: {
@@ -81,32 +77,26 @@ export const api = {
 // RF-17: endpoints del lado Cliente (autenticado o público de auth)
 export const apiAuth = {
   registro: (dto: { nombre: string; email: string; password: string }) =>
-    request<{ accessToken: string; cliente: ClienteSession }>(
-      '/auth/cliente/registro',
-      { method: 'POST', body: JSON.stringify(dto) },
-    ),
+    request<{ accessToken: string; cliente: ClienteSession }>('/auth/cliente/registro', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
 
   login: (dto: { email: string; password: string }) =>
-    request<{ accessToken: string; cliente: ClienteSession }>(
-      '/auth/cliente/login',
-      { method: 'POST', body: JSON.stringify(dto) },
-    ),
+    request<{ accessToken: string; cliente: ClienteSession }>('/auth/cliente/login', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
 
-  me: (token: string) =>
-    requestAuth<ClienteSession>('/auth/cliente/me', token),
+  me: (token: string) => requestAuth<ClienteSession>('/auth/cliente/me', token),
 
-  activarInvitacionMayorista: (dto: {
-    token: string;
-    nombre: string;
-    password: string;
-  }) =>
-    request<{ accessToken: string; cliente: ClienteSession }>(
-      '/invitaciones/mayorista/activar',
-      { method: 'POST', body: JSON.stringify(dto) },
-    ),
+  activarInvitacionMayorista: (dto: { token: string; nombre: string; password: string }) =>
+    request<{ accessToken: string; cliente: ClienteSession }>('/invitaciones/mayorista/activar', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
 
-  miLegajo: (token: string) =>
-    requestAuth<LegajoCliente>('/legajo/cliente/mi-legajo', token),
+  miLegajo: (token: string) => requestAuth<LegajoCliente>('/legajo/cliente/mi-legajo', token),
 
   actualizarLegajo: (
     token: string,

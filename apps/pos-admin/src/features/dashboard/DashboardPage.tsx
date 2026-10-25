@@ -13,9 +13,9 @@ export const DashboardPage = () => {
           <div className="space-y-2">
             <p className="font-semibold">Panel de métricas en desarrollo</p>
             <p className="text-gray-600">
-              Las ventas, los tickets, los clientes y las tendencias todavía no están conectados
-              a indicadores calculados desde la API. Los valores se mostrarán cuando exista una
-              fuente de datos verificada.
+              Las ventas, los tickets, los clientes y las tendencias todavía no están conectados a
+              indicadores calculados desde la API. Los valores se mostrarán cuando exista una fuente
+              de datos verificada.
             </p>
           </div>
         </CardBody>
