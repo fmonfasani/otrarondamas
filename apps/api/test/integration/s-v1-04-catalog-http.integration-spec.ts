@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import { deleteUsuarioPermissionsForCompanies, replaceUsuarioPermissions, seedUsuarioPermissions, withRevokedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
 // S-V1-04 — HTTP boundary of CATALOG against the REAL compiled stack
 // (dist/src/main.js, the same production binary). It goes through the
@@ -524,15 +524,16 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
   });
 
   it('SV4-H-17: POST sin asignación actual → 403 aunque el JWT no declare permisos', async () => {
-    await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
-    await request(BASE)
-      .post('/catalogo/productos')
-      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
-      .send(dtoOfA(`H17-${suffix}`))
-      .expect(403);
-    expect(
-      await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
-    ).toBeNull();
-    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['productos.gestionar']);
+    await withRevokedUsuarioPermissions(prisma, legacyUserA.id, ['productos.gestionar'], async () => {
+      await request(BASE)
+        .post('/catalogo/productos')
+        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id, [])}`)
+        .send(dtoOfA(`H17-${suffix}`))
+        .expect(403);
+      expect(
+        await prisma.producto.findFirst({ where: { codigoInterno: `SV4HAH17-${suffix}` } }),
+      ).toBeNull();
+      
+    });
   });
 });
