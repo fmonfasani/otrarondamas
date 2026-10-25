@@ -10,7 +10,7 @@ WORKDIR /repo
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/tienda-online/package.json apps/tienda-online/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY packages/shared-types packages/shared-types
 COPY apps/tienda-online apps/tienda-online
