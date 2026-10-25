@@ -60,8 +60,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: '**/package-lock.json'
 
-      - run: npm ci
+      - run: npm ci --ignore-scripts
 
       - run: npm run prisma:generate --workspace=@otrarondamas/api
 
@@ -75,88 +76,18 @@ jobs:
 
       - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
-      - run: npm test --workspace=@otrarondamas/api -- --runInBand
+      - run: npm test --workspace=@otrarondamas/api -- --maxWorkers=50%
 
-      - name: Run B3 tenant isolation candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-tenant-isolation.integration-spec.ts
-
-      - name: Run Producto-Familia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-producto-familia.integration-spec.ts
-
-      - name: Run Producto-Proveedor candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-producto-proveedor.integration-spec.ts
-
-      - name: Run Lote-Producto candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-lote-producto.integration-spec.ts
-
-      - name: Run Producto-Subfamilia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-producto-subfamilia.integration-spec.ts
-
-      - name: Run Producto-Tipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-producto-tipo.integration-spec.ts
-
-      - name: Run Producto-Subtipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-producto-subtipo.integration-spec.ts
-
-      - name: Run ISO-006 candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-iso-006.integration-spec.ts
-
-      - name: Run provider payment-return characterization
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-provider-payment-return-characterization.integration-spec.ts
-
-      - name: Run DevolucionProveedorItem regression
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-devolucion-proveedor-item.integration-spec.ts
-
-      - name: Run MovimientoStock-Producto candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-movimientostock-producto.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Subtipo candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-reglafidelizacion-subtipo.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Familia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-reglafidelizacion-familia.integration-spec.ts
-
-      - name: Run ReglaFidelizacion-Subfamilia candidate
-        run: >-
-          npm run test:integration --workspace=@otrarondamas/api --
-          --runInBand
-          test/integration/b3-reglafidelizacion-subfamilia.integration-spec.ts
+      - name: Discover and run B3 tenant isolation candidate suites
+        run: |
+          cd apps/api
+          mapfile -t test_files < <(
+            find test/integration -maxdepth 1 -type f -name 'b3-*.integration-spec.ts' | sort
+          )
+          if [ "${#test_files[@]}" -eq 0 ]; then
+            echo "No B3 integration tests found."
+            exit 1
+          fi
+          printf 'Running %d B3 candidate suites:\n' "${#test_files[@]}"
+          printf '  %s\n' "${test_files[@]}"
+          npm run test:integration -- --maxWorkers=50% "${test_files[@]}"

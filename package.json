@@ -11,6 +11,10 @@
     "build": "npm run build --workspace=@otrarondamas/api",
     "lint": "npm run lint --workspace=@otrarondamas/api",
     "test": "npm run test --workspace=@otrarondamas/api",
+    "test:parallel": "npm run test --workspace=@otrarondamas/api -- --maxWorkers=50%",
+    "test:integration:parallel": "npm run test:integration --workspace=@otrarondamas/api -- --maxWorkers=50%",
+    "test:quick": "npm run test --workspace=@otrarondamas/api -- --testPathPattern='(unit|spec)' --maxWorkers=50%",
+    "ci:analyze": "bash ./scripts/analyze-ci-metrics.sh",
     "db:migrate": "npm run prisma:migrate --workspace=@otrarondamas/api",
     "db:seed": "npm run prisma:seed --workspace=@otrarondamas/api"
   },
