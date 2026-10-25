@@ -1,0 +1,105 @@
+name: Relation Coverage Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/**'
+      - '.github/workflows/test-relation-coverage.yml'
+  push:
+    branches: [main, "b4/**"]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/**'
+      - '.github/workflows/test-relation-coverage.yml'
+
+jobs:
+  relation-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      JWT_SECRET: s-v1-ci-only-jwt-secret
+      GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+      GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+      GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --workspace=@otrarondamas/api --include-workspace-root
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Generate relation tests
+        run: |
+          cd apps/api
+          npm run generate:relation-tests || true
+
+      - name: Push database schema
+        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
+      - name: Run relation tests with JSON output
+        id: test_run
+        run: |
+          cd apps/api
+          npm run test:relations -- --json --outputFile=test-results.json || true
+          test -f test-results.json && echo "JSON output generated" || echo "No JSON output"
+
+      - name: Analyze relation coverage
+        id: coverage
+        run: |
+          cd apps/api
+          if [ -f test-results.json ]; then
+            node test/helpers/coverage-analysis.js test-results.json
+          else
+            echo "ERROR: test-results.json not found"
+            exit 1
+          fi
+
+      - name: Comment PR on coverage failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **Relation Coverage Check Failed**\n\nThe relation coverage did not meet the 75% threshold. See workflow logs for details.\n\n```\nnpm run test:relations:coverage\n```'
+            })
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-test-results
+          path: apps/api/test-results.json
+          retention-days: 7
