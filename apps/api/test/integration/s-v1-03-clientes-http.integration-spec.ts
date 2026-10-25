@@ -296,7 +296,7 @@ describe('S-V1-03 — GET/POST /clientes (HTTP, stack real)', () => {
         where: { nombre: `S-V1-03 HTTP Sin Permiso ${suffix}` },
       });
       expect(exists).toBeNull();
-      
+
     });
   });
 
