@@ -307,7 +307,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
         .send({ nombre })
         .expect(403);
       expect(await prisma.proveedor.findFirst({ where: { nombre } })).toBeNull();
-      
+
     });
   });
 
