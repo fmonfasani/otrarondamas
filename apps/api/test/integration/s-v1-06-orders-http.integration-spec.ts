@@ -626,7 +626,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
       const row = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
       expect(row.estado).toBe('RECIBIDO');
-      
+
     });
   });
 
