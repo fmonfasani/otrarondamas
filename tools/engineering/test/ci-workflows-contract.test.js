@@ -30,7 +30,7 @@ test('B3 retains the explicit tenant and relation candidate suites', () => {
 
 test('post-merge gate retains unit, tenant, B3, S-V1 and FS-1a verification', () => {
   const content = workflow('post-merge-verification.yml');
-  assert.match(content, /npm test --workspace=@otrarondamas\/api -- (?:runInBand|maxWorkers=50%)/);
+  assert.match(content, /npm test --workspace=@otrarondamas\/api -- --(?:runInBand|maxWorkers=50%)/);
   assert.match(content, /test\/integration\/tenant-isolation\.integration-spec\.ts/);
   assert.match(content, /test\/integration\/b3-tenant-isolation\.integration-spec\.ts/);
   assert.match(content, /s-v1-\*\.integration-spec\.ts/);
