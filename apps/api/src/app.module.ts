@@ -28,8 +28,8 @@ import { MessagingModule } from './messaging/messaging.module';
 import { DevolucionesModule } from './devoluciones/devoluciones.module';
 import { AuditModule } from './audit/audit.module';
 import { RefundQueueModule } from './refunds/refund-queue.module';
-import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module';
-import { NotificationsModule } from './notifications/notifications.module';
+// import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module'; // DEFERRED
+// import { NotificationsModule } from './notifications/notifications.module'; // DEFERRED
 // import { SearchModule } from './search/search.module'; // TODO: Fix schema issues
 // import { AssetsModule } from './assets/assets.module'; // TODO: Enable after implementation
 // import { SeoModule } from './seo/seo.module'; // TODO: Fix service imports
@@ -74,9 +74,9 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     // P4-3: Audit Log Reporting API
     AuditModule,
     // P8-3: SMS Notifications (OTP, alerts, transactional)
-    SMSNotificationsModule,
+    // SMSNotificationsModule, // DEFERRED: Twilio missing peer deps (scmp) - post-MVP
     // P8-4: Notification Preferences & Digest Implementation
-    NotificationsModule,
+    // NotificationsModule, // DEFERRED: depends on SMSNotificationsModule - post-MVP
     // P14-1: Full-Text Search with Elasticsearch
     // SearchModule, // TODO: Fix Prisma schema issues and service imports
     // P12-1: CDN Infrastructure - Asset Management Service
