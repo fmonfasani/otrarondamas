@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   NotFoundException,
   Post,
   Req,
@@ -55,7 +57,32 @@ export class AuthCustomerController {
     if (!companyId) {
       throw new Error('TIENDA_EMPRESA_ID no configurado');
     }
-    return this.authCustomerService.register(companyId, dto);
+    try {
+      return await this.authCustomerService.register(companyId, dto);
+    } catch (error: unknown) {
+      // Prisma constraint violations or FK failures → 400 BadRequest
+      if (error instanceof Error) {
+        const message = error.message || '';
+        if (
+          message.includes('Unique constraint failed') ||
+          message.includes('Foreign key constraint failed') ||
+          message.includes('empresaId') ||
+          message.includes('Empresa')
+        ) {
+          throw new BadRequestException(
+            'No se puede completar el registro. Verifique que el email sea válido y que la configuración de la tienda sea correcta.',
+          );
+        }
+      }
+      // Re-throw BadRequestException (email already exists, etc.)
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Unexpected error → 500
+      throw new InternalServerErrorException(
+        'Error inesperado durante el registro. Por favor, intente más tarde.',
+      );
+    }
   }
 
   /**

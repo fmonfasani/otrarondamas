@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthCustomerService } from './auth.customer.service';
@@ -27,5 +27,30 @@ describe('AuthCustomerService verified email boundary', () => {
 
     expect(findUnique).not.toHaveBeenCalled();
     expect(findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthCustomerService register method', () => {
+  it('throws BadRequestException when email already exists', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'existing-customer',
+      email: 'test@example.com',
+    });
+    const prisma = {
+      cliente: { findFirst },
+    } as unknown as PrismaService;
+    const service = new AuthCustomerService(prisma, {} as JwtService);
+
+    await expect(
+      service.register('company-123', {
+        email: 'test@example.com',
+        nombre: 'Test',
+        password: 'Password123',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { empresaId: 'company-123', email: 'test@example.com' },
+    });
   });
 });
