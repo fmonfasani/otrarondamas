@@ -27,7 +27,7 @@ import { BusinessContextModule } from './business-context/business-context.modul
 import { MessagingModule } from './messaging/messaging.module';
 import { DevolucionesModule } from './devoluciones/devoluciones.module';
 import { AuditModule } from './audit/audit.module';
-import { RefundQueueModule } from './refunds/refund-queue.module';
+// import { RefundQueueModule } from './refunds/refund-queue.module'; // DEFERRED
 // import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module'; // DEFERRED
 // import { NotificationsModule } from './notifications/notifications.module'; // DEFERRED
 // import { SearchModule } from './search/search.module'; // TODO: Fix schema issues
@@ -70,7 +70,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     // P3-2: Devoluciones (Returns) API
     DevolucionesModule,
     // P3-3: Refund Queue & Async Execution
-    RefundQueueModule,
+    // RefundQueueModule, // DEFERRED: schema mismatch - post-MVP
     // P4-3: Audit Log Reporting API
     AuditModule,
     // P8-3: SMS Notifications (OTP, alerts, transactional)
