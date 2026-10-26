@@ -1,0 +1,224 @@
+{
+  "testUsers": [
+    {
+      "id": "test-vendor-001",
+      "email": "vendedor.test@otrarondamas.test",
+      "nombre": "Vendedor Test Uno",
+      "rol": "vendedor",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "sales:read",
+        "sales:write",
+        "orders:read"
+      ],
+      "description": "Test vendor user for sales operations"
+    },
+    {
+      "id": "test-vendor-002",
+      "email": "vendedor.dos@otrarondamas.test",
+      "nombre": "Vendedor Test Dos",
+      "rol": "vendedor",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "sales:read",
+        "sales:write",
+        "orders:read"
+      ],
+      "description": "Secondary test vendor for multi-user scenarios"
+    },
+    {
+      "id": "test-admin-001",
+      "email": "gerente.test@otrarondamas.test",
+      "nombre": "Gerente Test",
+      "rol": "gerente",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "catalog:write",
+        "sales:read",
+        "sales:write",
+        "cash-register:read",
+        "cash-register:write",
+        "admin:read",
+        "audit:view"
+      ],
+      "description": "Test manager user for administrative operations"
+    }
+  ],
+  "testRoles": [
+    {
+      "id": "role-gerente",
+      "nombre": "Gerente",
+      "descripcion": "Manager with full business operation permissions",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "catalog:write",
+        "sales:read",
+        "sales:write",
+        "cash-register:read",
+        "cash-register:write",
+        "admin:read",
+        "audit:view",
+        "dashboard:view"
+      ]
+    },
+    {
+      "id": "role-vendedor",
+      "nombre": "Vendedor",
+      "descripcion": "Sales representative with limited permissions",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "sales:read",
+        "sales:write",
+        "orders:read",
+        "customers:read"
+      ]
+    },
+    {
+      "id": "role-cajero",
+      "nombre": "Cajero",
+      "descripcion": "Cash register operator",
+      "activo": true,
+      "permissions": [
+        "catalog:read",
+        "cash-register:read",
+        "cash-register:write",
+        "orders:read",
+        "customers:read"
+      ]
+    }
+  ],
+  "testScenarios": [
+    {
+      "id": "scenario-001",
+      "name": "Complete Onboarding Flow",
+      "description": "Test full admin onboarding: login, user creation, role assignment, dashboard access",
+      "steps": [
+        "admin_login",
+        "verify_business_exists",
+        "fetch_company_info",
+        "list_existing_roles",
+        "create_test_role",
+        "create_test_user",
+        "assign_role_to_user",
+        "verify_user_login",
+        "access_dashboard",
+        "fetch_audit_logs"
+      ]
+    },
+    {
+      "id": "scenario-002",
+      "name": "Permission Verification",
+      "description": "Verify role-based access control and permission enforcement",
+      "steps": [
+        "admin_login",
+        "create_minimal_role",
+        "create_restricted_user",
+        "test_restricted_access",
+        "verify_permission_denial"
+      ]
+    },
+    {
+      "id": "scenario-003",
+      "name": "Multi-User Concurrent Access",
+      "description": "Test simultaneous authentication of multiple users",
+      "steps": [
+        "create_user_accounts",
+        "authenticate_all_users",
+        "verify_independent_sessions",
+        "cleanup_test_accounts"
+      ]
+    }
+  ],
+  "expectedEndpoints": [
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "description": "Admin authentication endpoint",
+      "expectedStatus": 200,
+      "requiresAuth": false
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "description": "Current user profile endpoint",
+      "expectedStatus": 200,
+      "requiresAuth": true
+    },
+    {
+      "method": "GET",
+      "path": "/usuarios",
+      "description": "List company users",
+      "expectedStatus": 200,
+      "requiresAuth": true
+    },
+    {
+      "method": "GET",
+      "path": "/admin/dashboard/kpis",
+      "description": "Dashboard KPI metrics",
+      "expectedStatus": 200,
+      "requiresAuth": true
+    },
+    {
+      "method": "GET",
+      "path": "/admin/audit/logs",
+      "description": "Audit log retrieval",
+      "expectedStatus": 200,
+      "requiresAuth": true
+    },
+    {
+      "method": "GET",
+      "path": "/admin/dashboard/trends",
+      "description": "Dashboard trend data",
+      "expectedStatus": 200,
+      "requiresAuth": true
+    }
+  ],
+  "permissionMatrix": {
+    "admin": [
+      "dashboard:view",
+      "admin:read",
+      "admin:write",
+      "audit:view",
+      "audit:export",
+      "users:read",
+      "users:create",
+      "users:edit",
+      "users:delete",
+      "roles:read",
+      "roles:create",
+      "roles:edit",
+      "roles:delete"
+    ],
+    "gerente": [
+      "dashboard:view",
+      "catalog:read",
+      "catalog:write",
+      "sales:read",
+      "sales:write",
+      "cash-register:read",
+      "cash-register:write",
+      "audit:view",
+      "orders:read",
+      "customers:read"
+    ],
+    "vendedor": [
+      "catalog:read",
+      "sales:read",
+      "sales:write",
+      "orders:read",
+      "customers:read"
+    ],
+    "cajero": [
+      "catalog:read",
+      "cash-register:read",
+      "cash-register:write",
+      "orders:read",
+      "customers:read"
+    ]
+  }
+}

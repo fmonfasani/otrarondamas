@@ -1,0 +1,21 @@
+{
+  "testRunInfo": {
+    "timestamp": "20261025_221412",
+    "environment": "development",
+    "apiBaseUrl": "https://api.otrarondamas.wapsell.com/businesses/otrarondamas/api",
+    "businessHandle": "otrarondamas",
+    "scriptVersion": "1.0"
+  },
+  "vendorCredentials": {
+    "email": "vendedor@otrarondamas.test",
+    "testAccountUsed": true
+  },
+  "testResults": {
+    "passed": 0,
+    "failed": 9,
+    "total": 9,
+    "successRate": 0
+  },
+  "detailedResults": [ {"action":"Admin Login","endpoint":"/auth/login","method":"POST","statusCode":404,"expectedStatus":"200","passed":false,"errorMessage":"{"statusCode":404,"message":"Cannot POST /businesses/otrarondamas/api/auth/login","timestamp":"2026-10-26T01:14:13.161Z","path":"/businesses/otrarondamas/api/auth/login"}"}, {"action":"Vendor Login","endpoint":"/auth/login","method":"POST","statusCode":404,"expectedStatus":"200","passed":false,"errorMessage":"{"statusCode":404,"message":"Cannot POST /businesses/otrarondamas/api/auth/login","timestamp":"2026-10-26T01:14:14.209Z","path":"/businesses/otrarondamas/api/auth/login"}"} ],
+  "generatedAt": "2026-10-26T01:14:14Z"
+}

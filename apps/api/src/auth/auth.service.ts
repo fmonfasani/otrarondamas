@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtPayload, UserRole, DossierStatus } from './auth.types';
+import { JwtPayload, UserRole, DossierStatus, EmpresaInJwt } from './auth.types';
 
 interface UserForSession {
   id: string;
@@ -15,6 +15,7 @@ interface UserForSession {
   Empresa: { nombre: string };
   rol: UserRole;
   estadoLegajo: DossierStatus;
+  UserEmpresa?: Array<{ empresaId: string; role: string; Empresa: { nombre: string } }>;
 }
 
 @Injectable()
@@ -33,6 +34,50 @@ export class AuthService {
   }
 
   /**
+   * Switch to a different empresa for the authenticated user.
+   * Validates that the user has access to the requested empresa
+   * before issuing a new JWT.
+   */
+  async switchEmpresa(usuarioId: string, newEmpresaId: string) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      include: {
+        UsuarioPermiso: { include: { Permiso: true } },
+        Empresa: true,
+        UserEmpresa: { include: { Empresa: true } },
+      },
+    });
+
+    if (!user || !user.activo) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    // Validate that the user has access to the requested empresa
+    const userEmpresa = user.UserEmpresa?.find((ue) => ue.empresaId === newEmpresaId);
+    if (!userEmpresa) {
+      throw new UnauthorizedException(
+        'No tienes acceso a esta empresa',
+      );
+    }
+
+    // Update user's empresaId to the new one
+    const updatedUser = await this.prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { empresaId: newEmpresaId },
+      include: {
+        UsuarioPermiso: { include: { Permiso: true } },
+        Empresa: true,
+        UserEmpresa: { include: { Empresa: true } },
+      },
+    });
+
+    return this.issueSession(
+      updatedUser,
+      updatedUser.UsuarioPermiso.map((up) => up.Permiso.nombre),
+    );
+  }
+
+  /**
    * Validates email+password without issuing a JWT — reused by login()
    * and by AuthorizationsService.authorize() (D-06): confirming the
    * identity of whoever authorizes a restricted operation is the same
@@ -44,7 +89,11 @@ export class AuthService {
     // reveal which of the two was the reason for the rejection.
     const user = await this.prisma.usuario.findUnique({
       where: { email },
-      include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
+      include: {
+        UsuarioPermiso: { include: { Permiso: true } },
+        Empresa: true,
+        UserEmpresa: { include: { Empresa: true } },
+      },
     });
 
     // passwordHash is null for users who only registered through Google
@@ -73,6 +122,13 @@ export class AuthService {
    * call after logging in to have the full profile.
    */
   async issueSession(user: UserForSession, permissions: string[]) {
+    // Build empresas[] from UserEmpresa relationship
+    const empresas: EmpresaInJwt[] = (user.UserEmpresa || []).map((ue) => ({
+      id: ue.empresaId,
+      nombre: ue.Empresa.nombre,
+      role: ue.role,
+    }));
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -82,10 +138,18 @@ export class AuthService {
       rol: user.rol,
       estadoLegajo: user.estadoLegajo,
       type: 'usuario',
+      empresas,
     };
 
     return {
       accessToken: await this.jwtService.signAsync(payload),
+      empresaId: user.empresaId,
+      empresa: {
+        id: user.empresaId,
+        nombre: user.Empresa.nombre,
+        role: empresas.find((e) => e.id === user.empresaId)?.role || 'owner',
+      },
+      empresas,
       usuario: {
         id: user.id,
         nombre: user.nombre,

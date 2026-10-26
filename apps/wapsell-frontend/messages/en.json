@@ -1,0 +1,148 @@
+{
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "myBusinesses": "My Businesses",
+    "profile": "My Profile",
+    "logout": "Logout"
+  },
+  "businessSelector": {
+    "title": "My Businesses",
+    "noBusinesses": "You don't have any businesses registered",
+    "manageBusinesses": "Manage businesses"
+  },
+  "home": {
+    "hero": {
+      "title": "Manage multiple businesses on one platform",
+      "subtitle": "Wapsell allows you to manage all your companies from a single centralized dashboard"
+    },
+    "cta": {
+      "signIn": "Sign In",
+      "signUp": "Sign Up",
+      "dashboard": "Go to Dashboard",
+      "businesses": "My Businesses"
+    },
+    "features": {
+      "multiTenant": {
+        "title": "Multi-Business",
+        "desc": "Manage multiple companies with guaranteed data isolation"
+      },
+      "analytics": {
+        "title": "Analytics",
+        "desc": "View metrics and reports from each of your businesses"
+      },
+      "security": {
+        "title": "Security",
+        "desc": "Encrypted data and compliance with international standards"
+      }
+    },
+    "currentBusiness": "Your Current Business",
+    "businessName": "Business Name",
+    "plan": "Plan",
+    "activeUsers": "Active Users"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome, {name}",
+    "businessName": "Business Name",
+    "plan": "Current Plan",
+    "activeUsers": "Active Users",
+    "lastActivity": "Last Activity",
+    "products": {
+      "title": "Products",
+      "desc": "Manage your business product catalog",
+      "cta": "Go to Products"
+    },
+    "orders": {
+      "title": "Orders",
+      "desc": "Manage orders and purchase orders",
+      "cta": "View Orders"
+    },
+    "settings": {
+      "title": "Settings",
+      "desc": "Configure your business details",
+      "cta": "Go to Settings"
+    }
+  },
+  "negocios": {
+    "title": "My Businesses",
+    "subtitle": "Manage all your businesses from here",
+    "createButton": "Create Business",
+    "noBusinesses": "You don't have any businesses registered yet",
+    "createFirst": "Create my first business",
+    "plan": "Plan",
+    "activeUsers": "Active Users",
+    "lastActivity": "Last Activity",
+    "edit": "Edit",
+    "access": "Access"
+  },
+  "crear": {
+    "title": "Create New Business",
+    "subtitle": "Complete your company information to get started",
+    "errors": {
+      "nombreRequired": "Name is required",
+      "nombreTooShort": "Name must be at least 3 characters",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Email is not valid",
+      "paisRequired": "Country is required",
+      "termsRequired": "You must accept the terms and conditions",
+      "submitFailed": "Error creating business"
+    },
+    "form": {
+      "nombre": "Company Name",
+      "nombrePlaceholder": "E.g. My Company S.A.",
+      "email": "Contact Email",
+      "emailPlaceholder": "contact@company.com",
+      "telefono": "Phone",
+      "telefonoPlaceholder": "+1 234-567-8900",
+      "pais": "Country",
+      "paisPlaceholder": "Select a country",
+      "sector": "Sector",
+      "sectorPlaceholder": "Select a sector",
+      "plan": "Subscription Plan",
+      "terms": "I accept the",
+      "termsLink": "terms and conditions",
+      "submit": "Create Business"
+    }
+  },
+  "settings": {
+    "title": "Business Settings",
+    "businessInfo": "Business Information",
+    "changePassword": "Change Password",
+    "team": "Team",
+    "dangerZone": "Danger Zone",
+    "deleteButton": "Delete Business",
+    "deleteConfirm": "Are you sure you want to delete this business? This action cannot be undone.",
+    "deleteConfirmButton": "Yes, Delete",
+    "errors": {
+      "loadFailed": "Error loading data",
+      "nombreRequired": "Name is required",
+      "saveFailed": "Error saving changes",
+      "deleteFailed": "Error deleting business"
+    },
+    "success": {
+      "saved": "Changes saved successfully"
+    },
+    "form": {
+      "nombre": "Name",
+      "email": "Email",
+      "telefono": "Phone",
+      "pais": "Country",
+      "sector": "Sector",
+      "sectorPlaceholder": "Select a sector",
+      "plan": "Plan",
+      "save": "Save Changes"
+    }
+  },
+  "onboarding": {
+    "success": "Business Created Successfully!",
+    "redirecting": "Redirecting you to your dashboard...",
+    "clickHere": "Click here if not redirected automatically"
+  },
+  "common": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "deleting": "Deleting...",
+    "cancel": "Cancel"
+  }
+}

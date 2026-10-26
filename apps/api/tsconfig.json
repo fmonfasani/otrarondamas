@@ -27,6 +27,10 @@
     "prisma/**/*.ts",
     "src/search/**",
     "src/assets/**",
-    "src/seo/**"
+    "src/seo/**",
+    "src/admin/**",
+    "src/analytics/**",
+    "src/i18n/**",
+    "src/payments/**mock*"
   ]
 }

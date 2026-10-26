@@ -1,0 +1,8 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VENDOR RBAC PERMISSION TEST
+Start Time: 2026-10-25 22:21:29
+API Base URL: http://localhost:3001/businesses/otrarondamas/api
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[0;36m[TEST 1] POST /auth/login (Vendor Login)[0m
+Expected: 200 OK with accessToken

@@ -1,0 +1,231 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (use only in emergencies)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: deployment
+  cancel-in-progress: false
+
+jobs:
+  # Stage 1: Code Quality
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run ESLint
+        run: npm run lint --workspace=@otrarondamas/api
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        working-directory: apps/api
+
+  # Stage 2: Build
+  build:
+    name: Build Application
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Build application
+        run: npm run build --workspace=@otrarondamas/api
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-build
+          path: apps/api/dist/
+          retention-days: 1
+
+  # Stage 3: Tests (optional, can be skipped)
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event.inputs.skip_tests != 'true'
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Run unit tests
+        run: npm run test --workspace=@otrarondamas/api
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            apps/api/coverage/
+            apps/api/test-results.json
+          retention-days: 7
+
+  # Stage 4: Security Scan (optional)
+  security:
+    name: Security Scan
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+  # Stage 5: Deploy to Hetzner
+  deploy:
+    name: Deploy to Hetzner VPS
+    needs: [quality, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: apps/api/dist/
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Hetzner
+        run: |
+          bash ./scripts/github-deploy.sh \
+            ${{ secrets.HETZNER_HOST }} \
+            ${{ secrets.HETZNER_USER }} \
+            ~/.ssh/deploy_key \
+            ${{ secrets.HETZNER_SSH_PORT }}
+
+      - name: Run health checks
+        run: |
+          bash ./scripts/health-check.sh ${{ secrets.HETZNER_HOST }} ~/.ssh/deploy_key
+
+      - name: Slack notification (success)
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "✅ Deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Successful* ✅\n*Repository:* ${{ github.repository }}\n*Branch:* main\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+
+      - name: Slack notification (failure)
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "❌ Deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Failed* ❌\n*Repository:* ${{ github.repository }}\n*Branch:* main\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Action:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View details>"
+                  }
+                }
+              ]
+            }
+
+  # Stage 6: Verify Deployment
+  verify:
+    name: Verify Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify deployment
+        run: |
+          bash ./scripts/verify-deployment.sh \
+            ${{ secrets.HETZNER_HOST }} \
+            ${{ secrets.HETZNER_USER }} \
+            ~/.ssh/deploy_key

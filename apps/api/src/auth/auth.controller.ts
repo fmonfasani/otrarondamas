@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
   Post,
   Req,
   Res,
@@ -93,6 +94,17 @@ export class AuthController {
     const canonical = await this.membershipService.findUserByLegacyUserId(user.id);
     if (!canonical) return [];
     return this.membershipService.getMembershipsForUser(canonical.id);
+  }
+
+  // Multi-business: switch to a different empresa
+  @ApiBearerAuth()
+  @Post('switch-empresa/:empresaId')
+  @HttpCode(HttpStatus.OK)
+  async switchEmpresa(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('empresaId') empresaId: string,
+  ) {
+    return this.authService.switchEmpresa(user.id, empresaId);
   }
 
   // Triggers the redirect to the Google consent screen. AuthGuard('google')

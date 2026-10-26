@@ -534,6 +534,7 @@ model Empresa {
   Subtipo                 Subtipo[]
   Tipo                    Tipo[]
   Usuario                 Usuario[]
+  UserEmpresa             UserEmpresa[]
   Venta                   Venta[]
   PhoneNumber             PhoneNumber[]
   SMSAlert                SMSAlert[]
@@ -1208,6 +1209,7 @@ model Usuario {
   Pedido                                           Pedido[]
   RecepcionCompra                                  RecepcionCompra[]
   Empresa                                          Empresa               @relation(fields: [empresaId], references: [id])
+  UserEmpresa                                      UserEmpresa[]
   UsuarioPermiso                                   UsuarioPermiso[]
   Venta                                            Venta[]
   PhoneNumber                                      PhoneNumber[]
@@ -1274,6 +1276,22 @@ model NotificationDigest {
 
   @@index([empresaId, usuarioId, period])
   @@index([usuarioId, sentAt])
+}
+
+model UserEmpresa {
+  id        String   @id @default(uuid())
+  usuarioId String
+  empresaId String
+  role      String   @default("owner")  // owner, admin, user, editor
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  Empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, empresaId])
+  @@index([usuarioId])
+  @@index([empresaId])
 }
 
 model UsuarioPermiso {

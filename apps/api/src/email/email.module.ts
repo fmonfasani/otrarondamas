@@ -6,6 +6,7 @@ import { EmailPreferenceService } from './preferences/email-preference.service';
 import { ResendProvider } from './providers/resend.provider';
 import { SendGridProvider } from './providers/sendgrid.provider';
 import { AwsSesProvider } from './providers/aws-ses.provider';
+import { EmailController } from './email.controller';
 
 /**
  * P8-2: Email Notifications Module
@@ -20,6 +21,7 @@ import { AwsSesProvider } from './providers/aws-ses.provider';
  */
 @Module({
   imports: [PrismaModule],
+  controllers: [EmailController],
   providers: [
     EmailService,
     EmailTemplateService,

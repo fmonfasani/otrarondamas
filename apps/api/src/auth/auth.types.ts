@@ -13,6 +13,12 @@
 export type UserRole = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
 export type DossierStatus = 'PENDIENTE' | 'APROBADO';
 
+export interface EmpresaInJwt {
+  id: string;
+  nombre: string;
+  role: string;
+}
+
 export interface JwtPayload {
   sub: string; // Usuario.id or Cliente.id depending on `type`
   email: string;
@@ -33,6 +39,8 @@ export interface JwtPayload {
   type: 'usuario' | 'cliente';
   // Only present when type === 'cliente'
   esMayorista?: boolean;
+  // Multi-business: list of companies the user has access to
+  empresas?: EmpresaInJwt[];
 }
 
 export interface AuthenticatedUser {
@@ -46,6 +54,8 @@ export interface AuthenticatedUser {
   // RF-17 cliente
   type: 'usuario' | 'cliente';
   esMayorista?: boolean;
+  // Multi-business: list of companies the user has access to
+  empresas?: EmpresaInJwt[];
 }
 
 /**
@@ -60,4 +70,11 @@ export interface UserProfile extends AuthenticatedUser {
   fotoUrl: string | null;
   metodoLogin: 'google' | 'password';
   createdAt: string;
+  // Multi-business: list of companies the user has access to (fresh from DB)
+  empresasDetail?: Array<{
+    id: string;
+    nombre: string;
+    role: string;
+    createdAt: string;
+  }>;
 }

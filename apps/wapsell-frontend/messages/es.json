@@ -1,0 +1,148 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "dashboard": "Dashboard",
+    "myBusinesses": "Mis Negocios",
+    "profile": "Mi Perfil",
+    "logout": "Cerrar Sesión"
+  },
+  "businessSelector": {
+    "title": "Mis Negocios",
+    "noBusinesses": "No tienes negocios registrados",
+    "manageBusinesses": "Administrar negocios"
+  },
+  "home": {
+    "hero": {
+      "title": "Gestiona múltiples negocios en una plataforma",
+      "subtitle": "Wapsell te permite administrar todas tus empresas desde un único dashboard centralizado"
+    },
+    "cta": {
+      "signIn": "Iniciar Sesión",
+      "signUp": "Crear Cuenta",
+      "dashboard": "Ir al Dashboard",
+      "businesses": "Mis Negocios"
+    },
+    "features": {
+      "multiTenant": {
+        "title": "Multi-Negocio",
+        "desc": "Administra múltiples empresas con aislamiento de datos garantizado"
+      },
+      "analytics": {
+        "title": "Analytics",
+        "desc": "Visualiza métricas y reportes de cada uno de tus negocios"
+      },
+      "security": {
+        "title": "Seguridad",
+        "desc": "Datos encriptados y cumplimiento con estándares internacionales"
+      }
+    },
+    "currentBusiness": "Tu Negocio Actual",
+    "businessName": "Nombre del Negocio",
+    "plan": "Plan",
+    "activeUsers": "Usuarios Activos"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Bienvenido, {name}",
+    "businessName": "Nombre del Negocio",
+    "plan": "Plan Actual",
+    "activeUsers": "Usuarios Activos",
+    "lastActivity": "Última Actividad",
+    "products": {
+      "title": "Productos",
+      "desc": "Administra el catálogo de productos de tu negocio",
+      "cta": "Ir a Productos"
+    },
+    "orders": {
+      "title": "Pedidos",
+      "desc": "Gestiona los pedidos y órdenes de compra",
+      "cta": "Ver Pedidos"
+    },
+    "settings": {
+      "title": "Configuración",
+      "desc": "Configura los detalles de tu negocio",
+      "cta": "Ir a Configuración"
+    }
+  },
+  "negocios": {
+    "title": "Mis Negocios",
+    "subtitle": "Administra todos tus negocios desde aquí",
+    "createButton": "Crear Negocio",
+    "noBusinesses": "No tienes negocios registrados aún",
+    "createFirst": "Crear mi primer negocio",
+    "plan": "Plan",
+    "activeUsers": "Usuarios Activos",
+    "lastActivity": "Última Actividad",
+    "edit": "Editar",
+    "access": "Acceder"
+  },
+  "crear": {
+    "title": "Crear Nuevo Negocio",
+    "subtitle": "Completa los datos de tu empresa para comenzar",
+    "errors": {
+      "nombreRequired": "El nombre es requerido",
+      "nombreTooShort": "El nombre debe tener al menos 3 caracteres",
+      "emailRequired": "El email es requerido",
+      "emailInvalid": "El email no es válido",
+      "paisRequired": "El país es requerido",
+      "termsRequired": "Debes aceptar los términos y condiciones",
+      "submitFailed": "Error al crear el negocio"
+    },
+    "form": {
+      "nombre": "Nombre de la Empresa",
+      "nombrePlaceholder": "Ej: Mi Empresa S.A.",
+      "email": "Email de Contacto",
+      "emailPlaceholder": "contacto@empresa.com",
+      "telefono": "Teléfono",
+      "telefonoPlaceholder": "+54 11 1234-5678",
+      "pais": "País",
+      "paisPlaceholder": "Selecciona un país",
+      "sector": "Sector",
+      "sectorPlaceholder": "Selecciona un sector",
+      "plan": "Plan de Suscripción",
+      "terms": "Acepto los",
+      "termsLink": "términos y condiciones",
+      "submit": "Crear Negocio"
+    }
+  },
+  "settings": {
+    "title": "Configuración del Negocio",
+    "businessInfo": "Información del Negocio",
+    "changePassword": "Cambiar Contraseña",
+    "team": "Equipo",
+    "dangerZone": "Zona de Peligro",
+    "deleteButton": "Eliminar Negocio",
+    "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio? Esta acción no se puede deshacer.",
+    "deleteConfirmButton": "Sí, Eliminar",
+    "errors": {
+      "loadFailed": "Error al cargar los datos",
+      "nombreRequired": "El nombre es requerido",
+      "saveFailed": "Error al guardar los cambios",
+      "deleteFailed": "Error al eliminar el negocio"
+    },
+    "success": {
+      "saved": "Cambios guardados exitosamente"
+    },
+    "form": {
+      "nombre": "Nombre",
+      "email": "Email",
+      "telefono": "Teléfono",
+      "pais": "País",
+      "sector": "Sector",
+      "sectorPlaceholder": "Selecciona un sector",
+      "plan": "Plan",
+      "save": "Guardar Cambios"
+    }
+  },
+  "onboarding": {
+    "success": "¡Negocio Creado Exitosamente!",
+    "redirecting": "Te estamos redirigiendo a tu dashboard...",
+    "clickHere": "Haz clic aquí si no se redirige automáticamente"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "saving": "Guardando...",
+    "deleting": "Eliminando...",
+    "cancel": "Cancelar"
+  }
+}

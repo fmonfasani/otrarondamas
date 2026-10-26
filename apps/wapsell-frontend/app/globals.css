@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #FAF9F5;
+  color: #1A1815;
+}
+
+:root {
+  --color-primary: #D97757;
+  --color-dark: #1A1815;
+  --color-light: #FAF9F5;
+  --color-gray-100: #F3F1ED;
+  --color-gray-200: #E8E5E0;
+  --color-gray-500: #999;
+  --color-gray-700: #666;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-light: #1A1815;
+    --color-dark: #FAF9F5;
+  }
+}

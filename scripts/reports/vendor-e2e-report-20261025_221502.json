@@ -1,0 +1,21 @@
+{
+  "testRunInfo": {
+    "timestamp": "20261025_221502",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:3001/businesses/otrarondamas/api",
+    "businessHandle": "otrarondamas",
+    "scriptVersion": "1.0"
+  },
+  "vendorCredentials": {
+    "email": "seller@otrarondamas.com",
+    "testAccountUsed": true
+  },
+  "testResults": {
+    "passed": 0,
+    "failed": 9,
+    "total": 9,
+    "successRate": 0
+  },
+  "detailedResults": [ {"action":"Admin Login","endpoint":"/auth/login","method":"POST","statusCode":000,"expectedStatus":"200","passed":false,"errorMessage":""}, {"action":"Vendor Login","endpoint":"/auth/login","method":"POST","statusCode":000,"expectedStatus":"200","passed":false,"errorMessage":""} ],
+  "generatedAt": "2026-10-26T01:15:07Z"
+}
