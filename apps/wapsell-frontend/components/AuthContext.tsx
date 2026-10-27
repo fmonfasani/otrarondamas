@@ -28,6 +28,7 @@ interface AuthContextType {
   empresa: Empresa | null;
   empresas: Empresa[];
   isLoading: boolean;
+  login: (token: string, empresas: Empresa[], empresaId: string) => Promise<void>;
   switchEmpresa: (empresaId: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -158,12 +159,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.location.href = '/auth/login';
   };
 
+  const login = async (token: string, empresasList: Empresa[], empresaId: string): Promise<void> => {
+    try {
+      // Store token and empresa ID in localStorage
+      localStorage.setItem('jwt', token);
+      localStorage.setItem('empresaId', empresaId);
+
+      // Decode JWT to extract user data
+      const decoded = JSON.parse(atob(token.split('.')[1]));
+
+      // Build user from JWT
+      const currentUser: User = {
+        id: decoded.sub,
+        nombre: decoded.nombre || decoded.email?.split('@')[0],
+        email: decoded.email,
+        empresas: empresasList,
+      };
+
+      // Update auth state
+      setUser(currentUser);
+      setEmpresas(empresasList);
+
+      // Select current empresa
+      const selected = empresasList.find(e => e.id === empresaId);
+      if (selected) {
+        setEmpresaId(empresaId);
+        setEmpresa(selected);
+      } else if (empresasList.length > 0) {
+        const firstEmpresa = empresasList[0];
+        setEmpresaId(firstEmpresa.id);
+        setEmpresa(firstEmpresa);
+        localStorage.setItem('empresaId', firstEmpresa.id);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     empresaId,
     empresa,
     empresas,
     isLoading,
+    login,
     switchEmpresa,
     logout,
     isAuthenticated: !!user && !!empresaId,
