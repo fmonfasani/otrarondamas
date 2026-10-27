@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   output: 'standalone',
+  staticPageGenerationTimeout: 1, // Skip static page generation
 };
 
 export default withNextIntl(nextConfig);

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
-export const dynamicParams = false;
 
 export const metadata = {
   title: 'Wapsell',

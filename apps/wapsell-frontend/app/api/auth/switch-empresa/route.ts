@@ -6,10 +6,7 @@ export async function POST(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8600';
@@ -17,7 +14,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${apiUrl}/auth/switch-empresa/${empresaId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
@@ -34,11 +31,9 @@ export async function POST(request: NextRequest) {
       empresas: data.empresas || [],
       empresaId: data.empresaId,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Switch empresa failed';
     console.error('Switch empresa proxy error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Switch empresa failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

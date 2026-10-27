@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './AuthContext';
 
@@ -9,13 +9,9 @@ interface ProtectedRouteProps {
   requireEmpresa?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
-  children,
-  requireEmpresa = true,
-}) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireEmpresa = true }) => {
   const { isAuthenticated, empresaId, isLoading } = useAuth();
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (isLoading) {
@@ -24,18 +20,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     if (!isAuthenticated) {
       router.push('/auth/login');
-      return;
-    }
-
-    if (requireEmpresa && !empresaId) {
+    } else if (requireEmpresa && !empresaId) {
       router.push('/negocios');
-      return;
     }
-
-    setIsReady(true);
   }, [isAuthenticated, empresaId, isLoading, requireEmpresa, router]);
 
-  if (isLoading || !isReady) {
+  const shouldRender = !isLoading && isAuthenticated && (!requireEmpresa || empresaId);
+
+  if (!shouldRender) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">

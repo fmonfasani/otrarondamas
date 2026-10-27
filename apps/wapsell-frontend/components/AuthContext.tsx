@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Seleccionar empresa actual
         if (storedEmpresaId) {
-          const selected = currentUser.empresas.find(e => e.id === storedEmpresaId);
+          const selected = currentUser.empresas.find((e) => e.id === storedEmpresaId);
           if (selected) {
             setEmpresaId(storedEmpresaId);
             setEmpresa(selected);
@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await fetch('/api/auth/switch-empresa', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ empresaId: newEmpresaId }),
@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('empresaId', newEmpresaId);
 
       // Actualizar contexto
-      const selected = empresas.find(e => e.id === newEmpresaId);
+      const selected = empresas.find((e) => e.id === newEmpresaId);
       if (selected) {
         setEmpresaId(newEmpresaId);
         setEmpresa(selected);
@@ -172,7 +172,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     window.location.href = '/auth/login';
   };
 
-  const login = async (token: string, empresasList: Empresa[], empresaId: string): Promise<void> => {
+  const login = async (
+    token: string,
+    empresasList: Empresa[],
+    empresaId: string,
+  ): Promise<void> => {
     try {
       // Store token and empresa ID in localStorage
       localStorage.setItem('jwt', token);
@@ -194,7 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setEmpresas(empresasList);
 
       // Select current empresa
-      const selected = empresasList.find(e => e.id === empresaId);
+      const selected = empresasList.find((e) => e.id === empresaId);
       if (selected) {
         setEmpresaId(empresaId);
         setEmpresa(selected);
@@ -222,9 +226,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user && !!empresaId,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
