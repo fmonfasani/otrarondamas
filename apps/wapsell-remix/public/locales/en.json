@@ -1,0 +1,61 @@
+{
+  "common": {
+    "welcome": "Welcome to Wapsell",
+    "logout": "Logout",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot your password?",
+    "signUpNow": "Sign up now",
+    "invalidCredentials": "Invalid email or password",
+    "loginSuccess": "Successfully logged in"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "kpis": "Key Indicators",
+    "sales": "Sales",
+    "revenue": "Revenue",
+    "orders": "Orders",
+    "customers": "Customers"
+  },
+  "products": {
+    "title": "Products",
+    "list": "Product List",
+    "create": "Create Product",
+    "edit": "Edit Product",
+    "delete": "Delete Product",
+    "name": "Name",
+    "price": "Price",
+    "stock": "Stock",
+    "description": "Description"
+  },
+  "orders": {
+    "title": "Orders",
+    "list": "Order List",
+    "detail": "Order Detail",
+    "status": "Status",
+    "total": "Total",
+    "customer": "Customer",
+    "date": "Date"
+  },
+  "businesses": {
+    "title": "Businesses",
+    "myBusinesses": "My Businesses",
+    "createNew": "Create New Business",
+    "settings": "Settings",
+    "name": "Business Name"
+  }
+}
