@@ -14,8 +14,10 @@
   "home": {
     "hero": {
       "title": "Manage multiple businesses on one platform",
-      "subtitle": "Wapsell allows you to manage all your companies from a single centralized dashboard"
+      "subtitle": "Wapsell allows you to manage all your companies from a single centralized dashboard",
+      "platform": "Wapsell Platform"
     },
+    "trustedBy": "Trusted by thousands of businesses worldwide",
     "cta": {
       "signIn": "Sign In",
       "signUp": "Sign Up",
@@ -23,6 +25,8 @@
       "businesses": "My Businesses"
     },
     "features": {
+      "title": "Powerful Features",
+      "subtitle": "Everything you need to manage your businesses efficiently",
       "multiTenant": {
         "title": "Multi-Business",
         "desc": "Manage multiple companies with guaranteed data isolation"
@@ -35,6 +39,15 @@
         "title": "Security",
         "desc": "Encrypted data and compliance with international standards"
       }
+    },
+    "cta": {
+      "title": "Ready to streamline your business operations?",
+      "subtitle": "Join thousands of businesses already using Wapsell to manage their operations more efficiently.",
+      "getStarted": "Get Started Free",
+      "joinCommunity": "Join our growing community",
+      "businesses": "Businesses",
+      "users": "Active Users",
+      "transactions": "Transactions Processed"
     },
     "currentBusiness": "Your Current Business",
     "businessName": "Business Name",
@@ -138,6 +151,22 @@
     "success": "Business Created Successfully!",
     "redirecting": "Redirecting you to your dashboard...",
     "clickHere": "Click here if not redirected automatically"
+  },
+  "footer": {
+    "tagline": "Streamline your multi-business operations with Wapsell",
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "security": "Security",
+    "company": "Company",
+    "about": "About Us",
+    "blog": "Blog",
+    "careers": "Careers",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact",
+    "copyright": "Wapsell. All rights reserved."
   },
   "common": {
     "loading": "Loading...",

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
-import { AuthProvider } from '@/components/AuthContext';
-import NavBar from '@/components/NavBar';
 import { ReactNode } from 'react';
 import '../globals.css';
+
+export const dynamic = 'force-dynamic';
+export const dynamicParams = false;
 
 export const metadata: Metadata = {
   title: 'Wapsell - Multi-Business Platform',
@@ -16,19 +17,16 @@ interface RootLayoutProps {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
   params,
 }: RootLayoutProps) {
   return (
     <html lang={params.locale}>
       <body>
-        <AuthProvider>
-          <NavBar />
-          <main className="flex-1">
-            {children}
-          </main>
-        </AuthProvider>
+        <main className="flex-1">
+          {children}
+        </main>
       </body>
     </html>
   );

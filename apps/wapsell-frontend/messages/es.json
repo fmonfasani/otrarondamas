@@ -14,8 +14,10 @@
   "home": {
     "hero": {
       "title": "Gestiona múltiples negocios en una plataforma",
-      "subtitle": "Wapsell te permite administrar todas tus empresas desde un único dashboard centralizado"
+      "subtitle": "Wapsell te permite administrar todas tus empresas desde un único dashboard centralizado",
+      "platform": "Plataforma Wapsell"
     },
+    "trustedBy": "Confiado por miles de negocios en todo el mundo",
     "cta": {
       "signIn": "Iniciar Sesión",
       "signUp": "Crear Cuenta",
@@ -23,6 +25,8 @@
       "businesses": "Mis Negocios"
     },
     "features": {
+      "title": "Funcionalidades Poderosas",
+      "subtitle": "Todo lo que necesitas para administrar tus negocios eficientemente",
       "multiTenant": {
         "title": "Multi-Negocio",
         "desc": "Administra múltiples empresas con aislamiento de datos garantizado"
@@ -35,6 +39,15 @@
         "title": "Seguridad",
         "desc": "Datos encriptados y cumplimiento con estándares internacionales"
       }
+    },
+    "cta": {
+      "title": "¿Listo para simplificar tus operaciones?",
+      "subtitle": "Únete a miles de negocios que ya usan Wapsell para administrar sus operaciones de forma más eficiente.",
+      "getStarted": "Comenzar Gratis",
+      "joinCommunity": "Únete a nuestra comunidad en crecimiento",
+      "businesses": "Negocios",
+      "users": "Usuarios Activos",
+      "transactions": "Transacciones Procesadas"
     },
     "currentBusiness": "Tu Negocio Actual",
     "businessName": "Nombre del Negocio",
@@ -138,6 +151,22 @@
     "success": "¡Negocio Creado Exitosamente!",
     "redirecting": "Te estamos redirigiendo a tu dashboard...",
     "clickHere": "Haz clic aquí si no se redirige automáticamente"
+  },
+  "footer": {
+    "tagline": "Optimiza tu operación multi-negocio con Wapsell",
+    "product": "Producto",
+    "features": "Características",
+    "pricing": "Precios",
+    "security": "Seguridad",
+    "company": "Empresa",
+    "about": "Acerca de",
+    "blog": "Blog",
+    "careers": "Carreras",
+    "legal": "Legal",
+    "privacy": "Política de Privacidad",
+    "terms": "Términos de Servicio",
+    "contact": "Contacto",
+    "copyright": "Wapsell. Todos los derechos reservados."
   },
   "common": {
     "loading": "Cargando...",
