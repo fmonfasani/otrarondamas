@@ -36,10 +36,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  empresaId: null,
+  empresa: null,
+  empresas: [],
+  isLoading: false,
+  login: async () => {},
+  switchEmpresa: async () => {},
+  logout: () => {},
+  isAuthenticated: false,
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    return defaultAuthContext;
   }
   return context;
 };
@@ -116,12 +128,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = localStorage.getItem('jwt');
       if (!token) throw new Error('No token found');
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/switch-empresa/${newEmpresaId}`, {
+      const response = await fetch('/api/auth/switch-empresa', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ empresaId: newEmpresaId }),
       });
 
       if (!response.ok) {
