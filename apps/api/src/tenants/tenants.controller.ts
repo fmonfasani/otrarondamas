@@ -1,4 +1,5 @@
-import { Controller, Get, ApiBearerAuth, ApiTags } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
