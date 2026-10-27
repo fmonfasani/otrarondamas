@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useAuth } from '@/components/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useTranslations } from 'next-intl';
