@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/fmonfasani/otrarondamas#readme",
   "workspaces": [
-    "apps/*",
+    "apps/api",
     "packages/*"
   ],
   "devDependencies": {
