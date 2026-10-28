@@ -20,7 +20,13 @@ export const ExtractBusinessContext = createParamDecorator(
       throw new Error('No user in request context');
     }
 
-    // Use the request scope to get BusinessContextService
+    // Extract empresaId from JWT payload (already available in authenticated user)
+    // Fallback to BusinessContextService if needed
+    if (user.empresaId) {
+      return user.empresaId;
+    }
+
+    // Legacy: Use the request scope to get BusinessContextService
     const businessContextService = ctx.switchToHttp().getRequest().app.get(BusinessContextService);
 
     if (!businessContextService) {
