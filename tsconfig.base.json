@@ -8,12 +8,11 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "paths": {
       "@otrarondamas/shared-types": ["./packages/shared-types/src"]
     }
