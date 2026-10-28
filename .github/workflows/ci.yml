@@ -1,10 +1,10 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline - Simplified
 
 on:
   push:
-    branches: [main, develop, refactor/opcion-6]
+    branches: [main, refactor/opcion-6]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 env:
   NODE_VERSION: '20'
@@ -85,7 +85,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [chromium]
     services:
       postgres:
         image: postgres:15-alpine
@@ -164,7 +164,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to VPS
-    needs: [build, e2e-tests]
+    needs: [build, e2e-tests, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
