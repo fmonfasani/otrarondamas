@@ -9,7 +9,10 @@
     "start": "remix-serve ./build/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@remix-run/node": "^2.15.0",
@@ -28,6 +31,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.1",
     "@remix-run/dev": "^2.15.0",
     "@remix-run/serve": "^2.15.0",
     "@types/node": "^22.10.2",
