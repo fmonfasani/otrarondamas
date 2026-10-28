@@ -2,56 +2,59 @@
 
 export const dynamic = 'force-dynamic';
 
+import { useState } from 'react';
 import { useAuth } from '@/components/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import DashboardStats from '@/components/dashboard/DashboardStats';
+import DashboardTrends from '@/components/dashboard/DashboardTrends';
+import TopProducts from '@/components/dashboard/TopProducts';
+import PeriodSelector from '@/components/dashboard/PeriodSelector';
 import { useTranslations } from 'next-intl';
 
 function DashboardContent() {
   const { empresa, user } = useAuth();
   const t = useTranslations();
+  const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
+  const [trendMetric, setTrendMetric] = useState<'revenue' | 'orders'>('revenue');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
+    <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-[#1A1815] mb-2">
-          {t('dashboard.title')}
-        </h1>
-        <p className="text-gray-600">
-          {t('dashboard.welcome', { name: user?.nombre })}
-        </p>
+        <h1 className="text-4xl font-bold text-[#1A1815] mb-2">{t('dashboard.title')}</h1>
+        <p className="text-gray-600">{t('dashboard.welcome', { name: user?.nombre })}</p>
       </div>
 
-      {/* Business Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#D97757]">
-          <p className="text-gray-600 text-sm mb-2">{t('dashboard.businessName')}</p>
-          <p className="text-2xl font-bold text-[#1A1815]">{empresa?.nombre}</p>
+      {/* Period Selector */}
+      <div className="mb-8">
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </div>
+
+      {/* KPI Cards with Real Data */}
+      <DashboardStats period={period} />
+
+      {/* Trends and Top Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Métrica de Tendencia</label>
+            <select
+              value={trendMetric}
+              onChange={(e) => setTrendMetric(e.target.value as 'revenue' | 'orders')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D97757] focus:border-transparent"
+            >
+              <option value="revenue">Ingresos</option>
+              <option value="orders">Pedidos</option>
+            </select>
+          </div>
+          <DashboardTrends period={period} metric={trendMetric} />
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#D97757]">
-          <p className="text-gray-600 text-sm mb-2">{t('dashboard.plan')}</p>
-          <p className="text-2xl font-bold capitalize text-[#D97757]">
-            {empresa?.plan}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#D97757]">
-          <p className="text-gray-600 text-sm mb-2">{t('dashboard.activeUsers')}</p>
-          <p className="text-2xl font-bold text-[#1A1815]">
-            {empresa?.usuariosActivos}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#D97757]">
-          <p className="text-gray-600 text-sm mb-2">{t('dashboard.lastActivity')}</p>
-          <p className="text-lg font-semibold text-gray-700">
-            {empresa?.ultimaActividad}
-          </p>
-        </div>
+        <TopProducts limit={10} metric="revenue" />
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold text-[#1A1815] mb-4">
             {t('dashboard.products.title')}
@@ -98,7 +101,9 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <ProtectedRoute requireEmpresa={true}>
-      <DashboardContent />
+      <DashboardLayout>
+        <DashboardContent />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

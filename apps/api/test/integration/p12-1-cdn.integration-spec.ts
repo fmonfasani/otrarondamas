@@ -14,10 +14,8 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, BadRequestException } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import * as fs from 'fs';
-import * as path from 'path';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -527,9 +525,7 @@ describe('P12-1 CDN Infrastructure — Asset Management', () => {
 
   describe('Authorization', () => {
     it('should reject requests without authentication', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/assets')
-        .expect(401);
+      const response = await request(app.getHttpServer()).get('/assets').expect(401);
     });
 
     it('should reject invalid tokens', async () => {

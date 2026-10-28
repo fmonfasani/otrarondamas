@@ -5,10 +5,7 @@ export async function GET(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8600';
@@ -16,7 +13,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${apiUrl}/tenants/my-empresas`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -27,11 +24,9 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch tenants';
     console.error('Get tenants error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch tenants' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -61,10 +61,7 @@ export class MetricsService {
     const totalRevenue = this.sumDecimal(
       ventas.map((v) => this.toDecimal(v.total).minus(this.toDecimal(v.descuento || 0))),
     );
-    const averageRevenue =
-      ventas.length > 0
-        ? Number(totalRevenue) / ventas.length
-        : 0;
+    const averageRevenue = ventas.length > 0 ? Number(totalRevenue) / ventas.length : 0;
 
     // Group by period
     const periods = this.groupByPeriod(ventas, groupBy);
@@ -283,7 +280,8 @@ export class MetricsService {
       const periodValues = groupedPedidos
         .filter((v) => this.formatPeriod(v.createdAt, groupBy) === p.period)
         .map((v) => Number(this.toDecimal(v.total)));
-      const periodAov = periodValues.length > 0 ? periodValues.reduce((a, b) => a + b) / periodValues.length : 0;
+      const periodAov =
+        periodValues.length > 0 ? periodValues.reduce((a, b) => a + b) / periodValues.length : 0;
       return {
         period: p.period,
         aov: Number(periodAov.toFixed(2)),
@@ -446,7 +444,9 @@ export class MetricsService {
       }
 
       const product = productMap.get(key)!;
-      const itemRevenue = Number(this.toDecimal(item.precioUnitario).times(this.toDecimal(item.cantidad)));
+      const itemRevenue = Number(
+        this.toDecimal(item.precioUnitario).times(this.toDecimal(item.cantidad)),
+      );
       product.revenue += itemRevenue;
       product.unitsSold += Number(this.toDecimal(item.cantidad));
       if (item.Venta?.clienteId) {

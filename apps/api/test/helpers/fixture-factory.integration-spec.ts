@@ -279,11 +279,7 @@ describe('FixtureFactory', () => {
       const producto = await factory.createProduct(tenant.id);
       const lote = await factory.createLote(tenant.id, producto.id);
 
-      const movimiento = await factory.createMovimientoStock(
-        tenant.id,
-        lote.id,
-        producto.id,
-      );
+      const movimiento = await factory.createMovimientoStock(tenant.id, lote.id, producto.id);
 
       expect(movimiento.id).toBeDefined();
       expect(movimiento.empresaId).toBe(tenant.id);
@@ -299,16 +295,11 @@ describe('FixtureFactory', () => {
       const producto = await factory.createProduct(tenant.id);
       const lote = await factory.createLote(tenant.id, producto.id);
 
-      const movimiento = await factory.createMovimientoStock(
-        tenant.id,
-        lote.id,
-        producto.id,
-        {
-          tipoMovimiento: 'SALIDA',
-          cantidad: 25,
-          motivo: 'VENTA',
-        },
-      );
+      const movimiento = await factory.createMovimientoStock(tenant.id, lote.id, producto.id, {
+        tipoMovimiento: 'SALIDA',
+        cantidad: 25,
+        motivo: 'VENTA',
+      });
 
       expect(movimiento.tipoMovimiento).toBe('SALIDA');
       expect(movimiento.cantidad.toNumber()).toBe(25);

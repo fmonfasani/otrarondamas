@@ -35,7 +35,9 @@ export class AnalyticsDashboardService {
     });
 
     // Get previous period data for comparison
-    const previousPeriodDays = Math.ceil((dateRange.gt.getTime() - dateRange.gte.getTime()) / (1000 * 60 * 60 * 24));
+    const previousPeriodDays = Math.ceil(
+      (dateRange.gt.getTime() - dateRange.gte.getTime()) / (1000 * 60 * 60 * 24),
+    );
     const previousStart = new Date(dateRange.gte);
     previousStart.setDate(previousStart.getDate() - previousPeriodDays);
     const previousEnd = new Date(dateRange.gte);
@@ -57,13 +59,10 @@ export class AnalyticsDashboardService {
     });
 
     // Get distinct customers
-    const currentCustomers = new Set(
-      currentVentas.map((v) => v.clienteId).filter(Boolean),
-    );
+    const currentCustomers = new Set(currentVentas.map((v) => v.clienteId).filter(Boolean));
 
-    const previousCustomersCount = new Set(
-      previousVentas.map((v) => v.clienteId).filter(Boolean),
-    ).size;
+    const previousCustomersCount = new Set(previousVentas.map((v) => v.clienteId).filter(Boolean))
+      .size;
 
     // Get product count
     const totalProducts = await this.prisma.producto.count({
@@ -75,26 +74,27 @@ export class AnalyticsDashboardService {
     });
 
     // Calculate metrics
-    const currentRevenue = currentVentas.reduce((sum, v) => sum + Number(v.total), 0) +
+    const currentRevenue =
+      currentVentas.reduce((sum, v) => sum + Number(v.total), 0) +
       currentPedidos.reduce((sum, p) => sum + Number(p.total), 0);
 
-    const previousRevenue = previousVentas.reduce((sum, v) => sum + Number(v.total), 0) +
+    const previousRevenue =
+      previousVentas.reduce((sum, v) => sum + Number(v.total), 0) +
       previousPedidos.reduce((sum, p) => sum + Number(p.total), 0);
 
     const currentOrders = currentVentas.length + currentPedidos.length;
     const previousOrders = previousVentas.length + previousPedidos.length;
 
-    const revenueChange = previousRevenue > 0
-      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
-      : 0;
+    const revenueChange =
+      previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
-    const ordersChange = previousOrders > 0
-      ? ((currentOrders - previousOrders) / previousOrders) * 100
-      : 0;
+    const ordersChange =
+      previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders) * 100 : 0;
 
-    const customersChange = previousCustomersCount > 0
-      ? ((currentCustomers.size - previousCustomersCount) / previousCustomersCount) * 100
-      : 0;
+    const customersChange =
+      previousCustomersCount > 0
+        ? ((currentCustomers.size - previousCustomersCount) / previousCustomersCount) * 100
+        : 0;
 
     return {
       period,
@@ -126,7 +126,11 @@ export class AnalyticsDashboardService {
     };
   }
 
-  async getTrendChart(businessId: string, metric: 'revenue' | 'orders', period: string = '30d'): Promise<TrendChartDto> {
+  async getTrendChart(
+    businessId: string,
+    metric: 'revenue' | 'orders',
+    period: string = '30d',
+  ): Promise<TrendChartDto> {
     const dateRange = this.getDateRangeFromPeriod(period);
 
     const ventas = await this.prisma.venta.findMany({
@@ -161,7 +165,11 @@ export class AnalyticsDashboardService {
 
     // Fill gaps with zero
     const data = [];
-    for (let i = 0; i <= Math.ceil((dateRange.gt.getTime() - dateRange.gte.getTime()) / (1000 * 60 * 60 * 24)); i++) {
+    for (
+      let i = 0;
+      i <= Math.ceil((dateRange.gt.getTime() - dateRange.gte.getTime()) / (1000 * 60 * 60 * 24));
+      i++
+    ) {
       const date = new Date(dateRange.gte);
       date.setDate(date.getDate() + i);
       const dateKey = date.toISOString().split('T')[0];
@@ -182,7 +190,11 @@ export class AnalyticsDashboardService {
     };
   }
 
-  async getTopProducts(businessId: string, limit: number = 10, metric: 'revenue' | 'quantity' = 'revenue'): Promise<TopProductsDto> {
+  async getTopProducts(
+    businessId: string,
+    limit: number = 10,
+    metric: 'revenue' | 'quantity' = 'revenue',
+  ): Promise<TopProductsDto> {
     const period = '30d';
     const dateRange = this.getDateRangeFromPeriod(period);
 
@@ -219,7 +231,8 @@ export class AnalyticsDashboardService {
           quantity: 0,
         };
       }
-      productMap[item.productoId].revenue += Number(item.precioUnitario || 0) * Number(item.cantidad || 0);
+      productMap[item.productoId].revenue +=
+        Number(item.precioUnitario || 0) * Number(item.cantidad || 0);
       productMap[item.productoId].quantity += Number(item.cantidad || 0);
     }
 
@@ -231,7 +244,8 @@ export class AnalyticsDashboardService {
           quantity: 0,
         };
       }
-      productMap[item.productoId].revenue += Number(item.precioUnitario || 0) * Number(item.cantidad || 0);
+      productMap[item.productoId].revenue +=
+        Number(item.precioUnitario || 0) * Number(item.cantidad || 0);
       productMap[item.productoId].quantity += Number(item.cantidad || 0);
     }
 
@@ -261,7 +275,10 @@ export class AnalyticsDashboardService {
     };
   }
 
-  async getChannelBreakdown(businessId: string, period: string = '30d'): Promise<ChannelBreakdownResponseDto> {
+  async getChannelBreakdown(
+    businessId: string,
+    period: string = '30d',
+  ): Promise<ChannelBreakdownResponseDto> {
     const dateRange = this.getDateRangeFromPeriod(period);
 
     // Online sales (Pedido)
@@ -313,7 +330,10 @@ export class AnalyticsDashboardService {
     };
   }
 
-  async getGeographicBreakdown(businessId: string, period: string = '30d'): Promise<GeographicBreakdownResponseDto> {
+  async getGeographicBreakdown(
+    businessId: string,
+    period: string = '30d',
+  ): Promise<GeographicBreakdownResponseDto> {
     const dateRange = this.getDateRangeFromPeriod(period);
 
     // Aggregate sales by customer location

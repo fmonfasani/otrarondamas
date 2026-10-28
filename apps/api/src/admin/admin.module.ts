@@ -7,15 +7,8 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [PrismaModule, AuditModule],
-  controllers: [
-    DashboardController,
-    AuditAdminController,
-  ],
-  providers: [
-    AnalyticsDashboardService,
-  ],
-  exports: [
-    AnalyticsDashboardService,
-  ],
+  controllers: [DashboardController, AuditAdminController],
+  providers: [AnalyticsDashboardService],
+  exports: [AnalyticsDashboardService],
 })
 export class AdminModule {}

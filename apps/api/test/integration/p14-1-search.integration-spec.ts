@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
 import { SearchService } from '../../src/search/search.service';
 import { SearchController } from '../../src/search/search.controller';
 import { ElasticsearchClient } from '../../src/search/elasticsearch.client';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { SearchProductsQueryDto, SearchOrdersQueryDto } from '../../src/search/dto/search-query.dto';
+import {
+  SearchProductsQueryDto,
+  SearchOrdersQueryDto,
+} from '../../src/search/dto/search-query.dto';
 
 /**
  * P14-1: Full-Text Search Integration Tests
@@ -18,7 +20,6 @@ import { SearchProductsQueryDto, SearchOrdersQueryDto } from '../../src/search/d
 describe('P14-1: Full-Text Search', () => {
   let app: INestApplication;
   let searchService: SearchService;
-  let esClient: ElasticsearchClient;
   let prisma: PrismaService;
   let mockEsClient: any;
   let empresaId: string;
@@ -362,7 +363,7 @@ describe('P14-1: Full-Text Search', () => {
                 numero: 12345,
                 clienteNombre: 'Juan Perez',
                 estado: 'completado',
-                total: 500.00,
+                total: 500.0,
                 fecha: '2026-10-20',
               },
             },
@@ -395,7 +396,7 @@ describe('P14-1: Full-Text Search', () => {
                 numero: 67890,
                 clienteNombre: 'Maria Garcia',
                 estado: 'pendiente',
-                total: 250.00,
+                total: 250.0,
                 fecha: '2026-10-21',
               },
             },
@@ -535,11 +536,9 @@ describe('P14-1: Full-Text Search', () => {
 
   describe('Multi-tenant Isolation', () => {
     let empresaA: string;
-    let empresaB: string;
 
     beforeAll(() => {
       empresaA = `test-empresa-a-${Date.now()}`;
-      empresaB = `test-empresa-b-${Date.now()}`;
     });
 
     it('should not return products from other empresas', async () => {
@@ -702,10 +701,7 @@ describe('P14-1: Full-Text Search', () => {
       await searchService.rebuildProductIndex(empresaId);
 
       expect(mockEsClient.deleteIndex).toHaveBeenCalledWith('products');
-      expect(mockEsClient.createIndex).toHaveBeenCalledWith(
-        'products',
-        expect.any(Object),
-      );
+      expect(mockEsClient.createIndex).toHaveBeenCalledWith('products', expect.any(Object));
       expect(mockEsClient.bulk).toHaveBeenCalled();
     });
   });

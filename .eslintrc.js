@@ -32,8 +32,14 @@ module.exports = {
     'indent': ['error', 2],
     'linebreak-style': ['error', 'unix'],
     'prettier/prettier': ['error', { endOfLine: 'lf' }],
-    'quotes': ['error', 'single'],
+    'quotes': ['error', 'single', { avoidEscape: true }],
     'semi': ['error', 'always'],
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': 'warn',
+    'no-case-declarations': 'warn',
+    'no-empty': 'warn',
+    '@typescript-eslint/no-empty-interface': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'warn',
   },
   settings: {
     react: {

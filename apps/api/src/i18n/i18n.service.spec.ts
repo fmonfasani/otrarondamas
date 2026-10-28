@@ -219,18 +219,12 @@ describe('I18nService', () => {
 
       // Check that English has all Spanish keys
       for (const key of es_keys) {
-        expect(en_keys.has(key)).toBe(
-          true,
-          `Key "${key}" missing in English translations`,
-        );
+        expect(en_keys.has(key)).toBe(true, `Key "${key}" missing in English translations`);
       }
 
       // Check that Portuguese has all Spanish keys
       for (const key of es_keys) {
-        expect(pt_keys.has(key)).toBe(
-          true,
-          `Key "${key}" missing in Portuguese translations`,
-        );
+        expect(pt_keys.has(key)).toBe(true, `Key "${key}" missing in Portuguese translations`);
       }
     });
   });

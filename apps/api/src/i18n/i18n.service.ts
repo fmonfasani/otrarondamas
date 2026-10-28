@@ -59,10 +59,7 @@ export class I18nService implements OnModuleInit {
           const content = fs.readFileSync(filePath, 'utf-8');
           this.translations[locale.code] = JSON.parse(content);
         } catch (error) {
-          console.error(
-            `Error loading translations for locale ${locale.code}:`,
-            error,
-          );
+          console.error(`Error loading translations for locale ${locale.code}:`, error);
           // Initialize empty object if file fails to load
           this.translations[locale.code] = {};
         }
@@ -84,19 +81,12 @@ export class I18nService implements OnModuleInit {
    * @param params - Object with parameters for interpolation
    * @returns Translated string, or key if not found
    */
-  translate(
-    key: string,
-    locale: string = this.defaultLocale,
-    params?: TranslationParams,
-  ): string {
+  translate(key: string, locale: string = this.defaultLocale, params?: TranslationParams): string {
     // Validate locale
     const validLocale = this.isValidLocale(locale) ? locale : this.defaultLocale;
 
     // Get nested translation value using dot notation
-    const value = this.getNestedValue(
-      this.translations[validLocale],
-      key,
-    );
+    const value = this.getNestedValue(this.translations[validLocale], key);
 
     if (!value) {
       // Return key if translation not found (fallback)
@@ -229,9 +219,7 @@ export class I18nService implements OnModuleInit {
         }
 
         // Try regional variant (e.g., 'pt' -> 'pt-br')
-        const regional = this.supportedLocales.find((l) =>
-          l.code.startsWith(lang.code),
-        );
+        const regional = this.supportedLocales.find((l) => l.code.startsWith(lang.code));
         if (regional) {
           return regional.code;
         }

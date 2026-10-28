@@ -1,18 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth, Empresa } from './AuthContext';
+import { useAuth } from './AuthContext';
 import { useTranslations } from 'next-intl';
 
-interface BusinessSelectorProps {
-  currentEmpresa: Empresa;
-  empresas: Empresa[];
-}
-
-const BusinessSelector: React.FC<BusinessSelectorProps> = ({
-  currentEmpresa,
-}) => {
-  const { empresas, switchEmpresa, isLoading } = useAuth();
+const BusinessSelector: React.FC = () => {
+  const { empresa, empresas, switchEmpresa, isLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations();
 
@@ -25,6 +18,10 @@ const BusinessSelector: React.FC<BusinessSelectorProps> = ({
     }
   };
 
+  if (!empresa) {
+    return null;
+  }
+
   return (
     <div className="relative">
       <button
@@ -32,7 +29,7 @@ const BusinessSelector: React.FC<BusinessSelectorProps> = ({
         className="px-4 py-2 rounded bg-[#D97757] text-white hover:bg-[#C86543] transition-colors flex items-center gap-2"
         disabled={isLoading}
       >
-        <span className="text-sm">{currentEmpresa.nombre}</span>
+        <span className="text-sm">{empresa.nombre}</span>
         <svg
           className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
@@ -70,7 +67,7 @@ const BusinessSelector: React.FC<BusinessSelectorProps> = ({
                       <div className="font-medium text-sm">{emp.nombre}</div>
                       <div className="text-xs text-gray-500">{emp.plan}</div>
                     </div>
-                    {emp.id === currentEmpresa.id && (
+                    {emp.id === empresa.id && (
                       <svg
                         className="w-5 h-5 text-[#D97757]"
                         fill="currentColor"
@@ -90,10 +87,7 @@ const BusinessSelector: React.FC<BusinessSelectorProps> = ({
           )}
 
           <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-            <a
-              href="/negocios"
-              className="text-sm text-[#D97757] hover:text-[#C86543] font-medium"
-            >
+            <a href="/negocios" className="text-sm text-[#D97757] hover:text-[#C86543] font-medium">
               {t('businessSelector.manageBusinesses')}
             </a>
           </div>

@@ -120,18 +120,14 @@ describe('P13-1: Internationalization (i18n)', () => {
 
   describe('GET /i18n/translations', () => {
     it('should require locale parameter', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations');
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('required');
     });
 
     it('should return Spanish translations', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=es',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=es');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('auth');
@@ -140,9 +136,7 @@ describe('P13-1: Internationalization (i18n)', () => {
     });
 
     it('should return English translations', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=en',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=en');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('auth');
@@ -150,9 +144,7 @@ describe('P13-1: Internationalization (i18n)', () => {
     });
 
     it('should return Portuguese translations', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=pt-br',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=pt-br');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('auth');
@@ -160,27 +152,21 @@ describe('P13-1: Internationalization (i18n)', () => {
     });
 
     it('should return error for invalid locale', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=invalid',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=invalid');
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('Invalid locale');
     });
 
     it('should include product translations', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=es',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=es');
 
       expect(response.body).toHaveProperty('products');
       expect(response.body.products.not_found).toBe('Producto no encontrado');
     });
 
     it('should include error translations', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translations?locale=en',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translations?locale=en');
 
       expect(response.body).toHaveProperty('errors');
       expect(response.body.errors.server_error).toBe('Internal server error');
@@ -189,9 +175,7 @@ describe('P13-1: Internationalization (i18n)', () => {
 
   describe('GET /i18n/translate', () => {
     it('should require key parameter', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/translate',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/translate');
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('key');
@@ -277,9 +261,7 @@ describe('P13-1: Internationalization (i18n)', () => {
     });
 
     it('should attach locale to request object from ?lang query param', async () => {
-      const response = await request(app.getHttpServer()).get(
-        '/i18n/detect?lang=pt-br',
-      );
+      const response = await request(app.getHttpServer()).get('/i18n/detect?lang=pt-br');
 
       expect(response.status).toBe(200);
       expect(response.body.locale).toBe('pt-br');

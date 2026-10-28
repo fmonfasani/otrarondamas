@@ -28,11 +28,9 @@ export async function POST(request: NextRequest) {
       empresaId: data.empresaId,
       usuario: data.usuario,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Login failed';
     console.error('Login proxy error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Login failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

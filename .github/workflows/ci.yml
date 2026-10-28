@@ -1,0 +1,233 @@
+name: CI/CD Pipeline - Simplified
+
+on:
+  push:
+    branches: [main, refactor/opcion-6]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint and Type Check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint code
+        run: npm run lint
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test -- --run
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage/coverage-final.json
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    needs: [lint, unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Remix
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: remix-build
+          path: apps/wapsell-remix/build
+          retention-days: 1
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    name: E2E Tests
+    needs: build
+    strategy:
+      matrix:
+        browser: [chromium]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wapsell_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: remix-build
+          path: apps/wapsell-remix/build
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start dev server
+        run: npm run dev &
+        working-directory: apps/wapsell-remix
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wapsell_test
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Run Playwright tests (${{ matrix.browser }})
+        run: npx playwright test --project=${{ matrix.browser }}
+        working-directory: apps/wapsell-remix
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: apps/wapsell-remix/playwright-report/
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --production || true
+
+      - name: Check for secrets
+        uses: gitleaks/gitleaks-action@v2
+        if: always()
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to VPS
+    needs: [build, e2e-tests, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://wapsell.com
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: remix-build
+          path: apps/wapsell-remix/build
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        if: ${{ secrets.VPS_HOST != '' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            cd /opt/wapsell
+            git pull origin main
+            npm ci
+            npm run build
+            pm2 restart wapsell-remix || pm2 start npm --name wapsell-remix -- run start
+            pm2 save
+
+      - name: Verify deployment
+        run: |
+          RETRIES=5
+          while [ $RETRIES -gt 0 ]; do
+            HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' https://wapsell.com)
+            if [ $HTTP_CODE -eq 200 ]; then
+              echo "Deployment successful"
+              exit 0
+            fi
+            RETRIES=$((RETRIES - 1))
+            sleep 10
+          done
+          echo "Deployment verification failed"
+          exit 1
+        if: ${{ secrets.VPS_HOST != '' }}
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1.24.0
+        if: always()
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Wapsell ${{ job.status == 'success' && 'deployment successful' || 'deployment failed' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Wapsell Deployment* - ${{ job.status }}\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
