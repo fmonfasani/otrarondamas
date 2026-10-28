@@ -48,7 +48,7 @@ export default function DashboardTrends({
         const res = await fetch(`/api/dashboard/trends?metric=${metric}&period=${period}`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${jwt}`,
+            Authorization: `Bearer ${jwt}`,
             'Content-Type': 'application/json',
           },
         });
@@ -72,7 +72,9 @@ export default function DashboardTrends({
   }, [empresaId, period, metric]);
 
   if (!empresaId) {
-    return <div className="text-center text-gray-600">Selecciona una empresa para ver tendencias</div>;
+    return (
+      <div className="text-center text-gray-600">Selecciona una empresa para ver tendencias</div>
+    );
   }
 
   if (loading) {
@@ -145,8 +147,14 @@ export default function DashboardTrends({
         {/* X-axis labels */}
         <div className="flex justify-between text-xs text-gray-500">
           <span>{new Date(trends.data[0].date).toLocaleDateString('es-AR')}</span>
-          <span>{new Date(trends.data[Math.floor(trends.data.length / 2)].date).toLocaleDateString('es-AR')}</span>
-          <span>{new Date(trends.data[trends.data.length - 1].date).toLocaleDateString('es-AR')}</span>
+          <span>
+            {new Date(trends.data[Math.floor(trends.data.length / 2)].date).toLocaleDateString(
+              'es-AR',
+            )}
+          </span>
+          <span>
+            {new Date(trends.data[trends.data.length - 1].date).toLocaleDateString('es-AR')}
+          </span>
         </div>
       </div>
 
@@ -164,10 +172,16 @@ export default function DashboardTrends({
         </div>
         <div>
           <p className="text-gray-600 text-sm">Cambio vs Período Anterior</p>
-          <p className={`text-2xl font-bold ${
-            trends.currentValue >= trends.previousValue ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {((trends.currentValue - trends.previousValue) / (trends.previousValue || 1) * 100).toFixed(1)}%
+          <p
+            className={`text-2xl font-bold ${
+              trends.currentValue >= trends.previousValue ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {(
+              ((trends.currentValue - trends.previousValue) / (trends.previousValue || 1)) *
+              100
+            ).toFixed(1)}
+            %
           </p>
         </div>
       </div>

@@ -25,7 +25,6 @@ export const test = (name: string, fn: () => void) => {
 
 // Test Suite
 describe('Phase 1: Auth + Business Context', () => {
-
   test('AuthContext initializes correctly', () => {
     // Verificar que AuthContext puede ser importado sin errores
     const authModule = require('@/components/AuthContext');

@@ -3,10 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useLocale } from './AuthContext';
 import Logo from './Logo';
 
 export default function LandingFooter() {
   const t = useTranslations();
+  const locale = useLocale();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -18,29 +20,25 @@ export default function LandingFooter() {
             {/* Brand Column */}
             <div className="col-span-1">
               <Logo size="sm" showText={true} />
-              <p className="mt-4 text-sm text-gray-400">
-                {t('footer.tagline')}
-              </p>
+              <p className="mt-4 text-sm text-gray-400">{t('footer.tagline')}</p>
             </div>
 
             {/* Product Column */}
             <div>
-              <h4 className="font-semibold text-white mb-4">
-                {t('footer.product')}
-              </h4>
+              <h4 className="font-semibold text-white mb-4">{t('footer.product')}</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.features')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.pricing')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.security')}
                   </Link>
                 </li>
@@ -49,22 +47,20 @@ export default function LandingFooter() {
 
             {/* Company Column */}
             <div>
-              <h4 className="font-semibold text-white mb-4">
-                {t('footer.company')}
-              </h4>
+              <h4 className="font-semibold text-white mb-4">{t('footer.company')}</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.about')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.blog')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.careers')}
                   </Link>
                 </li>
@@ -73,22 +69,20 @@ export default function LandingFooter() {
 
             {/* Legal Column */}
             <div>
-              <h4 className="font-semibold text-white mb-4">
-                {t('footer.legal')}
-              </h4>
+              <h4 className="font-semibold text-white mb-4">{t('footer.legal')}</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.privacy')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.terms')}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/" className="hover:text-[#D97757] transition-colors">
+                  <Link href={`/${locale}/`} className="hover:text-[#D97757] transition-colors">
                     {t('footer.contact')}
                   </Link>
                 </li>

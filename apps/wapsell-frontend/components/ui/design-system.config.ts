@@ -72,11 +72,11 @@ export const TYPOGRAPHY = {
 export const SPACING = {
   // Base unit: 4px
   unit: 4,
-  xs: '2px',   // 0.5 unit
-  sm: '8px',   // 2 units
-  md: '12px',  // 3 units
-  lg: '16px',  // 4 units
-  xl: '24px',  // 6 units
+  xs: '2px', // 0.5 unit
+  sm: '8px', // 2 units
+  md: '12px', // 3 units
+  lg: '16px', // 4 units
+  xl: '24px', // 6 units
   '2xl': '32px', // 8 units
   '3xl': '48px', // 12 units
 } as const;
@@ -139,7 +139,8 @@ export const COMPONENT_STYLES = {
       secondary: 'bg-[#F3F1ED] hover:bg-[#E8E5E0] active:bg-[#D4D0C8] text-[#1A1815]',
       danger: 'bg-[#DC2626] hover:bg-[#B91C1C] active:bg-[#991B1B] text-white',
       ghost: 'bg-transparent hover:bg-[#F3F1ED] active:bg-[#E8E5E0] text-[#1A1815]',
-      outline: 'border-2 border-[#D97757] bg-transparent hover:bg-[#FFF5F2] active:bg-[#FFE5DC] text-[#D97757]',
+      outline:
+        'border-2 border-[#D97757] bg-transparent hover:bg-[#FFF5F2] active:bg-[#FFE5DC] text-[#D97757]',
     },
   },
 
@@ -287,16 +288,21 @@ export function getComponentClasses(
   const styles = COMPONENT_STYLES[component];
   if (!styles) return {};
 
+  const styledComponent = styles as {
+    base?: string;
+    variants?: Record<string, string>;
+    sizes?: Record<string, string>;
+  };
   const result: Record<string, string> = {
-    base: (styles as any).base || '',
+    base: styledComponent.base || '',
   };
 
-  if (variant && (styles as any).variants?.[variant]) {
-    result.variant = (styles as any).variants[variant];
+  if (variant && styledComponent.variants?.[variant]) {
+    result.variant = styledComponent.variants[variant];
   }
 
-  if (size && (styles as any).sizes?.[size]) {
-    result.size = (styles as any).sizes[size];
+  if (size && styledComponent.sizes?.[size]) {
+    result.size = styledComponent.sizes[size];
   }
 
   return result;

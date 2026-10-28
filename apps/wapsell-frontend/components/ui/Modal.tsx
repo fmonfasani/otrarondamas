@@ -65,12 +65,7 @@ const Modal: React.FC<ModalProps> = ({
               className="text-[#999999] hover:text-[#1A1815] transition-colors"
               aria-label="Close modal"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -86,11 +81,7 @@ const Modal: React.FC<ModalProps> = ({
         <div className="p-6">{children}</div>
 
         {/* Footer */}
-        {footer && (
-          <div className="border-t border-[#E8E5E0] p-6 bg-[#FAF9F5]">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="border-t border-[#E8E5E0] p-6 bg-[#FAF9F5]">{footer}</div>}
       </div>
     </div>
   );

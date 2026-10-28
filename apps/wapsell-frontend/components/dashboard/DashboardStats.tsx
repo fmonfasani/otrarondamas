@@ -23,7 +23,8 @@ interface StatCardProps {
 
 function StatCard({ title, value, change, icon }: StatCardProps) {
   const isPositive = change !== undefined && change >= 0;
-  const changeColor = change === undefined ? 'text-gray-600' : isPositive ? 'text-green-600' : 'text-red-600';
+  const changeColor =
+    change === undefined ? 'text-gray-600' : isPositive ? 'text-green-600' : 'text-red-600';
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#D97757] hover:shadow-md transition-shadow">
@@ -33,7 +34,8 @@ function StatCard({ title, value, change, icon }: StatCardProps) {
           <p className="text-3xl font-bold text-[#1A1815]">{value}</p>
           {change !== undefined && (
             <p className={`text-sm mt-2 ${changeColor}`}>
-              {isPositive ? '+' : ''}{change.toFixed(1)}% vs período anterior
+              {isPositive ? '+' : ''}
+              {change.toFixed(1)}% vs período anterior
             </p>
           )}
         </div>
@@ -69,7 +71,7 @@ export default function DashboardStats({ period = '30d' }: { period?: string }) 
         const res = await fetch(`/api/dashboard/kpis?period=${period}`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${jwt}`,
+            Authorization: `Bearer ${jwt}`,
             'Content-Type': 'application/json',
           },
         });
@@ -93,7 +95,9 @@ export default function DashboardStats({ period = '30d' }: { period?: string }) 
   }, [empresaId, period]);
 
   if (!empresaId) {
-    return <div className="text-center text-gray-600">Selecciona una empresa para ver estadísticas</div>;
+    return (
+      <div className="text-center text-gray-600">Selecciona una empresa para ver estadísticas</div>
+    );
   }
 
   if (loading) {
@@ -141,23 +145,14 @@ export default function DashboardStats({ period = '30d' }: { period?: string }) 
         change={stats.revenueChange}
         icon="💰"
       />
-      <StatCard
-        title="Pedidos"
-        value={stats.totalOrders}
-        change={stats.ordersChange}
-        icon="📦"
-      />
+      <StatCard title="Pedidos" value={stats.totalOrders} change={stats.ordersChange} icon="📦" />
       <StatCard
         title="Clientes"
         value={stats.totalCustomers}
         change={stats.customersChange}
         icon="👥"
       />
-      <StatCard
-        title="Productos Activos"
-        value={stats.activeProducts}
-        icon="🛍️"
-      />
+      <StatCard title="Productos Activos" value={stats.activeProducts} icon="🛍️" />
     </div>
   );
 }

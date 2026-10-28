@@ -8,11 +8,7 @@ interface LogoProps {
   showText?: boolean;
 }
 
-export default function Logo({
-  size = 'md',
-  className = '',
-  showText = true
-}: LogoProps) {
+export default function Logo({ size = 'md', className = '', showText = true }: LogoProps) {
   const sizeMap = {
     sm: { width: 24, height: 24, textSize: 'text-lg' },
     md: { width: 32, height: 32, textSize: 'text-2xl' },
@@ -47,11 +43,7 @@ export default function Logo({
         <circle cx="22" cy="8" r="2.5" fill="#D97757" />
       </svg>
 
-      {showText && (
-        <span className={`font-bold text-[#D97757] ${textSize}`}>
-          Wapsell
-        </span>
-      )}
+      {showText && <span className={`font-bold text-[#D97757] ${textSize}`}>Wapsell</span>}
     </div>
   );
 }

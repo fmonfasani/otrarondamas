@@ -19,12 +19,9 @@ export default function DesignTokenShowcase() {
   return (
     <div className="min-h-screen bg-light-100 p-8">
       <div className="max-w-6xl mx-auto space-y-12">
-
         {/* HEADER */}
         <section className="space-y-4">
-          <h1 className="text-h1 text-dark-800">
-            Wapsell Design Token Showcase
-          </h1>
+          <h1 className="text-h1 text-dark-800">Wapsell Design Token Showcase</h1>
           <p className="text-body-lg text-dark-700">
             Complete validation of colors, typography, spacing, and components
           </p>
@@ -44,7 +41,7 @@ export default function DesignTokenShowcase() {
                 { name: '200', value: '#FFD4C4' },
                 { name: '300', value: '#FFC0AB' },
                 { name: '400', value: '#FFAC92' },
-              ].map(color => (
+              ].map((color) => (
                 <div key={color.name} className="space-y-2">
                   <div
                     className="w-full aspect-square rounded-lg shadow-base"
@@ -60,7 +57,7 @@ export default function DesignTokenShowcase() {
                 { name: '600', value: '#E87D47' },
                 { name: '700', value: '#D97757' },
                 { name: '800', value: '#C26244' },
-              ].map(color => (
+              ].map((color) => (
                 <div key={color.name} className="space-y-2">
                   <div
                     className="w-full aspect-square rounded-lg shadow-base"
@@ -105,17 +102,31 @@ export default function DesignTokenShowcase() {
           <h2 className="text-h2 text-dark-800">Typography Scale</h2>
 
           <div className="space-y-3">
-            <div><h1 className="text-h1">Heading 1 (2.25rem)</h1></div>
-            <div><h2 className="text-h2">Heading 2 (1.875rem)</h2></div>
-            <div><h3 className="text-h3">Heading 3 (1.5rem)</h3></div>
-            <div><h4 className="text-h4">Heading 4 (1.25rem)</h4></div>
-            <div><h5 className="text-h5">Heading 5 (1.125rem)</h5></div>
-            <div><h6 className="text-h6">Heading 6 (1rem)</h6></div>
+            <div>
+              <h1 className="text-h1">Heading 1 (2.25rem)</h1>
+            </div>
+            <div>
+              <h2 className="text-h2">Heading 2 (1.875rem)</h2>
+            </div>
+            <div>
+              <h3 className="text-h3">Heading 3 (1.5rem)</h3>
+            </div>
+            <div>
+              <h4 className="text-h4">Heading 4 (1.25rem)</h4>
+            </div>
+            <div>
+              <h5 className="text-h5">Heading 5 (1.125rem)</h5>
+            </div>
+            <div>
+              <h6 className="text-h6">Heading 6 (1rem)</h6>
+            </div>
           </div>
 
           <div className="space-y-2 border-t border-gray-200 pt-6">
             <p className="text-body-lg text-dark-700">Large body text (1.125rem)</p>
-            <p className="text-body-base text-dark-700">Base body text (1rem) - Default reading size</p>
+            <p className="text-body-base text-dark-700">
+              Base body text (1rem) - Default reading size
+            </p>
             <p className="text-body-sm text-dark-700">Small body text (0.875rem)</p>
             <p className="text-body-xs text-dark-700">Extra small text (0.75rem)</p>
           </div>
@@ -153,7 +164,10 @@ export default function DesignTokenShowcase() {
             {/* Disabled Button */}
             <div className="space-y-2">
               <p className="text-sm font-medium text-dark-700">Disabled Button</p>
-              <button disabled className="px-6 py-3 bg-primary-700 text-white font-medium rounded-lg shadow-primary disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                disabled
+                className="px-6 py-3 bg-primary-700 text-white font-medium rounded-lg shadow-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Disabled Action
               </button>
             </div>
@@ -196,9 +210,7 @@ export default function DesignTokenShowcase() {
                 </span>
               </div>
               <p className="text-body-sm text-dark-700">Total: $32,900</p>
-              <p className="text-body-xs text-dark-600">
-                Created Mar 16, 2026
-              </p>
+              <p className="text-body-xs text-dark-600">Created Mar 16, 2026</p>
             </div>
           </div>
         </section>
@@ -210,9 +222,7 @@ export default function DesignTokenShowcase() {
           <div className="max-w-md space-y-4">
             {/* Input Field */}
             <div className="space-y-2">
-              <label className="text-label-md font-medium text-dark-800">
-                Email Address
-              </label>
+              <label className="text-label-md font-medium text-dark-800">Email Address</label>
               <input
                 type="email"
                 placeholder="Enter your email"
@@ -222,9 +232,7 @@ export default function DesignTokenShowcase() {
 
             {/* Text Area */}
             <div className="space-y-2">
-              <label className="text-label-md font-medium text-dark-800">
-                Message
-              </label>
+              <label className="text-label-md font-medium text-dark-800">Message</label>
               <textarea
                 placeholder="Type your message..."
                 rows={4}
@@ -234,9 +242,7 @@ export default function DesignTokenShowcase() {
 
             {/* Select */}
             <div className="space-y-2">
-              <label className="text-label-md font-medium text-dark-800">
-                Status
-              </label>
+              <label className="text-label-md font-medium text-dark-800">Status</label>
               <select className="w-full px-3 py-2 rounded-md border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-base">
                 <option>Select an option</option>
                 <option>Pending</option>
@@ -253,7 +259,7 @@ export default function DesignTokenShowcase() {
           <h2 className="text-h2 text-dark-800">Spacing Scale (8px baseline)</h2>
 
           <div className="space-y-4">
-            {['p-1', 'p-2', 'p-3', 'p-4', 'p-6', 'p-8', 'p-12'].map(className => (
+            {['p-1', 'p-2', 'p-3', 'p-4', 'p-6', 'p-8', 'p-12'].map((className) => (
               <div key={className}>
                 <p className="text-sm font-medium text-dark-700 mb-2">{className}</p>
                 <div className={`bg-primary-100 border-l-4 border-primary-700 ${className}`}>
@@ -284,8 +290,11 @@ export default function DesignTokenShowcase() {
           <h2 className="text-h2 text-dark-800">Responsive Grid (xs/sm/md/lg)</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="bg-white rounded-lg shadow-base border border-gray-200 p-4 aspect-square flex items-center justify-center">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-lg shadow-base border border-gray-200 p-4 aspect-square flex items-center justify-center"
+              >
                 <p className="font-medium text-dark-700">Item {i}</p>
               </div>
             ))}
@@ -329,8 +338,9 @@ export default function DesignTokenShowcase() {
             ✅ <strong>Configuration Status:</strong> Production Ready
           </p>
           <p className="text-body-xs text-dark-600">
-            This showcase validates all Wapsell design tokens are correctly implemented in Tailwind CSS.
-            All colors, typography, spacing, and components are production-ready for immediate use.
+            This showcase validates all Wapsell design tokens are correctly implemented in Tailwind
+            CSS. All colors, typography, spacing, and components are production-ready for immediate
+            use.
           </p>
         </section>
       </div>

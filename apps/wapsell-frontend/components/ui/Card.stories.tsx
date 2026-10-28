@@ -58,7 +58,9 @@ export const WithFooter: Story = {
       </CardBody>
       <CardFooter>
         <div className="flex gap-2 justify-end">
-          <Button variant="secondary" size="sm">Cancel</Button>
+          <Button variant="secondary" size="sm">
+            Cancel
+          </Button>
           <Button size="sm">Save</Button>
         </div>
       </CardFooter>

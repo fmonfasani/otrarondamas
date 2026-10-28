@@ -47,9 +47,7 @@ const Footer: React.FC<FooterProps> = ({
             {sections.map((section, index) => (
               <div key={index}>
                 {section.title && (
-                  <h3 className="font-bold text-lg mb-4 text-[#D97757]">
-                    {section.title}
-                  </h3>
+                  <h3 className="font-bold text-lg mb-4 text-[#D97757]">{section.title}</h3>
                 )}
                 <ul className="space-y-2">
                   {section.links.map((link) => (

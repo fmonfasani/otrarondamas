@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useLocale } from './AuthContext';
 
 interface CTASectionProps {
   isAuthenticated: boolean;
@@ -10,6 +11,7 @@ interface CTASectionProps {
 
 export default function CTASection({ isAuthenticated }: CTASectionProps) {
   const t = useTranslations();
+  const locale = useLocale();
 
   if (isAuthenticated) {
     return null;
@@ -26,20 +28,18 @@ export default function CTASection({ isAuthenticated }: CTASectionProps) {
           <h2 className="text-4xl sm:text-5xl font-bold text-[#141413] mb-6">
             {t('home.cta.title')}
           </h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            {t('home.cta.subtitle')}
-          </p>
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">{t('home.cta.subtitle')}</p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/auth/signup"
+              href={`/${locale}/auth/signup`}
               className="px-8 py-4 bg-[#D97757] text-white rounded-lg font-semibold hover:bg-[#C86543] transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               {t('home.cta.getStarted')}
             </Link>
             <Link
-              href="/auth/login"
+              href={`/${locale}/auth/login`}
               className="px-8 py-4 border-2 border-[#D97757] text-[#D97757] rounded-lg font-semibold hover:bg-[#D97757] hover:text-white transition-all duration-200"
             >
               {t('home.cta.signIn')}
@@ -48,9 +48,7 @@ export default function CTASection({ isAuthenticated }: CTASectionProps) {
 
           {/* Trust indicators */}
           <div className="mt-12 pt-12 border-t border-gray-200">
-            <p className="text-sm text-gray-500 mb-6">
-              {t('home.cta.joinCommunity')}
-            </p>
+            <p className="text-sm text-gray-500 mb-6">{t('home.cta.joinCommunity')}</p>
             <div className="flex justify-center gap-8 flex-wrap">
               <div className="text-center">
                 <p className="text-2xl font-bold text-[#D97757]">500+</p>

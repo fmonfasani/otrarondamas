@@ -1813,3 +1813,23 @@ model Refund {
   @@index([paymentId])
 }
 
+// B2 Kafka Event Logging — Audit trail for all domain events consumed from Kafka
+// Enables: event replay, debugging, compliance auditing, multi-tenant isolation verification
+model KafkaEventLog {
+  id            String   @id @default(uuid())
+  businessId    String   // FK to Business for multi-tenant isolation
+  eventType     String   // 'order.created', 'order.updated', 'payment.completed', 'catalog.updated'
+  eventId       String   // Unique event ID from Kafka (enables idempotency)
+  topic         String   // Kafka topic name
+  status        String   // 'received' | 'processed' | 'failed'
+  payload       Json     // Full event payload for debugging and replay
+  error         String?  // Error message if status == 'failed'
+  processedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@unique([eventId, businessId]) // Idempotency: same event twice goes once
+  @@index([businessId, createdAt])
+  @@index([businessId, eventType])
+  @@index([status])
+}
+

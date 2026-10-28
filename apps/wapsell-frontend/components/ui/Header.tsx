@@ -53,12 +53,8 @@ export const HeaderContent: React.FC<HeaderContentProps> = ({
     <div className="flex items-center gap-4">
       {leading && <div>{leading}</div>}
       <div className="flex-1">
-        {title && (
-          <h1 className="text-2xl font-bold text-[#1A1815]">{title}</h1>
-        )}
-        {subtitle && (
-          <p className="text-sm text-[#666666] mt-1">{subtitle}</p>
-        )}
+        {title && <h1 className="text-2xl font-bold text-[#1A1815]">{title}</h1>}
+        {subtitle && <p className="text-sm text-[#666666] mt-1">{subtitle}</p>}
       </div>
     </div>
     <div className="flex items-center gap-3">

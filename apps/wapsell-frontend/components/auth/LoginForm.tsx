@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/AuthContext';
+import { useAuth, useLocale } from '@/components/AuthContext';
 
 export default function LoginForm() {
   const router = useRouter();
+  const locale = useLocale();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ export default function LoginForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -37,7 +38,7 @@ export default function LoginForm() {
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name } = e.target;
-    setTouched(prev => ({
+    setTouched((prev) => ({
       ...prev,
       [name]: true,
     }));
@@ -78,9 +79,10 @@ export default function LoginForm() {
 
       const data = await response.json();
       await login(data.token, data.empresas, data.empresaId);
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      router.push(`/${locale}/dashboard`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -91,23 +93,15 @@ export default function LoginForm() {
       <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1815] mb-2">
-            Inicia Sesión
-          </h1>
-          <p className="text-base text-gray-600">
-            Accede a tu cuenta Wapsell para continuar
-          </p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1815] mb-2">Inicia Sesión</h1>
+          <p className="text-base text-gray-600">Accede a tu cuenta Wapsell para continuar</p>
         </div>
 
         {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm font-medium animate-in fade-in">
             <div className="flex items-start gap-3">
-              <svg
-                className="w-5 h-5 flex-shrink-0 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -123,10 +117,7 @@ export default function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email Field */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-semibold text-[#1A1815] mb-2"
-            >
+            <label htmlFor="email" className="block text-sm font-semibold text-[#1A1815] mb-2">
               Correo Electrónico
             </label>
             <div className="relative">
@@ -161,23 +152,18 @@ export default function LoginForm() {
               )}
             </div>
             {showEmailError && (
-              <p className="mt-1 text-sm text-red-600">
-                Por favor ingresa un correo válido
-              </p>
+              <p className="mt-1 text-sm text-red-600">Por favor ingresa un correo válido</p>
             )}
           </div>
 
           {/* Password Field */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label
-                htmlFor="password"
-                className="block text-sm font-semibold text-[#1A1815]"
-              >
+              <label htmlFor="password" className="block text-sm font-semibold text-[#1A1815]">
                 Contraseña
               </label>
               <a
-                href="/auth/recover"
+                href={`/${locale}/auth/recover`}
                 className="text-xs text-[#D97757] hover:text-[#C86543] font-medium transition-colors"
               >
                 ¿Olvidaste tu contraseña?
@@ -215,9 +201,7 @@ export default function LoginForm() {
               )}
             </div>
             {showPasswordError && (
-              <p className="mt-1 text-sm text-red-600">
-                La contraseña es requerida
-              </p>
+              <p className="mt-1 text-sm text-red-600">La contraseña es requerida</p>
             )}
           </div>
 
@@ -273,7 +257,7 @@ export default function LoginForm() {
         <p className="text-center text-gray-700 text-sm">
           ¿No tienes cuenta?{' '}
           <a
-            href="/auth/signup"
+            href={`/${locale}/auth/signup`}
             className="text-[#D97757] font-semibold hover:text-[#C86543] transition-colors"
           >
             Regístrate aquí
@@ -284,11 +268,11 @@ export default function LoginForm() {
       {/* Footer Text */}
       <p className="text-center text-xs text-gray-500 mt-6">
         Al iniciar sesión aceptas nuestros{' '}
-        <a href="/terms" className="text-[#D97757] hover:underline">
+        <a href={`/${locale}/terms`} className="text-[#D97757] hover:underline">
           términos de servicio
         </a>{' '}
         y{' '}
-        <a href="/privacy" className="text-[#D97757] hover:underline">
+        <a href={`/${locale}/privacy`} className="text-[#D97757] hover:underline">
           política de privacidad
         </a>
       </p>

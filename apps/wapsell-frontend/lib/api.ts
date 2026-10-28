@@ -4,10 +4,7 @@ interface FetchOptions extends RequestInit {
   includeToken?: boolean;
 }
 
-export async function apiFetch<T>(
-  endpoint: string,
-  options: FetchOptions = {}
-): Promise<T> {
+export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { includeToken = true, ...fetchOptions } = options;
 
   const headers = {
@@ -33,9 +30,11 @@ export async function apiFetch<T>(
   if (!response.ok) {
     if (response.status === 401) {
       // Token expirado o inválido
-      typeof window !== 'undefined' && localStorage.removeItem('jwt');
-      typeof window !== 'undefined' && localStorage.removeItem('empresaId');
-      typeof window !== 'undefined' && window.location.replace('/auth/login');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('jwt');
+        localStorage.removeItem('empresaId');
+        window.location.replace('/auth/login');
+      }
     }
 
     const error = await response.json().catch(() => ({
@@ -50,8 +49,7 @@ export async function apiFetch<T>(
 
 // Empresas API
 export const empresasApi = {
-  getMyEmpresas: () =>
-    apiFetch('/tenants/my-empresas'),
+  getMyEmpresas: () => apiFetch('/tenants/my-empresas'),
 
   createEmpresa: (data: {
     nombre: string;
@@ -66,8 +64,7 @@ export const empresasApi = {
       body: JSON.stringify(data),
     }),
 
-  getEmpresa: (id: string) =>
-    apiFetch(`/tenants/${id}`),
+  getEmpresa: (id: string) => apiFetch(`/tenants/${id}`),
 
   updateEmpresa: (
     id: string,
@@ -78,7 +75,7 @@ export const empresasApi = {
       pais: string;
       sector: string;
       plan: string;
-    }>
+    }>,
   ) =>
     apiFetch(`/tenants/${id}`, {
       method: 'PATCH',

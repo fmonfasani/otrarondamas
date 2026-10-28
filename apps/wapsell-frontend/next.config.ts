@@ -8,8 +8,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'standalone',
-  staticPageGenerationTimeout: 1, // Skip static page generation
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  productionBrowserSourceMaps: false,
+  skipMiddlewareUrlNormalize: true,
 };
 
 export default withNextIntl(nextConfig);

@@ -29,9 +29,7 @@ const Card: React.FC<CardProps> = ({
   padding = 'md',
 }) => {
   return (
-    <div
-      className={`${variantClasses[variant]} ${paddingClasses[padding]} ${className}`}
-    >
+    <div className={`${variantClasses[variant]} ${paddingClasses[padding]} ${className}`}>
       {children}
     </div>
   );
@@ -42,13 +40,8 @@ interface CardHeaderProps {
   className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({
-  children,
-  className = '',
-}) => (
-  <div className={`border-b border-[#E8E5E0] pb-3 mb-3 ${className}`}>
-    {children}
-  </div>
+export const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => (
+  <div className={`border-b border-[#E8E5E0] pb-3 mb-3 ${className}`}>{children}</div>
 );
 
 interface CardBodyProps {
@@ -56,23 +49,17 @@ interface CardBodyProps {
   className?: string;
 }
 
-export const CardBody: React.FC<CardBodyProps> = ({
-  children,
-  className = '',
-}) => <div className={className}>{children}</div>;
+export const CardBody: React.FC<CardBodyProps> = ({ children, className = '' }) => (
+  <div className={className}>{children}</div>
+);
 
 interface CardFooterProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export const CardFooter: React.FC<CardFooterProps> = ({
-  children,
-  className = '',
-}) => (
-  <div className={`border-t border-[#E8E5E0] pt-3 mt-3 ${className}`}>
-    {children}
-  </div>
+export const CardFooter: React.FC<CardFooterProps> = ({ children, className = '' }) => (
+  <div className={`border-t border-[#E8E5E0] pt-3 mt-3 ${className}`}>{children}</div>
 );
 
 export default Card;

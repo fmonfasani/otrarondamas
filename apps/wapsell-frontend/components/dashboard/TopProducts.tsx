@@ -49,7 +49,7 @@ export default function TopProducts({
         const res = await fetch(`/api/dashboard/top-products?limit=${limit}&metric=${metric}`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${jwt}`,
+            Authorization: `Bearer ${jwt}`,
             'Content-Type': 'application/json',
           },
         });
@@ -73,7 +73,9 @@ export default function TopProducts({
   }, [empresaId, limit, metric]);
 
   if (!empresaId) {
-    return <div className="text-center text-gray-600">Selecciona una empresa para ver productos</div>;
+    return (
+      <div className="text-center text-gray-600">Selecciona una empresa para ver productos</div>
+    );
   }
 
   if (loading) {
@@ -118,7 +120,9 @@ export default function TopProducts({
     return value.toString();
   };
 
-  const maxValue = Math.max(...products.products.map((p) => metric === 'revenue' ? (p.revenue || 0) : (p.quantity || 0)));
+  const maxValue = Math.max(
+    ...products.products.map((p) => (metric === 'revenue' ? p.revenue || 0 : p.quantity || 0)),
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">

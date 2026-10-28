@@ -172,6 +172,64 @@
     "loading": "Cargando...",
     "saving": "Guardando...",
     "deleting": "Eliminando...",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "name": "Nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "stock": "Stock",
+    "outOfStock": "Sin stock",
+    "search": "Búsqueda",
+    "all": "Todos",
+    "remove": "Remover",
+    "removing": "Removiendo...",
+    "added": "Agregado",
+    "adding": "Agregando...",
+    "back": "Volver",
+    "backHome": "Volver al inicio"
+  },
+  "productos": {
+    "title": "Productos",
+    "subtitle": "Explora nuestro catálogo de productos",
+    "empty": "No hay productos disponibles",
+    "emptyAction": "Intenta con otros filtros",
+    "searchPlaceholder": "Buscar productos...",
+    "family": "Familia de Productos",
+    "addToCart": "Agregar al Carrito"
+  },
+  "carrito": {
+    "title": "Mi Carrito",
+    "subtitle": "Revisa y confirma tus productos",
+    "empty": "Tu carrito está vacío",
+    "emptyAction": "Ir a productos",
+    "quantity": "Cantidad",
+    "summary": "Resumen",
+    "subtotal": "Subtotal",
+    "tax": "IVA",
+    "total": "Total",
+    "checkout": "Continuar a Checkout",
+    "notes": "Notas adicionales",
+    "notesPlaceholder": "Ingresa notas para tu pedido (opcional)",
+    "orderSummary": "Resumen del Pedido",
+    "processing": "Procesando...",
+    "confirmOrder": "Confirmar Pedido"
+  },
+  "misPedidos": {
+    "title": "Mis Pedidos",
+    "subtitle": "Visualiza y gestiona tus pedidos",
+    "empty": "No tienes pedidos aún",
+    "emptyAction": "Ir a productos",
+    "orderNumber": "Pedido",
+    "status": {
+      "pending": "Pendiente",
+      "pendiente": "Pendiente",
+      "confirmed": "Confirmado",
+      "confirmado": "Confirmado",
+      "shipped": "Enviado",
+      "enviado": "Enviado",
+      "delivered": "Entregado",
+      "entregado": "Entregado",
+      "cancelled": "Cancelado",
+      "cancelado": "Cancelado"
+    }
   }
 }

@@ -87,41 +87,13 @@ export const FullWidth: Story = {
 export const AllTypes: Story = {
   render: () => (
     <div className="flex flex-col gap-4 w-full max-w-md">
-      <Input
-        label="Text"
-        type="text"
-        placeholder="Text input"
-      />
-      <Input
-        label="Email"
-        type="email"
-        placeholder="email@example.com"
-      />
-      <Input
-        label="Password"
-        type="password"
-        placeholder="••••••••"
-      />
-      <Input
-        label="Number"
-        type="number"
-        placeholder="123"
-      />
-      <Input
-        label="Search"
-        type="search"
-        placeholder="Search..."
-      />
-      <Input
-        label="Phone"
-        type="tel"
-        placeholder="(123) 456-7890"
-      />
-      <Input
-        label="URL"
-        type="url"
-        placeholder="https://example.com"
-      />
+      <Input label="Text" type="text" placeholder="Text input" />
+      <Input label="Email" type="email" placeholder="email@example.com" />
+      <Input label="Password" type="password" placeholder="••••••••" />
+      <Input label="Number" type="number" placeholder="123" />
+      <Input label="Search" type="search" placeholder="Search..." />
+      <Input label="Phone" type="tel" placeholder="(123) 456-7890" />
+      <Input label="URL" type="url" placeholder="https://example.com" />
     </div>
   ),
 };

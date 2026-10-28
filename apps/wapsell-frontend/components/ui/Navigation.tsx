@@ -30,8 +30,7 @@ const Navigation: React.FC<NavigationProps> = ({
       item: 'px-3 py-2 rounded hover:bg-[#F3F1ED] data-[active]:text-[#D97757]',
     },
     pills: {
-      container:
-        orientation === 'horizontal' ? 'flex gap-2' : 'flex flex-col gap-2',
+      container: orientation === 'horizontal' ? 'flex gap-2' : 'flex flex-col gap-2',
       item: 'px-4 py-2 rounded-full hover:bg-[#F3F1ED] data-[active]:bg-[#D97757] data-[active]:text-white',
     },
     underline: {
@@ -57,9 +56,7 @@ const Navigation: React.FC<NavigationProps> = ({
           data-active={item.active ? true : undefined}
         >
           <span className="flex items-center gap-2">
-            {item.icon && (
-              <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>
-            )}
+            {item.icon && <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>}
             <span>{item.label}</span>
           </span>
         </Link>

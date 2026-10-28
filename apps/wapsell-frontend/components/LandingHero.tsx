@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useLocale } from './AuthContext';
 import Logo from './Logo';
 
 interface LandingHeroProps {
@@ -11,6 +12,7 @@ interface LandingHeroProps {
 
 export default function LandingHero({ isAuthenticated }: LandingHeroProps) {
   const t = useTranslations();
+  const locale = useLocale();
 
   return (
     <section className="relative px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 lg:pt-32 pb-16 sm:pb-24">
@@ -38,13 +40,13 @@ export default function LandingHero({ isAuthenticated }: LandingHeroProps) {
               {isAuthenticated ? (
                 <>
                   <Link
-                    href="/dashboard"
+                    href={`/${locale}/dashboard`}
                     className="px-8 py-4 bg-[#D97757] text-white rounded-lg font-semibold hover:bg-[#C86543] transition-all duration-200 transform hover:scale-105 text-center shadow-md hover:shadow-lg"
                   >
                     {t('home.cta.dashboard')}
                   </Link>
                   <Link
-                    href="/negocios"
+                    href={`/${locale}/negocios`}
                     className="px-8 py-4 border-2 border-[#D97757] text-[#D97757] rounded-lg font-semibold hover:bg-[#D97757] hover:text-white transition-all duration-200 text-center"
                   >
                     {t('home.cta.businesses')}
@@ -53,13 +55,13 @@ export default function LandingHero({ isAuthenticated }: LandingHeroProps) {
               ) : (
                 <>
                   <Link
-                    href="/auth/login"
+                    href={`/${locale}/auth/login`}
                     className="px-8 py-4 bg-[#D97757] text-white rounded-lg font-semibold hover:bg-[#C86543] transition-all duration-200 transform hover:scale-105 text-center shadow-md hover:shadow-lg"
                   >
                     {t('home.cta.signIn')}
                   </Link>
                   <Link
-                    href="/auth/signup"
+                    href={`/${locale}/auth/signup`}
                     className="px-8 py-4 border-2 border-[#D97757] text-[#D97757] rounded-lg font-semibold hover:bg-[#D97757] hover:text-white transition-all duration-200 text-center"
                   >
                     {t('home.cta.signUp')}
@@ -70,9 +72,7 @@ export default function LandingHero({ isAuthenticated }: LandingHeroProps) {
 
             {/* Trust Badge */}
             <div className="mt-12 pt-8 border-t border-gray-200">
-              <p className="text-sm text-gray-500 mb-4">
-                {t('home.trustedBy')}
-              </p>
+              <p className="text-sm text-gray-500 mb-4">{t('home.trustedBy')}</p>
               <div className="flex flex-wrap gap-6 items-center">
                 <div className="text-gray-400 font-semibold">500+</div>
                 <div className="text-gray-400 font-semibold">100+</div>
@@ -107,9 +107,7 @@ export default function LandingHero({ isAuthenticated }: LandingHeroProps) {
                       d="M13 10V3L4 14h7v7l9-11h-7z"
                     />
                   </svg>
-                  <p className="text-2xl font-bold text-center">
-                    {t('home.hero.platform')}
-                  </p>
+                  <p className="text-2xl font-bold text-center">{t('home.hero.platform')}</p>
                 </div>
               </div>
             </div>

@@ -38,9 +38,7 @@ export default function FeaturesGrid() {
           <h2 className="text-4xl sm:text-5xl font-bold text-[#141413] mb-4">
             {t('home.features.title')}
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            {t('home.features.subtitle')}
-          </p>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">{t('home.features.subtitle')}</p>
         </div>
 
         {/* Features Grid */}
@@ -56,14 +54,10 @@ export default function FeaturesGrid() {
               </div>
 
               {/* Title */}
-              <h3 className="text-2xl font-semibold text-[#141413] mb-3">
-                {feature.title}
-              </h3>
+              <h3 className="text-2xl font-semibold text-[#141413] mb-3">{feature.title}</h3>
 
               {/* Description */}
-              <p className="text-gray-600 leading-relaxed">
-                {feature.desc}
-              </p>
+              <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
 
               {/* Accent line */}
               <div className="mt-6 h-1 w-12 bg-[#D97757] rounded-full group-hover:w-16 transition-all duration-300"></div>

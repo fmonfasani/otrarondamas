@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './AuthContext';
+import { useAuth, useLocale } from './AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireEmpresa = true }) => {
   const { isAuthenticated, empresaId, isLoading } = useAuth();
+  const locale = useLocale();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,11 +20,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireEmpres
     }
 
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
     } else if (requireEmpresa && !empresaId) {
-      router.push('/negocios');
+      router.push(`/${locale}/negocios`);
     }
-  }, [isAuthenticated, empresaId, isLoading, requireEmpresa, router]);
+  }, [isAuthenticated, empresaId, isLoading, requireEmpresa, router, locale]);
 
   const shouldRender = !isLoading && isAuthenticated && (!requireEmpresa || empresaId);
 

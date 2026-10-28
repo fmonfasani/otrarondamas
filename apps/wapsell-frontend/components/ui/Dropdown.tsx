@@ -37,10 +37,7 @@ const Dropdown: React.FC<DropdownProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         onClose?.();
       }
@@ -48,8 +45,7 @@ const Dropdown: React.FC<DropdownProps> = ({
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () =>
-        document.removeEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen, onClose]);
 
@@ -62,14 +58,8 @@ const Dropdown: React.FC<DropdownProps> = ({
   };
 
   return (
-    <div
-      className="relative inline-block"
-      ref={dropdownRef}
-    >
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="focus:outline-none"
-      >
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button onClick={() => setIsOpen(!isOpen)} className="focus:outline-none">
         {trigger}
       </button>
 

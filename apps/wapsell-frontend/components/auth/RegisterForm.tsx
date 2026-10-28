@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/components/AuthContext';
 
 export default function RegisterForm() {
   const router = useRouter();
+  const locale = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -46,10 +48,11 @@ export default function RegisterForm() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/auth/login');
+        router.push(`/${locale}/auth/login`);
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -75,12 +78,8 @@ export default function RegisterForm() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-[#1A1815] mb-2">
-              ¡Registro exitoso!
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Tu cuenta ha sido creada. Redirigiendo al login...
-            </p>
+            <h2 className="text-2xl font-bold text-[#1A1815] mb-2">¡Registro exitoso!</h2>
+            <p className="text-gray-600 mb-4">Tu cuenta ha sido creada. Redirigiendo al login...</p>
           </div>
         </div>
       </div>
@@ -90,12 +89,8 @@ export default function RegisterForm() {
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-3xl font-bold text-[#1A1815] mb-2">
-          Crear Cuenta
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Únete a Wapsell hoy
-        </p>
+        <h1 className="text-3xl font-bold text-[#1A1815] mb-2">Crear Cuenta</h1>
+        <p className="text-gray-600 mb-6">Únete a Wapsell hoy</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -105,10 +100,7 @@ export default function RegisterForm() {
           )}
 
           <div>
-            <label
-              htmlFor="nombre-input"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="nombre-input" className="block text-sm font-medium text-gray-700 mb-1">
               Nombre Completo
             </label>
             <input
@@ -123,10 +115,7 @@ export default function RegisterForm() {
           </div>
 
           <div>
-            <label
-              htmlFor="email-input"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="email-input" className="block text-sm font-medium text-gray-700 mb-1">
               Correo Electrónico
             </label>
             <input
@@ -187,10 +176,7 @@ export default function RegisterForm() {
 
         <p className="text-center text-gray-600 text-sm mt-6">
           ¿Ya tienes cuenta?{' '}
-          <a
-            href="/auth/login"
-            className="text-[#D97757] font-semibold hover:underline"
-          >
+          <a href={`/${locale}/auth/login`} className="text-[#D97757] font-semibold hover:underline">
             Inicia sesión aquí
           </a>
         </p>

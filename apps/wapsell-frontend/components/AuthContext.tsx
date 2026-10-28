@@ -2,6 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+// Locale context for managing language/locale across the app
+export const LocaleContext = createContext<string>('es');
+
+export function useLocale() {
+  return useContext(LocaleContext);
+}
+
 export interface Empresa {
   id: string;
   nombre: string;
@@ -154,8 +161,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setEmpresa(selected);
       }
 
-      // Redirigir a dashboard
-      window.location.href = '/dashboard';
+      // Redirigir a dashboard con locale
+      const locale = localStorage.getItem('locale') || 'es';
+      window.location.href = `/${locale}/dashboard`;
     } catch (error) {
       console.error('Switch empresa error:', error);
       throw error;
@@ -169,7 +177,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setEmpresaId(null);
     setEmpresa(null);
     setEmpresas([]);
-    window.location.href = '/auth/login';
+    const locale = localStorage.getItem('locale') || 'es';
+    window.location.href = `/${locale}/auth/login`;
   };
 
   const login = async (

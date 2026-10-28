@@ -172,6 +172,64 @@
     "loading": "Loading...",
     "saving": "Saving...",
     "deleting": "Deleting...",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "stock": "Stock",
+    "outOfStock": "Out of Stock",
+    "search": "Search",
+    "all": "All",
+    "remove": "Remove",
+    "removing": "Removing...",
+    "added": "Added",
+    "adding": "Adding...",
+    "back": "Back",
+    "backHome": "Back to Home"
+  },
+  "productos": {
+    "title": "Products",
+    "subtitle": "Explore our product catalog",
+    "empty": "No products available",
+    "emptyAction": "Try different filters",
+    "searchPlaceholder": "Search products...",
+    "family": "Product Family",
+    "addToCart": "Add to Cart"
+  },
+  "carrito": {
+    "title": "My Cart",
+    "subtitle": "Review and confirm your products",
+    "empty": "Your cart is empty",
+    "emptyAction": "Go to products",
+    "quantity": "Quantity",
+    "summary": "Summary",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "checkout": "Continue to Checkout",
+    "notes": "Additional Notes",
+    "notesPlaceholder": "Enter notes for your order (optional)",
+    "orderSummary": "Order Summary",
+    "processing": "Processing...",
+    "confirmOrder": "Confirm Order"
+  },
+  "misPedidos": {
+    "title": "My Orders",
+    "subtitle": "View and manage your orders",
+    "empty": "You don't have any orders yet",
+    "emptyAction": "Go to products",
+    "orderNumber": "Order",
+    "status": {
+      "pending": "Pending",
+      "pendiente": "Pending",
+      "confirmed": "Confirmed",
+      "confirmado": "Confirmed",
+      "shipped": "Shipped",
+      "enviado": "Shipped",
+      "delivered": "Delivered",
+      "entregado": "Delivered",
+      "cancelled": "Cancelled",
+      "cancelado": "Cancelled"
+    }
   }
 }

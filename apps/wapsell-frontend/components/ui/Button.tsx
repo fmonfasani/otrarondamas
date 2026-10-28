@@ -17,7 +17,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary: 'bg-[#F3F1ED] hover:bg-[#E8E5E0] active:bg-[#D4D0C8] text-[#1A1815]',
   danger: 'bg-[#DC2626] hover:bg-[#B91C1C] active:bg-[#991B1B] text-white',
   ghost: 'bg-transparent hover:bg-[#F3F1ED] active:bg-[#E8E5E0] text-[#1A1815]',
-  outline: 'border-2 border-[#D97757] bg-transparent hover:bg-[#FFF5F2] active:bg-[#FFE5DC] text-[#D97757]',
+  outline:
+    'border-2 border-[#D97757] bg-transparent hover:bg-[#FFF5F2] active:bg-[#FFE5DC] text-[#D97757]',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -41,18 +42,9 @@ const Button: React.FC<ButtonProps> = ({
   const finalClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 
   return (
-    <button
-      className={finalClasses}
-      disabled={disabled || isLoading}
-      {...props}
-    >
+    <button className={finalClasses} disabled={disabled || isLoading} {...props}>
       {isLoading && (
-        <svg
-          className="w-4 h-4 animate-spin"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle
             className="opacity-25"
             cx="12"

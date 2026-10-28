@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth, useLocale } from './AuthContext';
 import { useTranslations } from 'next-intl';
 
 const BusinessSelector: React.FC = () => {
   const { empresa, empresas, switchEmpresa, isLoading } = useAuth();
+  const locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations();
 
@@ -87,7 +88,7 @@ const BusinessSelector: React.FC = () => {
           )}
 
           <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-            <a href="/negocios" className="text-sm text-[#D97757] hover:text-[#C86543] font-medium">
+            <a href={`/${locale}/negocios`} className="text-sm text-[#D97757] hover:text-[#C86543] font-medium">
               {t('businessSelector.manageBusinesses')}
             </a>
           </div>

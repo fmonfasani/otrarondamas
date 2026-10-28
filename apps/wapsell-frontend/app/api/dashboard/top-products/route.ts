@@ -9,10 +9,7 @@ export async function GET(req: NextRequest) {
     const metric = req.nextUrl.searchParams.get('metric') || 'revenue';
 
     if (!jwt) {
-      return NextResponse.json(
-        { error: 'Unauthorized: No JWT provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized: No JWT provided' }, { status: 401 });
     }
 
     // Validate inputs
@@ -20,14 +17,14 @@ export async function GET(req: NextRequest) {
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
       return NextResponse.json(
         { error: 'Invalid limit. Must be between 1 and 100' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!['revenue', 'quantity'].includes(metric)) {
       return NextResponse.json(
         { error: 'Invalid metric. Must be revenue or quantity' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,17 +33,17 @@ export async function GET(req: NextRequest) {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${jwt}`,
+          Authorization: `Bearer ${jwt}`,
           'Content-Type': 'application/json',
         },
-      }
+      },
     );
 
     if (!res.ok) {
       console.error(`Failed to fetch top products: ${res.status} ${res.statusText}`);
       return NextResponse.json(
         { error: 'Failed to fetch top products from backend' },
-        { status: res.status }
+        { status: res.status },
       );
     }
 
@@ -54,9 +51,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Top products API error:', error);
-    return NextResponse.json(
-      { error: 'Server error fetching top products' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Server error fetching top products' }, { status: 500 });
   }
 }

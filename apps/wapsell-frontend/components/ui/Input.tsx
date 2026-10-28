@@ -38,7 +38,9 @@ const Input: React.FC<InputProps> = ({
   const baseClasses =
     'w-full border-2 border-[#E8E5E0] rounded focus:outline-none focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/20 transition-colors duration-200 disabled:bg-[#F3F1ED] disabled:cursor-not-allowed';
 
-  const errorClasses = error ? 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20' : '';
+  const errorClasses = error
+    ? 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20'
+    : '';
 
   const paddingClasses = `${sizeClasses[size]} ${startIcon ? 'pl-10' : ''} ${endIcon ? 'pr-10' : ''}`;
 
@@ -53,9 +55,7 @@ const Input: React.FC<InputProps> = ({
 
       <div className="relative">
         {startIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999999]">
-            {startIcon}
-          </div>
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999999]">{startIcon}</div>
         )}
 
         <input
@@ -66,19 +66,13 @@ const Input: React.FC<InputProps> = ({
         />
 
         {endIcon && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999999]">
-            {endIcon}
-          </div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999999]">{endIcon}</div>
         )}
       </div>
 
-      {error && (
-        <p className="mt-1 text-sm text-[#DC2626]">{error}</p>
-      )}
+      {error && <p className="mt-1 text-sm text-[#DC2626]">{error}</p>}
 
-      {helperText && !error && (
-        <p className="mt-1 text-sm text-[#666666]">{helperText}</p>
-      )}
+      {helperText && !error && <p className="mt-1 text-sm text-[#666666]">{helperText}</p>}
     </div>
   );
 };
