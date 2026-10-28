@@ -34,6 +34,7 @@ module.exports = {
     'prettier/prettier': ['error', { endOfLine: 'lf' }],
     'quotes': ['error', 'single'],
     'semi': ['error', 'always'],
+    '@typescript-eslint/no-explicit-any': 'warn',
   },
   settings: {
     react: {
