@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Query,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Query, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuthorizationGuard } from '../../auth/guards/authorization.guard';
 import { Authorize } from '../../auth/decorators/authorize.decorator';
@@ -104,7 +98,9 @@ export class AuditAdminController {
     const csvContent = [
       headers.join(','),
       ...rows.map((row) =>
-        row.map((cell) => (typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell)).join(','),
+        row
+          .map((cell) => (typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell))
+          .join(','),
       ),
     ].join('\n');
 

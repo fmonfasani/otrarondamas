@@ -152,8 +152,7 @@ export class FixtureFactory {
         tipoId: tipo.id,
         subtipoId: subtipo.id,
         nombre: overrides?.nombre || `Product-${namespace.substring(0, 8)}`,
-        codigoInterno:
-          overrides?.codigoInterno || `PRD-${namespace.substring(0, 8)}`,
+        codigoInterno: overrides?.codigoInterno || `PRD-${namespace.substring(0, 8)}`,
         precioMinorista: overrides?.precioMinorista || 100,
         costo: overrides?.costo || 50,
         stockMinimo: overrides?.stockMinimo || 0,
@@ -184,10 +183,8 @@ export class FixtureFactory {
       data: {
         id: uuidv4(),
         empresaId: tenantId,
-        nombre:
-          overrides?.nombre || `Provider-${namespace.substring(0, 8)}`,
-        email:
-          overrides?.email || `provider-${namespace.substring(0, 8)}@test.com`,
+        nombre: overrides?.nombre || `Provider-${namespace.substring(0, 8)}`,
+        email: overrides?.email || `provider-${namespace.substring(0, 8)}@test.com`,
         telefono: overrides?.telefono || '+5491112345678',
       },
     });
@@ -215,11 +212,8 @@ export class FixtureFactory {
         id: uuidv4(),
         empresaId: tenantId,
         productoId,
-        numeroLote:
-          overrides?.numeroLote || `LOT-${namespace.substring(0, 8)}`,
-        vencimiento:
-          overrides?.vencimiento ||
-          new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+        numeroLote: overrides?.numeroLote || `LOT-${namespace.substring(0, 8)}`,
+        vencimiento: overrides?.vencimiento || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
         cantidad: overrides?.cantidad || 100,
       },
     });
@@ -244,11 +238,8 @@ export class FixtureFactory {
       data: {
         id: uuidv4(),
         empresaId: tenantId,
-        nombre:
-          overrides?.nombre || `User-${namespace.substring(0, 8)}`,
-        email:
-          overrides?.email ||
-          `user-${namespace.substring(0, 8)}@test.com`,
+        nombre: overrides?.nombre || `User-${namespace.substring(0, 8)}`,
+        email: overrides?.email || `user-${namespace.substring(0, 8)}@test.com`,
         passwordHash: overrides?.passwordHash || 'hashed-password',
         activo: true,
         rol: 'OWNER',
@@ -274,8 +265,7 @@ export class FixtureFactory {
       data: {
         id: uuidv4(),
         name: overrides?.name || `Role-${namespace.substring(0, 8)}`,
-        description:
-          overrides?.description || `Test role for ${namespace.substring(0, 8)}`,
+        description: overrides?.description || `Test role for ${namespace.substring(0, 8)}`,
         empresaId: tenantId,
       },
     });
@@ -300,8 +290,7 @@ export class FixtureFactory {
       data: {
         id: uuidv4(),
         empresaId: tenantId,
-        nombre:
-          overrides?.nombre || `Loyalty-${namespace.substring(0, 8)}`,
+        nombre: overrides?.nombre || `Loyalty-${namespace.substring(0, 8)}`,
         nivelRequerido: overrides?.nivelRequerido || 'NUEVO',
         descuentoPorcentaje: overrides?.descuentoPorcentaje || 5,
         activo: true,
@@ -417,9 +406,7 @@ export class FixtureFactory {
    * @param tenantId Company ID to clean up; if not provided, cleans up all tracked tenants
    */
   async cleanup(tenantId?: string): Promise<void> {
-    const tenantsToClean = tenantId
-      ? [tenantId]
-      : Array.from(this.createdTenantIds);
+    const tenantsToClean = tenantId ? [tenantId] : Array.from(this.createdTenantIds);
 
     for (const tId of tenantsToClean) {
       try {

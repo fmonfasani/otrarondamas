@@ -18,10 +18,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { RELATIONS_WITH_OWNERSHIP } from '../../src/prisma/relation-ownership';
 import { RelationTestGenerator } from './relation-test-generator';
 
-const RELATIONS_OUTPUT_DIR = path.resolve(
-  __dirname,
-  '../../test/integration/relations',
-);
+const RELATIONS_OUTPUT_DIR = path.resolve(__dirname, '../../test/integration/relations');
 
 const THRESHOLD_PCT = 75;
 
@@ -136,9 +133,7 @@ async function generateAllTests(): Promise<void> {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
 
   console.log(`[+] Manifest saved: ${manifestPath}`);
-  console.log(
-    `[+] Generated tests available in: ${RELATIONS_OUTPUT_DIR}`,
-  );
+  console.log(`[+] Generated tests available in: ${RELATIONS_OUTPUT_DIR}`);
 }
 
 /**
@@ -148,9 +143,7 @@ async function main(): Promise<void> {
   try {
     console.log('\n╔════════════════════════════════════════════════════════════╗');
     console.log('║        Relation Test Generator v1.0                        ║');
-    console.log(
-      '║   Generating isolation tests from RELATIONS_WITH_OWNERSHIP   ║',
-    );
+    console.log('║   Generating isolation tests from RELATIONS_WITH_OWNERSHIP   ║');
     console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     await generateAllTests();

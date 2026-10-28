@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Req,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Query, Req, BadRequestException } from '@nestjs/common';
 import { I18nService, LocaleInfo } from './i18n.service';
 
 /**
@@ -30,16 +24,17 @@ export class I18nController {
    * @param locale - Locale code (es, en, pt-br)
    */
   @Get('translations')
-  getTranslations(
-    @Query('locale') locale?: string,
-  ): Record<string, any> {
+  getTranslations(@Query('locale') locale?: string): Record<string, any> {
     if (!locale) {
       throw new BadRequestException('Locale parameter is required');
     }
 
     if (!this.i18nService.isValidLocale(locale)) {
       throw new BadRequestException(
-        `Invalid locale. Supported locales: ${this.i18nService.getSupportedLocales().map((l) => l.code).join(', ')}`,
+        `Invalid locale. Supported locales: ${this.i18nService
+          .getSupportedLocales()
+          .map((l) => l.code)
+          .join(', ')}`,
       );
     }
 
@@ -54,9 +49,7 @@ export class I18nController {
   @Get('detect')
   detectLocale(@Req() req: any): { locale: string; info: LocaleInfo } {
     const locale = this.i18nService.getLocale(req);
-    const info = this.i18nService
-      .getSupportedLocales()
-      .find((l) => l.code === locale);
+    const info = this.i18nService.getSupportedLocales().find((l) => l.code === locale);
 
     return {
       locale,
@@ -84,7 +77,10 @@ export class I18nController {
 
     if (!this.i18nService.isValidLocale(targetLocale)) {
       throw new BadRequestException(
-        `Invalid locale: ${targetLocale}. Supported locales: ${this.i18nService.getSupportedLocales().map((l) => l.code).join(', ')}`,
+        `Invalid locale: ${targetLocale}. Supported locales: ${this.i18nService
+          .getSupportedLocales()
+          .map((l) => l.code)
+          .join(', ')}`,
       );
     }
 

@@ -10,20 +10,23 @@ export class KafkaService {
   }
 
   async publishOrderUpdated(orderId: string, changes: any) {
-    await this.kafkaClient.emit('orders.updated',
-      JSON.stringify({ orderId, changes, timestamp: new Date() })
+    await this.kafkaClient.emit(
+      'orders.updated',
+      JSON.stringify({ orderId, changes, timestamp: new Date() }),
     );
   }
 
   async publishInventoryUpdated(productId: string, stock: number, empresaId: string) {
-    await this.kafkaClient.emit('inventory.updated',
-      JSON.stringify({ productId, stock, empresaId, timestamp: new Date() })
+    await this.kafkaClient.emit(
+      'inventory.updated',
+      JSON.stringify({ productId, stock, empresaId, timestamp: new Date() }),
     );
   }
 
   async publishNotification(userId: string, empresaId: string, message: string) {
-    await this.kafkaClient.emit('notifications.sent',
-      JSON.stringify({ userId, empresaId, message, timestamp: new Date() })
+    await this.kafkaClient.emit(
+      'notifications.sent',
+      JSON.stringify({ userId, empresaId, message, timestamp: new Date() }),
     );
   }
 }

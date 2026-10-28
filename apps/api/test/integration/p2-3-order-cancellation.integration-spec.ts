@@ -55,9 +55,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   let userIds: string[];
 
   let customerA: { id: string };
-  let customerB: { id: string };
   let hierA: Awaited<ReturnType<typeof mkHierarchy>>;
-  let hierB: Awaited<ReturnType<typeof mkHierarchy>>;
 
   const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 
@@ -735,7 +733,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   describe('Audit Trail', () => {
     it('P2-3-017: Audit event logged with full context', async () => {
       const product = await mkProduct(companyA.id, hierA);
-      const batch = await mkBatch(companyA.id, product.id, 100);
+      await mkBatch(companyA.id, product.id, 100);
 
       const order = await mkOrder(companyA.id, customerA.id, [
         { productId: product.id, quantity: 7 },
@@ -749,7 +747,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         .expect(200);
 
       // Cancel
-      const cancelResponse = await request(BASE)
+      await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({ motivo: 'Testing audit trail' })

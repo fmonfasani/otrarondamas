@@ -55,9 +55,7 @@ export class AuthService {
     // Validate that the user has access to the requested empresa
     const userEmpresa = user.UserEmpresa?.find((ue) => ue.empresaId === newEmpresaId);
     if (!userEmpresa) {
-      throw new UnauthorizedException(
-        'No tienes acceso a esta empresa',
-      );
+      throw new UnauthorizedException('No tienes acceso a esta empresa');
     }
 
     // Update user's empresaId to the new one

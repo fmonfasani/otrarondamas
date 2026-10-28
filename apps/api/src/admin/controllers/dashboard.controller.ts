@@ -12,10 +12,7 @@ export class DashboardController {
 
   @Get('kpis')
   @Authorize('dashboard.view')
-  async getDashboardKPIs(
-    @CurrentUser() user: any,
-    @Query('period') period: string = '30d',
-  ) {
+  async getDashboardKPIs(@CurrentUser() user: any, @Query('period') period: string = '30d') {
     const validPeriods = ['7d', '30d', '90d'];
     if (!validPeriods.includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
@@ -58,10 +55,7 @@ export class DashboardController {
 
   @Get('channel-breakdown')
   @Authorize('dashboard.view')
-  async getChannelBreakdown(
-    @CurrentUser() user: any,
-    @Query('period') period: string = '30d',
-  ) {
+  async getChannelBreakdown(@CurrentUser() user: any, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }
@@ -70,10 +64,7 @@ export class DashboardController {
 
   @Get('geographic-breakdown')
   @Authorize('dashboard.view')
-  async getGeographicBreakdown(
-    @CurrentUser() user: any,
-    @Query('period') period: string = '30d',
-  ) {
+  async getGeographicBreakdown(@CurrentUser() user: any, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }

@@ -11,10 +11,7 @@ describe('KafkaService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        KafkaService,
-        { provide: 'KAFKA_SERVICE', useValue: mockClient },
-      ],
+      providers: [KafkaService, { provide: 'KAFKA_SERVICE', useValue: mockClient }],
     }).compile();
 
     service = module.get<KafkaService>(KafkaService);

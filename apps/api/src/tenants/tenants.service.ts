@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -71,9 +67,7 @@ export class TenantsService {
       });
 
       if (!user || !user.activo || user.empresaId !== empresaId) {
-        throw new ForbiddenException(
-          'No tienes acceso a esta empresa',
-        );
+        throw new ForbiddenException('No tienes acceso a esta empresa');
       }
     }
   }

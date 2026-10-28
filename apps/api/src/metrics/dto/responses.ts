@@ -147,8 +147,7 @@ export class RetentionMatrixDto {
   }>;
 
   @ApiProperty({
-    description:
-      'Retention matrix: [cohort_index][offset] = retention % at that offset period',
+    description: 'Retention matrix: [cohort_index][offset] = retention % at that offset period',
   })
   retention: number[][]; // [cohort][month_offset]
 

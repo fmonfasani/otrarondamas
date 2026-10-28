@@ -96,12 +96,7 @@ export class MetricsController {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
-    return this.metricsService.getGMVMetrics(
-      user.empresaId,
-      startDate,
-      endDate,
-      query.groupBy,
-    );
+    return this.metricsService.getGMVMetrics(user.empresaId, startDate, endDate, query.groupBy);
   }
 
   /**
@@ -166,11 +161,7 @@ export class MetricsController {
     @Query('cohortPeriod') cohortPeriod: 'weekly' | 'monthly' = 'monthly',
     @Query('lookbackMonths') lookbackMonths: number = 12,
   ): Promise<RetentionMatrixDto> {
-    return this.cohortService.generateRetentionMatrix(
-      user.empresaId,
-      cohortPeriod,
-      lookbackMonths,
-    );
+    return this.cohortService.generateRetentionMatrix(user.empresaId, cohortPeriod, lookbackMonths);
   }
 
   /**
@@ -243,12 +234,7 @@ export class MetricsController {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
-    return this.metricsService.getProductMetrics(
-      user.empresaId,
-      startDate,
-      endDate,
-      query.topN,
-    );
+    return this.metricsService.getProductMetrics(user.empresaId, startDate, endDate, query.topN);
   }
 
   /**
@@ -309,8 +295,17 @@ export class MetricsController {
       this.cohortService.generateRetentionMatrix(user.empresaId, 'monthly', 1),
     ]);
 
-    const channels = await this.metricsService.getChannelMetrics(user.empresaId, startDate, endDate);
-    const products = await this.metricsService.getProductMetrics(user.empresaId, startDate, endDate, 1);
+    const channels = await this.metricsService.getChannelMetrics(
+      user.empresaId,
+      startDate,
+      endDate,
+    );
+    const products = await this.metricsService.getProductMetrics(
+      user.empresaId,
+      startDate,
+      endDate,
+      1,
+    );
 
     // Calculate retention rates (D7, D30)
     let d7Retention = 0;

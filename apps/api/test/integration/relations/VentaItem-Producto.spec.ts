@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 
@@ -7,9 +6,7 @@ describe('VentaItem → Producto (producto) isolation', () => {
   let scopedPrisma: CompanyScopedPrismaService;
   let tenantVA: { id: string };
   let tenantVB: { id: string };
-  let ventaItemA: { id: string };
   let productoA: { id: string };
-  let productoB: { id: string };
 
   beforeAll(async () => {
     prisma = new PrismaService();
@@ -68,10 +65,7 @@ describe('VentaItem → Producto (producto) isolation', () => {
     const db = scopedPrisma.forCompany(tenantVA.id);
 
     const result = await db.ventaItem.createMany({
-      data: [
-        { /* fixture data for VentaItem */ },
-        { /* fixture data for VentaItem */ },
-      ],
+      data: [{/* fixture data for VentaItem */}, {/* fixture data for VentaItem */}],
     });
 
     expect(result.count).toBeGreaterThanOrEqual(0);

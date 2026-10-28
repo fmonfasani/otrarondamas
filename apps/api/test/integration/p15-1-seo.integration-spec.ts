@@ -20,16 +20,13 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { MetaTagsService } from '../../src/seo/services/meta-tags.service';
 import { SitemapService } from '../../src/seo/services/sitemap.service';
 import { seoConfig } from '../../src/seo/seo.config';
 import { PrismaModule } from '../../src/prisma/prisma.module';
-import * as request from 'supertest';
 
 describe('P15-1: SEO & Metadata (Integration)', () => {
-  let app: INestApplication;
   let prisma: PrismaService;
   let metaTagsService: MetaTagsService;
   let sitemapService: SitemapService;
@@ -145,10 +142,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
 
   describe('Meta Tags Service', () => {
     it('should generate product meta tags', async () => {
-      const metaTags = await metaTagsService.getProductMetaTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getProductMetaTags(testProductoId, testEmpresaId);
 
       expect(metaTags).toBeDefined();
       expect(metaTags.title).toContain('Test Product SEO');
@@ -174,10 +168,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate category meta tags', async () => {
-      const metaTags = await metaTagsService.getCategoryMetaTags(
-        testFamiliaId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getCategoryMetaTags(testFamiliaId, testEmpresaId);
 
       expect(metaTags).toBeDefined();
       expect(metaTags.title).toContain('Test Familia');
@@ -186,10 +177,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate product OG tags', async () => {
-      const ogTags = await metaTagsService.getProductOgTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const ogTags = await metaTagsService.getProductOgTags(testProductoId, testEmpresaId);
 
       expect(ogTags).toBeDefined();
       expect(ogTags.title).toBe('Test Product SEO');
@@ -212,9 +200,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate breadcrumb schema', () => {
-      const breadcrumbSchema = metaTagsService.getBreadcrumbSchema(
-        'productos/123/detalle',
-      );
+      const breadcrumbSchema = metaTagsService.getBreadcrumbSchema('productos/123/detalle');
 
       expect(breadcrumbSchema).toBeDefined();
       expect(breadcrumbSchema['@type']).toBe('BreadcrumbList');
@@ -225,10 +211,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate product JSON-LD schema', async () => {
-      const productSchema = await metaTagsService.getProductSchema(
-        testProductoId,
-        testEmpresaId,
-      );
+      const productSchema = await metaTagsService.getProductSchema(testProductoId, testEmpresaId);
 
       expect(productSchema).toBeDefined();
       expect(productSchema['@context']).toBe('https://schema.org/');
@@ -242,9 +225,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate organization JSON-LD schema', async () => {
-      const orgSchema = await metaTagsService.getOrganizationSchema(
-        testEmpresaId,
-      );
+      const orgSchema = await metaTagsService.getOrganizationSchema(testEmpresaId);
 
       expect(orgSchema).toBeDefined();
       expect(orgSchema['@type']).toBe('Organization');
@@ -253,10 +234,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should format HTML meta tags', async () => {
-      const metaTags = await metaTagsService.getProductMetaTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getProductMetaTags(testProductoId, testEmpresaId);
 
       const htmlTags = metaTagsService.formatHtmlMetaTags(metaTags);
 
@@ -269,10 +247,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should format JSON-LD script tag', async () => {
-      const productSchema = await metaTagsService.getProductSchema(
-        testProductoId,
-        testEmpresaId,
-      );
+      const productSchema = await metaTagsService.getProductSchema(testProductoId, testEmpresaId);
 
       const scriptTag = metaTagsService.formatJsonLdScript(productSchema);
 
@@ -305,9 +280,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate category sitemap XML', async () => {
-      const sitemap = await sitemapService.generateCategorySitemap(
-        testEmpresaId,
-      );
+      const sitemap = await sitemapService.generateCategorySitemap(testEmpresaId);
 
       expect(sitemap).toContain('<?xml version="1.0"');
       expect(sitemap).toContain('<urlset');
@@ -330,9 +303,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should generate sitemap index XML', async () => {
-      const sitemapIndex = await sitemapService.generateSitemapIndex(
-        testEmpresaId,
-      );
+      const sitemapIndex = await sitemapService.generateSitemapIndex(testEmpresaId);
 
       expect(sitemapIndex).toContain('<?xml version="1.0"');
       expect(sitemapIndex).toContain('<sitemapindex');
@@ -354,7 +325,6 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should escape special characters in sitemap URLs', () => {
-      const urlWithSpecialChars = 'https://example.com/test?foo=bar&baz="test"';
       // Test through XML generation
       const sitemap = sitemapService.generatePagesSitemap();
 
@@ -385,9 +355,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     it('should throw error for non-existent empresa', async () => {
       const fakeEmpresaId = 'fake-empresa-id-' + Date.now();
 
-      await expect(
-        metaTagsService.getHomeMetaTags(fakeEmpresaId),
-      ).rejects.toThrow();
+      await expect(metaTagsService.getHomeMetaTags(fakeEmpresaId)).rejects.toThrow();
     });
 
     it('should throw error for non-existent category', async () => {
@@ -401,29 +369,20 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
 
   describe('Data Integrity', () => {
     it('should include product brand in schema', async () => {
-      const schema = await metaTagsService.getProductSchema(
-        testProductoId,
-        testEmpresaId,
-      );
+      const schema = await metaTagsService.getProductSchema(testProductoId, testEmpresaId);
 
       expect(schema.brand).toBeDefined();
       expect(schema.brand.name).toBe('Test Brand');
     });
 
     it('should include SKU in product schema', async () => {
-      const schema = await metaTagsService.getProductSchema(
-        testProductoId,
-        testEmpresaId,
-      );
+      const schema = await metaTagsService.getProductSchema(testProductoId, testEmpresaId);
 
       expect(schema.sku).toBeDefined();
     });
 
     it('should reflect product price in OG tags', async () => {
-      const ogTags = await metaTagsService.getProductOgTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const ogTags = await metaTagsService.getProductOgTags(testProductoId, testEmpresaId);
 
       expect(parseFloat(ogTags.price.amount)).toBe(200);
     });
@@ -435,10 +394,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should include locale in meta tags', async () => {
-      const metaTags = await metaTagsService.getProductMetaTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getProductMetaTags(testProductoId, testEmpresaId);
 
       expect(metaTags.locale).toBe(seoConfig.defaultLocale);
     });
@@ -446,20 +402,14 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
 
   describe('Canonical and Robots Tags', () => {
     it('should generate canonical URL for product', async () => {
-      const metaTags = await metaTagsService.getProductMetaTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getProductMetaTags(testProductoId, testEmpresaId);
 
       expect(metaTags.canonical).toBeDefined();
       expect(metaTags.canonical).toBe(metaTags.url);
     });
 
     it('should support robots meta tag configuration', async () => {
-      const metaTags = await metaTagsService.getProductMetaTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const metaTags = await metaTagsService.getProductMetaTags(testProductoId, testEmpresaId);
 
       // Create a variant with robots meta
       const htmlTags = metaTagsService.formatHtmlMetaTags({
@@ -477,10 +427,7 @@ describe('P15-1: SEO & Metadata (Integration)', () => {
     });
 
     it('should include locale in OG tags', async () => {
-      const ogTags = await metaTagsService.getProductOgTags(
-        testProductoId,
-        testEmpresaId,
-      );
+      const ogTags = await metaTagsService.getProductOgTags(testProductoId, testEmpresaId);
 
       expect(ogTags.locale).toBe(seoConfig.defaultLocale);
     });

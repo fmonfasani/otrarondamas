@@ -124,7 +124,7 @@ export class CohortAnalysisService {
       firstPurchaseCount: number;
     }> = [];
 
-    const offsetCount = Math.ceil((lookbackMonths * (cohortPeriod === 'weekly' ? 4.33 : 1)) * 1.2); // Max offsets to track
+    const offsetCount = Math.ceil(lookbackMonths * (cohortPeriod === 'weekly' ? 4.33 : 1) * 1.2); // Max offsets to track
 
     for (const [idx, cohort] of sortedCohorts.entries()) {
       const cohortStartDate = this.parseCohortPeriod(cohort.period, cohortPeriod);
@@ -186,9 +186,7 @@ export class CohortAnalysisService {
         }
 
         const retentionRate =
-          totalCustomersInCohort > 0
-            ? (customersActiveInOffset / totalCustomersInCohort) * 100
-            : 0;
+          totalCustomersInCohort > 0 ? (customersActiveInOffset / totalCustomersInCohort) * 100 : 0;
         const churnRate = 100 - retentionRate;
 
         cohortRetention.push(Number(retentionRate.toFixed(2)));

@@ -338,7 +338,7 @@ export class RelationTestGenerator {
     const targetVar = camelCase(relation.targetModel);
 
     return `
-  it('TXN-01: relation isolation applies inside \$transaction', async () => {
+  it('TXN-01: relation isolation applies inside $transaction', async () => {
     const db = scopedPrisma.forCompany(tenantAA.id);
 
     await db.$transaction(async (tx) => {

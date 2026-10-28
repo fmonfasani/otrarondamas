@@ -29,13 +29,13 @@ describe('P9-2: Business Metrics & KPIs', () => {
   let user2Token: string;
 
   // Company 1 fixtures
-  let company1Customers: string[] = [];
-  let company1Orders: string[] = [];
-  let company1Sales: string[] = [];
+  const company1Customers: string[] = [];
+  const company1Orders: string[] = [];
+  const company1Sales: string[] = [];
 
   // Company 2 fixtures (for isolation testing)
-  let company2Customers: string[] = [];
-  let company2Orders: string[] = [];
+  const company2Customers: string[] = [];
+  const company2Orders: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -784,7 +784,7 @@ describe('P9-2: Business Metrics & KPIs', () => {
         data: {
           pedidoId: order.id,
           productoId: product.id,
-          cantidad: new Prisma.Decimal(2 + i % 3),
+          cantidad: new Prisma.Decimal(2 + (i % 3)),
           precioUnitario: product.precioMinorista,
         },
       });
@@ -814,7 +814,7 @@ describe('P9-2: Business Metrics & KPIs', () => {
           data: {
             ventaId: venta.id,
             productoId: product.id,
-            cantidad: new Prisma.Decimal(1 + i % 2),
+            cantidad: new Prisma.Decimal(1 + (i % 2)),
             precioUnitario: product.precioMinorista,
           },
         });

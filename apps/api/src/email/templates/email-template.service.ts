@@ -66,7 +66,9 @@ export class EmailTemplateService {
 
     // Validate tipo is a valid TipoEmail enum
     if (!Object.values(TipoEmail).includes(tipo as TipoEmail)) {
-      throw new BadRequestException(`Invalid tipo: ${tipo}. Must be one of: ${Object.values(TipoEmail).join(', ')}`);
+      throw new BadRequestException(
+        `Invalid tipo: ${tipo}. Must be one of: ${Object.values(TipoEmail).join(', ')}`,
+      );
     }
 
     return await this.prisma.emailTemplate.create({

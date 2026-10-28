@@ -1,9 +1,4 @@
-import {
-  Module,
-  Global,
-  MiddlewareConsumer,
-  NestModule,
-} from '@nestjs/common';
+import { Module, Global, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { I18nService } from './i18n.service';
 import { I18nController } from './i18n.controller';

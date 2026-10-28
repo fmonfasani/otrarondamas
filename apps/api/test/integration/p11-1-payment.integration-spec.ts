@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PaymentsModule } from '../../src/payments/payments.module';
 import { AuthModule } from '../../src/auth/auth.module';
@@ -20,7 +19,6 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
   let testVenta: any;
   let testUsuario: any;
   let testCliente: any;
-  let authToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
