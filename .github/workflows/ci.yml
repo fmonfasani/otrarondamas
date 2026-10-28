@@ -1,4 +1,4 @@
-name: CI/CD Pipeline - Simplified
+name: CI/CD Pipeline - Optimized
 
 on:
   push:
@@ -11,9 +11,11 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  lint:
+  setup:
     runs-on: ubuntu-latest
-    name: Lint and Type Check
+    name: Setup and Cache
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v4
 
@@ -22,18 +24,51 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Clean install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          npm cache clean --force
+          npm ci --prefer-offline --no-audit
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint and Type Check
+    needs: setup
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Type check
-        run: npm run typecheck
+        run: npx tsc --noEmit
+        working-directory: apps/api
 
       - name: Lint code
         run: npm run lint
+        timeout-minutes: 5
 
   unit-tests:
     runs-on: ubuntu-latest
     name: Unit Tests
+    needs: setup
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -42,13 +77,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Run unit tests
         run: npm test -- --run
+        timeout-minutes: 10
 
-      - name: Upload test coverage
+      - name: Upload coverage
         uses: codecov/codecov-action@v3
         if: always()
         with:
@@ -58,6 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build
     needs: [lint, unit-tests]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -66,26 +105,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Build Remix
+      - name: Build
         run: npm run build
+        timeout-minutes: 10
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: remix-build
-          path: apps/wapsell-remix/build
+          name: build
+          path: apps/api/dist
           retention-days: 1
 
   e2e-tests:
     runs-on: ubuntu-latest
     name: E2E Tests
     needs: build
-    strategy:
-      matrix:
-        browser: [chromium]
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:15-alpine
@@ -108,41 +148,29 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: remix-build
-          path: apps/wapsell-remix/build
+          name: build
+          path: apps/api/dist
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-
-      - name: Start dev server
-        run: npm run dev &
-        working-directory: apps/wapsell-remix
+      - name: Run E2E tests
+        run: npm run test:e2e
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wapsell_test
+          NODE_ENV: test
+        timeout-minutes: 15
 
-      - name: Wait for server
-        run: npx wait-on http://localhost:3000 --timeout 60000
-
-      - name: Run Playwright tests (${{ matrix.browser }})
-        run: npx playwright test --project=${{ matrix.browser }}
-        working-directory: apps/wapsell-remix
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report-${{ matrix.browser }}
-          path: apps/wapsell-remix/playwright-report/
-
-  security-scan:
+  security:
     runs-on: ubuntu-latest
     name: Security Scan
+    needs: setup
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -151,35 +179,65 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Run npm audit
         run: npm audit --production || true
+        timeout-minutes: 5
 
       - name: Check for secrets
         uses: gitleaks/gitleaks-action@v2
         if: always()
 
+  verify:
+    runs-on: ubuntu-latest
+    name: Pipeline Verification
+    needs: [lint, unit-tests, build, e2e-tests, security]
+    if: always()
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.lint.result }}" = "failure" ] || \
+             [ "${{ needs.unit-tests.result }}" = "failure" ] || \
+             [ "${{ needs.build.result }}" = "failure" ] || \
+             [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
+            echo "Pipeline failed"
+            exit 1
+          fi
+          echo "Pipeline succeeded"
+          exit 0
+
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to VPS
-    needs: [build, e2e-tests, security-scan]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, e2e-tests, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
+    timeout-minutes: 15
     environment:
       name: production
       url: https://wapsell.com
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: remix-build
-          path: apps/wapsell-remix/build
+          name: build
+          path: apps/api/dist
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@master
@@ -192,9 +250,9 @@ jobs:
           script: |
             cd /opt/wapsell
             git pull origin main
-            npm ci
+            npm ci --prefer-offline
             npm run build
-            pm2 restart wapsell-remix || pm2 start npm --name wapsell-remix -- run start
+            pm2 restart wapsell-api || pm2 start npm --name wapsell-api -- run start:prod
             pm2 save
 
       - name: Verify deployment
@@ -213,21 +271,36 @@ jobs:
           exit 1
         if: ${{ secrets.VPS_HOST != '' }}
 
-      - name: Notify Slack
+      - name: Notify success
         uses: slackapi/slack-github-action@v1.24.0
-        if: always()
+        if: success()
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |
             {
-              "text": "Wapsell ${{ job.status == 'success' && 'deployment successful' || 'deployment failed' }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Wapsell Deployment* - ${{ job.status }}\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
-                  }
+              "text": "Wapsell deployment successful",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Wapsell Deployment* - SUCCESS\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
                 }
-              ]
+              }]
+            }
+
+      - name: Notify failure
+        uses: slackapi/slack-github-action@v1.24.0
+        if: failure()
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Wapsell deployment failed",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Wapsell Deployment* - FAILED\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                }
+              }]
             }
