@@ -9,7 +9,6 @@ import { useLoaderData, useParams } from '@remix-run/react';
 import { useState } from 'react';
 import { createProtectedLoader } from '~/utils/route-guards.server';
 import type { Locale } from '~/types/routes';
-import type { SaleChannel, PaymentMethod } from '@wapsell/types';
 
 interface SalesData {
   tenantContext: any;
@@ -23,12 +22,12 @@ interface SaleRecord {
   fecha: string;
   hora: string;
   cliente?: string;
-  canal: SaleChannel;
+  canal: 'mostrador' | 'delivery' | 'online' | 'telefonico' | 'whatsapp';
   items: number;
   subtotal: number;
   descuento: number;
   total: number;
-  metodo: PaymentMethod;
+  metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'MERCADOPAGO' | 'CHEQUE' | 'BILLETERA' | 'CREDITO';
   vendedor: string;
   estado: 'completada' | 'pendiente' | 'cancelada';
 }
@@ -97,10 +96,10 @@ function ChannelBadge({
   canal,
   locale,
 }: {
-  canal: SaleChannel;
+  canal: 'mostrador' | 'delivery' | 'online' | 'telefonico' | 'whatsapp';
   locale: Locale;
 }) {
-  const channelLabels: Record<SaleChannel, { label: string; icon: string }> = {
+  const channelLabels: Record<'mostrador' | 'delivery' | 'online' | 'telefonico' | 'whatsapp', { label: string; icon: string }> = {
     mostrador: {
       label: locale === 'es' ? 'Mostrador' : 'Counter',
       icon: '🏪',
@@ -140,18 +139,17 @@ function PaymentMethodBadge({
   metodo,
   locale,
 }: {
-  metodo: PaymentMethod;
+  metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'MERCADOPAGO' | 'CHEQUE' | 'BILLETERA' | 'CREDITO';
   locale: Locale;
 }) {
-  const methodLabels: Record<PaymentMethod, string> = {
+  const methodLabels: Record<'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'MERCADOPAGO' | 'CHEQUE' | 'BILLETERA' | 'CREDITO', string> = {
     EFECTIVO: locale === 'es' ? 'Efectivo' : 'Cash',
     TARJETA: locale === 'es' ? 'Tarjeta' : 'Card',
     CHEQUE: locale === 'es' ? 'Cheque' : 'Check',
     TRANSFERENCIA: locale === 'es' ? 'Transferencia' : 'Transfer',
-    BILLETERA_DIGITAL: locale === 'es' ? 'Billetera' : 'Wallet',
+    BILLETERA: locale === 'es' ? 'Billetera' : 'Wallet',
     MERCADOPAGO: 'Mercado Pago',
     CREDITO: locale === 'es' ? 'Crédito' : 'Credit',
-    CRIPTOMONEDA: locale === 'es' ? 'Cripto' : 'Crypto',
   };
 
   return (
@@ -541,7 +539,7 @@ export default function SalesHistoryPage() {
   // State
   const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState<SaleChannel | 'todos'>('todos');
+  const [selectedChannel, setSelectedChannel] = useState<'mostrador' | 'delivery' | 'online' | 'telefonico' | 'whatsapp' | 'todos'>('todos');
 
   // Mock sales data - replace with API call
   const mockSales: SaleRecord[] = [

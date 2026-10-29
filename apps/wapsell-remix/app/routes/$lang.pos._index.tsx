@@ -11,7 +11,6 @@ import { createProtectedLoader } from '~/utils/route-guards.server';
 import { getTenantContext } from '~/utils/tenant-context.server';
 import type { Locale } from '~/types/routes';
 import type { PaymentMethod } from '@wapsell/types';
-import { PaymentMethod as PaymentMethodEnum } from '@wapsell/types';
 
 interface POSTerminalData {
   tenantContext: any;
@@ -263,22 +262,22 @@ function PaymentMethodSelector({
     icon: string;
   }> = [
     {
-      value: PaymentMethodEnum.CASH,
+      value: 'CASH',
       label: locale === 'es' ? 'Efectivo' : 'Cash',
       icon: '💵',
     },
     {
-      value: PaymentMethodEnum.CARD,
+      value: 'CARD',
       label: locale === 'es' ? 'Tarjeta' : 'Card',
       icon: '💳',
     },
     {
-      value: PaymentMethodEnum.TRANSFER,
-      label: locale === 'es' ? 'Transferencia' : 'Transfer',
-      icon: '🏦',
+      value: 'MIXED',
+      label: locale === 'es' ? 'Mixto' : 'Mixed',
+      icon: '💰',
     },
     {
-      value: PaymentMethodEnum.MERCADOPAGO,
+      value: 'QR',
       label: 'Mercado Pago',
       icon: '📱',
     },
