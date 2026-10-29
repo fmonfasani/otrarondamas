@@ -551,6 +551,7 @@ model Empresa {
   PaymentIntent           PaymentIntent[]
   PaymentWebhook          PaymentWebhook[]
   Refund                  Refund[]
+  TiendaOrders            TiendaOrder[] @relation("TiendaOrders")
 }
 
 model AnalyticsEvent {
@@ -1217,6 +1218,7 @@ model Usuario {
   NotificationPreference                           NotificationPreference[]
   NotificationDigest                               NotificationDigest[]
   EmailPreference                                  EmailPreference?      @relation("EmailPreference_usuario")
+  TiendaOrders                                     TiendaOrder[]         @relation("TiendaOrders")
 }
 
 /// Notification Preferences - User notification settings and delivery preferences
@@ -1893,5 +1895,102 @@ model EmailVerificationToken {
   createdAt     DateTime @default(now())
 
   @@index([email, expiresAt])
+}
+
+// K3: Tienda Order Management
+model TiendaOrder {
+  id            String   @id @default(uuid())
+  empresaId     String
+  empresa       Empresa  @relation("TiendaOrders", fields: [empresaId], references: [id], onDelete: Restrict)
+
+  usuarioId     String
+  usuario       Usuario  @relation("TiendaOrders", fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  status        String   @default("pending") // pending | processing | shipped | delivered | cancelled
+
+  total         Decimal  @db.Decimal(12, 2)
+  subtotal      Decimal  @db.Decimal(12, 2)
+  shippingCost  Decimal  @db.Decimal(12, 2) @default(0)
+  taxAmount     Decimal  @db.Decimal(12, 2) @default(0)
+
+  shippingAddress    String
+  shippingCity       String?
+  shippingPostalCode String?
+  shippingCountry    String?
+
+  paymentMethod String? // mercadopago | stripe | bank_transfer
+  trackingNumber String?
+
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         TiendaOrderItem[]
+  payments      TiendaPayment[]
+  webhookLogs   TiendaWebhookLog[]
+
+  @@index([empresaId, status])
+  @@index([usuarioId, createdAt])
+  @@index([empresaId, createdAt])
+}
+
+model TiendaOrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        TiendaOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productoId   String
+  productName  String
+
+  quantity     Int
+  price        Decimal  @db.Decimal(12, 2)
+  discount     Decimal  @db.Decimal(12, 2) @default(0)
+
+  createdAt    DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model TiendaPayment {
+  id               String   @id @default(uuid())
+  orderId          String
+  order            TiendaOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  paymentId        String   @unique // Mercado Pago payment ID
+  method           String
+  amount           Decimal  @db.Decimal(12, 2)
+
+  status           String   @default("pending") // pending | completed | failed | cancelled
+
+  verifiedAt       DateTime?
+  processedAt      DateTime?
+
+  externalData     Json?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([paymentId])
+}
+
+model TiendaWebhookLog {
+  id             String   @id @default(uuid())
+  orderId        String?
+  order          TiendaOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  eventType      String   // payment.completed | payment.failed | etc
+
+  payload        Json
+  signature      String?
+
+  processed      Boolean  @default(false)
+  processedAt    DateTime?
+
+  createdAt      DateTime @default(now())
+
+  @@index([orderId, processed])
+  @@index([createdAt])
 }
 
