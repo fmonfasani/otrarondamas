@@ -1,13 +1,18 @@
-# Troubleshooting Guide
+# Troubleshooting Guide - Wapsell Development & Production
 
-Solutions for common issues encountered during development and production.
+Solutions for common issues encountered during development, testing, and production deployment.
 
 ## Table of Contents
 
-1. [API Server Issues](#api-server-issues)
-2. [Database Issues](#database-issues)
-3. [Authentication & Authorization](#authentication--authorization)
-4. [Payment Processing](#payment-processing)
+1. [Local Development Issues](#local-development-issues)
+2. [API Issues](#api-nestjs-issues)
+3. [Frontend Issues](#frontend-issues)
+4. [Docker Issues](#docker-issues)
+5. [Testing Issues](#testing-issues)
+6. [CI/CD Issues](#cicd-issues)
+7. [Production Issues](#production-issues)
+8. [Performance Tuning](#performance-tuning)
+9. [Getting Help](#getting-help)
 5. [Performance Issues](#performance-issues)
 6. [Deployment Issues](#deployment-issues)
 7. [WebSocket Issues](#websocket-issues)
