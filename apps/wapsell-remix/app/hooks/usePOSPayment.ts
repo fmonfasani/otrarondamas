@@ -11,6 +11,15 @@ import { useState, useCallback } from 'react';
 import type { PaymentInput } from '~/utils/payment.validation';
 import { PaymentSchema } from '~/utils/payment.validation';
 
+// Generate UUID in browser (crypto.randomUUID is widely supported)
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 export interface PaymentState {
   method: 'CASH' | 'CARD' | 'MIXED' | 'QR' | null;
   amount?: number;

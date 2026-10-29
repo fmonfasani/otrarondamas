@@ -9,7 +9,6 @@
  */
 
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import {
   createSale,
   updateStock,
@@ -268,7 +267,7 @@ export async function processCompleteSale(
 ): Promise<CompleteSaleResponse> {
   try {
     // Step 1: Check idempotency
-    const idempotencyKey = request.idempotencyKey || uuidv4();
+    const idempotencyKey = request.idempotencyKey || crypto.randomUUID();
     const cachedSaleId = getIdempotencyCacheEntry(idempotencyKey);
     if (cachedSaleId) {
       console.log(`Idempotency: Returning cached sale ${cachedSaleId}`);
