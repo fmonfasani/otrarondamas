@@ -8,7 +8,7 @@ WORKDIR /repo
 # Copiamos manifests primero para cache de capas
 COPY package.json tsconfig.base.json ./
 COPY apps/wapsell-remix/package.json apps/wapsell-remix/package.json
-RUN if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit; else npm install --prefer-offline --no-audit; fi
+RUN npm install --prefer-offline --no-audit
 
 # Copy source
 COPY apps/wapsell-remix apps/wapsell-remix
@@ -35,7 +35,7 @@ COPY package.json ./
 COPY apps/wapsell-remix/package.json apps/wapsell-remix/package.json
 
 # Install production dependencies only
-RUN if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit --only=production; else npm install --prefer-offline --no-audit --only=production; fi && \
+RUN npm install --prefer-offline --no-audit --only=production && \
     npm cache clean --force
 
 # Use non-root user

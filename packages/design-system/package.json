@@ -31,8 +31,10 @@
   ],
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit",
     "lint": "eslint src/**/*.ts{,x} --fix",
+    "test": "vitest",
     "clean": "rm -rf dist"
   },
   "keywords": [

@@ -9,7 +9,7 @@ WORKDIR /repo
 COPY package.json tsconfig.base.json ./
 COPY apps/pos-admin/package.json apps/pos-admin/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
-RUN if [ -f package-lock.json ]; then npm ci --legacy-peer-deps --prefer-offline; else npm install --legacy-peer-deps --prefer-offline; fi
+RUN npm install --legacy-peer-deps --prefer-offline
 
 COPY packages/shared-types packages/shared-types
 COPY apps/pos-admin apps/pos-admin

@@ -6,6 +6,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
     "lint": "eslint src/**/*.ts --fix"
   },
   "devDependencies": {

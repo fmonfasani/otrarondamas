@@ -11,7 +11,8 @@
     "noEmit": false,
     "composite": true,
     "module": "ES2020",
-    "moduleResolution": "bundler"
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.tsx", "src/**/*.stories.tsx"]
