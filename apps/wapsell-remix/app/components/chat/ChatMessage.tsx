@@ -1,6 +1,6 @@
 import React from 'react';
 import { PersonaTag } from './PersonaTag';
-import { BuyerPersona } from '@wapsell/shared-types';
+import { BuyerPersona } from '@otrarondamas/shared-types';
 
 export interface ChatMessageProps {
   role: 'user' | 'bot';

@@ -1,5 +1,5 @@
 import { json } from '@remix-run/node';
-import { useLoaderData, useFetcher } from '@remix-run/react';
+import { useLoaderData } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { ChatContainer, Message } from '~/components/chat/ChatContainer';
 import {
@@ -7,7 +7,7 @@ import {
   generateDemoSessionId,
   ChatAPIError,
 } from '~/services/chat.client';
-import type { ChatMessageResponse } from '@wapsell/shared-types';
+import type { ChatMessageResponse } from '@otrarondamas/shared-types';
 
 interface DemoChatLoaderData {
   sessionId: string;

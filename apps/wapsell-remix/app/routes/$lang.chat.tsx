@@ -1,5 +1,5 @@
 import { json, redirect, LoaderFunction } from '@remix-run/node';
-import { useLoaderData, useFetcher } from '@remix-run/react';
+import { useLoaderData } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { ChatContainer, Message } from '~/components/chat/ChatContainer';
 import { SessionList } from '~/components/chat/SessionList';
@@ -11,7 +11,7 @@ import {
   ChatAPIError,
 } from '~/services/chat.client';
 import { requireAuth } from '~/services/auth.server';
-import type { ChatMessageResponse } from '@wapsell/shared-types';
+import type { ChatMessageResponse } from '@otrarondamas/shared-types';
 
 interface ProtectedChatLoaderData {
   sessionId: string | null;

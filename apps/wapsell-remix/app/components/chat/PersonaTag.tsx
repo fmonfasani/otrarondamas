@@ -1,5 +1,5 @@
 import React from 'react';
-import { BuyerPersona } from '@wapsell/shared-types';
+import { BuyerPersona } from '@otrarondamas/shared-types';
 
 interface PersonaMetadata {
   persona_type: BuyerPersona;

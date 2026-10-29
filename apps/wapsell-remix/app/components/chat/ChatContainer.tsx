@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatInput } from './ChatInput';
-import { BuyerPersona } from '@wapsell/shared-types';
+import { BuyerPersona } from '@otrarondamas/shared-types';
 
 export interface Message {
   id: string;

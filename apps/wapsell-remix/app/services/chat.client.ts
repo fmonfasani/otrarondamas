@@ -2,7 +2,7 @@ import {
   ChatMessageResponse,
   ChatHistoryResponse,
   SessionDeleteResponse,
-} from '@wapsell/shared-types';
+} from '@otrarondamas/shared-types';
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8600';
 const API_TIMEOUT = parseInt(process.env.VITE_API_TIMEOUT || '30000');
