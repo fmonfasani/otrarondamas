@@ -14,7 +14,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@otrarondamas/shared-types": ["./packages/shared-types/src"]
+      "@otrarondamas/shared-types": ["./packages/shared-types/src"],
+      "@otrarondamas/validation": ["./packages/validation/src"]
     }
   }
 }

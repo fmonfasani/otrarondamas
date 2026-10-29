@@ -57,5 +57,61 @@
     "createNew": "Crear Nuevo Negocio",
     "settings": "Configuración",
     "name": "Nombre del Negocio"
+  },
+  "landing": {
+    "hero": {
+      "title": "Gestiona tu Negocio con Wapsell",
+      "subtitle": "La plataforma integral para llevar tus ventas a través de WhatsApp, catálogo de productos y análisis en tiempo real.",
+      "cta": "Comienza Gratis"
+    },
+    "features": {
+      "title": "Características Principales",
+      "aiChat": {
+        "title": "Chat Inteligente con IA",
+        "description": "Atiende automáticamente a tus clientes con respuestas inteligentes"
+      },
+      "catalog": {
+        "title": "Catálogo de Productos",
+        "description": "Gestiona tu inventario y comparte productos fácilmente"
+      },
+      "leads": {
+        "title": "Gestión de Contactos",
+        "description": "Organiza y segmenta tus clientes para campañas efectivas"
+      },
+      "analytics": {
+        "title": "Análisis en Tiempo Real",
+        "description": "Monitorea ventas, conversaciones y métricas clave"
+      }
+    },
+    "socialProof": {
+      "title": "Confían en Wapsell"
+    },
+    "faq": {
+      "title": "Preguntas Frecuentes",
+      "q1": "¿Qué es Wapsell?",
+      "a1": "Wapsell es una plataforma integral de ventas que integra WhatsApp, catálogo de productos, gestión de contactos y análisis de negocio en una sola herramienta.",
+      "q2": "¿Es necesario instalar algo?",
+      "a2": "No. Wapsell funciona completamente en la nube. Solo necesitas acceder desde tu navegador.",
+      "q3": "¿Puedo integrar mi catálogo existente?",
+      "a3": "Sí. Puedes importar tus productos fácilmente desde un archivo CSV o ingresarlos manualmente.",
+      "q4": "¿Cómo se cuentan las conversaciones?",
+      "a4": "Cada mensaje de cliente cuenta como una conversación. Los mensajes salientes no cuentan. Tienes un límite basado en tu plan.",
+      "q5": "¿Qué soporte ofrecen?",
+      "a5": "Ofrecemos soporte por email y chat. Los planes premium incluyen soporte prioritario."
+    },
+    "ctaSection": {
+      "title": "¿Listo para transformar tu negocio?",
+      "subtitle": "Únete a cientos de empresas que ya usan Wapsell para vender más.",
+      "button": "Registrarse Gratis"
+    },
+    "footer": {
+      "copyright": "2024 Wapsell. Todos los derechos reservados.",
+      "company": "Empresa",
+      "about": "Sobre Nosotros",
+      "contact": "Contacto",
+      "legal": "Legal",
+      "privacy": "Privacidad",
+      "terms": "Términos"
+    }
   }
 }

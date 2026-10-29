@@ -19,6 +19,8 @@ import { AuthGoogleService } from './auth.google.service';
 import { MembershipService } from '../membership/membership.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser, UserProfile } from './auth.types';
@@ -35,10 +37,37 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(
+      dto.email,
+      dto.password,
+      dto.nombre,
+      dto.companyName,
+    );
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
+  }
+
+  @ApiBearerAuth()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() req: { headers: { authorization?: string } },
+  ): Promise<LogoutDto> {
+    // Extract token from Authorization header (Bearer <token>)
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('Missing or invalid Authorization header');
+    }
+    const token = authHeader.substring(7);
+    return this.authService.logout(token);
   }
 
   // Unlike the rest of /auth, it queries the DB on every call (not only

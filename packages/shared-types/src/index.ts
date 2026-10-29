@@ -2,6 +2,59 @@
 // implementados. Se mantienen sincronizados a mano con los DTOs/respuestas
 // reales de apps/api/src (no son un espejo automático de schema.prisma).
 
+// Payment and receipt types for POS system
+export * from './payment.types';
+
+// Chat and messaging types
+export enum BuyerPersona {
+  RESEARCHER = 'RESEARCHER',
+  EARLY_ADOPTER = 'EARLY_ADOPTER',
+  DECISION_MAKER = 'DECISION_MAKER',
+  LATE_ADOPTER = 'LATE_ADOPTER',
+  SKEPTIC = 'SKEPTIC',
+  UNKNOWN = 'UNKNOWN',
+}
+
+export interface PersonaMetadata {
+  persona_type: BuyerPersona;
+  confidence: number;
+  characteristics: string[];
+}
+
+export interface ChatMessageResponse {
+  id: string;
+  session_id: string;
+  response: string;
+  user_message: string;
+  persona: PersonaMetadata;
+  metadata: {
+    model: string;
+    tokens_used?: number;
+    response_time_ms: number;
+  };
+  created_at: Date;
+}
+
+export interface ChatHistoryItem {
+  id: string;
+  message: string;
+  response: string;
+  persona: PersonaMetadata;
+  created_at: Date;
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatHistoryItem[];
+  session_id: string;
+  total_count: number;
+}
+
+export interface SessionDeleteResponse {
+  message: string;
+  session_id: string;
+  deleted_at: Date;
+}
+
 export interface AuthenticatedUser {
   id: string;
   email: string;

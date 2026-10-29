@@ -8,7 +8,7 @@ import { JwtStrategy } from './jwt.strategy';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '8h' },
+      signOptions: { expiresIn: '7d' }, // Updated from 8h to 7 days as per spec
     }),
   ],
   providers: [JwtStrategy],

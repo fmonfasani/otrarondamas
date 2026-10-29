@@ -1833,3 +1833,65 @@ model KafkaEventLog {
   @@index([status])
 }
 
+// H3: Properties Module — Demo property listing and contact management
+model Property {
+  id            String   @id @default(uuid())
+  title         String
+  description   String   @db.Text
+  type          String   // 'apartment', 'house', 'land', 'commercial'
+  price         Decimal  @db.Decimal(12, 2)
+  bedrooms      Int
+  bathrooms     Int
+  location      String
+  address       String
+  latitude      Float?
+  longitude     Float?
+  images        Json?    // Array of image URLs
+  amenities     Json?    // Array of amenities
+  metadata      Json?    // Additional property metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  Leads         Lead[]
+
+  @@index([location, createdAt])
+  @@index([price])
+  @@index([type])
+  @@index([deletedAt])
+}
+
+// H3: Leads from demo contact form
+model Lead {
+  id            String   @id @default(uuid())
+  email         String
+  name          String
+  phone         String
+  message       String   @db.Text
+  propertyId    String?  // Optional reference to property
+  verifiedAt    DateTime?
+  verificationToken String? @unique // Hash of verification token
+  tokenExpiresAt DateTime?
+  ipAddress     String?  // For rate limiting
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  Property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@index([verifiedAt])
+  @@index([propertyId])
+  @@index([ipAddress, createdAt]) // For rate limiting queries
+}
+
+// H3: Email verification tokens (separate for cleaner TTL management)
+model EmailVerificationToken {
+  id            String   @id @default(uuid())
+  email         String
+  tokenHash     String   @unique // SHA256 hash of token
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([email, expiresAt])
+}
+

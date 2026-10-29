@@ -1,0 +1,9 @@
+src/
+**/*.test.ts
+**/*.spec.ts
+vitest.config.ts
+node_modules/
+dist/
+.eslintrc.json
+tsconfig.json
+README.md

@@ -57,5 +57,61 @@
     "createNew": "Create New Business",
     "settings": "Settings",
     "name": "Business Name"
+  },
+  "landing": {
+    "hero": {
+      "title": "Manage Your Business with Wapsell",
+      "subtitle": "The all-in-one platform for selling through WhatsApp, managing product catalogs, and analyzing real-time metrics.",
+      "cta": "Start Free"
+    },
+    "features": {
+      "title": "Key Features",
+      "aiChat": {
+        "title": "AI-Powered Chat",
+        "description": "Automatically attend to your customers with intelligent responses"
+      },
+      "catalog": {
+        "title": "Product Catalog",
+        "description": "Manage your inventory and share products with ease"
+      },
+      "leads": {
+        "title": "Contact Management",
+        "description": "Organize and segment your customers for effective campaigns"
+      },
+      "analytics": {
+        "title": "Real-Time Analytics",
+        "description": "Monitor sales, conversations, and key metrics"
+      }
+    },
+    "socialProof": {
+      "title": "Trusted by Hundreds"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "q1": "What is Wapsell?",
+      "a1": "Wapsell is an all-in-one sales platform that integrates WhatsApp, product catalog, contact management, and business analytics in a single tool.",
+      "q2": "Do I need to install anything?",
+      "a2": "No. Wapsell runs entirely in the cloud. Just access it from your browser.",
+      "q3": "Can I import my existing catalog?",
+      "a3": "Yes. You can easily import your products from a CSV file or enter them manually.",
+      "q4": "How are conversations counted?",
+      "a4": "Each customer message counts as a conversation. Outgoing messages don't count. You have a limit based on your plan.",
+      "q5": "What support do you offer?",
+      "a5": "We offer email and chat support. Premium plans include priority support."
+    },
+    "ctaSection": {
+      "title": "Ready to transform your business?",
+      "subtitle": "Join hundreds of companies already using Wapsell to sell more.",
+      "button": "Sign Up Free"
+    },
+    "footer": {
+      "copyright": "2024 Wapsell. All rights reserved.",
+      "company": "Company",
+      "about": "About Us",
+      "contact": "Contact",
+      "legal": "Legal",
+      "privacy": "Privacy",
+      "terms": "Terms"
+    }
   }
 }

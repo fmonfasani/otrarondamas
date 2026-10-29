@@ -1,145 +1,120 @@
-import { LoaderFunction, json } from '@remix-run/node';
+import { LoaderFunction, json, redirect } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
+import { Suspense } from 'react';
 import { requireAuth } from '~/services/auth.server';
+import { getDashboardKPIs, DashboardAPIError } from '~/services/dashboard.client';
 import { DashboardStats } from '~/components/dashboard/DashboardStats';
 import { RecentOrders } from '~/components/dashboard/RecentOrders';
 import { useTranslation } from '~/hooks/useTranslation';
 
-interface KPIData {
-  sales: number;
-  revenue: number;
-  orders: number;
-  customers: number;
+interface DashboardLoaderData {
+  kpis: {
+    sales: number;
+    revenue: number;
+    orders: number;
+    customers: number;
+  };
+  orders?: {
+    id: string;
+    customer: string;
+    amount: number;
+    date: string;
+    status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  }[];
+  error?: string;
 }
 
-interface Order {
-  id: string;
-  customer: string;
-  amount: number;
-  date: string;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
-}
-
-export const loader: LoaderFunction = async ({ request }) => {
+/**
+ * Dashboard loader — fetches KPIs and trend data from NestJS API
+ *
+ * Auth: requires JWT token from session
+ * Errors:
+ * - 401 (Unauthorized): redirects to /login
+ * - 403 (Forbidden): redirects to /forbidden
+ * - 500+ (Server error): returns error state for error boundary
+ * - Timeout: retries once, then returns error state
+ */
+export const loader: LoaderFunction = async ({ request }): Promise<DashboardLoaderData> => {
   const token = await requireAuth(request);
 
-  // Fetch dashboard data from NestJS API
-  const apiUrl = process.env.VITE_API_URL;
-  if (!apiUrl) {
-    // Return mock data if API is not available
-    return json({
-      kpis: {
-        sales: 1250,
-        revenue: 45320,
-        orders: 89,
-        customers: 342,
-      },
-      orders: [
-        {
-          id: '1',
-          customer: 'John Doe',
-          amount: 250,
-          date: '2024-01-15',
-          status: 'completed' as const,
-        },
-        {
-          id: '2',
-          customer: 'Jane Smith',
-          amount: 1200,
-          date: '2024-01-14',
-          status: 'processing' as const,
-        },
-      ],
-    });
-  }
-
   try {
-    const response = await fetch(
-      `${apiUrl}/dashboard/kpis`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    // Fetch KPIs with default 30-day period
+    const kpisData = await getDashboardKPIs(token, '30d');
 
-    if (!response.ok) {
-      // Return mock data on API error
-      return json({
-        kpis: {
-          sales: 1250,
-          revenue: 45320,
-          orders: 89,
-          customers: 342,
-        },
-        orders: [
-          {
-            id: '1',
-            customer: 'John Doe',
-            amount: 250,
-            date: '2024-01-15',
-            status: 'completed' as const,
-          },
-          {
-            id: '2',
-            customer: 'Jane Smith',
-            amount: 1200,
-            date: '2024-01-14',
-            status: 'processing' as const,
-          },
-        ],
-      });
-    }
-
-    const kpis: KPIData = await response.json();
-
-    // Try to fetch recent orders
-    let orders: Order[] = [];
-    try {
-      const ordersResponse = await fetch(
-        `${apiUrl}/dashboard/recent-orders`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (ordersResponse.ok) {
-        orders = await ordersResponse.json();
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    }
-
-    return json({ kpis, orders });
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    // Return mock data on error
+    // Map API response to component format
     return json({
       kpis: {
-        sales: 1250,
-        revenue: 45320,
-        orders: 89,
-        customers: 342,
+        sales: kpisData.kpis.totalOrders.value, // order count
+        revenue: kpisData.kpis.totalRevenue.value,
+        orders: kpisData.kpis.totalOrders.value,
+        customers: kpisData.kpis.totalCustomers.value,
       },
-      orders: [
-        {
-          id: '1',
-          customer: 'John Doe',
-          amount: 250,
-          date: '2024-01-15',
-          status: 'completed' as const,
-        },
-        {
-          id: '2',
-          customer: 'Jane Smith',
-          amount: 1200,
-          date: '2024-01-14',
-          status: 'processing' as const,
-        },
-      ],
+      orders: [], // TODO: fetch from recent-orders endpoint when available
     });
+  } catch (error) {
+    if (error instanceof DashboardAPIError) {
+      // 401 Unauthorized — token expired or invalid
+      if (error.statusCode === 401) {
+        throw redirect('/login');
+      }
+
+      // 403 Forbidden — insufficient permissions
+      if (error.statusCode === 403) {
+        throw redirect('/forbidden');
+      }
+
+      // 5xx Server error — return error state for component to handle
+      if (error.statusCode >= 500) {
+        console.error('[dashboard] API server error:', error.message);
+        return json(
+          {
+            kpis: {
+              sales: 0,
+              revenue: 0,
+              orders: 0,
+              customers: 0,
+            },
+            error: 'Failed to load dashboard data. Please try again later.',
+          },
+          { status: 200 } // Still return 200 so component can render error UI
+        );
+      }
+
+      // Other API errors (4xx except 401/403)
+      console.error('[dashboard] API error:', error.message);
+      return json(
+        {
+          kpis: {
+            sales: 0,
+            revenue: 0,
+            orders: 0,
+            customers: 0,
+          },
+          error: error.message,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Unexpected error — log and show error state
+    console.error('[dashboard] Unexpected error:', error);
+    return json(
+      {
+        kpis: {
+          sales: 0,
+          revenue: 0,
+          orders: 0,
+          customers: 0,
+        },
+        error: 'An unexpected error occurred. Please try again later.',
+      },
+      { status: 200 }
+    );
   }
 };
 
 export default function DashboardPage() {
-  const { kpis, orders } = useLoaderData<typeof loader>();
+  const { kpis, orders, error } = useLoaderData<DashboardLoaderData>();
   const { t } = useTranslation();
 
   return (
@@ -149,16 +124,51 @@ export default function DashboardPage() {
         <p className="text-gray-600 mt-2">{t('dashboard.welcome')}</p>
       </div>
 
-      <DashboardStats
-        sales={kpis.sales}
-        revenue={kpis.revenue}
-        orders={kpis.orders}
-        customers={kpis.customers}
-      />
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+          <p className="text-sm font-medium text-red-800">{error}</p>
+          <p className="text-xs text-red-700 mt-1">
+            {t('dashboard.error_retry')}
+          </p>
+        </div>
+      )}
+
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardStats
+          sales={kpis.sales}
+          revenue={kpis.revenue}
+          orders={kpis.orders}
+          customers={kpis.customers}
+        />
+      </Suspense>
 
       {orders && orders.length > 0 && (
-        <RecentOrders orders={orders} />
+        <Suspense fallback={<RecentOrdersSkeleton />}>
+          <RecentOrders orders={orders} />
+        </Suspense>
       )}
     </div>
+  );
+}
+
+/**
+ * Skeleton loader for dashboard stats
+ */
+function DashboardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-lg bg-gray-100 h-32 animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for recent orders
+ */
+function RecentOrdersSkeleton() {
+  return (
+    <div className="rounded-lg bg-gray-100 h-64 animate-pulse" />
   );
 }

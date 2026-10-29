@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,6 +29,94 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  /**
+   * Register a new user (staff/admin).
+   * Creates: User record, Empresa (company), and assigns OWNER role.
+   * Uses bcryptjs for password hashing.
+   */
+  async register(email: string, password: string, nombre: string, companyName: string) {
+    // Validate email is not already in use
+    const existingUser = await this.prisma.usuario.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Validate password strength
+    this.validatePasswordStrength(password);
+
+    // Hash the password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create the Empresa (company) first
+    const empresa = await this.prisma.empresa.create({
+      data: {
+        nombre: companyName,
+        slug: this.generateSlug(companyName),
+        configuracion: { theme: 'default', language: 'es' },
+      },
+    });
+
+    // Create the Usuario with the new empresa
+    const user = await this.prisma.usuario.create({
+      data: {
+        email,
+        nombre,
+        passwordHash,
+        empresaId: empresa.id,
+        rol: 'OWNER' as UserRole,
+        activo: true,
+        estadoLegajo: 'APROBADO' as DossierStatus,
+      },
+      include: {
+        UsuarioPermiso: { include: { Permiso: true } },
+        Empresa: true,
+        UserEmpresa: { include: { Empresa: true } },
+      },
+    });
+
+    // Create UserEmpresa link for multi-tenant support
+    await this.prisma.userEmpresa.create({
+      data: {
+        usuarioId: user.id,
+        empresaId: empresa.id,
+        role: 'owner',
+      },
+    });
+
+    // Issue session (JWT + user object)
+    return this.issueSession(
+      user,
+      user.UsuarioPermiso.map((up) => up.Permiso.nombre),
+    );
+  }
+
+  /**
+   * Logout: adds the current token to a blacklist.
+   * The token remains valid from JWT perspective but can be marked as revoked.
+   * For now, this is a placeholder that returns success.
+   * In production, implement Redis-based or DB-based token blacklist.
+   */
+  async logout(token: string): Promise<{ message: string }> {
+    // Extract the JWT payload to get expiration
+    try {
+      const decoded = this.jwtService.decode(token) as any;
+      if (!decoded || !decoded.exp) {
+        throw new UnauthorizedException('Invalid token');
+      }
+
+      // TODO: Implement token blacklist (Redis or DB)
+      // For now, simply return success
+      // In production: store token in Redis with TTL = exp - now()
+      // or store in DB table token_blacklist(token, expires_at)
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
 
   async login(email: string, password: string) {
     const user = await this.verifyCredentials(email, password);
@@ -162,5 +255,48 @@ export class AuthService {
         estadoLegajo: user.estadoLegajo,
       },
     };
+  }
+
+  /**
+   * Validate password strength:
+   * - At least 8 characters
+   * - At least one uppercase letter
+   * - At least one lowercase letter
+   * - At least one number
+   */
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 8) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
+    }
+    if (!/[A-Z]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one uppercase letter',
+      );
+    }
+    if (!/[a-z]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one lowercase letter',
+      );
+    }
+    if (!/\d/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one number',
+      );
+    }
+  }
+
+  /**
+   * Generate a URL-safe slug from a company name.
+   * Simple implementation: lowercase, replace spaces/special chars with hyphens.
+   */
+  private generateSlug(name: string): string {
+    const timestamp = Date.now();
+    return `${name
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 20)}-${timestamp}`;
   }
 }
