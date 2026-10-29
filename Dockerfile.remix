@@ -1,0 +1,55 @@
+# Multi-stage build for Wapsell Remix frontend
+# Se construye con el contexto en la raíz del monorepo
+
+FROM node:20-alpine AS builder
+
+WORKDIR /repo
+
+# Copiamos manifests primero para cache de capas
+COPY package.json tsconfig.base.json ./
+COPY apps/wapsell-remix/package.json apps/wapsell-remix/package.json
+RUN if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit; else npm install --prefer-offline --no-audit; fi
+
+# Copy source
+COPY apps/wapsell-remix apps/wapsell-remix
+
+# Build Remix app
+RUN npm run build --workspace=@otrarondamas/wapsell-remix
+
+# Stage 2: Runtime
+FROM node:20-alpine
+
+WORKDIR /repo
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init curl
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy built app from builder
+COPY --from=builder --chown=nodejs:nodejs /repo/apps/wapsell-remix/build ./apps/wapsell-remix/build
+COPY --from=builder --chown=nodejs:nodejs /repo/apps/wapsell-remix/public ./apps/wapsell-remix/public
+COPY package.json ./
+COPY apps/wapsell-remix/package.json apps/wapsell-remix/package.json
+
+# Install production dependencies only
+RUN if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit --only=production; else npm install --prefer-offline --no-audit --only=production; fi && \
+    npm cache clean --force
+
+# Use non-root user
+USER nodejs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+    CMD curl -f -s -o /dev/null -w "%{http_code}" http://localhost:5173/health || exit 1
+
+# Expose port
+EXPOSE 5173
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start production server
+CMD ["npm", "start", "--workspace=@otrarondamas/wapsell-remix"]
