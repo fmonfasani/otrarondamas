@@ -17,15 +17,36 @@ import { CreateSalePaymentDto } from './dto/create-sale-payment.dto';
 import { ListSalesDto } from './dto/list-sales.dto';
 
 /**
- * RF-05 (in-person sales).
+ * P5A: Sales Service Multi-Tenant Refactoring
  *
- * Inc-1: integrity validations (RN-VTA-06, 07, 11, 18, INV-VTA-07).
- * Inc-2: computation with Prisma.Decimal and rounding to 2 decimals per
- *        line (RN-VTA-02).
- * Inc-3: sequential commercial number (D-VTA-10), POST /ventas/:id/pagos
- *        with montoRecibido/vuelto/referencia (RF-VTA-14-15-16), cash
- *        blocked with closed cash register (D-VTA-07/A), derived balance
- *        in GET /ventas/:id.
+ * All methods now require businessId parameter for multi-tenant isolation.
+ * CompanyScopedPrismaService.forCompany(businessId) automatically scopes
+ * all Prisma queries to the given businessId via company-scope.extension.ts.
+ *
+ * Stock deduction uses SERIALIZABLE transaction isolation (SV6-H-10b)
+ * to prevent concurrent race conditions in order confirmation.
+ *
+ * Venta.numero sequencing is per-business via SELECT MAX(numero) + 1
+ * within the SERIALIZABLE transaction.
+ */
+
+/**
+ * RF-05 (in-person sales) — Multi-Tenant Edition (P5A)
+ *
+ * All methods now require explicit businessId parameter. The
+ * CompanyScopedPrismaService.forCompany(businessId) ensures all queries
+ * are automatically filtered to the given business via Prisma extension.
+ *
+ * Invariants:
+ * - Inc-1: integrity validations (RN-VTA-06, 07, 11, 18, INV-VTA-07).
+ * - Inc-2: computation with Prisma.Decimal and rounding to 2 decimals per
+ *          line (RN-VTA-02).
+ * - Inc-3: sequential commercial number (D-VTA-10), POST /ventas/:id/pagos
+ *          with montoRecibido/vuelto/referencia (RF-VTA-14-15-16), cash
+ *          blocked with closed cash register (D-VTA-07/A), derived balance
+ *          in GET /ventas/:id.
+ * - P5A: All queries scoped to businessId via CompanyScopedPrismaService.
+ *        SERIALIZABLE isolation on stock deduction (SV6-H-10b).
  */
 @Injectable()
 export class SalesService {
@@ -51,11 +72,11 @@ export class SalesService {
   }
 
   private async resolveItems(
-    companyId: string,
+    businessId: string,
     items: Array<{ productoId: string; cantidad: number; descuentoItem?: number }>,
     customerId?: string,
   ) {
-    const db = this.prismaFactory.forCompany(companyId);
+    const db = this.prismaFactory.forCompany(businessId);
 
     const productIds = [...new Set(items.map((i) => i.productoId))];
     const products = await db.producto.findMany({ where: { id: { in: productIds } } });
@@ -70,9 +91,9 @@ export class SalesService {
     }
 
     const customerLevel = customerId
-      ? await this.customersService.calculateLevel(companyId, customerId)
+      ? await this.customersService.calculateLevel(businessId, customerId)
       : null;
-    const activeRules = customerLevel ? await this.loyaltyService.listActiveRules(companyId) : [];
+    const activeRules = customerLevel ? await this.loyaltyService.listActiveRules(businessId) : [];
 
     return items.map((item) => {
       const product = productById.get(item.productoId)!;
@@ -98,11 +119,12 @@ export class SalesService {
   }
 
   // Inc-3 (D-VTA-07/A): checks whether there is a current cash register
-  // opening. The company may have no cash register configured (initial
+  // opening. The business may have no cash register configured (initial
   // startup) — in that case it is treated as a closed cash register.
-  private async isCashRegisterOpen(companyId: string): Promise<boolean> {
-    const db = this.prismaFactory.forCompany(companyId);
-    const cashRegister = await db.caja.findUnique({ where: { empresaId: companyId } });
+  // P5A: businessId explicit; CompanyScopedPrismaService auto-filters
+  private async isCashRegisterOpen(businessId: string): Promise<boolean> {
+    const db = this.prismaFactory.forCompany(businessId);
+    const cashRegister = await db.caja.findUnique({ where: { empresaId: businessId } });
     if (!cashRegister) return false;
     const opening = await db.aperturaCaja.findFirst({
       where: { cajaId: cashRegister.id, fechaCierre: null },
@@ -110,10 +132,12 @@ export class SalesService {
     return !!opening;
   }
 
-  async create(dto: CreateSaleDto, companyId: string, userId: string) {
-    // Inc-1: idempotencia
+  async create(dto: CreateSaleDto, businessId: string, userId: string) {
+    // P5A: All queries now scoped via businessId through CompanyScopedPrismaService
+    const db = this.prismaFactory.forCompany(businessId);
+
+    // Inc-1: idempotencia — scope automatically filters to businessId
     if (dto.idempotencyKey) {
-      const db = this.prismaFactory.forCompany(companyId);
       const existing = await db.venta.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
         include: { VentaItem: true, Pago: true },
@@ -128,13 +152,13 @@ export class SalesService {
       }
     }
 
-    // Inc-1: valid customer for this company
+    // Inc-1: valid customer for this business (P5A: businessId explicit)
     if (dto.clienteId) {
-      const customer = await this.customersService.get(companyId, dto.clienteId);
+      const customer = await this.customersService.get(businessId, dto.clienteId);
       if (!customer.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
     }
 
-    const itemsWithPrice = await this.resolveItems(companyId, dto.items, dto.clienteId);
+    const itemsWithPrice = await this.resolveItems(businessId, dto.items, dto.clienteId);
 
     // Inc-2: total with Decimal
     const total = itemsWithPrice.reduce((acc, item) => {
@@ -149,94 +173,97 @@ export class SalesService {
       return acc.plus(subtotal);
     }, new Prisma.Decimal(0));
 
-    const db = this.prismaFactory.forCompany(companyId);
+    // P5A: SERIALIZABLE isolation for stock deduction (SV6-H-10b)
+    return db.$transaction(
+      async (tx) => {
+        // Inc-3 (D-VTA-10/A): sequential number per business inside the
+        // transaction — SELECT MAX + 1 with implicit row locking in Postgres's
+        // SERIALIZABLE transaction prevents race conditions.
+        const maxNumber = await tx.venta.aggregate({
+          where: { empresaId: businessId },
+          _max: { numero: true },
+        });
+        const sequenceNumber = (maxNumber._max.numero ?? 0) + 1;
 
-    return db.$transaction(async (tx) => {
-      // Inc-3 (D-VTA-10/A): sequential number per company inside the
-      // transaction — SELECT MAX + 1 with implicit row locking in Postgres's
-      // serializable transaction.
-      const maxNumber = await tx.venta.aggregate({
-        where: { empresaId: companyId },
-        _max: { numero: true },
-      });
-      const sequenceNumber = (maxNumber._max.numero ?? 0) + 1;
-
-      const sale = await tx.venta.create({
-        data: {
-          empresaId: companyId,
-          usuarioId: userId,
-          clienteId: dto.clienteId,
-          canal: dto.canal,
-          total,
-          numero: sequenceNumber,
-          estado: 'CONFIRMADA',
-          idempotencyKey: dto.idempotencyKey ?? null,
-          VentaItem: {
-            create: itemsWithPrice.map((item) => ({
-              productoId: item.productoId,
-              cantidad: new Prisma.Decimal(item.cantidad),
-              precioUnitario: new Prisma.Decimal(item.precioUnitario.toString()),
-              descuentoItem: new Prisma.Decimal(item.descuentoItem ?? 0),
-              descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje
-                ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
-                : null,
-              reglaFidelizacionId: item.reglaFidelizacionId,
-            })),
-          },
-        },
-        include: { VentaItem: true },
-      });
-
-      // Inc-1: AuditLog in the same transaction
-      await tx.auditLog.create({
-        data: {
-          empresaId: companyId,
-          usuarioId: userId,
-          accion: 'CREATE',
-          entidadAfectada: 'Venta',
-          entidadId: sale.id,
-          valoresPosteriores: {
-            numero: sequenceNumber,
-            total: total.toString(),
+        const sale = await tx.venta.create({
+          data: {
+            empresaId: businessId,
+            usuarioId: userId,
+            clienteId: dto.clienteId,
             canal: dto.canal,
-            items: dto.items.length,
+            total,
+            numero: sequenceNumber,
+            estado: 'CONFIRMADA',
+            idempotencyKey: dto.idempotencyKey ?? null,
+            VentaItem: {
+              create: itemsWithPrice.map((item) => ({
+                productoId: item.productoId,
+                cantidad: new Prisma.Decimal(item.cantidad),
+                precioUnitario: new Prisma.Decimal(item.precioUnitario.toString()),
+                descuentoItem: new Prisma.Decimal(item.descuentoItem ?? 0),
+                descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje
+                  ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+                  : null,
+                reglaFidelizacionId: item.reglaFidelizacionId,
+              })),
+            },
           },
-          ventaId: sale.id,
-        },
-      });
+          include: { VentaItem: true },
+        });
 
-      const productsWithExpiredBatch = new Set<string>();
-      for (const item of itemsWithPrice) {
-        const hasExpiredBatchNow = await this.inventoryService.deductStock(
-          tx,
-          companyId,
-          item.productoId,
-          item.cantidad,
-          'Venta',
-          sale.id,
-          userId,
-        );
-        if (hasExpiredBatchNow) {
-          productsWithExpiredBatch.add(item.productoId);
+        // Inc-1: AuditLog in the same SERIALIZABLE transaction
+        await tx.auditLog.create({
+          data: {
+            empresaId: businessId,
+            usuarioId: userId,
+            accion: 'CREATE',
+            entidadAfectada: 'Venta',
+            entidadId: sale.id,
+            valoresPosteriores: {
+              numero: sequenceNumber,
+              total: total.toString(),
+              canal: dto.canal,
+              items: dto.items.length,
+            },
+            ventaId: sale.id,
+          },
+        });
+
+        const productsWithExpiredBatch = new Set<string>();
+        for (const item of itemsWithPrice) {
+          // P5A: SERIALIZABLE isolation prevents race on concurrent stock deduction
+          const hasExpiredBatchNow = await this.inventoryService.deductStock(
+            tx,
+            businessId,
+            item.productoId,
+            item.cantidad,
+            'Venta',
+            sale.id,
+            userId,
+          );
+          if (hasExpiredBatchNow) {
+            productsWithExpiredBatch.add(item.productoId);
+          }
         }
-      }
 
-      return {
-        ...sale,
-        saldo: total.toString(),
-        advertenciasStockVencido: [...productsWithExpiredBatch],
-      };
-    });
+        return {
+          ...sale,
+          saldo: total.toString(),
+          advertenciasStockVencido: [...productsWithExpiredBatch],
+        };
+      },
+      { isolationLevel: 'Serializable' }, // P5A: SV6-H-10b
+    );
   }
 
-  // Inc-2: preliminary quote without creating the sale
-  async quote(dto: QuoteSaleDto, companyId: string) {
+  // Inc-2: preliminary quote without creating the sale (P5A: businessId explicit)
+  async quote(dto: QuoteSaleDto, businessId: string) {
     if (dto.clienteId) {
-      const customer = await this.customersService.get(companyId, dto.clienteId);
+      const customer = await this.customersService.get(businessId, dto.clienteId);
       if (!customer.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
     }
 
-    const itemsWithPrice = await this.resolveItems(companyId, dto.items, dto.clienteId);
+    const itemsWithPrice = await this.resolveItems(businessId, dto.items, dto.clienteId);
 
     const lines = itemsWithPrice.map((item) => {
       const priceDecimal = new Prisma.Decimal(item.precioUnitario.toString());
@@ -273,14 +300,15 @@ export class SalesService {
   // D-VTA-07/A: block cash if the cash register is closed.
   // D-VTA-04/B: leaving with a balance is allowed — the derived balance is
   // computed by findOne().
-  async findPaymentsBySale(saleId: string, companyId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  // P5A: businessId explicit; CompanyScopedPrismaService auto-filters
+  async findPaymentsBySale(saleId: string, businessId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const sale = await db.venta.findUnique({ where: { id: saleId } });
-    if (!sale || sale.empresaId !== companyId) {
+    if (!sale) {
       throw new NotFoundException('Venta no encontrada');
     }
     return db.pago.findMany({
-      where: { ventaId: saleId, empresaId: companyId },
+      where: { ventaId: saleId },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -288,17 +316,17 @@ export class SalesService {
   async createPayment(
     saleId: string,
     dto: CreateSalePaymentDto,
-    companyId: string,
+    businessId: string,
     userId: string,
   ) {
-    const db = this.prismaFactory.forCompany(companyId);
+    const db = this.prismaFactory.forCompany(businessId);
 
+    // P5A: CompanyScopedPrismaService automatically filters to businessId
     const sale = await db.venta.findUnique({
       where: { id: saleId },
       include: { Pago: { where: { estado: 'APROBADO' } } },
     });
     if (!sale) throw new NotFoundException('Venta no encontrada');
-    if (sale.empresaId !== companyId) throw new NotFoundException('Venta no encontrada');
     if (sale.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
 
     const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
@@ -313,9 +341,9 @@ export class SalesService {
       throw new BadRequestException('PAGO_EXCEDE_SALDO');
     }
 
-    // Inc-3 D-VTA-07/A: efectivo requiere caja abierta
+    // Inc-3 D-VTA-07/A: efectivo requiere caja abierta (P5A: businessId explicit)
     if (dto.medio === 'efectivo') {
-      const open = await this.isCashRegisterOpen(companyId);
+      const open = await this.isCashRegisterOpen(businessId);
       if (!open) throw new ConflictException('CAJA_CERRADA');
 
       // RN-VTA-12: in cash, montoRecibido may exceed the amount
@@ -325,73 +353,77 @@ export class SalesService {
       }
     }
 
-    return db.$transaction(async (tx) => {
-      const receivedAmount =
-        dto.medio === 'efectivo' && dto.montoRecibido
-          ? new Prisma.Decimal(dto.montoRecibido)
-          : null;
-      const change = receivedAmount ? receivedAmount.minus(amountDecimal).toDecimalPlaces(2) : null;
+    // P5A: SERIALIZABLE isolation for payment transaction
+    return db.$transaction(
+      async (tx) => {
+        const receivedAmount =
+          dto.medio === 'efectivo' && dto.montoRecibido
+            ? new Prisma.Decimal(dto.montoRecibido)
+            : null;
+        const change = receivedAmount ? receivedAmount.minus(amountDecimal).toDecimalPlaces(2) : null;
 
-      const payment = await tx.pago.create({
-        data: {
-          empresaId: companyId,
-          usuarioId: userId,
-          ventaId: saleId,
-          monto: amountDecimal,
-          medio: dto.medio,
-          estado: 'APROBADO',
-          montoRecibido: receivedAmount,
-          vuelto: change,
-          referencia: dto.referencia ?? null,
-        },
-      });
-
-      // RF-09: every cash sale collection must be reflected in the active
-      // cash opening in the same transaction as Pago. Record the amount
-      // collected (not montoRecibido, which includes change returned).
-      if (dto.medio === 'efectivo') {
-        const cashRegister = await tx.caja.findUnique({ where: { empresaId: companyId } });
-        if (!cashRegister) throw new ConflictException('CAJA_CERRADA');
-        const opening = await tx.aperturaCaja.findFirst({
-          where: { cajaId: cashRegister.id, fechaCierre: null },
-          orderBy: { fechaApertura: 'desc' },
-        });
-        if (!opening) throw new ConflictException('CAJA_CERRADA');
-
-        await tx.movimientoCaja.create({
+        const payment = await tx.pago.create({
           data: {
-            cajaId: cashRegister.id,
-            aperturaCajaId: opening.id,
+            empresaId: businessId,
             usuarioId: userId,
-            tipo: 'Venta',
+            ventaId: saleId,
             monto: amountDecimal,
-            descripcion: `Cobro en efectivo de venta ${sale.numero ?? saleId}`,
-            referenciaId: payment.id,
+            medio: dto.medio,
+            estado: 'APROBADO',
+            montoRecibido: receivedAmount,
+            vuelto: change,
+            referencia: dto.referencia ?? null,
           },
         });
-      }
 
-      // Inc-1 (RN-VTA-18): AuditLog of the collection
-      await tx.auditLog.create({
-        data: {
-          empresaId: companyId,
-          usuarioId: userId,
-          accion: 'PAGO',
-          entidadAfectada: 'Pago',
-          entidadId: payment.id,
-          valoresPosteriores: {
+        // RF-09: every cash sale collection must be reflected in the active
+        // cash opening in the same transaction as Pago. Record the amount
+        // collected (not montoRecibido, which includes change returned).
+        if (dto.medio === 'efectivo') {
+          const cashRegister = await tx.caja.findUnique({ where: { empresaId: businessId } });
+          if (!cashRegister) throw new ConflictException('CAJA_CERRADA');
+          const opening = await tx.aperturaCaja.findFirst({
+            where: { cajaId: cashRegister.id, fechaCierre: null },
+            orderBy: { fechaApertura: 'desc' },
+          });
+          if (!opening) throw new ConflictException('CAJA_CERRADA');
+
+          await tx.movimientoCaja.create({
+            data: {
+              cajaId: cashRegister.id,
+              aperturaCajaId: opening.id,
+              usuarioId: userId,
+              tipo: 'Venta',
+              monto: amountDecimal,
+              descripcion: `Cobro en efectivo de venta ${sale.numero ?? saleId}`,
+              referenciaId: payment.id,
+            },
+          });
+        }
+
+        // Inc-1 (RN-VTA-18): AuditLog of the collection in same transaction
+        await tx.auditLog.create({
+          data: {
+            empresaId: businessId,
+            usuarioId: userId,
+            accion: 'PAGO',
+            entidadAfectada: 'Pago',
+            entidadId: payment.id,
+            valoresPosteriores: {
+              ventaId: saleId,
+              monto: amountDecimal.toString(),
+              medio: dto.medio,
+              vuelto: change?.toString() ?? null,
+            },
             ventaId: saleId,
-            monto: amountDecimal.toString(),
-            medio: dto.medio,
-            vuelto: change?.toString() ?? null,
           },
-          ventaId: saleId,
-        },
-      });
+        });
 
-      const newBalance = balance.minus(amountDecimal).toDecimalPlaces(2);
-      return { pago: payment, saldo: newBalance.toString() };
-    });
+        const newBalance = balance.minus(amountDecimal).toDecimalPlaces(2);
+        return { pago: payment, saldo: newBalance.toString() };
+      },
+      { isolationLevel: 'Serializable' }, // P5A: SV6-H-10b
+    );
   }
 
   private calculateCollectionStatus(
@@ -403,7 +435,7 @@ export class SalesService {
     return 'PARCIAL';
   }
 
-  async findAll(companyId: string, dto: ListSalesDto = {}) {
+  async findAll(businessId: string, dto: ListSalesDto = {}) {
     const {
       desde: from,
       hasta: until,
@@ -420,16 +452,17 @@ export class SalesService {
         ? { ...(from ? { gte: new Date(from) } : {}), ...(until ? { lte: new Date(until) } : {}) }
         : undefined;
 
+    // P5A: CompanyScopedPrismaService auto-filters empresaId; don't add it to where
     const where: Prisma.VentaWhereInput = {
-      empresaId: companyId,
       ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
       ...(userId ? { usuarioId: userId } : {}),
       ...(customerId ? { clienteId: customerId } : {}),
       ...(sequenceNumber ? { numero: sequenceNumber } : {}),
     };
 
+    const db = this.prismaFactory.forCompany(businessId);
     const [sales, total] = await Promise.all([
-      this.prismaFactory.forCompany(companyId).venta.findMany({
+      db.venta.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -441,7 +474,7 @@ export class SalesService {
           _count: { select: { Pago: true } },
         },
       }),
-      this.prismaFactory.forCompany(companyId).venta.count({ where }),
+      db.venta.count({ where }),
     ]);
 
     // Compute balance and estadoCobro for filtering and the response
@@ -471,8 +504,9 @@ export class SalesService {
     return { data: filteredRows, total, page, pageSize };
   }
 
-  async findOne(id: string, companyId: string) {
-    const sale = await this.prismaFactory.forCompany(companyId).venta.findFirst({
+  async findOne(id: string, businessId: string) {
+    // P5A: CompanyScopedPrismaService auto-filters to businessId
+    const sale = await this.prismaFactory.forCompany(businessId).venta.findFirst({
       where: { id },
       include: {
         Usuario: { select: { id: true, nombre: true } },
@@ -507,20 +541,22 @@ export class SalesService {
     };
   }
 
-  async getReceipt(id: string, companyId: string) {
-    const sale = await this.findOne(id, companyId);
+  async getReceipt(id: string, businessId: string) {
+    // P5A: businessId explicit, auto-filtered via CompanyScopedPrismaService
+    const sale = await this.findOne(id, businessId);
     // Returns the same structure as findOne — the frontend formats it for
     // printing
     return sale;
   }
 
-  // Inc-1: product search for the POS
-  async searchProducts(companyId: string, search: string) {
+  // Inc-1: product search for the POS (P5A: businessId explicit)
+  async searchProducts(businessId: string, search: string) {
     if (!search || search.length < 2) {
       throw new BadRequestException('El término de búsqueda debe tener al menos 2 caracteres');
     }
 
-    const db = this.prismaFactory.forCompany(companyId);
+    const db = this.prismaFactory.forCompany(businessId);
+    // P5A: CompanyScopedPrismaService auto-filters producto to businessId
     const products = await db.producto.findMany({
       where: {
         activo: true,
