@@ -26,8 +26,8 @@ export type LoyaltyLevel = 'NUEVO' | 'FRECUENTE' | 'VIP';
 export class CustomersService {
   constructor(private readonly prismaFactory: CompanyScopedPrismaService) {}
 
-  async list(companyId: string, search?: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async list(businessId: string, search?: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const where: Prisma.ClienteWhereInput = {
       /* eslint-disable indent -- known false positive of the base `indent`
          rule with a ternary returning a nested object (same pattern as
@@ -52,17 +52,17 @@ export class CustomersService {
     // criterion as consolidatedStock() (there is no pagination yet in any
     // listing of the project).
     return Promise.all(
-      customers.map(async (c) => ({ ...c, nivel: await this.calculateLevel(companyId, c.id) })),
+      customers.map(async (c) => ({ ...c, nivel: await this.calculateLevel(businessId, c.id) })),
     );
   }
 
-  async get(companyId: string, id: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async get(businessId: string, id: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const customer = await db.cliente.findUnique({ where: { id } });
     if (!customer) {
       throw new NotFoundException('Cliente no encontrado');
     }
-    const level = await this.calculateLevel(companyId, id);
+    const level = await this.calculateLevel(businessId, id);
     return { ...customer, nivel: level };
   }
 
@@ -75,8 +75,8 @@ export class CustomersService {
    * cancellation is implemented yet) + Pedido (estado 'CONFIRMADO')
    * associated to this customer.
    */
-  async calculateLevel(companyId: string, customerId: string): Promise<LoyaltyLevel> {
-    const db = this.prismaFactory.forCompany(companyId);
+  async calculateLevel(businessId: string, customerId: string): Promise<LoyaltyLevel> {
+    const db = this.prismaFactory.forCompany(businessId);
     const [confirmedSales, confirmedOrders] = await Promise.all([
       db.venta.count({ where: { clienteId: customerId, estado: 'CONFIRMADA' } }),
       db.pedido.count({ where: { clienteId: customerId, estado: 'CONFIRMADO' } }),
@@ -95,39 +95,39 @@ export class CustomersService {
     return 'NUEVO';
   }
 
-  async create(companyId: string, dto: CreateCustomerDto) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async create(businessId: string, dto: CreateCustomerDto) {
+    const db = this.prismaFactory.forCompany(businessId);
     if (dto.email) {
-      await this.verifyEmailAvailable(companyId, dto.email);
+      await this.verifyEmailAvailable(businessId, dto.email);
     }
     // Explicit Prisma.ClienteUncheckedCreateInput: without this annotation,
     // through the generic type returned by companyScopeExtension, TypeScript
     // cannot resolve the Exact<XOR<...>> that Prisma requires for `create`
     // (same pattern as Proveedor/Producto).
-    const data: Prisma.ClienteUncheckedCreateInput = { ...dto, empresaId: companyId };
+    const data: Prisma.ClienteUncheckedCreateInput = { ...dto, businessId: businessId };
     return db.cliente.create({ data });
   }
 
-  async update(companyId: string, id: string, dto: UpdateCustomerDto) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async update(businessId: string, id: string, dto: UpdateCustomerDto) {
+    const db = this.prismaFactory.forCompany(businessId);
     const existing = await db.cliente.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Cliente no encontrado');
     }
     if (dto.email && dto.email !== existing.email) {
-      await this.verifyEmailAvailable(companyId, dto.email, id);
+      await this.verifyEmailAvailable(businessId, dto.email, id);
     }
     return db.cliente.update({ where: { id }, data: dto });
   }
 
   /**
-   * Cliente.email is @@unique([empresaId, email]) — checked here, before
+   * Cliente.email is @@unique([businessId, email]) — checked here, before
    * create/update, to return an explicit 400 ('a customer with that email
    * already exists') instead of letting Postgres reject with a less clear
    * constraint error for whoever uses the panel.
    */
-  private async verifyEmailAvailable(companyId: string, email: string, excludeId?: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  private async verifyEmailAvailable(businessId: string, email: string, excludeId?: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const existing = await db.cliente.findFirst({ where: { email } });
     if (existing && existing.id !== excludeId) {
       throw new BadRequestException(`Ya existe un cliente con el email ${email}`);

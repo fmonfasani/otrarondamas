@@ -33,7 +33,7 @@ export class InventoryService {
    * It does not use Prisma `groupBy`: companyScopeExtension (see
    * prisma/company-scope.extension.ts) only has explicit isolation handling
    * for a fixed set of operations — groupBy is not in that list, so a query
-   * with groupBy on a model with empresaId fails explicitly instead of
+   * with groupBy on a model with businessId fails explicitly instead of
    * silently skipping the filter (intentional behavior of that extension).
    * Instead of widening that shared file — used by all modules, and its own
    * comment documents why each operation is added there explicitly, not for
@@ -44,7 +44,7 @@ export class InventoryService {
    * companyScopeExtension with groupBy, with its own review — not before.
    */
   async consolidatedStock(
-    companyId: string,
+    businessId: string,
     search?: string,
     onlyLowStock?: boolean,
     // Online Store design phase: Familia/Subfamilia filter for the public
@@ -55,7 +55,7 @@ export class InventoryService {
     familyId?: string,
     subfamilyId?: string,
   ) {
-    const db = this.prismaFactory.forCompany(companyId);
+    const db = this.prismaFactory.forCompany(businessId);
 
     const whereProduct: Prisma.ProductoWhereInput = {
       activo: true,
@@ -138,8 +138,8 @@ export class InventoryService {
    * here the WHOLE catalog explicitly matters (an alert that omits products
    * due to pagination is not a reliable alert).
    */
-  async alerts(companyId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async alerts(businessId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const noticeDays = Number(process.env.INVENTARIO_ALERTA_VENCIMIENTO_DIAS ?? 7);
 
     const products = await db.producto.findMany({
@@ -209,8 +209,8 @@ export class InventoryService {
    * no path that modifies Lote.cantidad without leaving the movement that
    * explains it.
    */
-  async registerAdjustment(companyId: string, dto: RegisterAdjustmentDto, userId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async registerAdjustment(businessId: string, dto: RegisterAdjustmentDto, userId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
 
     const batch = await db.lote.findUnique({ where: { id: dto.loteId } });
     if (!batch) {
@@ -218,7 +218,7 @@ export class InventoryService {
     }
 
     return db.$transaction(async (tx) => {
-      const result = await this.applyAtomicAdjustment(tx, companyId, dto.loteId, dto.cantidad);
+      const result = await this.applyAtomicAdjustment(tx, businessId, dto.loteId, dto.cantidad);
       if (result.count === 0) {
         // The condition `cantidad + dto.cantidad >= 0` was not met (someone else
         // adjusted/deducted this batch between the findUnique above and this
@@ -232,7 +232,7 @@ export class InventoryService {
 
       return tx.movimientoStock.create({
         data: {
-          empresaId: companyId,
+          businessId: businessId,
           productoId: batch.productoId,
           loteId: dto.loteId,
           tipoMovimiento: dto.cantidad > 0 ? 'Entrada' : 'Salida',
@@ -246,13 +246,13 @@ export class InventoryService {
 
   private async applyAtomicAdjustment(
     tx: CompanyScopedTx,
-    companyId: string,
+    businessId: string,
     batchId: string,
     quantity: number,
   ) {
     // Prisma does not support `cantidad: { gte: <expression with the field> }`
     // in a typed updateMany — a parameterized $executeRaw is used (never
-    // string interpolation) for the atomic conditional UPDATE. empresaId is
+    // string interpolation) for the atomic conditional UPDATE. businessId is
     // explicitly included in the WHERE: $executeRaw does NOT go through
     // companyScopeExtension (that extension only intercepts calls to the normal
     // Prisma Client, not raw SQL), so multi-company isolation here is the
@@ -260,7 +260,7 @@ export class InventoryService {
     const rows = await tx.$executeRaw(Prisma.sql`
       UPDATE "Lote"
       SET "cantidad" = "cantidad" + ${quantity}, "updatedAt" = now()
-      WHERE "id" = ${batchId} AND "empresaId" = ${companyId} AND "cantidad" + ${quantity} >= 0
+      WHERE "id" = ${batchId} AND "businessId" = ${businessId} AND "cantidad" + ${quantity} >= 0
     `);
     return { count: rows };
   }
@@ -292,7 +292,7 @@ export class InventoryService {
    */
   async deductStock(
     tx: CompanyScopedTx,
-    companyId: string,
+    businessId: string,
     productId: string,
     requiredQuantity: number,
     reason: string,
@@ -300,7 +300,7 @@ export class InventoryService {
     userId: string | null,
   ): Promise<boolean> {
     const batches = await tx.lote.findMany({
-      where: { empresaId: companyId, productoId: productId, cantidad: { gt: 0 } },
+      where: { businessId: businessId, productoId: productId, cantidad: { gt: 0 } },
       orderBy: { vencimiento: 'asc' },
     });
 
@@ -329,7 +329,7 @@ export class InventoryService {
       const deduction = await tx.lote.updateMany({
         where: {
           id: batch.id,
-          empresaId: companyId,
+          businessId: businessId,
           productoId: productId,
           cantidad: { gte: thisBatchQuantity },
         },
@@ -343,7 +343,7 @@ export class InventoryService {
 
       await tx.movimientoStock.create({
         data: {
-          empresaId: companyId,
+          businessId: businessId,
           productoId: productId,
           loteId: batch.id,
           tipoMovimiento: 'Salida',

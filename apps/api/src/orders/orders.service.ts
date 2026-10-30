@@ -28,8 +28,8 @@ export class OrdersService {
     private readonly inventoryService: InventoryService,
   ) {}
 
-  async list(companyId: string, status?: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async list(businessId: string, status?: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     return db.pedido.findMany({
       where: status ? { estado: status as never } : {},
       include: {
@@ -40,8 +40,8 @@ export class OrdersService {
     });
   }
 
-  async get(id: string, companyId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async get(id: string, businessId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const order = await db.pedido.findUnique({
       where: { id },
       include: {
@@ -55,8 +55,8 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(id: string, companyId: string, dto: UpdateOrderStatusDto, userId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
+  async updateStatus(id: string, businessId: string, dto: UpdateOrderStatusDto, userId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     const order = await db.pedido.findUnique({
       where: { id },
       include: { PedidoItem: true },
@@ -171,8 +171,8 @@ export class OrdersService {
    * - 409 Conflict: Order in non-cancellable state (EN_PREP+)
    * - 422 Unprocessable: Stock reversal would violate constraints
    */
-  async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<Record<string, unknown>> {
-    const db = this.prismaFactory.forCompany(companyId);
+  async cancelOrder(id: string, businessId: string, userId: string, motivo?: string): Promise<Record<string, unknown>> {
+    const db = this.prismaFactory.forCompany(businessId);
 
     try {
       return await db.$transaction(
@@ -221,7 +221,7 @@ export class OrdersService {
             // Find all EGRESO movements for this order
             const egressos = await tx.movimientoStock.findMany({
               where: {
-                empresaId: companyId,
+                businessId: businessId,
                 referenciaId: id,
                 tipoMovimiento: 'Salida',
               },
@@ -244,7 +244,7 @@ export class OrdersService {
               // Create ENTRADA to reverse the EGRESO
               await tx.movimientoStock.create({
                 data: {
-                  empresaId: companyId,
+                  businessId: businessId,
                   productoId: egreso.productoId,
                   loteId: egreso.loteId,
                   tipoMovimiento: 'Entrada',
@@ -269,7 +269,7 @@ export class OrdersService {
           // Create audit log entry
           await tx.auditLog.create({
             data: {
-              empresaId: companyId,
+              businessId: businessId,
               usuarioId: userId,
               accion: 'CANCELAR_ORDEN',
               entidadAfectada: 'Pedido',

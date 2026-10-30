@@ -48,7 +48,7 @@ export class AuthorizationsService {
    * the dto itself, which belong to whoever GRANTS it. If they coincide, it
    * is self-authorization and D-06 explicitly forbids it.
    */
-  async authorize(companyId: string, dto: RequestAuthorizationDto, requesterId: string) {
+  async authorize(businessId: string, dto: RequestAuthorizationDto, requesterId: string) {
     const authorizer = await this.authService.verifyCredentials(dto.email, dto.password);
 
     if (authorizer.id === requesterId) {
@@ -57,7 +57,7 @@ export class AuthorizationsService {
       );
     }
 
-    if (authorizer.empresaId !== companyId) {
+    if (authorizer.businessId !== businessId) {
       // The credentials were valid, but belong to a user of ANOTHER company —
       // a working login is not enough, it must be someone from the same company
       // as the operation being authorized.
@@ -65,7 +65,7 @@ export class AuthorizationsService {
     }
 
     const requiredPermission = REQUIRED_PERMISSION_BY_OPERATION[dto.operacion];
-    const db = this.prismaFactory.forCompany(companyId);
+    const db = this.prismaFactory.forCompany(businessId);
     const hasPermission = await db.usuarioPermiso.findFirst({
       where: { usuarioId: authorizer.id, Permiso: { nombre: requiredPermission } },
       include: { Permiso: true },
@@ -81,7 +81,7 @@ export class AuthorizationsService {
     // the generic type returned by companyScopeExtension, TypeScript does not
     // resolve the Exact<XOR<...>> that Prisma requires.
     const data: Prisma.AutorizacionUncheckedCreateInput = {
-      empresaId: companyId,
+      businessId: businessId,
       autorizadorId: authorizer.id,
       operacion: dto.operacion,
       entidadAfectada: dto.entidadAfectada,
