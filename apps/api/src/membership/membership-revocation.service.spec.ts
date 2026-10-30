@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MembershipRevocationService } from './membership-revocation.service';
 

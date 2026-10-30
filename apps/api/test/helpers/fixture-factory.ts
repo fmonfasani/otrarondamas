@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * FixtureFactory: Reusable, namespaced test factory for relation isolation tests
  *
@@ -18,6 +19,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { PrismaService } from '../../src/prisma/prisma.service';
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * Tenant creation result: matches spec requirement {id, name, createdAt}
  */
@@ -27,6 +29,7 @@ export interface TenantCreationResult {
   createdAt: Date;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * FixtureFactory: Creates reproducible, isolated test fixtures
  */
@@ -40,7 +43,8 @@ export class FixtureFactory {
     this.tenantCount = tenantCount;
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Generate a unique namespace for this test run
    * Uses UUID-based format: prevents collisions in parallel tests
    */
@@ -48,7 +52,8 @@ export class FixtureFactory {
     return uuidv4();
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a tenant (Empresa in the schema)
    * @param name Optional tenant name; auto-generated if not provided
    * @returns {id, name, createdAt} as per spec
@@ -77,7 +82,8 @@ export class FixtureFactory {
     };
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a product with full category chain
    * Creates: Familia → Subfamilia → Tipo → Subtipo → Producto
    * @param tenantId Company ID
@@ -164,7 +170,8 @@ export class FixtureFactory {
     return producto;
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a Proveedor
    * @param tenantId Company ID
    * @param overrides Optional field overrides
@@ -190,7 +197,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a Lote (batch/lot)
    * @param tenantId Company ID
    * @param productoId Product ID
@@ -219,7 +227,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a Usuario
    * @param tenantId Company ID
    * @param overrides Optional field overrides
@@ -247,7 +256,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a RoleTemplate (which is "Rol" in our context)
    * @param tenantId Company ID
    * @param overrides Optional field overrides
@@ -271,7 +281,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a ReglaFidelizacion (loyalty rule)
    * @param tenantId Company ID
    * @param overrides Optional field overrides
@@ -298,7 +309,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a MovimientoStock (inventory movement)
    * @param tenantId Company ID
    * @param loteId Batch/lot ID
@@ -328,7 +340,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a Venta (sale)
    * @param tenantId Company ID
    * @param clienteId Optional client ID; auto-created if not provided
@@ -360,7 +373,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Create a Compra (purchase order)
    * @param tenantId Company ID
    * @param proveedorId Optional provider ID; auto-created if not provided
@@ -398,7 +412,8 @@ export class FixtureFactory {
     });
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Delete all data created by this factory for a given tenant
    * Idempotent: safe to call multiple times
    * Uses transactions to ensure consistency
@@ -424,7 +439,8 @@ export class FixtureFactory {
     }
   }
 
-  /**
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/**
    * Delete all records belonging to a specific tenant
    * Respects foreign key constraints by deleting in dependency order
    * @param tenantId Company ID

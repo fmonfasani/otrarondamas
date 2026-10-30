@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { RefundQueueService } from './refund-queue.service';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';

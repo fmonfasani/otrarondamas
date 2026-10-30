@@ -135,7 +135,7 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
       expect(true).toBe(true); // Placeholder
     });
 
-    it("SPECIFICATION: Staff cannot confirm another company's order", () => {
+    it('SPECIFICATION: Staff cannot confirm another company\'s order', () => {
       // Create order in Company B, try to confirm with staff from Company A
       // RESPONSE: 404 Not Found (order not visible in Company A scope)
       // STATUS: 404 Not Found

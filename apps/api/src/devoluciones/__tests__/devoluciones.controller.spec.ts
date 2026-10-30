@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { DevolucionClienteController } from '../devoluciones.controller';
 import { DevolucionesService } from '../devoluciones.service';

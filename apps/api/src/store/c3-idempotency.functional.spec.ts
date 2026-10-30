@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 /**
  * C3 — Functional Tests for Idempotency, Consistency, and Concurrency
  *

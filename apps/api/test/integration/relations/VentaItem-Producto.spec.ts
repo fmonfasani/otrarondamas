@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 

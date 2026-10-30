@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { MembershipStatus, MessagingConversationType, Prisma } from '@prisma/client';
 import type { BusinessContext } from '../business-context/business-context.types';

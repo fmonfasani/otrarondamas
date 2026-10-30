@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { createHmac } from 'crypto';
 import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';

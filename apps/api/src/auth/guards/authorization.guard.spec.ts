@@ -1,10 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthorizationGuard } from './authorization.guard';
-import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
-import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth.types';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /**
  * Authorization Guard Test Suite (Phase 2 P1-2)

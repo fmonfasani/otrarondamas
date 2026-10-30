@@ -13,8 +13,8 @@ export class AuditService {
     accion: string;
     entidadAfectada: string;
     entidadId?: string;
-    valoresAnteriores?: any;
-    valoresPosteriores?: any;
+    valoresAnteriores?: Record<string, unknown>;
+    valoresPosteriores?: Record<string, unknown>;
     motivo?: string;
     autorizacionId?: string;
     ventaId?: string;

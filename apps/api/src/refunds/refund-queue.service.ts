@@ -162,7 +162,7 @@ export class RefundQueueService implements OnModuleInit, OnModuleDestroy {
    * Calls payment provider, handles success/failure/retry logic.
    * Updates Reembolso record and logs audit events.
    */
-  private async processRefund(refund: any, logger: Logger): Promise<void> {
+  private async processRefund(refund: Record<string, unknown>, logger: Logger): Promise<void> {
     const db = this.prismaFactory.forCompany(refund.empresaId);
 
     try {

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { RELATIONS_WITH_OWNERSHIP } from '../../src/prisma/relation-ownership';
 
 /**
