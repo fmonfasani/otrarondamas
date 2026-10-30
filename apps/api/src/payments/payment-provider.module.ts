@@ -15,9 +15,8 @@ import { MockPaymentProvider } from './mock-payment.provider';
     {
       provide: 'IPaymentProvider',
       useFactory: (): IPaymentProvider => {
-        const provider = process.env.PAYMENT_PROVIDER || 'mock';
-
         // Phase 5+: Add real providers here
+        // const provider = process.env.PAYMENT_PROVIDER || 'mock';
         // if (provider === 'stripe') {
         //   return new StripePaymentProvider(process.env.STRIPE_API_KEY);
         // }

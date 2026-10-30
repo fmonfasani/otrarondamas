@@ -1,5 +1,5 @@
 import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuditReportingService } from './audit-reporting.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';

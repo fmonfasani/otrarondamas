@@ -340,7 +340,7 @@ export class AuditReportingService {
   /**
    * Helper: Map AuditLog record to DTO
    */
-  private mapAuditLogToDto(log: any): AuditLogDto {
+  private mapAuditLogToDto(log: Record<string, unknown>): AuditLogDto {
     return {
       id: log.id,
       businessId: log.empresaId,

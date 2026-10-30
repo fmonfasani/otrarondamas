@@ -171,7 +171,7 @@ export class OrdersService {
    * - 409 Conflict: Order in non-cancellable state (EN_PREP+)
    * - 422 Unprocessable: Stock reversal would violate constraints
    */
-  async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<any> {
+  async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<Record<string, unknown>> {
     const db = this.prismaFactory.forCompany(companyId);
 
     try {
