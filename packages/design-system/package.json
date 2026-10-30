@@ -30,12 +30,12 @@
     "src/styles"
   ],
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "check": "tsc --noEmit",
-    "lint": "eslint src/**/*.ts{,x} --fix",
-    "test": "vitest",
-    "clean": "rm -rf dist"
+    "build": "npx tsc",
+    "typecheck": "npx tsc --noEmit",
+    "check": "npx tsc --noEmit",
+    "lint": "npx eslint \"src/**/*.ts{,x}\" --fix",
+    "test": "npx vitest",
+    "clean": "rimraf dist"
   },
   "keywords": [
     "design-system",
