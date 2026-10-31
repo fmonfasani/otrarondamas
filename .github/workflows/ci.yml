@@ -194,13 +194,22 @@ jobs:
     if: always()
     steps:
       - name: Check status
-        run: echo "All required jobs completed"
+        run: |
+          if [ "${{ needs.lint.result }}" = "failure" ] || \
+             [ "${{ needs.unit-tests.result }}" = "failure" ] || \
+             [ "${{ needs.build.result }}" = "failure" ] || \
+             [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
+            echo "Pipeline failed"
+            exit 1
+          fi
+          echo "Pipeline succeeded"
+          exit 0
 
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to VPS
     needs: [build, e2e-tests, security]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
     timeout-minutes: 15
     environment:
       name: production
