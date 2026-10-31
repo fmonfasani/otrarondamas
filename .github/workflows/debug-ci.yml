@@ -33,7 +33,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           npm cache clean --force
-          npm ci --prefer-offline --no-audit
+          npm ci --workspaces --prefer-offline --no-audit
 
   lint:
     runs-on: ubuntu-latest
