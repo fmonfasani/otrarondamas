@@ -195,10 +195,10 @@ jobs:
     steps:
       - name: Check status
         run: |
-          if [ "${{ needs.lint.result }}" = "failure" ] || \
-             [ "${{ needs.unit-tests.result }}" = "failure" ] || \
-             [ "${{ needs.build.result }}" = "failure" ] || \
-             [ "${{ needs.e2e-tests.result }}" = "failure" ]; then
+          if [ "${{ needs['lint'].result }}" = "failure" ] || \
+             [ "${{ needs['unit-tests'].result }}" = "failure" ] || \
+             [ "${{ needs['build'].result }}" = "failure" ] || \
+             [ "${{ needs['e2e-tests'].result }}" = "failure" ]; then
             echo "Pipeline failed"
             exit 1
           fi
