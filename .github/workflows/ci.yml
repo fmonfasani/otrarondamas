@@ -209,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to VPS
     needs: [build, e2e-tests, security]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     timeout-minutes: 15
     environment:
       name: production
