@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditLog } from '@prisma/client';
+// import { AuditLog } from '@prisma/client'; // TODO: types
 
 @Injectable()
 export class AuditService {

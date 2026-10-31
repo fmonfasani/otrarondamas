@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { RetentionMatrixDto, LTVMetricDto } from './dto/responses';
 
@@ -265,8 +265,8 @@ export class CohortAnalysisService {
       let customerRevenue = 0;
       for (const venta of customer.Venta) {
         const revenue = Number(
-          new Prisma.Decimal(String(venta.total))
-            .minus(new Prisma.Decimal(String(venta.descuento || 0)))
+          new any(String(venta.total))
+            .minus(new any(String(venta.descuento || 0)))
             .toFixed(2),
         );
         customerRevenue += revenue;
@@ -303,8 +303,8 @@ export class CohortAnalysisService {
             return (
               sum +
               Number(
-                new Prisma.Decimal(String(venta.total))
-                  .minus(new Prisma.Decimal(String(venta.descuento || 0)))
+                new any(String(venta.total))
+                  .minus(new any(String(venta.descuento || 0)))
                   .toFixed(2),
               )
             );

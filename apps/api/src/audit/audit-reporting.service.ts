@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogDto, AuditLogListResponseDto } from './dto/audit-log.dto';
 import { AuditSummaryDto } from './dto/summary.dto';
@@ -53,7 +53,7 @@ export class AuditReportingService {
     }
 
     // Build filter: enforce businessId, apply user filter if needed
-    const whereFilter: Prisma.AuditLogWhereInput = {
+    const whereFilter:  any = {
       empresaId: businessId,
       accion: filters.accion ? { equals: filters.accion } : undefined,
       entidadAfectada: filters.entidad ? { equals: filters.entidad } : undefined,
@@ -156,7 +156,7 @@ export class AuditReportingService {
 
     const groupBy = filters.group_by || 'dia';
 
-    const baseWhere: Prisma.AuditLogWhereInput = {
+    const baseWhere:  any = {
       empresaId: businessId,
       createdAt: {
         gte: dateGte,
@@ -305,7 +305,7 @@ export class AuditReportingService {
       throw new BadRequestException('fecha_desde must be <= fecha_hasta');
     }
 
-    const whereFilter: Prisma.AuditLogWhereInput = {
+    const whereFilter:  any = {
       empresaId: businessId,
       usuarioId: targetUserId,
       createdAt: {
@@ -342,25 +342,25 @@ export class AuditReportingService {
    */
   private mapAuditLogToDto(log: Record<string, unknown>): AuditLogDto {
     return {
-      id: log.id,
-      businessId: log.empresaId,
-      accion: log.accion,
-      entidad: log.entidadAfectada,
-      entityId: log.entidadId || undefined,
-      userId: log.usuarioId || undefined,
+      id: log.id as any,
+      businessId: log.empresaId as any,
+      accion: log.accion as any,
+      entidad: log.entidadAfectada as any,
+      entityId: (log.entidadId as any) || undefined,
+      userId: (log.usuarioId as any) || undefined,
       usuario: log.Usuario
         ? {
-            id: log.Usuario.id,
-            nombre: log.Usuario.nombre,
-            email: log.Usuario.email,
+            id: (log.Usuario as any).id,
+            nombre: (log.Usuario as any).nombre,
+            email: (log.Usuario as any).email,
           }
         : undefined,
-      valores_anteriores: log.valoresAnteriores || undefined,
-      valores_nuevos: log.valoresPosteriores || undefined,
+      valores_anteriores: (log.valoresAnteriores as any) || undefined,
+      valores_nuevos: (log.valoresPosteriores as any) || undefined,
       cambios_resumidos: undefined,
       ip_address: undefined,
-      motivo: log.motivo || undefined,
-      createdAt: log.createdAt.toISOString(),
+      motivo: (log.motivo as any) || undefined,
+      createdAt: (log.createdAt as any).toISOString(),
     };
   }
 }

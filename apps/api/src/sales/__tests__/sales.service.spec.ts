@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { SalesService } from '../sales.service';
 import { CompanyScopedPrismaService } from '../../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../../inventory/inventory.service';
@@ -136,7 +136,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
           {
             id: mockProductId,
             activo: true,
-            precioMinorista: new Prisma.Decimal('100'),
+            precioMinorista: new any('100'),
             familiaId: 'fam1',
             subfamiliaId: 'subfam1',
             tipoId: 'tipo1',
@@ -153,7 +153,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
           id: mockSaleId,
           empresaId: mockBusinessId1,
           numero: 6,
-          total: new Prisma.Decimal('100'),
+          total: new any('100'),
           VentaItem: [],
         }),
       };
@@ -210,7 +210,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
       const existingSale = {
         id: mockSaleId,
         empresaId: mockBusinessId1,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         Pago: [],
       };
 
@@ -265,7 +265,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
         {
           id: mockProductId,
           activo: true,
-          precioMinorista: new Prisma.Decimal('100'),
+          precioMinorista: new any('100'),
           familiaId: 'fam1',
           subfamiliaId: 'subfam1',
           tipoId: 'tipo1',
@@ -311,7 +311,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
       mockDb.venta.findUnique = jest.fn().mockResolvedValue({
         id: mockSaleId,
         empresaId: mockBusinessId1,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         numero: 1,
         estado: 'CONFIRMADA',
         Pago: [],
@@ -319,9 +319,9 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
 
       mockDb.pago.create = jest.fn().mockResolvedValue({
         id: 'pago-id',
-        monto: new Prisma.Decimal('100'),
+        monto: new any('100'),
         medio: 'efectivo',
-        vuelto: new Prisma.Decimal('0'),
+        vuelto: new any('0'),
       });
 
       mockDb.caja.findUnique = jest.fn().mockResolvedValue({ id: 'caja-id' });
@@ -363,7 +363,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
 
       mockDb.venta.findUnique = jest.fn().mockResolvedValue({
         id: mockSaleId,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         estado: 'CONFIRMADA',
         Pago: [],
       });
@@ -403,7 +403,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
         {
           id: 'pago-1',
           ventaId: mockSaleId,
-          monto: new Prisma.Decimal('50'),
+          monto: new any('50'),
           estado: 'APROBADO',
         },
       ];
@@ -441,7 +441,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
           id: 'sale-1',
           empresaId: mockBusinessId1,
           numero: 1,
-          total: new Prisma.Decimal('100'),
+          total: new any('100'),
           Usuario: { id: mockUserId, nombre: 'User1' },
           Cliente: null,
           Pago: [],
@@ -480,7 +480,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
         id: mockSaleId,
         empresaId: mockBusinessId1,
         numero: 1,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         Usuario: { id: mockUserId, nombre: 'User1' },
         Cliente: null,
         VentaItem: [],
@@ -511,7 +511,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
         id: mockSaleId,
         empresaId: mockBusinessId1,
         numero: 1,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         Usuario: { id: mockUserId, nombre: 'User1' },
         Cliente: null,
         VentaItem: [],
@@ -542,13 +542,13 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
           codigoInterno: 'P001',
           codigoBarras: 'BAR001',
           marca: 'Marca1',
-          precioMinorista: new Prisma.Decimal('100'),
+          precioMinorista: new any('100'),
           unidadBase: 'unidad',
           activo: true,
-          stockMinimo: new Prisma.Decimal('5'),
+          stockMinimo: new any('5'),
           Familia: { id: 'fam1', nombre: 'Familia 1' },
           Subfamilia: { id: 'subfam1', nombre: 'Subfamilia 1' },
-          Lote: [{ cantidad: new Prisma.Decimal('10') }],
+          Lote: [{ cantidad: new any('10') }],
         },
       ];
 
@@ -586,7 +586,7 @@ describe('SalesService (P5A: Multi-Tenant)', () => {
         id: mockSaleId,
         empresaId: mockBusinessId1,
         numero: 1,
-        total: new Prisma.Decimal('100'),
+        total: new any('100'),
         Usuario: { id: mockUserId, nombre: 'User1' },
         Cliente: null,
         VentaItem: [],

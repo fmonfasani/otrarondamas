@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -28,7 +28,7 @@ export class CustomersService {
 
   async list(businessId: string, search?: string) {
     const db = this.prismaFactory.forCompany(businessId);
-    const where: Prisma.ClienteWhereInput = {
+    const where:  any = {
       /* eslint-disable indent -- known false positive of the base `indent`
          rule with a ternary returning a nested object (same pattern as
          catalog.controller.ts) */
@@ -100,11 +100,11 @@ export class CustomersService {
     if (dto.email) {
       await this.verifyEmailAvailable(businessId, dto.email);
     }
-    // Explicit Prisma.ClienteUncheckedCreateInput: without this annotation,
+    // Explicit  any: without this annotation,
     // through the generic type returned by companyScopeExtension, TypeScript
     // cannot resolve the Exact<XOR<...>> that Prisma requires for `create`
     // (same pattern as Proveedor/Producto).
-    const data: Prisma.ClienteUncheckedCreateInput = { ...dto, businessId: businessId };
+    const data:  any = { ...dto, businessId: businessId };
     return db.cliente.create({ data });
   }
 

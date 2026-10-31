@@ -2,14 +2,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AnalyticsEvent } from '@prisma/client';
+// import { AnalyticsEvent } from '@prisma/client'; // TODO: types
 import { TrackEventDto } from './dto/track-event.dto';
 
 /**
  * EventTrackingService captures analytics events with graceful degradation.
  * Failed tracking never blocks application operations (follows AuditService pattern).
  *
- * Scope: All operations automatically filter by empresaId via CompanyScopedPrisma.
+ * Scope: All operations automatically filter by empresaId via CompanyScoped any
  */
 @Injectable()
 export class EventTrackingService {

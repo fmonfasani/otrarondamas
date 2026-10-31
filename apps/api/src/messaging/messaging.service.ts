@@ -191,7 +191,7 @@ export class MessagingService {
 
         return this.getConversationForActor(tx, conversation.id, context);
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel:  any.Serializable },
     );
   }
 
@@ -263,8 +263,8 @@ export class MessagingService {
             },
           });
         } catch (error) {
-          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            const target = (error.meta as { target?: string[] } | undefined)?.target ?? [];
+          if ((error as any)?.code === 'P2002') {
+            const target = ((error as any).meta as { target?: string[] } | undefined)?.target ?? [];
             // `(conversationId, sequence)` losing a race is a concurrency
             // collision, not a duplicate send: the caller may retry and will get
             // the next sequence. Surfacing it as "duplicate clientMessageId"
@@ -291,7 +291,7 @@ export class MessagingService {
           throw error;
         }
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel:  any.Serializable },
     );
   }
 
@@ -642,7 +642,7 @@ export class MessagingService {
   }
 
   private async assertAssociationEntityBelongsToBusiness(
-    db: Prisma.TransactionClient | PrismaService,
+    db:  any | PrismaService,
     businessId: string,
     entityType: MessagingAssociationType,
     entityId: string,
@@ -686,7 +686,7 @@ export class MessagingService {
   }
 
   private async getAssociationLabel(
-    db: Prisma.TransactionClient | PrismaService,
+    db:  any | PrismaService,
     businessId: string,
     entityType: MessagingAssociationType,
     entityId: string,
@@ -849,7 +849,7 @@ export class MessagingService {
           },
         });
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel:  any.Serializable },
     );
   }
 
@@ -920,7 +920,7 @@ export class MessagingService {
 
         return updated;
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel:  any.Serializable },
     );
   }
 
@@ -961,7 +961,7 @@ export class MessagingService {
           data: { isAdmin: true },
         });
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel:  any.Serializable },
     );
   }
 
@@ -1140,7 +1140,7 @@ export class MessagingService {
   }
 
   private async findReadReceiptPreference(
-    tx: Prisma.TransactionClient | PrismaService,
+    tx:  any | PrismaService,
     context: BusinessContext,
   ) {
     const preference = await tx.messagingReadPreference.findFirst({
@@ -1186,7 +1186,7 @@ export class MessagingService {
    * could return another participant's message and leak content across actors.
    */
   private async findMessageByClientKey(
-    tx: Prisma.TransactionClient | PrismaService,
+    tx:  any | PrismaService,
     conversationId: string,
     context: BusinessContext,
     clientMessageId: string,
@@ -1244,7 +1244,7 @@ export class MessagingService {
   }
 
   private async assertParticipantsBelongToBusiness(
-    tx: Prisma.TransactionClient,
+    tx:  any,
     businessId: string,
     userIds: string[],
     customerIds: string[],
@@ -1307,7 +1307,7 @@ export class MessagingService {
   }
 
   private async assertActiveParticipant(
-    tx: Prisma.TransactionClient,
+    tx:  any,
     conversationId: string,
     context: BusinessContext,
   ) {
@@ -1329,7 +1329,7 @@ export class MessagingService {
   }
 
   private async assertConversationAdmin(
-    tx: Prisma.TransactionClient | PrismaService,
+    tx:  any | PrismaService,
     conversationId: string,
     context: BusinessContext,
   ) {
@@ -1356,7 +1356,7 @@ export class MessagingService {
   }
 
   private async getConversationForActor(
-    tx: Prisma.TransactionClient | PrismaService,
+    tx:  any | PrismaService,
     conversationId: string,
     context: BusinessContext,
   ) {

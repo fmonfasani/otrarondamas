@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Property, Prisma } from '@prisma/client';
+import { Property, Prisma } from '@prisma/client'; // TODO: types
 
 @Injectable()
 export class PropertiesService {
@@ -25,7 +25,7 @@ export class PropertiesService {
     const offset = filters.offset || 0;
 
     // Build where clause
-    const where: Prisma.PropertyWhereInput = {
+    const where:  any = {
       deletedAt: null, // Exclude soft-deleted properties
     };
 
@@ -40,10 +40,10 @@ export class PropertiesService {
     // Price range filter
     if (filters.minPrice !== undefined && filters.maxPrice !== undefined) {
       where.AND = where.AND || [];
-      (where.AND as Prisma.PropertyWhereInput[]).push({
+      (where.AND as  any[]).push({
         price: { gte: filters.minPrice },
       });
-      (where.AND as Prisma.PropertyWhereInput[]).push({
+      (where.AND as  any[]).push({
         price: { lte: filters.maxPrice },
       });
     } else if (filters.minPrice !== undefined) {
@@ -126,7 +126,7 @@ export class PropertiesService {
       throw new BadRequestException('Search query cannot be empty');
     }
 
-    const where: Prisma.PropertyWhereInput = {
+    const where:  any = {
       deletedAt: null,
       OR: [
         {

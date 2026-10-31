@@ -25,7 +25,7 @@ import { NotificationQueueService } from './notification-queue.service';
 import { NotificationAnalyticsService } from './notification-analytics.service';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { BusinessContext } from '../business-context/business-context.types';
-import { DigestPeriod, NotificationFrequency } from '@prisma/client';
+import { DigestPeriod, NotificationFrequency } from '@prisma/client'; // TODO: types
 
 /**
  * NotificationsController

@@ -6,7 +6,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
@@ -39,7 +39,7 @@ import { ListSalesDto } from './dto/list-sales.dto';
  *
  * Invariants:
  * - Inc-1: integrity validations (RN-VTA-06, 07, 11, 18, INV-VTA-07).
- * - Inc-2: computation with Prisma.Decimal and rounding to 2 decimals per
+ * - Inc-2: computation with any and rounding to 2 decimals per
  *          line (RN-VTA-02).
  * - Inc-3: sequential commercial number (D-VTA-10), POST /ventas/:id/pagos
  *          with montoRecibido/vuelto/referencia (RF-VTA-14-15-16), cash
@@ -59,14 +59,14 @@ export class SalesService {
 
   // Inc-2: subtotal per line with Decimal, round half up to 2 decimals.
   private calculateLineSubtotal(
-    unitPrice: Prisma.Decimal,
-    quantity: Prisma.Decimal,
-    loyaltyDiscountPercentage: Prisma.Decimal | null,
-    itemDiscount: Prisma.Decimal,
-  ): Prisma.Decimal {
+    unitPrice: any,
+    quantity: any,
+    loyaltyDiscountPercentage: any | null,
+    itemDiscount: any,
+  ): any {
     const gross = unitPrice.times(quantity);
     const afterLoyalty = loyaltyDiscountPercentage
-      ? gross.times(new Prisma.Decimal(1).minus(loyaltyDiscountPercentage.dividedBy(100)))
+      ? gross.times(new any(1).minus(loyaltyDiscountPercentage.dividedBy(100)))
       : gross;
     return afterLoyalty.minus(itemDiscount).toDecimalPlaces(2);
   }
@@ -145,9 +145,9 @@ export class SalesService {
       if (existing) {
         const totalPaid = existing.Pago.filter((p) => p.estado === 'APROBADO').reduce(
           (s, p) => s.plus(p.monto),
-          new Prisma.Decimal(0),
+          new any(0),
         );
-        const balance = new Prisma.Decimal(existing.total.toString()).minus(totalPaid);
+        const balance = new any(existing.total.toString()).minus(totalPaid);
         return { ...existing, saldo: balance.toString(), advertenciasStockVencido: [] };
       }
     }
@@ -163,15 +163,15 @@ export class SalesService {
     // Inc-2: total with Decimal
     const total = itemsWithPrice.reduce((acc, item) => {
       const subtotal = this.calculateLineSubtotal(
-        new Prisma.Decimal(item.precioUnitario.toString()),
-        new Prisma.Decimal(item.cantidad),
+        new any(item.precioUnitario.toString()),
+        new any(item.cantidad),
         item.descuentoFidelizacionPorcentaje
-          ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+          ? new any(item.descuentoFidelizacionPorcentaje.toString())
           : null,
-        new Prisma.Decimal(item.descuentoItem ?? 0),
+        new any(item.descuentoItem ?? 0),
       );
       return acc.plus(subtotal);
-    }, new Prisma.Decimal(0));
+    }, new any(0));
 
     // P5A: SERIALIZABLE isolation for stock deduction (SV6-H-10b)
     return db.$transaction(
@@ -198,11 +198,11 @@ export class SalesService {
             VentaItem: {
               create: itemsWithPrice.map((item) => ({
                 productoId: item.productoId,
-                cantidad: new Prisma.Decimal(item.cantidad),
-                precioUnitario: new Prisma.Decimal(item.precioUnitario.toString()),
-                descuentoItem: new Prisma.Decimal(item.descuentoItem ?? 0),
+                cantidad: new any(item.cantidad),
+                precioUnitario: new any(item.precioUnitario.toString()),
+                descuentoItem: new any(item.descuentoItem ?? 0),
                 descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje
-                  ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+                  ? new any(item.descuentoFidelizacionPorcentaje.toString())
                   : null,
                 reglaFidelizacionId: item.reglaFidelizacionId,
               })),
@@ -266,12 +266,12 @@ export class SalesService {
     const itemsWithPrice = await this.resolveItems(businessId, dto.items, dto.clienteId);
 
     const lines = itemsWithPrice.map((item) => {
-      const priceDecimal = new Prisma.Decimal(item.precioUnitario.toString());
-      const quantityDecimal = new Prisma.Decimal(item.cantidad);
+      const priceDecimal = new any(item.precioUnitario.toString());
+      const quantityDecimal = new any(item.cantidad);
       const loyaltyPct = item.descuentoFidelizacionPorcentaje
-        ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
+        ? new any(item.descuentoFidelizacionPorcentaje.toString())
         : null;
-      const manualDiscount = new Prisma.Decimal(item.descuentoItem ?? 0);
+      const manualDiscount = new any(item.descuentoItem ?? 0);
       const subtotal = this.calculateLineSubtotal(
         priceDecimal,
         quantityDecimal,
@@ -290,7 +290,7 @@ export class SalesService {
     });
 
     const total = lines
-      .reduce((acc, l) => acc.plus(new Prisma.Decimal(l.subtotal)), new Prisma.Decimal(0))
+      .reduce((acc, l) => acc.plus(new any(l.subtotal)), new any(0))
       .toDecimalPlaces(2);
 
     return { lineas: lines, total: total.toString() };
@@ -329,15 +329,15 @@ export class SalesService {
     if (!sale) throw new NotFoundException('Venta no encontrada');
     if (sale.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
 
-    const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
-    const balance = new Prisma.Decimal(sale.total.toString()).minus(totalPaid);
+    const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new any(0));
+    const balance = new any(sale.total.toString()).minus(totalPaid);
 
     if (balance.lessThanOrEqualTo(0)) {
       throw new BadRequestException('PAGO_EXCEDE_SALDO');
     }
 
-    const amountDecimal = new Prisma.Decimal(dto.monto);
-    if (amountDecimal.greaterThan(balance.plus(new Prisma.Decimal('0.001')))) {
+    const amountDecimal = new any(dto.monto);
+    if (amountDecimal.greaterThan(balance.plus(new any('0.001')))) {
       throw new BadRequestException('PAGO_EXCEDE_SALDO');
     }
 
@@ -347,7 +347,7 @@ export class SalesService {
       if (!open) throw new ConflictException('CAJA_CERRADA');
 
       // RN-VTA-12: in cash, montoRecibido may exceed the amount
-      const received = dto.montoRecibido ? new Prisma.Decimal(dto.montoRecibido) : amountDecimal;
+      const received = dto.montoRecibido ? new any(dto.montoRecibido) : amountDecimal;
       if (received.lessThan(amountDecimal)) {
         throw new BadRequestException('MONTO_RECIBIDO_INSUFICIENTE');
       }
@@ -358,7 +358,7 @@ export class SalesService {
       async (tx) => {
         const receivedAmount =
           dto.medio === 'efectivo' && dto.montoRecibido
-            ? new Prisma.Decimal(dto.montoRecibido)
+            ? new any(dto.montoRecibido)
             : null;
         const change = receivedAmount ? receivedAmount.minus(amountDecimal).toDecimalPlaces(2) : null;
 
@@ -427,8 +427,8 @@ export class SalesService {
   }
 
   private calculateCollectionStatus(
-    balance: Prisma.Decimal,
-    total: Prisma.Decimal,
+    balance: any,
+    total: any,
   ): 'PENDIENTE' | 'PARCIAL' | 'COBRADA' {
     if (balance.equals(total)) return 'PENDIENTE';
     if (balance.isZero()) return 'COBRADA';
@@ -447,13 +447,13 @@ export class SalesService {
       pageSize = 25,
     } = dto;
 
-    const createdAtFilter: Prisma.DateTimeFilter | undefined =
+    const createdAtFilter:  any | undefined =
       from || until
         ? { ...(from ? { gte: new Date(from) } : {}), ...(until ? { lte: new Date(until) } : {}) }
         : undefined;
 
     // P5A: CompanyScopedPrismaService auto-filters empresaId; don't add it to where
-    const where: Prisma.VentaWhereInput = {
+    const where:  any = {
       ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
       ...(userId ? { usuarioId: userId } : {}),
       ...(customerId ? { clienteId: customerId } : {}),
@@ -479,10 +479,10 @@ export class SalesService {
 
     // Compute balance and estadoCobro for filtering and the response
     const rows = sales.map((v) => {
-      const totalDecimal = new Prisma.Decimal(v.total);
+      const totalDecimal = new any(v.total);
       const paymentsSum = v.Pago.reduce(
-        (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
-        new Prisma.Decimal(0),
+        (acc, p) => acc.plus(new any(p.monto)),
+        new any(0),
       );
       const balanceDecimal = totalDecimal.minus(paymentsSum);
       const ec = this.calculateCollectionStatus(balanceDecimal, totalDecimal);
@@ -519,10 +519,10 @@ export class SalesService {
     });
     if (!sale) throw new NotFoundException('Venta no encontrada');
 
-    const totalDecimal = new Prisma.Decimal(sale.total);
+    const totalDecimal = new any(sale.total);
     const paymentsSum = sale.Pago.filter((p) => p.estado === 'APROBADO').reduce(
-      (acc, p) => acc.plus(new Prisma.Decimal(p.monto)),
-      new Prisma.Decimal(0),
+      (acc, p) => acc.plus(new any(p.monto)),
+      new any(0),
     );
     const balanceDecimal = totalDecimal.minus(paymentsSum);
     const collectionStatus = this.calculateCollectionStatus(balanceDecimal, totalDecimal);

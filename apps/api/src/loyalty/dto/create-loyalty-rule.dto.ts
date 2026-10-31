@@ -1,4 +1,4 @@
-import { NivelFidelidad } from '@prisma/client';
+// import { NivelFidelidad } from '@prisma/client'; // TODO: types
 import {
   IsBoolean,
   IsEnum,

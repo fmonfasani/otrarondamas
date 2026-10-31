@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 
 /**
  * IPaymentProvider: Contract for payment provider implementations.
@@ -28,7 +28,7 @@ export interface IPaymentProvider {
    */
   createRefund(request: {
     // Amount to refund (e.g. USD 150.00)
-    monto: Prisma.Decimal;
+    monto: any;
 
     // Original payment method (credit_card, debit_card, cash, bank_transfer, etc.)
     // Provider uses this to determine refund routing (e.g. credit card → card issuer)

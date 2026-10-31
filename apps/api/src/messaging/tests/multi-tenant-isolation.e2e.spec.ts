@@ -120,7 +120,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
 
   describe('Order Isolation', () => {
     it('should create an order in Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       const order = await db.pedido.create({
         data: {
@@ -138,7 +138,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow User 2 (Business 2) to read an order from Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       // Try to read order from Business 1 using Business 2 scoped client
       const order = await db.pedido.findUnique({
@@ -150,7 +150,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow User 2 to list orders from Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       const orders = await db.pedido.findMany({
         where: { id: order1Id },
@@ -160,7 +160,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should allow User 1 to read their own order', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       const order = await db.pedido.findUnique({
         where: { id: order1Id },
@@ -174,7 +174,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
 
   describe('Customer Isolation', () => {
     it('should create a customer in Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       const customer = await db.cliente.create({
         data: {
@@ -188,7 +188,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow User 2 to see customers from Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       const customers = await db.cliente.findMany({
         where: { email: 'customer1@test.com' },
@@ -198,7 +198,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow User 2 to update a customer from Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       const updated = await db.cliente.updateMany({
         where: { id: customer1Id },
@@ -216,7 +216,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow User 2 to delete a customer from Business 1', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       const deleted = await db.cliente.deleteMany({
         where: { id: customer1Id },
@@ -237,7 +237,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     let product1Id: string;
 
     beforeAll(async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       const product = await db.producto.create({
         data: {
@@ -250,7 +250,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow cross-business product queries', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       const product = await db.producto.findUnique({
         where: { id: product1Id },
@@ -276,7 +276,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
       customer2Id = c2.id;
 
       // Create cart for customer in Business 1
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
       const cart = await db.cart.create({
         data: {
           customerId: customer1Id,
@@ -287,7 +287,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow accessing a cart from a different business', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       // Attempt to read cart from Business 1 using Business 2 scoped client
       const cart = await db.cart.findUnique({
@@ -299,7 +299,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should NOT allow adding items to a cart from different business', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       try {
         // Try to create CartItem for cart in Business 1
@@ -325,7 +325,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     let product1Id: string;
 
     beforeAll(async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       // Create family
       const familia = await db.familia.create({
@@ -348,7 +348,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should prevent linking a product to a family from a different business', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       // Try to create a product in Business 2 linked to family from Business 1
       try {
@@ -369,7 +369,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should allow relinking product to family within same business', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       const familia2 = await db.familia.create({
         data: {
@@ -443,7 +443,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
         'refund',
       ];
 
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       for (const model of modelsWithEmpresaId) {
         const delegate = (db as Record<string, any>)[model];
@@ -452,7 +452,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should verify empresaId filter is applied on findMany', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       // Query should implicitly add empresaId: business1Id to where clause
       const clientes = await db.cliente.findMany();
@@ -466,7 +466,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
 
   describe('Edge Cases', () => {
     it('should handle findUnique correctly when record exists but belongs to another business', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       // Try to get the customer from Business 1 by ID
       const result = await db.cliente.findUnique({
@@ -478,7 +478,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should prevent upsert across business boundaries', async () => {
-      const db = companyScopedPrisma.forCompany(business2Id);
+      const db = companyScoped any(business2Id);
 
       try {
         // Upsert should be blocked at the extension level
@@ -497,7 +497,7 @@ describe('ARCH-1: Multi-Tenant Isolation (E2E)', () => {
     });
 
     it('should apply empresaId override on create, not trust body', async () => {
-      const db = companyScopedPrisma.forCompany(business1Id);
+      const db = companyScoped any(business1Id);
 
       // Try to create a customer claiming to belong to Business 2
       const customer = await db.cliente.create({

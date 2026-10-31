@@ -1,4 +1,4 @@
-import { MessagingAssociationType } from '@prisma/client';
+// import { MessagingAssociationType } from '@prisma/client'; // TODO: types
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateConversationAssociationDto {

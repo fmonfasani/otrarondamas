@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { NotificationFrequency, DigestPeriod } from '@prisma/client';
+import { NotificationFrequency, DigestPeriod } from '@prisma/client'; // TODO: types
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BusinessContext } from '../business-context/business-context.types';

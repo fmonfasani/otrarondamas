@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 
 /**
  * Order response DTOs.
@@ -9,9 +9,9 @@ interface IPedidoItemData {
   id: string;
   pedidoId: string;
   productoId: string;
-  cantidad: Prisma.Decimal | number;
-  precioUnitario: Prisma.Decimal | number;
-  descuentoFidelizacionPorcentaje: Prisma.Decimal | number | null;
+  cantidad: any;
+  precioUnitario: any;
+  descuentoFidelizacionPorcentaje: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,8 +23,8 @@ interface IPedidoData {
   usuarioId: string | null;
   estado: string;
   canalOrigen: string;
-  total: Prisma.Decimal | number;
-  descuento?: Prisma.Decimal | number;
+  total: any;
+  descuento?: any;
   idempotencyKey?: string | null;
   createdAt: Date;
   updatedAt: Date;

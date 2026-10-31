@@ -1,4 +1,4 @@
-import { MembershipStatus, RolUsuario } from '@prisma/client';
+import { MembershipStatus, RolUsuario } from '@prisma/client'; // TODO: types
 
 export class CapabilityGrantDto {
   id: string;

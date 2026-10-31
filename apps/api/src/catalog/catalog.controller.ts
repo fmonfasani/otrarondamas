@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -76,7 +76,7 @@ export class CatalogController {
     @Query('search') search?: string,
   ) {
     const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
-    const where: Prisma.ProductoWhereInput = {
+    const where:  any = {
       ...(active === undefined ? {} : { activo: active === 'true' }),
       // Simple search by name or internal code, case-insensitive.
       // With `search` the result is limited to 50 rows: without this limit, a
@@ -132,13 +132,13 @@ export class CatalogController {
     // empresaId comes from the resolved context (the actor's Membership),
     // never from the JWT or the body: companyScopeExtension also forces it on
     // `create`, so an arbitrary empresaId from the request cannot change the
-    // effective tenant. The explicit Prisma.ProductoUncheckedCreateInput
+    // effective tenant. The explicit  any
     // annotation ("unchecked" form: familiaId etc. as a plain string, not
     // `familia: { connect: ... } }`) is required because, through the generic
     // type returned by the extension, TypeScript cannot resolve the
     // `Exact<XOR<...>>` that Prisma demands for `create` and rejects it with a
     // confusing error.
-    const data: Prisma.ProductoUncheckedCreateInput = {
+    const data:  any = {
       nombre: dto.nombre,
       codigoInterno: dto.codigoInterno,
       codigoBarras: dto.codigoBarras,
@@ -182,7 +182,7 @@ export class CatalogController {
         subtipoId: dto.subtipoId ?? existing.subtipoId,
       });
     }
-    const data: Prisma.ProductoUncheckedUpdateInput = { ...dto };
+    const data:  any = { ...dto };
     return db.producto.update({ where: { id }, data });
   }
 

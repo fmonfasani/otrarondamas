@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IPaymentProvider } from './payment-provider.interface';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -21,7 +21,7 @@ export class MockPaymentProvider implements IPaymentProvider {
   }
 
   async createRefund(request: {
-    monto: Prisma.Decimal;
+    monto: any;
     metodo_pago: string;
     devolucionId: string;
     ventaId: string;

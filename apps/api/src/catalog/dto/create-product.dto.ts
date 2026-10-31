@@ -1,4 +1,4 @@
-import { UnidadBase } from '@prisma/client';
+// import { UnidadBase } from '@prisma/client'; // TODO: types
 import {
   IsBoolean,
   IsEnum,

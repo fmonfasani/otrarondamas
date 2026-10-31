@@ -180,15 +180,12 @@ async function main() {
     // (not yet migrated) — manual join because the Categoria model /
     // Producto.categoriaId still exists at this point of the migration
     // (step 1 of 2, see the comment at the top of the file).
-    const products = await prisma.$queryRawUnsafe<
-      { id: string; categoriaId: string; categoriaNombre: string }[]
-    >(
-      `SELECT p.id, p."categoriaId", c.nombre AS "categoriaNombre"
+    const products = (await prisma.$queryRaw`
+      SELECT p.id, p."categoriaId", c.nombre AS "categoriaNombre"
        FROM "Producto" p
        JOIN "Categoria" c ON c.id = p."categoriaId"
-       WHERE p."empresaId" = $1 AND p."familiaId" IS NULL`,
-      company.id,
-    );
+       WHERE p."empresaId" = ${company.id} AND p."familiaId" IS NULL
+    `) as { id: string; categoriaId: string; categoriaNombre: string }[];
     console.log(`  Productos a migrar: ${products.length}`);
     if (products.length === 0) {
       continue;
@@ -207,7 +204,7 @@ async function main() {
     >();
     for (const name of namesWithoutMapping) {
       console.log(`  Categoria sin mapeo al catálogo real: "${name}" — creando Familia propia.`);
-      nodesByNameWithoutMapping.set(name, await createFamilySubfamilyGen(company.id, name));
+      nodesByNameWithoutMapping.set(name as string, await createFamilySubfamilyGen(company.id, name as string));
     }
 
     // 3) SKU sequence: continues from the maximum sequence already used by
@@ -235,8 +232,8 @@ async function main() {
       if (subfamilyId) {
         const subfamily = subfamilies.find((s) => s.id === subfamilyId)!;
         familyId = subfamily.familiaId;
-        typeId = typeIdBySubfamilyId.get(subfamilyId);
-        subtypeId = typeId ? subtypeIdByTypeId.get(typeId) : undefined;
+        typeId = typeIdBySubfamilyId.get(subfamilyId) as any;
+        subtypeId = typeId ? (subtypeIdByTypeId.get(typeId) as any) : undefined;
       } else {
         const nodes = nodesByNameWithoutMapping.get(product.categoriaNombre)!;
         familyId = nodes.familia.id;
@@ -289,9 +286,10 @@ async function main() {
   // because the Prisma Client generated at this point of the 2-step
   // migration does not yet type familiaId as nullable consistently for
   // a `{ familiaId: null }` filter.
-  const [{ count }] = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-    'SELECT count(*) AS count FROM "Producto" WHERE "familiaId" IS NULL',
-  );
+  const result = (await prisma.$queryRaw`
+    SELECT count(*) AS count FROM "Producto" WHERE "familiaId" IS NULL
+  `) as { count: bigint }[];
+  const [{ count }] = result;
   totalWithoutCategory = Number(count);
 
   console.log('\n=== RESUMEN ===');

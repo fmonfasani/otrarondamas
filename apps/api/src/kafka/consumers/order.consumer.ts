@@ -262,7 +262,7 @@ export class OrderConsumer implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Create notification record for order event.
-   * Scoped to business via CompanyScopedPrisma.
+   * Scoped to business via CompanyScoped any
    */
   private async createOrderNotification(
     event: OrderEvent,

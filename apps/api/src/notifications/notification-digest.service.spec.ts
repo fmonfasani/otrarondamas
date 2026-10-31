@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { DigestPeriod } from '@prisma/client';
+// import { DigestPeriod } from '@prisma/client'; // TODO: types
 import { NotificationDigestService } from './notification-digest.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';

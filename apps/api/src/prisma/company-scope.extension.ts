@@ -1,4 +1,5 @@
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { collectRelationalReferences, type RelationalReference } from './relation-ownership';
 
 /**
@@ -139,9 +140,9 @@ async function verifyRelationalOwnership(
     ];
     const found = await delegate.findUnique({ where, select: { empresaId: true } });
     if (!found || found.empresaId !== companyId) {
-      throw new Prisma.PrismaClientKnownRequestError(`No ${model} found`, {
+      throw new PrismaClientKnownRequestError(`No ${model} found`, {
         code: 'P2025',
-        clientVersion: Prisma.prismaVersion.client,
+        clientVersion:  any.client,
       });
     }
   }
@@ -153,7 +154,7 @@ async function verifyRelationalOwnership(
  * because the empresaId depends on the authenticated user of each request.
  */
 export function companyScopeExtension(companyId: string) {
-  return Prisma.defineExtension((client) =>
+  return  any((client) =>
     client.$extends({
       name: 'company-scope',
       query: {
@@ -177,18 +178,18 @@ export function companyScopeExtension(companyId: string) {
               // Do not trust an empresaId coming from the request body: it is
               // always forced to the authenticated session's one.
               a.data = { ...(a.data as Record<string, unknown>), empresaId: companyId };
-              return query(a);
+              return query(a as any);
             }
 
             if (operation === 'createMany') {
               const rows = Array.isArray(a.data) ? a.data : a.data ? [a.data] : [];
               a.data = rows.map((row) => ({ ...row, empresaId: companyId }));
-              return query(a);
+              return query(a as any);
             }
 
             if (OPERATIONS_WITH_WHERE.has(operation)) {
               a.where = { ...(a.where ?? {}), empresaId: companyId };
-              return query(a);
+              return query(a as any);
             }
 
             if (OPERATIONS_FIND_UNIQUE.has(operation)) {
@@ -197,7 +198,7 @@ export function companyScopeExtension(companyId: string) {
               // it is verified AFTER running the query: if the record exists
               // but belongs to another company, it is treated as "not found"
               // — the data of another company is never returned.
-              const result = await query(a);
+              const result = await query(a as any);
               if (
                 result &&
                 typeof result === 'object' &&
@@ -205,9 +206,9 @@ export function companyScopeExtension(companyId: string) {
                 (result as { empresaId: unknown }).empresaId !== companyId
               ) {
                 if (operation === 'findUniqueOrThrow') {
-                  throw new Prisma.PrismaClientKnownRequestError(`No ${model} found`, {
+                  throw new PrismaClientKnownRequestError(`No ${model} found`, {
                     code: 'P2025',
-                    clientVersion: Prisma.prismaVersion.client,
+                    clientVersion:  any.client,
                   });
                 }
                 return null;

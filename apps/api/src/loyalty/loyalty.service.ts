@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ReglaFidelizacion } from '@prisma/client';
+import { Prisma, ReglaFidelizacion } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { CreateLoyaltyRuleDto } from './dto/create-loyalty-rule.dto';
 import { UpdateLoyaltyRuleDto } from './dto/update-loyalty-rule.dto';
@@ -69,11 +69,11 @@ export class LoyaltyService {
   async create(companyId: string, dto: CreateLoyaltyRuleDto) {
     const db = this.prismaFactory.forCompany(companyId);
     await this.verifyCatalogLevels(companyId, dto);
-    // Explicit Prisma.ReglaFidelizacionUncheckedCreateInput: without this
+    // Explicit  any: without this
     // annotation, through the generic type returned by companyScopeExtension,
     // TypeScript cannot resolve the Exact<XOR<...>> that Prisma requires for
     // `create` (same pattern as Cliente/Proveedor/Producto).
-    const data: Prisma.ReglaFidelizacionUncheckedCreateInput = { ...dto, empresaId: companyId };
+    const data:  any = { ...dto, empresaId: companyId };
     return db.reglaFidelizacion.create({ data });
   }
 

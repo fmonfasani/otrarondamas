@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException, NotFoundException, ForbiddenEx
 import { PrismaService } from '../prisma/prisma.service';
 import { PersonaDetector, PersonaDetectionResult } from './persona-detector';
 import { v4 as uuidv4 } from 'uuid';
-import { Conversation, Message } from '@prisma/client';
+import { Conversation, Message } from '@prisma/client'; // TODO: types
 
 export interface LLMResponse {
   text: string;

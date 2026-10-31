@@ -171,7 +171,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: true,
@@ -183,7 +183,7 @@ describe('RefundQueueService', () => {
 
       await (service as any).processNextBatch();
 
-      expect(globalPrisma.reembolso.findMany).toHaveBeenCalledWith({
+      expect(global any.findMany).toHaveBeenCalledWith({
         where: {
           estado: 'PENDIENTE',
           proximoIntento: { lte: expect.any(Date) },
@@ -218,7 +218,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: true,
@@ -271,7 +271,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -322,7 +322,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -362,7 +362,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -404,7 +404,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -466,7 +466,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -515,7 +515,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       const mockDb = prismaFactory.forCompany('empresa-1') as any;
       mockDb.reembolso.update.mockResolvedValue({});
@@ -574,7 +574,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: true,
@@ -629,7 +629,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Company 2' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund1, mockRefund2]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund1, mockRefund2]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: true,
@@ -677,7 +677,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockResolvedValue({
         success: false,
@@ -723,7 +723,7 @@ describe('RefundQueueService', () => {
         Empresa: { nombre: 'Test Company' },
       };
 
-      (globalPrisma.reembolso.findMany as jest.Mock).mockResolvedValue([mockRefund]);
+      (global any.findMany as jest.Mock).mockResolvedValue([mockRefund]);
 
       paymentProvider.createRefund.mockRejectedValue(new Error('Database connection lost'));
 

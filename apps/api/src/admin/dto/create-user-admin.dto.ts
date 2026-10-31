@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, IsOptional, IsUUID, IsEnum } from 'class-validator';
-import { RolUsuario } from '@prisma/client';
+// import { RolUsuario } from '@prisma/client'; // TODO: types
 
 export class CreateUserAdminDto {
   @IsEmail()

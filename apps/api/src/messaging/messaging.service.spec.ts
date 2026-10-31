@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { ConflictException, ForbiddenException } from '@nestjs/common';
-import { MembershipStatus, MessagingConversationType, Prisma } from '@prisma/client';
+import { MembershipStatus, MessagingConversationType, Prisma } from '@prisma/client'; // TODO: types
 import type { BusinessContext } from '../business-context/business-context.types';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -503,7 +503,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       return Promise.resolve({ sequence: BigInt(4) });
     });
     prisma.message.create.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('dup', {
+      new  any('dup', {
         code: 'P2002',
         clientVersion: 'test',
         meta: { target: ['conversationId', 'clientMessageId', 'authorUserId'] },
@@ -532,7 +532,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       Promise.resolve(where?.clientMessageId !== undefined ? null : { sequence: BigInt(4) }),
     );
     prisma.message.create.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('seq', {
+      new  any('seq', {
         code: 'P2002',
         clientVersion: 'test',
         meta: { target: ['conversationId', 'sequence'] },

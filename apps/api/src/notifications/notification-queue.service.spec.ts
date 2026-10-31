@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationFrequency } from '@prisma/client';
+// import { NotificationFrequency } from '@prisma/client'; // TODO: types
 import { NotificationQueueService } from './notification-queue.service';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { PrismaService } from '../prisma/prisma.service';

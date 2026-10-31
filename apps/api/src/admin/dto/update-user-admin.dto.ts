@@ -1,5 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
-import { MembershipStatus } from '@prisma/client';
+// import { MembershipStatus } from '@prisma/client'; // TODO: types
 
 export class UpdateUserAdminDto {
   @IsOptional()

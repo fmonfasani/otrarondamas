@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -129,14 +129,14 @@ export class OrdersService {
           return confirmedOrder;
         },
         {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          isolationLevel:  any.Serializable,
         },
       );
     } catch (error) {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent confirmation
       // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
       // This is an expected state conflict, not an internal server error.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      if ((error as any)?.code === 'P2034') {
         throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
       }
       throw error;
@@ -295,14 +295,14 @@ export class OrdersService {
           };
         },
         {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          isolationLevel:  any.Serializable,
         },
       );
     } catch (error) {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent cancellation
       // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
       // This is an expected state conflict, not an internal server error.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      if ((error as any)?.code === 'P2034') {
         throw new BadRequestException('El pedido ya fue cancelado por otro usuario.');
       }
       throw error;

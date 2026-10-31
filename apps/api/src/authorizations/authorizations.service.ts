@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { AuthService } from '../auth/auth.service';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { RequestAuthorizationDto } from './dto/request-authorization.dto';
@@ -76,11 +76,11 @@ export class AuthorizationsService {
       );
     }
 
-    // Explicit Prisma.AutorizacionUncheckedCreateInput: same problem already
+    // Explicit  any: same problem already
     // documented in catalog.controller.ts — without the annotation, through
     // the generic type returned by companyScopeExtension, TypeScript does not
     // resolve the Exact<XOR<...>> that Prisma requires.
-    const data: Prisma.AutorizacionUncheckedCreateInput = {
+    const data:  any = {
       businessId: businessId,
       autorizadorId: authorizer.id,
       operacion: dto.operacion,

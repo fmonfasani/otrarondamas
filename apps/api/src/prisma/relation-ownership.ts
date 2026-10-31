@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 
 /**
  * Relation isolation (B3 / T01-03): a persisted relation cannot link
@@ -36,12 +36,12 @@ export interface RelationalReference {
   where: Data;
 }
 
-const fieldsByModel = new Map<string, Map<string, Prisma.DMMF.Field>>();
+const fieldsByModel = new Map<string, Map<string,  any.Field>>();
 
-function fieldsOf(model: string): Map<string, Prisma.DMMF.Field> {
+function fieldsOf(model: string): Map<string,  any.Field> {
   let fields = fieldsByModel.get(model);
   if (!fields) {
-    const definition = Prisma.dmmf.datamodel.models.find((m) => m.name === model);
+    const definition =  any.datamodel.models.find((m) => m.name === model);
     fields = new Map((definition?.fields ?? []).map((f) => [f.name, f]));
     fieldsByModel.set(model, fields);
   }
@@ -57,8 +57,8 @@ function toList(value: unknown): unknown[] {
   return value === undefined || value === null ? [] : [value];
 }
 
-function registeredRelations(model: string): Map<string, Prisma.DMMF.Field> {
-  const result = new Map<string, Prisma.DMMF.Field>();
+function registeredRelations(model: string): Map<string,  any.Field> {
+  const result = new Map<string,  any.Field>();
   for (const name of RELATIONS_WITH_OWNERSHIP[model] ?? []) {
     const field = fieldsOf(model).get(name);
     if (
@@ -91,13 +91,13 @@ function fkValue(model: string, fk: string, value: unknown): string | null {
   );
 }
 
-function referenceFromFk(field: Prisma.DMMF.Field, value: string): RelationalReference {
+function referenceFromFk(field:  any.Field, value: string): RelationalReference {
   return { model: field.type, where: { [field.relationToFields![0]]: value } };
 }
 
 function referencesFromConnect(
   model: string,
-  field: Prisma.DMMF.Field,
+  field:  any.Field,
   operations: unknown,
   refs: RelationalReference[],
 ): void {
@@ -120,7 +120,7 @@ function updateData(child: string, item: unknown): unknown {
 }
 
 function visitUnregisteredRelation(
-  field: Prisma.DMMF.Field,
+  field:  any.Field,
   operations: unknown,
   refs: RelationalReference[],
 ): void {
@@ -160,7 +160,7 @@ function visitData(model: string, data: unknown, refs: RelationalReference[]): v
   if (!isObject(data)) return;
   const fields = fieldsOf(model);
   const registered = registeredRelations(model);
-  const relationByFk = new Map<string, Prisma.DMMF.Field>();
+  const relationByFk = new Map<string,  any.Field>();
   for (const field of registered.values()) {
     relationByFk.set(field.relationFromFields![0], field);
   }

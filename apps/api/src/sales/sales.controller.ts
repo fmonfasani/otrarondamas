@@ -52,7 +52,7 @@ export class SalesController {
 
   // Inc-2 (RF-VTA-09, RF-VTA-10): preliminary quote without creating the
   // sale. The frontend calls it 300 ms after the last change in the cart to
-  // show the exact total computed with Prisma.Decimal on the server.
+  // show the exact total computed with any on the server.
   @RequirePermission('ventas.crear')
   @Post('cotizacion')
   @HttpCode(HttpStatus.OK)

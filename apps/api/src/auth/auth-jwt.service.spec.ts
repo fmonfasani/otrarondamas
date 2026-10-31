@@ -84,26 +84,26 @@ describe('AuthService - JWT Auth', () => {
         createdAt: new Date(),
       };
 
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
-      mockPrisma.empresa.create.mockResolvedValue(mockEmpresa);
-      mockPrisma.usuario.create.mockResolvedValue(mockUser);
-      mockPrisma.userEmpresa.create.mockResolvedValue({});
+      mock any.findUnique.mockResolvedValue(null);
+      mock any.create.mockResolvedValue(mockEmpresa);
+      mock any.create.mockResolvedValue(mockUser);
+      mock any.create.mockResolvedValue({});
       mockJwtService.signAsync.mockResolvedValue('jwt-token-123');
 
       const result = await service.register(email, password, nombre, companyName);
 
-      expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
+      expect(mock any.findUnique).toHaveBeenCalledWith({
         where: { email },
       });
-      expect(mockPrisma.empresa.create).toHaveBeenCalled();
-      expect(mockPrisma.usuario.create).toHaveBeenCalled();
+      expect(mock any.create).toHaveBeenCalled();
+      expect(mock any.create).toHaveBeenCalled();
       expect(result.accessToken).toBe('jwt-token-123');
       expect(result.usuario.email).toBe(email);
       expect(result.usuario.nombre).toBe(nombre);
     });
 
     it('should reject if email already exists', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue({ id: 'existing-user' });
+      mock any.findUnique.mockResolvedValue({ id: 'existing-user' });
 
       await expect(
         service.register('test@example.com', 'ValidPass123', 'User', 'Company'),
@@ -111,7 +111,7 @@ describe('AuthService - JWT Auth', () => {
     });
 
     it('should reject password shorter than 8 characters', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.register('test@example.com', 'Short1', 'User', 'Company'),
@@ -119,7 +119,7 @@ describe('AuthService - JWT Auth', () => {
     });
 
     it('should reject password without uppercase letter', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.register('test@example.com', 'lowercase123', 'User', 'Company'),
@@ -127,7 +127,7 @@ describe('AuthService - JWT Auth', () => {
     });
 
     it('should reject password without lowercase letter', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.register('test@example.com', 'UPPERCASE123', 'User', 'Company'),
@@ -135,7 +135,7 @@ describe('AuthService - JWT Auth', () => {
     });
 
     it('should reject password without number', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.register('test@example.com', 'NoNumbers', 'User', 'Company'),
@@ -156,15 +156,15 @@ describe('AuthService - JWT Auth', () => {
         UserEmpresa: [],
       };
 
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
-      mockPrisma.empresa.create.mockResolvedValue(mockEmpresa);
-      mockPrisma.usuario.create.mockResolvedValue(mockUser);
-      mockPrisma.userEmpresa.create.mockResolvedValue({});
+      mock any.findUnique.mockResolvedValue(null);
+      mock any.create.mockResolvedValue(mockEmpresa);
+      mock any.create.mockResolvedValue(mockUser);
+      mock any.create.mockResolvedValue({});
       mockJwtService.signAsync.mockResolvedValue('jwt-token');
 
       await service.register(email, password, 'User', 'Company');
 
-      const createCall = mockPrisma.usuario.create.mock.calls[0];
+      const createCall = mock any.create.mock.calls[0];
       const hashInDb = createCall[0].data.passwordHash;
 
       // Verify the hash is not the plaintext password

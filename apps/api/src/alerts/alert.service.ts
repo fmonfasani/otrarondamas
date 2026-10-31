@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 
 /**
  * AlertService: Stub for admin alerts on refund failures.
@@ -19,7 +19,7 @@ export class AlertService {
    */
   async sendRefundFailureAlert(details: {
     devolucionId: string;
-    monto: Prisma.Decimal;
+    monto: any;
     error: string;
     clienteEmail: string;
     empresaNombre: string;

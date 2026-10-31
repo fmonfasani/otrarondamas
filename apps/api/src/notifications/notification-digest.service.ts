@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { DigestPeriod, NotificationDigest, Prisma } from '@prisma/client';
+import { DigestPeriod, NotificationDigest, Prisma } from '@prisma/client'; // TODO: types
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import type { BusinessContext } from '../business-context/business-context.types';
@@ -335,7 +335,7 @@ export class NotificationDigestService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<NotificationDigestResponse[]> {
-    const where: Prisma.NotificationDigestWhereInput = {
+    const where:  any = {
       usuarioId,
       empresaId,
     };

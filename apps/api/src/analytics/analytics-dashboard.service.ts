@@ -2,13 +2,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AnalyticsDashboard } from '@prisma/client';
+// import { AnalyticsDashboard } from '@prisma/client'; // TODO: types
 
 /**
  * AnalyticsDashboardService manages dashboard configuration and metrics queries.
  * Dashboards are company-scoped and contain widgets that query aggregated metrics.
  *
- * Scope: All operations automatically filter by empresaId via CompanyScopedPrisma.
+ * Scope: All operations automatically filter by empresaId via CompanyScoped any
  */
 @Injectable()
 export class AnalyticsDashboardService {

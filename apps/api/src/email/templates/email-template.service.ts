@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TipoEmail } from '@prisma/client';
+// import { TipoEmail } from '@prisma/client'; // TODO: types
 import * as Handlebars from 'handlebars';
 
 /**

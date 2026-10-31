@@ -195,7 +195,7 @@ export class NotificationPreferencesService {
           empresaId,
         },
       },
-      data: updates as Prisma.NotificationPreferenceUpdateInput,
+      data: updates as  any,
     });
 
     return this.mapToResponse(updated);

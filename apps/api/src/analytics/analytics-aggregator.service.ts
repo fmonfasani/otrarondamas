@@ -2,13 +2,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AnalyticsAggregation } from '@prisma/client';
+// import { AnalyticsAggregation } from '@prisma/client'; // TODO: types
 
 /**
  * AnalyticsAggregatorService computes analytics aggregations (daily, weekly, monthly).
  * Handles cohort metrics, funnel analysis, and historical backfill.
  *
- * Scope: All operations automatically filter by empresaId via CompanyScopedPrisma.
+ * Scope: All operations automatically filter by empresaId via CompanyScoped any
  */
 @Injectable()
 export class AnalyticsAggregatorService {

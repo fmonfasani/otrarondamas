@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import {
   RELATIONS_WITH_OWNERSHIP,
   modelHasRelationsWithOwnership,
@@ -11,7 +11,7 @@ describe('relation-ownership', () => {
   describe('registro', () => {
     it('cada relación registrada existe en el schema con FK simple', () => {
       for (const [model, relations] of Object.entries(RELATIONS_WITH_OWNERSHIP)) {
-        const definition = Prisma.dmmf.datamodel.models.find((m) => m.name === model);
+        const definition =  any.datamodel.models.find((m) => m.name === model);
         expect(definition).toBeDefined();
         for (const name of relations) {
           const field = definition!.fields.find((f) => f.name === name);

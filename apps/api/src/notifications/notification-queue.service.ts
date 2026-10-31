@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotificationFrequency } from '@prisma/client';
+// import { NotificationFrequency } from '@prisma/client'; // TODO: types
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPreferencesService } from './notification-preferences.service';
 

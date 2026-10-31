@@ -101,11 +101,11 @@ describe('AuthService (T2.1-T2.7)', () => {
         nombre: 'New User Empresa',
       };
 
-      mockPrisma.usuario.findUnique.mockResolvedValue(null); // No duplicate
-      mockPrisma.usuario.create.mockResolvedValue(newUsuario);
-      mockPrisma.user.create.mockResolvedValue(newUser);
-      mockPrisma.empresa.create.mockResolvedValue(newEmpresa);
-      mockPrisma.userEmpresa.create.mockResolvedValue({
+      mock any.findUnique.mockResolvedValue(null); // No duplicate
+      mock any.create.mockResolvedValue(newUsuario);
+      mock any.create.mockResolvedValue(newUser);
+      mock any.create.mockResolvedValue(newEmpresa);
+      mock any.create.mockResolvedValue({
         userId: newUser.id,
         empresaId: newEmpresa.id,
         role: 'OWNER',
@@ -119,10 +119,10 @@ describe('AuthService (T2.1-T2.7)', () => {
       //   nombre: newUsuario.nombre,
       // });
 
-      // expect(mockPrisma.usuario.create).toHaveBeenCalled();
-      // expect(mockPrisma.user.create).toHaveBeenCalled();
-      // expect(mockPrisma.empresa.create).toHaveBeenCalled();
-      // expect(mockPrisma.userEmpresa.create).toHaveBeenCalled();
+      // expect(mock any.create).toHaveBeenCalled();
+      // expect(mock any.create).toHaveBeenCalled();
+      // expect(mock any.create).toHaveBeenCalled();
+      // expect(mock any.create).toHaveBeenCalled();
       // expect(result).toHaveProperty('access_token');
     });
   });
@@ -132,7 +132,7 @@ describe('AuthService (T2.1-T2.7)', () => {
       const usuario = TEST_USUARIO;
       const hashedPassword = await bcrypt.hash('test-password', 10);
 
-      mockPrisma.usuario.findUnique.mockResolvedValue({
+      mock any.findUnique.mockResolvedValue({
         ...usuario,
         passwordHash: hashedPassword,
         UsuarioPermiso: [],
@@ -156,7 +156,7 @@ describe('AuthService (T2.1-T2.7)', () => {
     });
 
     it('should throw UnauthorizedException for invalid email', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.login('nonexistent@example.com', 'any-password'),
@@ -167,7 +167,7 @@ describe('AuthService (T2.1-T2.7)', () => {
       const usuario = TEST_USUARIO;
       const hashedPassword = await bcrypt.hash('correct-password', 10);
 
-      mockPrisma.usuario.findUnique.mockResolvedValue({
+      mock any.findUnique.mockResolvedValue({
         ...usuario,
         passwordHash: hashedPassword,
         UsuarioPermiso: [],
@@ -190,7 +190,7 @@ describe('AuthService (T2.1-T2.7)', () => {
         nombre: 'Other Empresa',
       };
 
-      mockPrisma.usuario.findUnique.mockResolvedValue({
+      mock any.findUnique.mockResolvedValue({
         ...usuario,
         UsuarioPermiso: [],
         Empresa: otherEmpresa,
@@ -200,7 +200,7 @@ describe('AuthService (T2.1-T2.7)', () => {
         ],
       });
 
-      mockPrisma.usuario.update.mockResolvedValue({
+      mock any.update.mockResolvedValue({
         ...usuario,
         empresaId: otherEmpresa.id,
         UsuarioPermiso: [],
@@ -217,7 +217,7 @@ describe('AuthService (T2.1-T2.7)', () => {
 
       expect(result).toBeDefined();
       expect(result).toHaveProperty('access_token');
-      expect(mockPrisma.usuario.update).toHaveBeenCalledWith(
+      expect(mock any.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: usuario.id },
           data: { empresaId: otherEmpresa.id },
@@ -232,7 +232,7 @@ describe('AuthService (T2.1-T2.7)', () => {
         nombre: 'Forbidden Empresa',
       };
 
-      mockPrisma.usuario.findUnique.mockResolvedValue({
+      mock any.findUnique.mockResolvedValue({
         ...usuario,
         UsuarioPermiso: [],
         Empresa: TEST_EMPRESA,
@@ -253,15 +253,15 @@ describe('AuthService (T2.1-T2.7)', () => {
       const usuario = TEST_USUARIO;
 
       // First call: check existing
-      mockPrisma.userEmpresa.findFirst.mockResolvedValueOnce(null);
-      mockPrisma.userEmpresa.create.mockResolvedValueOnce({
+      mock any.findFirst.mockResolvedValueOnce(null);
+      mock any.create.mockResolvedValueOnce({
         userId: TEST_USER.id,
         empresaId: TEST_EMPRESA.id,
         role: 'OWNER',
       });
 
       // Second call: already exists
-      mockPrisma.userEmpresa.findFirst.mockResolvedValueOnce({
+      mock any.findFirst.mockResolvedValueOnce({
         userId: TEST_USER.id,
         empresaId: TEST_EMPRESA.id,
         role: 'OWNER',
@@ -282,13 +282,13 @@ describe('AuthService (T2.1-T2.7)', () => {
       });
 
       expect(result2).toBeDefined();
-      expect(mockPrisma.userEmpresa.create).toHaveBeenCalledTimes(1);
+      expect(mock any.create).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('T2.5: Invalid email/password → throws error', () => {
     it('should throw error for invalid credentials', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       await expect(
         service.login('invalid@example.com', 'any-password'),
@@ -296,7 +296,7 @@ describe('AuthService (T2.1-T2.7)', () => {
     });
 
     it('should use generic error message to prevent email enumeration', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(null);
+      mock any.findUnique.mockResolvedValue(null);
 
       try {
         await service.login('test@example.com', 'password');
@@ -311,7 +311,7 @@ describe('AuthService (T2.1-T2.7)', () => {
 
   describe('T2.6: Duplicate email in register → throws error', () => {
     it('should prevent registration with duplicate email', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue(TEST_USUARIO);
+      mock any.findUnique.mockResolvedValue(TEST_USUARIO);
 
       // Assuming register checks for duplicate
       const existingUser = await prisma.usuario.findUnique({

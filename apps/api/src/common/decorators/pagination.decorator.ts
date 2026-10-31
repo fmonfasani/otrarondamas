@@ -1,22 +1,24 @@
-import { applyDecorators, Query } from '@nestjs/common';
+import { Query } from '@nestjs/common';
 
 /**
- * @Pagination() Decorator
+ * @PaginationLimit() and @PaginationOffset() Decorators
  * Validates limit and offset query parameters
  * Returns default values if not provided
  *
  * Usage:
  * @Get('items')
  * getItems(
- *   @Pagination() pagination: { limit: number; offset: number }
+ *   @PaginationLimit() limit: number,
+ *   @PaginationOffset() offset: number
  * ) {
- *   // pagination.limit = 20 (default)
- *   // pagination.offset = 0 (default)
+ *   // limit = 20 (default)
+ *   // offset = 0 (default)
  * }
  */
-export function Pagination() {
-  return applyDecorators(
-    Query('limit'),
-    Query('offset'),
-  );
+export function PaginationLimit() {
+  return Query('limit');
+}
+
+export function PaginationOffset() {
+  return Query('offset');
 }

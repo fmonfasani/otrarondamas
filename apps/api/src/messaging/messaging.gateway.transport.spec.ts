@@ -482,13 +482,13 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
     (revocationContext.resolveForAuthenticatedUser as jest.Mock).mockResolvedValue(
       revocationOwnerContext,
     );
-    (revocationPrisma.membership.findFirst as jest.Mock).mockResolvedValue({
+    (revocation any.findFirst as jest.Mock).mockResolvedValue({
       id: 'membership-a',
       userId: 'canonical-user-a',
       businessId: 'business-a',
       status: 'ACTIVE',
     });
-    (revocationPrisma.membership.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (revocation any.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     const client = await connectClient('user-jwt');
 
     const ack = await emitJoin(client, { conversationId: 'conv-a' });

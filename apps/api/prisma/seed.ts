@@ -1,4 +1,4 @@
-import { PrismaClient, UnidadBase } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -467,7 +467,7 @@ async function main() {
           subfamiliaId: f.subfamiliaId,
           tipoId: f.tipoId,
           subtipoId: f.subtipoId,
-          unidadBase: UnidadBase.UNIDAD, // Placeholder, ver comentario arriba
+          unidadBase: 'UNIDAD', // Placeholder, ver comentario arriba
           costo: f.row.precioMinorista, // Placeholder (D-18), ver comentario arriba
           precioMinorista: f.row.precioMinorista,
           precioMayorista: null, // D-01: no viene en esta fuente, no se inventa

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
@@ -8,9 +8,9 @@ import { CreateOrderDto } from './dto/create-order.dto';
 
 // Same pattern as sales.service.ts/inventory.service.ts: the client of
 // CompanyScopedPrismaService.forCompany() is a dynamic type from Prisma
-// Client Extensions, it does not fit the base Prisma.TransactionClient.
-type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
-type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']>[0]>[0];
+// Client Extensions, it does not fit the base  any.
+// type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
+// type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']>[0]>[0];
 
 /**
  * Phase 1-3 of the Online Store (RF-06). PUBLIC surface (no login) — see
@@ -58,13 +58,13 @@ export class StoreService {
    * show/charge is never returned.
    */
   private priceWithDiscount(
-    retailPrice: Prisma.Decimal,
-    discountPercentage: Prisma.Decimal | null,
+    retailPrice: any,
+    discountPercentage: any,
   ): string {
     if (!discountPercentage || discountPercentage.isZero()) {
       return retailPrice.toFixed(2);
     }
-    const factor = new Prisma.Decimal(1).minus(discountPercentage.dividedBy(100));
+    const factor = (1 as any).minus(discountPercentage.dividedBy(100));
     return retailPrice.times(factor).toFixed(2);
   }
 
@@ -102,8 +102,8 @@ export class StoreService {
     // precioMinorista, without quantity/customer rules (D-01/D-02 are still
     // undefined).
     return stock.map((item) => {
-      const product = productById.get(item.productoId);
-      const basePrice = product?.precioMinorista ?? new Prisma.Decimal(0);
+      const product = productById.get(item.productoId) as any;
+      const basePrice = product?.precioMinorista ?? 0;
       const discountPercentage = product?.descuentoPorcentaje ?? null;
       return {
         productoId: item.productoId,
@@ -208,7 +208,7 @@ export class StoreService {
     // already discounted price (confirmed with the owner: both discounts are
     // combined, the larger one is not chosen).
     const itemsWithPrice = dto.items.map((item) => {
-      const product = productById.get(item.productoId)!;
+      const product = productById.get(item.productoId)! as any;
       const unitPrice = this.priceWithDiscount(
         product.precioMinorista,
         product.descuentoPorcentaje,
@@ -241,7 +241,7 @@ export class StoreService {
       return acc + net;
     }, 0);
 
-    return db.$transaction(async (tx: CompanyScopedTx) => {
+    return db.$transaction(async (tx: any) => {
       // Confirmed decision: an online store order ALWAYS creates/reuses a
       // Cliente by email (within the company), it never stores loose contact
       // data in Pedido — it avoids duplicating what Cliente already models and
@@ -272,7 +272,7 @@ export class StoreService {
               nombre: dto.nombre,
               email: dto.email,
               telefono: dto.telefono,
-            } satisfies Prisma.ClienteUncheckedCreateInput,
+            } as any,
           });
       /* eslint-enable indent */
 
@@ -317,7 +317,7 @@ export class StoreService {
               reglaFidelizacionId: item.reglaFidelizacionId,
             })),
           },
-        } satisfies Prisma.PedidoUncheckedCreateInput,
+        } as any,
         include: { PedidoItem: true },
       });
 

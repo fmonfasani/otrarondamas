@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client'; // TODO: types
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import {
   RevenueMetricDto,
@@ -483,18 +483,18 @@ export class MetricsService {
   /**
    * Helper: Convert Prisma Decimal to Decimal for calculations.
    */
-  private toDecimal(value: any): Prisma.Decimal {
-    if (value instanceof Prisma.Decimal) {
+  private toDecimal(value: any): any {
+    if (value instanceof any) {
       return value;
     }
-    return new Prisma.Decimal(String(value || 0));
+    return new any(String(value || 0));
   }
 
   /**
    * Helper: Sum an array of Decimals.
    */
-  private sumDecimal(values: Prisma.Decimal[]): Prisma.Decimal {
-    return values.reduce((sum, val) => sum.plus(val), new Prisma.Decimal(0));
+  private sumDecimal(values: any[]): any {
+    return values.reduce((sum, val) => sum.plus(val), new any(0));
   }
 
   /**
