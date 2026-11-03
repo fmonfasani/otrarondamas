@@ -29,6 +29,7 @@ import { DevolucionesModule } from './devoluciones/devoluciones.module';
 import { AuditModule } from './audit/audit.module';
 import { EmailModule } from './email/email.module';
 import { TenantsModule } from './tenants/tenants.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 // import { RefundQueueModule } from './refunds/refund-queue.module'; // DEFERRED
 // import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module'; // DEFERRED
 // import { NotificationsModule } from './notifications/notifications.module'; // DEFERRED
@@ -79,6 +80,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     EmailModule,
     // Multi-business: Tenants management (company switching, access control)
     TenantsModule,
+    PlatformAdminModule,
     // P8-3: SMS Notifications (OTP, alerts, transactional)
     // SMSNotificationsModule, // DEFERRED: Twilio missing peer deps (scmp) - post-MVP
     // P8-4: Notification Preferences & Digest Implementation
