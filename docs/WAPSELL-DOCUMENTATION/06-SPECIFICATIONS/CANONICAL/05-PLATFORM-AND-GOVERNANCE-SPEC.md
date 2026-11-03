@@ -1,28 +1,59 @@
-# Wapsell - Platform and Governance Specification
-**Version:** 0.1 | **Status:** DRAFT - NOT APPROVED · **Reconciled:** 2026-09-28
+# Wapsell — Platform and Governance Specification
 
-> ## Normative basis
->
-> This file is a **placeholder**: a title, a status line and one sentence. It contains no rules for
-> the topics it claims to own.
->
-> Its subject matter maps to D-017 (architecture: simple vs enterprise stack) and D-018 (CI/CD),
-> both `APPROVED — OWNER-VERBATIM / APPROVED — DERIVED / RECONSTRUCTED`. `00-WAPSELL-SPEC-GENERAL.md` §20–§21 carries the
-> same content as `TO-BE PROPOSED`. Note that the AS-IS documentation records **no CI/CD at all**
-> (`05-ASIS/11-ASIS-QUALITY.md`), and that the Modular Monolith / NestJS / PostgreSQL / Docker / VPS
-> stack asserted in the General spec is **not** backed by any reconstructable decision text.
->
-> Conflicts: CON-002, CON-026, CON-027 — all OPEN. Also GRF-02 (the `DEC-002…DEC-019` numbering
-> anticipated by DEC-001:53 was never assigned).
+**Version:** 0.2  
+**Status:** DRAFT — NOT APPROVED  
+**Reconciled:** 2026-11-03
 
-SaaS platform, business lifecycle, platform administration, audit, notifications, reports, security, observability and governance.
+> This document remains a specification placeholder. The Owner Rulings below establish conceptual direction only; they do not approve a technical specification or authorize implementation. Detailed platform, governance and operational contracts remain to be specified and, where required, approved.
 
----
+## 1. Normative sources
 
-## Open items
-- Full content of this spec is **unwritten**. Everything remains `OPEN DETAIL`.
-- Platform administration, audit, notifications, reports, security and observability: **no rules
-  exist anywhere in the repository for these topics.** The General spec §17–§19, §21 lists them as
-  `TO-BE PROPOSED` only.
-- Architecture decision evidence: see CON-002 / CON-026 (simple vs enterprise stack).
-- See `00-GOVERNANCE/GOVERNANCE-RECONCILIATION-REPORT.md` §5.
+Apply the approved precedence in ISS-08 / OR-B2-023:
+
+**Owner Ruling → Decision Register → Canonical SPEC → TO-BE → Audit (evidence only) → Workshop / Preparation → Historical.**
+
+The latest applicable Owner Ruling prevails over earlier conflicting text. Preserve historical artifacts as evidence; do not treat their existence as normative approval.
+
+Relevant rulings:
+- **OR-B2-023:** formally approves ISS-08 documentary precedence.
+- **OR-B2-024:** approves Modular Monolith as an architectural direction. It does not approve NestJS, PostgreSQL, Docker, VPS, GraphQL, Kubernetes or another stack choice.
+- **OR-B3-003:** SaaS Admin exists conceptually at platform level but is outside the operational MVP.
+- **OR-B3-012:** Kubernetes and GraphQL are neither approved nor prohibited; their adoption remains an open technical decision.
+- **OR-B3-013:** G001–G105 are a secondary functional source and do not override Owner Rulings or the approved precedence.
+- **OR-B3-014:** MFA/2FA is mandatory for Owner and Admin roles in the MVP security direction. Enrollment, recovery and enforcement details remain open.
+
+The authoritative decision text is in `03-DECISIONS/22-OR-B3-OWNER-DECISIONS-2026-10-03.md` and the corresponding entries in `03-DECISIONS/00-DECISION-REGISTER.md`.
+
+## 2. Scope and boundaries
+
+This specification is intended to cover platform lifecycle and governance, platform-level administration, auditability, notifications, reporting, security, observability and operational governance.
+
+Current approved conceptual boundaries:
+- SaaS Admin is outside the operational MVP; no operational SaaS Admin feature or permission model is approved by OR-B3-003.
+- Modular Monolith is the approved architectural direction. Concrete stack and infrastructure selections remain separate technical decisions.
+- MFA/2FA is mandatory for Owner and Admin roles in the MVP security direction.
+- G001–G105 may inform functional discovery but are not normative decision authority.
+
+## 3. Open specification work
+
+The following technical and functional details are not defined by the rulings above and must not be inferred:
+- Platform administration capabilities, actors, permissions and lifecycle beyond the SaaS Admin scope boundary.
+- Audit event taxonomy, required events, retention, access and tamper-resistance.
+- Notification channels, templates, delivery guarantees, retries and preferences.
+- Reporting definitions, metrics, access scope and calculation rules.
+- Security controls beyond the approved conceptual MFA direction, including enrollment, recovery, session policy, enforcement and evidence.
+- Observability signals, service-level objectives, alerting and operational ownership.
+- Concrete stack, deployment topology, infrastructure and CI/CD design.
+- Governance workflow, approval evidence, versioning and change control.
+
+Each area requires a specialized specification or an explicit decision where the missing detail is an Owner decision. No implementation detail is approved by this placeholder.
+
+## 4. Approval and implementation gates
+
+**Technical Specification: NOT APPROVED.**
+
+**Implementation authorization:** not granted by this document. Where an applicable Owner Ruling requires `specification → Owner approval → implementation`, that sequence remains mandatory. A conceptual Owner Ruling, draft document, audit, roadmap or existing code does not waive the gate.
+
+## 5. Reconciliation notes
+
+This version corrects historical statements that no rulings existed for SaaS Admin, MFA/2FA, architectural direction or governance-source authority. It does not silently close unrelated open decisions and does not convert this draft into an approved specification.
