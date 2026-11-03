@@ -1226,3 +1226,33 @@ The table is representative, not a complete endpoint/DTO catalogue. Exact DTO fi
 ---
 
 **End of Phase 0 evidence addendum — pass 3, 2026-11-03.**
+
+
+---
+
+## 22. Phase 0 — Next.js unresolved flows and Messaging UI contract (pass 4, 2026-11-03)
+
+### 22.1 Next.js additional findings
+
+- `/[locale]/auth/signup` renders a RegisterForm, but its submission/API contract was not proven to be a supported staff-registration flow. Compare it with the missing `POST /auth/register` in the inspected NestJS AuthController before reuse.
+- `/[locale]/auth/recover` calls `POST /api/auth/recover`; no corresponding Next route handler or NestJS recovery endpoint was verified in the inspected source. Treat password recovery as an unverified flow, not a capability to port as-is.
+- `/[locale]/negocios/crear` invokes `empresasApi.createEmpresa()` and redirects to onboarding. No matching backend create-business route was verified in the inspected NestJS controllers. This is a contract gap requiring product/identity onboarding review.
+- The Next business list displays plan, active-user and last-activity fields and writes a selected `empresaId` into localStorage. The verified `GET /tenants/my-empresas` endpoint does not, by itself, establish that all displayed fields or multi-business switching semantics are supported by current Membership V1.
+- Dashboard API route handlers proxy to `/admin/dashboard/*`; no matching controllers were found in the current NestJS app module inventory. The UI is not evidence that those metrics are backed by the current API.
+
+### 22.2 Messaging UI/backend contract observations
+
+- POS Messaging consumes conversations, messages, associations and association history; it references Orders by ID and reads order status through the Orders API, keeping order state owned by Orders.
+- The UI uses `viewerAccess.canSend` to distinguish writable participant conversations from Owner read-only conversations. The backend returns this capability; the frontend signal is only a display affordance.
+- Conversation management UI derives admin affordances from the active participant row; backend remains authoritative and rejects unauthorized actions.
+- Message retry retains the same `clientMessageId` for an unconfirmed send, aligning with the backend's duplicate prevention contract.
+- Product association/search uses `GET /ventas/productos`; customer selection uses `GET /clientes`. Cart/order creation integrates the persistent cart; order creation is not a direct client-supplied line-item write.
+- Existing test files are present for Messaging controller, service, gateway and gateway transport. Their presence is not proof that all actor, revocation, duplicate-send, authorization and reconnect scenarios pass in CI; exact test-case-to-invariant traceability remains open.
+
+### 22.3 Phase 0 status update
+
+The source-level frontend/API inventory now covers the major routes and the primary contracts across all four frontend applications. It is **not yet closed**: remaining work is runtime/deployment evidence, full DTO and side-effect matrix for critical workflows, test-to-invariant traceability, and resolution of unverified Next.js and Remix contracts. No code migration is authorized by this discovery result.
+
+---
+
+**End of Phase 0 evidence addendum — pass 4, 2026-11-03.**
