@@ -1631,3 +1631,121 @@ POS `ProtectedRoute` checks whether `user` exists in AuthContext. AuthContext at
 - Fix the Remix integration contracts only in a separately approved implementation task. CI currently blocks reliable full test execution.
 
 **Phase 0 remains OPEN.** The three identity domains and backend guard boundaries are mapped. Remix staff login, token validation, registration and tenant-cookie integration have source-level contract mismatches; no frontend migration should begin until these are corrected and covered by HTTP tests.
+
+
+## 30. Phase 0 — Authorization matrix and negative-test design (2026-11-03)
+
+This matrix is a source-derived contract baseline, not proof of runtime behavior. “Expected” outcomes below must be verified with HTTP integration tests against a clean build and a seeded multi-tenant database. A frontend route guard is never counted as an authorization control.
+
+### 30.1 Global authorization pipeline
+
+| Stage | Applies to | Allow condition | Denial / bypass behavior |
+|---|---|---|---|
+| JWT authentication | All routes by default | Valid bearer JWT, signature and expiry | 401; `@Public()` bypasses JWT |
+| Permission guard | Routes carrying `@RequirePermission` | Internal Usuario exists, active, and current DB permission assignment exists | 401 inactive/missing user; 403 Customer identity or missing permission |
+| Staff identity | All non-public routes unless `@AllowCustomer()` | Non-Customer identity | 403 Customer token on staff route |
+| Business Context | Controllers/services that explicitly resolve it | Internal identity has canonical User and exactly one ACTIVE Membership; Customer resolves to its persisted Customer/Empresa | 403/404/409 fail-closed |
+| Approved dossier | Explicitly guarded operational controllers | Dossier claim is not PENDIENTE | 403 while pending; self-service dossier routes intentionally remain available |
+| Platform Admin | `/platform-admin/**` controller | Usuario identity email is in non-empty `PLATFORM_ADMIN_EMAILS` allowlist | 403 otherwise |
+
+**Important implementation nuance:** `AuthorizationGuard` (RoleGrant/CapabilityGrant) exists in source but is not one of the three global `APP_GUARD` providers registered in `AppModule`. The globally registered permission system is `PermissionsGuard` using legacy `UsuarioPermiso`. Do not assume capability-based authorization protects routes unless the guard is explicitly applied; confirm all `@Authorize` usages and runtime guard metadata before treating that system as active.
+
+### 30.2 Route-family authorization matrix
+
+| Route family / representative API | Anonymous | Customer token | Staff token | Additional rule / expected result |
+|---|---|---|---|---|
+| `POST /auth/login`, `/auth/cliente/login`, Customer registration | Allowed | Allowed | Allowed | Public entry points; Customer registration creates retail Customer only |
+| `GET /auth/me` | 401 | Denied by staff identity / wrong identity semantics | Allowed | Fresh staff profile; database lookup |
+| `GET /auth/cliente/me` | 401 | Allowed | Rejected by explicit Customer type check | Resolves persisted Customer Business Context |
+| `GET /auth/memberships` | 401 | Must be rejected as non-staff | Allowed | Session Usuario ID → canonical User → own memberships only |
+| `POST /auth/switch-empresa/:empresaId` | 401 | Must be rejected | Authenticated staff only at controller level | Legacy UserEmpresa switching conflicts with Membership V1; do not expose as unified business selector until reconciled |
+| `GET/POST /tienda/**`, public store catalog/order/tracking | Allowed where `@Public` | Allowed | Allowed | Public/Customer storefront surface; verify slug/business scoping and response allowlists |
+| `GET/POST /store/order`, `/store/tracking/:id` | Allowed | Allowed | Allowed | Public order lifecycle; UUID tracking credential and idempotency risks F0-03/F0-07–F0-11 remain |
+| `GET/PATCH /legajo/cliente/mi-legajo/**` | 401 | Wholesale Customer only | Rejected | Customer must be wholesale; pending dossier is not a reason to block self-service |
+| `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` | 401 | Rejected | Owner only | Business Context + Owner role + same-business Customer filter |
+| `POST /invitaciones`, `GET /invitaciones`, `POST /invitaciones/mayorista` | 401 | Rejected | Requires `usuarios.gestionar` | Permission guard reads current database assignments |
+| `POST /invitaciones/activar`, `POST /invitaciones/mayorista/activar` | Allowed | Allowed | Allowed | Invitation token is the activation credential; test token expiry, replay and purpose separation |
+| Sales `/ventas/**` | 401 | Rejected | Staff identity + route permission + Business Context; sensitive operations also dossier gate | `ventas.crear` / `ventas.ver` as applicable; payment route registration remains unresolved F0-05 |
+| Orders `/pedidos/**` | 401 | Rejected | `pedidos.gestionar` + Approved Dossier + Business Context | Confirm same-business object access for every ID-based route |
+| Catalog `/catalogo/**` | 401 | Rejected | Staff identity + Business Context; mutation permission where declared | Exact per-handler permission metadata must be enumerated before route migration |
+| Cash `/caja/**` | 401 | Rejected | Approved Dossier + Business Context; `caja.gastos` for movement/close operations | Arqueo authorization D-06 remains separate and explicit |
+| Inventory `/inventario/**` | 401 | Rejected | Staff identity + Business Context; `inventario.ajustes` for adjustments | Read routes must still enforce tenant scope |
+| Purchases `/compras/**`, `/proveedores/**` | 401 | Rejected | `compras.gestionar` for mutations; Business Context | Scope and phase eligibility must be verified per operation |
+| Loyalty `/reglas-fidelizacion/**` | 401 | Rejected | `fidelizacion.gestionar` + Approved Dossier + Business Context | Both read and mutation routes currently described as permission protected |
+| Messaging `/messaging/**`, Socket.IO `/messaging` | 401 unless public metadata explicitly says otherwise | Customer identity with conversation-level access | Staff identity with conversation-level access | JWT + Business Context + participant authorization; `viewerAccess.canSend` governs read-only Owner view; revocation must invalidate socket access |
+| `GET /platform-admin/overview` | 401 | 403 | 403 unless allowlisted | `PlatformAdminGuard` checks internal identity and email allowlist; no business Owner bypass |
+
+This table intentionally distinguishes route-family policy from complete handler-level coverage. The exact decorators, DTO validation, object ownership checks and controller guard order must be captured in executable tests before the migration's route map is approved.
+
+### 30.3 Membership and dossier state matrix
+
+| Staff identity state | Expected Business Operations result | Expected Platform Admin result |
+|---|---|---|
+| JWT absent/expired | 401 | 401 |
+| Valid JWT, legacy Usuario deleted | `/auth/me` 404; permission-protected routes reject inactive/missing identity | Guard can only evaluate JWT identity/allowlist; stale-token behavior requires test and explicit policy |
+| Usuario inactive | Permission-protected route 401; routes without `@RequirePermission` need explicit revocation policy verification | Email allowlist alone does not check `activo`; potential gap |
+| No canonical User link/backfill | Business Context 404; no tenant fallback | Platform guard does not require Membership |
+| No ACTIVE Membership | Business Context 403 | Platform Admin remains independent of business membership |
+| Exactly one ACTIVE Membership | Resolve that business | Platform Admin remains independent |
+| More than one ACTIVE Membership | 409; never select arbitrarily | Platform Admin remains independent |
+| Membership SUSPENDED/revoked | Must fail Business Context on next request; socket invalidation separately verified | Does not itself revoke allowlisted platform access |
+| Dossier PENDIENTE | Login and self-service dossier allowed; explicitly dossier-gated operational controllers return 403 | Platform route not dossier-gated by current controller source |
+| Dossier APROBADO | Operational access still requires route permission and valid Business Context | Platform allowlist still required |
+
+**Stale-claim caveat:** JWT `estadoLegajo` and other non-expiry claims are not automatically refreshed on each request. `GET /auth/me` reads current dossier status, but `ApprovedDossierGuard` evaluates the token claim. Approval/revocation effects therefore need an explicit token-refresh/revocation strategy and tests; a fresh profile response alone does not update an already-issued token.
+
+### 30.4 Minimum negative-test catalogue
+
+| ID | Actor / setup | Request | Required assertion |
+|---|---|---|---|
+| AUTHZ-01 | No token | Staff-only `GET /ventas` | 401 |
+| AUTHZ-02 | Expired or invalid-signature JWT | Protected API | 401 |
+| AUTHZ-03 | Customer JWT | Staff endpoint `GET /pedidos` | 403, no data returned |
+| AUTHZ-04 | Staff JWT | Customer-only `GET /auth/cliente/me` | 404/403 according to explicit endpoint contract; never Customer data |
+| AUTHZ-05 | Customer retail JWT | `GET /legajo/cliente/mi-legajo` | 403 |
+| AUTHZ-06 | Customer wholesale JWT | Own dossier GET/PATCH | Allowed, only own Customer record |
+| AUTHZ-07 | Customer A JWT | Customer B dossier ID / another tenant | 404/403, no cross-customer disclosure |
+| AUTHZ-08 | Staff without required permission | Protected mutation | 403 |
+| AUTHZ-09 | Permission revoked after token issue | Same protected mutation | 403 on next request |
+| AUTHZ-10 | Usuario inactive | Permission-protected endpoint | 401 |
+| AUTHZ-11 | Usuario inactive | Authenticated route without `@RequirePermission` | Assert the explicitly chosen global account-revocation policy; current guard chain may allow it |
+| AUTHZ-12 | User with no canonical link | Business-scoped endpoint | Fail closed; no legacy empresaId fallback |
+| AUTHZ-13 | User with no ACTIVE Membership | Business-scoped endpoint | 403 |
+| AUTHZ-14 | User with two ACTIVE Memberships | Business-scoped endpoint | 409; no arbitrary business selected |
+| AUTHZ-15 | Suspended Membership after token issue | HTTP request and existing Messaging socket | HTTP denied; socket access revoked/disconnected as designed |
+| AUTHZ-16 | Staff with PENDIENTE dossier | Sales/Cash/Orders operational route | 403 |
+| AUTHZ-17 | Same staff identity | Own dossier completion route | Allowed |
+| AUTHZ-18 | Non-Owner staff | Membership suspend/reactivate and Customer dossier approval | 403 |
+| AUTHZ-19 | Owner | Membership in another Business | 404/403; no cross-business mutation |
+| AUTHZ-20 | Platform allowlist missing/empty | `GET /platform-admin/overview` | 403 |
+| AUTHZ-21 | Non-allowlisted staff Owner | Same platform endpoint | 403 |
+| AUTHZ-22 | Allowlisted internal identity | Same platform endpoint | Allowed; audit event/actor attribution required |
+| AUTHZ-23 | Customer identity whose email is allowlisted | Same platform endpoint | 403 because identity type is not Usuario |
+| AUTHZ-24 | Staff JWT after account deactivation | Platform endpoint | Assert explicit deactivation/revocation policy; current PlatformAdminGuard checks allowlist, not database active state |
+| AUTHZ-25 | Two businesses with same resource-shaped IDs/foreign IDs | Read/update by ID | No cross-tenant object access |
+| AUTHZ-26 | Remix cookie modified with another `empresaId` / forged tenant headers | Business operation | Tenant remains derived from JWT + ACTIVE Membership; forged context ignored |
+| AUTHZ-27 | Customer token replayed against staff Socket.IO namespace | Handshake/join/send | Denied unless explicit Customer participant flow authorizes that conversation |
+| AUTHZ-28 | Non-participant valid staff/Customer token | Conversation history/join/send | Denied by conversation-level authorization |
+| AUTHZ-29 | Owner read-only Messaging viewer | Send message | Denied when `canSend=false`; read behavior follows viewer policy |
+| AUTHZ-30 | Invitation token expired, reused, or wrong purpose | Staff/wholesale activation endpoint | Reject; no cross-purpose activation |
+
+### 30.5 Coverage gaps and design decisions
+
+1. **Account deactivation is not uniformly enforced.** `PermissionsGuard` checks `Usuario.activo` only when a handler declares `@RequirePermission`. The JWT guard checks signature and expiry; StaffIdentityGuard checks Customer-vs-staff type. PlatformAdminGuard checks email allowlist but not current database active state. Adopt a global internal-account status check or document a narrower policy, then test it. This is a security decision, not a UI-only fix.
+2. **Two permission models coexist in source.** Legacy `PermissionsGuard` is globally registered; `AuthorizationGuard` implements Membership RoleGrant/CapabilityGrant but is not globally registered in `AppModule`. Establish the intended authorization source and handler coverage before migrating route guards. Do not claim both models are enforced.
+3. **Business context and legacy switching conflict.** `/auth/switch-empresa/:empresaId` uses legacy UserEmpresa while Business Context V1 permits exactly one ACTIVE Membership. Define the membership selection lifecycle before implementing a business switcher.
+4. **Dossier approval can leave JWT claims stale.** Choose token refresh, server-side revocation/versioning, or database-backed dossier enforcement. Do not rely on frontend re-fetch alone.
+5. **Platform Admin requires stronger lifecycle controls.** Define allowlist ownership, MFA/step-up, audit events, account-active verification and emergency removal. Do not promote Owner into Platform Admin implicitly.
+6. **Permission metadata inventory remains incomplete.** Build a controller/handler-level export of all `@RequirePermission`, `@Authorize`, `@UseGuards`, `@Public`, `@AllowCustomer` and dossier guard declarations; reconcile source declarations with Nest's runtime route map from a successful clean build.
+
+### 30.6 Phase 0 exit criteria for authorization
+
+Phase 0 authorization is not complete until:
+- Every route in the target Remix route map has a named identity domain, backend endpoint, authentication policy, permission/capability, business scope, dossier condition and expected denial response.
+- The guard metadata inventory and runtime route map agree.
+- AUTHZ-01 through AUTHZ-30 are implemented as HTTP/integration tests or explicitly marked not applicable with rationale.
+- Cross-tenant, stale-token, revoked-membership, inactive-user and Customer-vs-staff negative cases pass.
+- Platform Admin lifecycle policy is approved.
+- The Remix frontend contains no authorization decisions based solely on cached user, role, permission, `empresaId` or client route state.
+
+**Phase 0 remains OPEN.** This matrix makes the target security contract testable, but source-level inspection does not establish runtime enforcement. Implementation remains out of scope for this documentation PR.
