@@ -1457,3 +1457,51 @@ A repository-wide search for `PaymentsController` found its declaration and test
 4. Run the real HTTP tests against that same freshly built artifact (do not reuse stale `dist`).
 5. If the route is absent, create a separate scoped implementation task to register the intended controller and add a route-registration regression test. Do not change module registration inside this architecture documentation PR.
 
+
+
+## 27. CI evidence — final reruns and temporary validation policy (2026-11-03)
+
+The two subsequent reruns on the updated PR head completed. Their results confirm that the repository-wide TypeScript/toolchain blocker persists; they do not provide behavioral test results.
+
+### 27.1 Run #593 — B4 Verification Infrastructure
+
+- Run ID: `41576414915`.
+- Job: `api-verification`, job ID `125720841365`.
+- Engineering Kit smoke tests: **PASS**.
+- `npm ci`: **PASS**.
+- Prisma generation: **PASS**.
+- API build (`nest build`): **FAIL**.
+- Database push, API unit tests and integration verification: **SKIPPED** after build failure.
+- Direct errors remained TS2694 at both dossier controller Multer file annotations, TS5101 for deprecated `baseUrl`, and TS5107 for deprecated `moduleResolution=node10`.
+
+Run: https://github.com/fmonfasani/otrarondamas/actions/runs/41576414915
+
+### 27.2 Run #64 — Jest Tests
+
+- Run ID: `41576414933`.
+- Job: `test (20)`, job ID `125722352242`.
+- Container initialization, checkout, Node setup and dependency installation: **PASS**.
+- Unit/integration Jest step: **FAIL before test execution**.
+- Jest reported 34 failed suites and **0 tests executed**.
+- Compilation errors: TS5011 (explicit `rootDir` required), TS5101 (`baseUrl` deprecation) and TS5107 (`moduleResolution=node10` deprecation).
+
+Run: https://github.com/fmonfasani/otrarondamas/actions/runs/41576414933
+
+### 27.3 Temporary validation policy while TypeScript recovery is deferred
+
+The team may continue documentation, architecture analysis and source-level contract tracing while the compiler configuration is unresolved. Validation must remain evidence-based and must not represent blocked checks as successful.
+
+| Validation lane | Allowed while blocked | Reporting rule |
+|---|---|---|
+| Documentation / architecture | Continue source inspection, traceability, decision records and consistency review | Report exact files/sections reviewed; no claim of runtime correctness |
+| Repository hygiene | Run checks that demonstrably do not require the blocked TypeScript compilation | Report each check separately; if it depends on TypeScript parsing/type services, mark it blocked |
+| Isolated executable checks | Run only tests/scripts that can execute independently of the failing TS compilation and do not require stale build output | Name the exact command and tests executed; do not generalize to the full suite |
+| API build / Jest TS suites / HTTP integration / E2E | Remain blocked until the toolchain issue is corrected | Explicitly mark **BLOCKED — NOT EXECUTED** or **FAILED BEFORE TEST EXECUTION**, as applicable |
+
+The following workarounds are not acceptable as evidence of recovery: suppressing diagnostics globally, adding `--noCheck`, converting failing suites to skips, accepting stale `dist` output, or marking required checks as successful without executing them. A temporary CI split is acceptable only if the existing required checks remain visible as blocked/failing and the independent lane cannot create a false green signal.
+
+### 27.4 Deferred CI recovery scope
+
+The compiler/toolchain repair remains a separate engineering task. It must establish and document a supported Node.js / TypeScript / NestJS version matrix, resolve the Jest `rootDir` selection, reconcile Express/Multer type declarations, and inspect the submodule cleanup warning. After repair, run a clean API build, unit tests, integration tests and route-map verification against the same commit and freshly generated build artifacts.
+
+**Status after runs #593 and #64:** CI remains **RED**. No behavioral tests were executed by Jest in run #64; API integration checks were skipped in run #593. This evidence does not justify either a product-pass or product-fail conclusion. The architecture work may continue, but implementation readiness and Phase 0 closure remain unproven.
