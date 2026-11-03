@@ -1,13 +1,15 @@
 import { publishToKafka } from './kafka.server';
 
-export async function publishOrderCreated(orderData: any) {
+type KafkaPayload = Record<string, unknown>;
+
+export async function publishOrderCreated(orderData: KafkaPayload) {
   await publishToKafka('orders.created', {
     ...orderData,
     timestamp: new Date().toISOString(),
   });
 }
 
-export async function publishOrderUpdated(orderId: string, changes: any) {
+export async function publishOrderUpdated(orderId: string, changes: KafkaPayload) {
   await publishToKafka('orders.updated', {
     orderId,
     changes,
