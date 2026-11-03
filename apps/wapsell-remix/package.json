@@ -8,8 +8,8 @@
     "build": "remix build",
     "start": "remix-serve ./build/index.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx",
-    "test": "vitest",
+    "lint": "eslint .",
+    "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug"
@@ -44,6 +44,7 @@
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "typescript-eslint": "^8.18.0"
   }
 }

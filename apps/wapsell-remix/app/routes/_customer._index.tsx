@@ -1,6 +1,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Form, useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useMemo, useState } from "react";
+import { getApiBaseUrl } from '~/services/api.server';
 
 type Product = {
   productoId: string;
@@ -15,9 +16,6 @@ type Product = {
 };
 
 type CartLine = { product: Product; quantity: number };
-
-const apiUrl = () =>
-  (process.env.API_BASE_URL || process.env.API_URL || "http://localhost:3000").replace(/\/$/, "");
 
 /**
  * Customer Public Storefront
@@ -39,7 +37,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const search = url.searchParams.get("search") || "";
   try {
     const response = await fetch(
-      `${apiUrl()}/tienda/productos${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+      `${getApiBaseUrl()}/tienda/productos${search ? `?search=${encodeURIComponent(search)}` : ""}`,
       { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) },
     );
     if (!response.ok) {
@@ -71,7 +69,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ ok: false, message: "Completá tus datos y agregá al menos un producto." }, { status: 400 });
   }
   try {
-    const response = await fetch(`${apiUrl()}/tienda/pedidos`, {
+    const response = await fetch(`${getApiBaseUrl()}/tienda/pedidos`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ nombre, email, telefono: telefono || undefined, items }),

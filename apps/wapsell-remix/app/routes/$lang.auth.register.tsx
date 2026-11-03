@@ -1,6 +1,7 @@
 import { json, type ActionFunction } from '@remix-run/node';
-import { redirect } from '@remix-run/react';
+import { redirect } from '@remix-run/node';
 import { RegisterForm } from '~/components/auth/RegisterForm';
+import { getApiBaseUrl } from '~/services/api.server';
 
 interface RegisterData {
   email: string;
@@ -34,7 +35,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   }
 
   try {
-    const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
+    const apiUrl = getApiBaseUrl();
     const response = await fetch(`${apiUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,7 +50,8 @@ export const action: ActionFunction = async ({ request, params }) => {
     const locale = params.lang || 'es';
     return redirect(`/${locale}/auth/login`);
   } catch (error) {
-    return json({ error: 'Registration failed. Please try again.' }, { status: 500 });
+    if (error instanceof Response) throw error;
+    return json({ error: 'Registration failed. Please try again.' }, { status: 502 });
   }
 };
 

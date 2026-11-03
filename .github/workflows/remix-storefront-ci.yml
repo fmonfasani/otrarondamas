@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   remix:
-    name: Remix typecheck and build
+    name: Remix quality gates
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,6 +37,12 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build Remix
         run: npm run build
