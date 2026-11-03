@@ -106,3 +106,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .store-footer { padding: 20px 18px; }.store-footer > span { max-width: 130px; text-align: right; font-size: 9px; }
   .cart-panel { padding: 22px 18px; }
 }
+
+.order-confirmation { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 15px clamp(22px, 12vw, 190px); color: #17633a; background: #eaf6ee; font-size: 12px; }
+.order-confirmation strong { font-size: 13px; }
+.order-confirmation button { position: absolute; top: 10px; right: clamp(22px, 7vw, 112px); border: 0; color: inherit; background: none; font-size: 20px; }
