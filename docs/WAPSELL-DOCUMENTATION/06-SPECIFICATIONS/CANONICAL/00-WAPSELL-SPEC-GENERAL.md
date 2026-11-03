@@ -120,7 +120,7 @@ Estado de cada ítem. `Fuente` indica la autoridad; ningún ítem `OPEN` describ
 | `Repartidor` como Membership Role | **FUTURE / OPEN; fuera del MVP de Membership Roles** | `OR-B2-008` + Owner clarification |
 | Stock global compartido entre Business | **Excluido** | `D-014` |
 | Transferencia de stock entre Business | **No disponible en el modelo actual; solo mediante futura especificación explícita** | `D-014` |
-| SaaS Admin / rol de plataforma | `OPEN` | C-11 |
+| SaaS Admin / rol de plataforma | Existe conceptualmente a nivel plataforma, pero está fuera del MVP operativo; implementación y modelo de permisos no aprobados | `OR-B3-003` |
 | Contabilidad financiera completa y facturación fiscal electrónica | `OPEN / no determinada` | CON-003 |
 | Kubernetes | `OPEN` | Architecture |
 
@@ -374,7 +374,7 @@ Authenticated User → Target Business → Valid Membership → Role → Permiss
 
 
 
-Los controles son conceptuales. Tipos de token, guards, middleware, errores y enforcement: `OPEN IMPLEMENTATION DETAIL`. Los mecanismos de autenticación concretos (p. ej. proveedor de identidad externo, 2FA/MFA) **no** están decididos: `OPEN`. Que el AS-IS soporte determinados mecanismos es evidencia, no decisión.
+Los controles son conceptuales. Tipos de token, guards, middleware, errores y enforcement: `OPEN IMPLEMENTATION DETAIL`. La autenticación establece la identidad global del User; el proveedor de identidad y los mecanismos técnicos siguen `OPEN`. **MFA/2FA es obligatorio para Owner y Admin**; enrollment, método, recovery y enforcement técnico permanecen `OPEN IMPLEMENTATION DETAIL`. `[OR-B3-014]` Que el AS-IS soporte determinados mecanismos es evidencia, no decisión.
 
 
 
