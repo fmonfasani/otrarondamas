@@ -26,31 +26,11 @@ export const loader: LoaderFunction = async ({ request }) => {
   // Fetch dashboard data from NestJS API
   const apiUrl = process.env.VITE_API_URL;
   if (!apiUrl) {
-    // Return mock data if API is not available
-    return json({
-      kpis: {
-        sales: 1250,
-        revenue: 45320,
-        orders: 89,
-        customers: 342,
-      },
-      orders: [
-        {
-          id: '1',
-          customer: 'John Doe',
-          amount: 250,
-          date: '2024-01-15',
-          status: 'completed' as const,
-        },
-        {
-          id: '2',
-          customer: 'Jane Smith',
-          amount: 1200,
-          date: '2024-01-14',
-          status: 'processing' as const,
-        },
-      ],
-    });
+    throw new Response(
+      'Dashboard service is unavailable (API_URL not configured). ' +
+      'Contact an administrator if this persists.',
+      { status: 503 }
+    );
   }
 
   try {
@@ -62,31 +42,10 @@ export const loader: LoaderFunction = async ({ request }) => {
     );
 
     if (!response.ok) {
-      // Return mock data on API error
-      return json({
-        kpis: {
-          sales: 1250,
-          revenue: 45320,
-          orders: 89,
-          customers: 342,
-        },
-        orders: [
-          {
-            id: '1',
-            customer: 'John Doe',
-            amount: 250,
-            date: '2024-01-15',
-            status: 'completed' as const,
-          },
-          {
-            id: '2',
-            customer: 'Jane Smith',
-            amount: 1200,
-            date: '2024-01-14',
-            status: 'processing' as const,
-          },
-        ],
-      });
+      throw new Response(
+        'Dashboard data could not be loaded. The service may be temporarily unavailable.',
+        { status: response.status || 500 }
+      );
     }
 
     const kpis: KPIData = await response.json();
@@ -110,31 +69,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     return json({ kpis, orders });
   } catch (error) {
     console.error('Error fetching dashboard:', error);
-    // Return mock data on error
-    return json({
-      kpis: {
-        sales: 1250,
-        revenue: 45320,
-        orders: 89,
-        customers: 342,
-      },
-      orders: [
-        {
-          id: '1',
-          customer: 'John Doe',
-          amount: 250,
-          date: '2024-01-15',
-          status: 'completed' as const,
-        },
-        {
-          id: '2',
-          customer: 'Jane Smith',
-          amount: 1200,
-          date: '2024-01-14',
-          status: 'processing' as const,
-        },
-      ],
-    });
+    throw error;
   }
 };
 
