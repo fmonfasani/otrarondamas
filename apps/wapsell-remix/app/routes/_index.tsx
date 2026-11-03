@@ -33,14 +33,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) },
     );
     if (!response.ok) {
-      return json({ products: [] as Product[], error: "No pudimos cargar el catálogo. Intentá nuevamente en unos minutos." });
+      return json({ products: [] as Product[], error: "No pudimos cargar el catálogo. Intentá nuevamente en unos minutos.", search });
     }
     const products = (await response.json()) as Product[];
-    return json({ products, error: null });
+    return json({ products, error: null, search });
   } catch {
     return json({
       products: [] as Product[],
       error: "No pudimos conectar con la tienda. Verificá que el servicio esté disponible.",
+      search,
     });
   }
 }
@@ -81,7 +82,7 @@ const money = (value: string) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(Number(value));
 
 export default function Index() {
-  const { products, error } = useLoaderData<typeof loader>();
+  const { products, error, search } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -161,7 +162,7 @@ export default function Index() {
         </div>
         <Form method="get" className="search-form">
           <span aria-hidden="true">⌕</span>
-          <input type="search" name="search" placeholder="¿Qué estás buscando?" defaultValue="" aria-label="Buscar productos" />
+          <input type="search" name="search" placeholder="¿Qué estás buscando?" defaultValue={search} aria-label="Buscar productos" />
           <button type="submit">Buscar</button>
         </Form>
 
