@@ -1173,3 +1173,56 @@ The table is representative, not a complete endpoint/DTO catalogue. Exact DTO fi
 ---
 
 **End of Phase 0 evidence addendum — pass 2, 2026-11-03.**
+
+
+---
+
+## 21. Phase 0 — Next.js overlap and additional backend evidence (pass 3, 2026-11-03)
+
+**Status: PARTIAL — source inspection only; production usage is not established.**
+
+### 21.1 Next.js route and API findings
+
+| Surface | Observed behavior | Contract finding |
+|---|---|---|
+| `/[locale]` | Static welcome page. | No domain API integration in this page. |
+| `/[locale]/auth/login` | Staff login UI; Next route handler proxies login. | `POST /auth/login` exists. |
+| `/[locale]/auth/signup`, `recover` | Route directories exist; behavior not fully inspected. | Do not infer complete registration/recovery from route presence. |
+| `/[locale]/dashboard` | KPI, trend and top-product components with period selector. | Next proxies call `/admin/dashboard/kpis`, `/admin/dashboard/top-products`, `/admin/dashboard/trends`; matching NestJS endpoints were not verified. |
+| `/[locale]/negocios` | Business list, create/edit links and localStorage-based business selection. | `GET /tenants/my-empresas` exists. Business create/settings endpoints were not verified. Current Membership V1 resolves one ACTIVE membership and rejects multiple ACTIVE memberships. |
+| `/api/auth/login`, `/api/auth/me` | Next server proxies. | Corresponding NestJS routes exist. |
+| `/api/auth/switch-empresa`, `/api/auth/tenants` | Next server proxies. | `POST /auth/switch-empresa/:empresaId` and `GET /tenants/my-empresas` exist; switching semantics must be reconciled with Membership V1. |
+| `/api/dashboard/kpis`, `top-products`, `trends` | Next server proxies to dashboard paths. | Backend contracts remain unverified. |
+
+### 21.2 Cross-frontend disposition
+
+| Capability | Strongest inspected source | Finding |
+|---|---|---|
+| Staff login | POS Admin / Next.js; Remix partial | Consolidate staff auth into one hardened Remix session. Customer auth remains separate. |
+| Customer storefront | Tienda Online | Real catalog, checkout, tracking, customer login/registration, Google OAuth and wholesale dossier flow. |
+| Business operations | POS Admin | Broadest verified operational UI/API integration. |
+| Dashboard | Next.js (UI only) | API proxy targets not verified in NestJS; POS dashboard is explicitly placeholder; Remix dashboard has mock fallbacks. |
+| Messaging | POS Admin | HTTP and Socket.IO backend exist; detailed contract/test matrix remains open. |
+| Platform Admin | Remix | Only overview endpoint verified; retain separate authorization boundary. |
+
+### 21.3 Additional backend contracts verified
+
+- Payments: `PaymentsController` exposes `/ventas/:ventaId/pagos`; create requires `ventas.crear`, reads require authenticated staff and Business Context, and both require Approved Dossier.
+- Staff dossier: `/legajo/mi-legajo`, `/legajo/mi-legajo/estado`; owner review/approval uses `/legajo/pendientes` and `PATCH /legajo/:usuarioId/aprobar`.
+- Wholesale customer dossier is separate: `/legajo/cliente/mi-legajo`, status endpoint, pending list and Owner approval under `/legajo/cliente/*`.
+- `GET /usuarios` is a minimal read-only staff listing, not a full user-management API.
+- Messaging Socket.IO namespace is `/messaging`; handshake authenticates and resolves staff/customer Business Context. Room subscription requires explicit `conversation.join`, authorized through MessagingService. Membership revocation invalidates realtime access.
+- Messaging create-message DTO requires `clientMessageId` (1–200 chars), non-empty content and optional UUIDv4 reply reference. Remaining DTO/event, actor capability and E2E mapping is open.
+
+### 21.4 Phase 0 exit blockers
+
+1. Verify Next signup/recovery and business create/settings pages; identify any unique capabilities.
+2. Complete DTO/response/side-effect and test mapping for all critical journeys, especially Messaging.
+3. Establish live VPS/Nginx/process/container/deployed-SHA evidence. Repository files alone cannot prove the active production frontend.
+4. Close parity matrix and migration sequence before starting broad route migration.
+
+**Current conclusion:** POS Admin is the strongest operational reference; Tienda Online is the customer storefront reference; Next.js has dashboard/business UI with unverified backend contracts; Remix is the consolidation target but is not parity-complete. Phase 0 remains open. No production cutover or legacy retirement is authorized by this evidence.
+
+---
+
+**End of Phase 0 evidence addendum — pass 3, 2026-11-03.**
