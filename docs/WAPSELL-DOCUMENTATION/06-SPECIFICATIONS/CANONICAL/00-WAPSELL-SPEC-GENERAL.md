@@ -428,7 +428,7 @@ Reglas:
 
 \- Permisos concretos de Owner, de Admin y de cada rol: `OPEN IMPLEMENTATION DETAIL`.
 
-\- **SaaS Admin / rol de plataforma:** `OPEN OWNER DECISION` (C-11). No figura entre los Membership Roles del MVP.
+\- **SaaS Admin / rol de plataforma:** la formulación histórica `OPEN OWNER DECISION` (C-11) queda superada en su alcance conceptual por `OR-B3-003`: existe conceptualmente a nivel plataforma y está fuera del MVP operativo. Su implementación y modelo de permisos no están aprobados. No figura entre los Membership Roles del MVP.
 
 
 
