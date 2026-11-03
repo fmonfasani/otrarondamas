@@ -1029,3 +1029,83 @@ Only after Phase 0 is reviewed should Phase 1 modify workspace/build/CI configur
 ---
 
 **End of specification draft — ARCH-FE-001 v0.1.0.**
+
+
+---
+
+## 19. Phase 0 — Backend contract and authorization traceability (evidence pass 2026-11-03)
+
+**Status: PARTIAL — repository source inspected; production topology and full parity remain unverified.**
+
+This section records source-level evidence from `main` (base SHA `e9bc4cb5ac9cffa57d66b77695b698161fdebd4b`) and the current Remix branch. Route existence is not treated as proof of feature completeness, production use, or successful runtime behavior.
+
+### 19.1 Backend security invariants confirmed
+
+| Concern | Verified implementation | Migration constraint |
+|---|---|---|
+| Authentication | Global `JwtAuthGuard`; endpoints are private by default and explicitly opt out with `@Public()`. JWT is read from Bearer Authorization. | Remix server loaders/actions must forward the user token to NestJS. Do not replace backend auth with frontend-only route protection. |
+| Permission checks | Global `PermissionsGuard`; `@RequirePermission(permission)` checks the current `UsuarioPermiso` relation on every protected request and rejects inactive/missing users. | Route visibility is UX only. Preserve backend permission enforcement and test positive/negative cases. |
+| Staff/customer separation | Global `StaffIdentityGuard` rejects customer identities from internal endpoints unless explicitly marked `@AllowCustomer()`; public routes are exempt. | Keep Customer and Business route trees distinct; never infer actor type from client state. |
+| Business Context | `BusinessContextService.resolveForAuthenticatedUser()` resolves legacy Usuario → canonical User → ACTIVE Membership → Business → verified Empresa adapter. It fails closed on missing link, no ACTIVE membership, or multiple ACTIVE memberships. | Do not use a session `empresaId`, request header or browser-selected tenant as authorization authority. V1 currently permits exactly one ACTIVE Membership; multiple-active selection is not implemented. |
+| Business data isolation | Controllers such as Catalog, Customers, Sales, Orders, Cash Register and Inventory resolve company context before calling scoped services/repositories. | Keep `CompanyScopedPrismaService` / company scope enforcement intact. No direct Prisma access from Remix. |
+| Staff approval | `ApprovedDossierGuard` is explicitly applied to sensitive business controllers and rejects `estadoLegajo === PENDIENTE`. | Preserve this backend gate; frontend must not bypass it. |
+| Platform administration | `PlatformAdminController` is guarded by `PlatformAdminGuard`, using `PLATFORM_ADMIN_EMAILS`; empty/missing allowlist denies access. | Platform Admin is a separate actor capability. A Remix route or hidden nav item is not authorization. |
+
+### 19.2 Route-to-API traceability — Remix current routes
+
+| Remix route / capability | Current source behavior | NestJS source-level contract | Phase 0 disposition |
+|---|---|---|---|
+| `/[lang]/auth/login` | Server action calls `POST /auth/login`; stores JWT in Remix cookie. | `POST /auth/login` exists and is public. | **Mappable**, but session hardening required (see 19.4). |
+| `/[lang]/auth/register` | Calls `POST /auth/register`. | No `POST /auth/register` handler was found in the inspected AuthController. | **Contract gap** — do not port as working registration until product flow and API are identified/approved. |
+| `/[lang]/dashboard` | Calls `POST /auth/validate` via `requireAuth`. | No `POST /auth/validate` handler was found; `GET /auth/me` exists and queries current user data. | **Contract mismatch** — replace validation strategy only after verifying desired session semantics; do not add a speculative endpoint. |
+| `/[lang]/dashboard` KPI panel | Calls `GET /dashboard/kpis` and `GET /dashboard/recent-orders`; returns hard-coded mock KPIs/orders when API URL is missing, API responds non-2xx, or fetch throws. | No Dashboard controller/module was present in the inspected API module registration or controller search. | **Mock-backed / no verified backend contract**. Not feature parity. |
+| `/[lang]/dashboard/pedidos` | Calls `GET /pedidos` through `fetchTenantData`; on any failure renders fallback mock orders. | `GET /pedidos` exists; requires JWT, approved dossier, `pedidos.gestionar`, and resolved ACTIVE Membership Business Context. | **Mappable with security remediation**. Remove tenant authority from Remix session/header and never silently substitute mock orders. |
+| `/[lang]/dashboard/pedidos/:id` | Calls `GET /pedidos/:id`; on failure renders fallback mock order. | `GET /pedidos/:id` exists with the same permission/context controls as list. | **Mappable with security remediation**; fallback must become an explicit error/empty state. |
+| `/[lang]/dashboard/productos` | Loader returns static sample products; action contains TODO and performs no API mutation. | `GET/PATCH /catalogo/productos` family exists; CatalogController uses ACTIVE Membership Business Context and scoped persistence. | **Scaffold only**; define required product CRUD, filters and permission behavior before migration. |
+| `/[lang]/dashboard/negocios` | Loader only calls `requireAuth`; page is placeholder content. | `GET /tenants/my-empresas` exists for legacy empresa list; `GET /auth/memberships` exists for canonical memberships. No verified Business create/switch UI contract in this route. | **Placeholder**; distinguish Business selector from future multi-active membership support. |
+| `/[lang]/platform-admin` | Calls `GET /platform-admin/overview` and handles 401/403. | Endpoint exists and is protected by `PlatformAdminGuard`. | **Mappable for overview only**; other nav entries are non-functional placeholders in the current route. |
+
+### 19.3 Backend capability inventory confirmed for migration mapping
+
+| Capability | Verified NestJS endpoints (representative) | Actor / enforcement |
+|---|---|---|
+| Authentication | `POST /auth/login`, `GET /auth/me`, `GET /auth/memberships`, `POST /auth/switch-empresa/:empresaId` | Login public; remaining routes require JWT. Switch behavior must be reconciled with Membership V1 before using it as a Business selector. |
+| Public storefront | `GET /store/catalog`, `GET /store/hierarchy`; legacy `GET /tienda/productos`, `GET /tienda/jerarquia`, `POST /tienda/pedidos`, `GET /tienda/pedidos/:id`; `POST /store/order`, `GET /store/tracking/:id` | Explicitly public. Current `/store/*` catalog/order paths use `TIENDA_EMPRESA_ID` configuration; public slug-scoped controller also exists and requires separate contract review. |
+| Orders operations | `GET /pedidos`, `GET /pedidos/:id`, `PATCH /pedidos/:id/estado`, `POST /pedidos/:id/cancel` | Internal staff; `pedidos.gestionar`, Approved Dossier and ACTIVE Membership Business Context. |
+| Catalog | `GET/PATCH /catalogo/productos` and hierarchy endpoints | Internal staff; Business Context and scoped company access; mutation permission is enforced by endpoint metadata. |
+| Sales | `GET /ventas/productos`, `POST /ventas/cotizacion`, `POST /ventas`, `GET /ventas`, `GET /ventas/:id`, `GET /ventas/:id/comprobante` | Internal staff; relevant `ventas.crear` / `ventas.ver` permissions, Approved Dossier and Business Context. |
+| Customers | `GET /clientes`, `GET /clientes/:id`, `POST /clientes`, `PATCH /clientes/:id` | Internal staff; mutations require `clientes.gestionar`; Business Context. |
+| Cash register | `GET /caja/estado`, `POST /caja/apertura`, `POST /caja/movimientos`, `GET /caja/movimientos`, `POST /caja/arqueo` and related count/close handlers | Internal staff; Approved Dossier and Business Context; movement/close operations include `caja.gastos` authorization. |
+| Inventory | `GET /inventario/stock`, `GET /inventario/productos/:id/lotes`, `GET /inventario/productos/:id/movimientos`, `POST /inventario/ajustes` | Internal staff; Business Context; adjustments require `inventario.ajustes`. |
+| Messaging | `GET/POST /messaging/conversations`, `GET /messaging/conversations/:id`, `GET/POST /messaging/conversations/:id/messages`, plus association/order operations | Internal staff by default (global JWT + Staff Identity guards); service-level actor, membership and conversation ownership checks must be included in detailed route matrix. |
+| Platform Admin | `GET /platform-admin/overview` | Internal Wapsell platform identity; email allowlist guard; not a Business Membership permission. |
+
+The table is representative, not a complete endpoint/DTO catalogue. Exact DTO fields, response schemas, status codes, side effects and endpoint-level permissions still need to be extracted for each capability before implementation.
+
+### 19.4 Critical Remix security and integration findings
+
+1. **Session secret fails open in current Remix code.** `auth.server.ts` uses `SESSION_SECRET || 'dev-secret'`. Production configuration must fail closed when the secret is absent; this is a Phase 1 implementation requirement, not a reason to change the backend contract.
+2. **JWT validation calls a non-existent verified route.** `validateJWT()` calls `POST /auth/validate`; inspected AuthController exposes no such handler. `GET /auth/me` is a real current-user read but is not automatically interchangeable without defining expiry, revocation and error semantics.
+3. **Tenant authority is incorrectly duplicated in Remix.** `tenant.server.ts` trusts `empresaId` and `userId` from the cookie and forwards `X-Empresa-Id` / `X-User-Id`. Backend Business Context explicitly resolves ACTIVE Membership from authenticated identity and does not use caller-provided tenant identifiers as authority. Migration must remove this frontend tenant-authorization model.
+4. **Mock data can mask backend outages and missing contracts.** Dashboard, order list/detail loaders return fabricated records on API errors; product loader is entirely static. These must become explicit loading/error/empty states and real API integrations before parity is claimed.
+5. **Public storefront API surfaces are not yet consolidated.** Legacy `/tienda/*`, `/store/*`, and slug-scoped `/:businessSlug/tienda/*` coexist. Their business selection, authentication, customer identity, DTO and idempotency semantics must be compared before selecting a canonical storefront contract.
+6. **Platform Admin scope exceeds its implemented API.** Only overview was verified. Businesses/users/subscriptions/audit navigation items must remain marked placeholder until corresponding endpoints and permissions are verified.
+7. **Remix registration is not backed by the inspected API.** Do not infer that an endpoint exists because the frontend calls it.
+
+### 19.5 Phase 0 remaining work and exit gates
+
+| Work item | Status | Evidence required to close |
+|---|---|---|
+| Remix → NestJS route/DTO/permission matrix | **Partial** | Every Remix loader/action and interactive feature mapped to exact controller method, DTO, response shape, auth actor, Business Context, permission, and side effects. |
+| POS Admin route and feature parity mapping | **Partial** | Each POS route and API client method mapped to controller/DTO/permission, including cash, inventory, purchases, customers, messaging and reports. |
+| Tienda Online mapping | **Partial** | All storefront routes, checkout, customer auth, invitation and order tracking mapped to the selected public/customer API contract. |
+| Next.js frontend disposition | **Open** | Determine route-by-route overlap and whether any production domain/process currently uses it. |
+| Production/deployment topology | **Open — not inferable from repository source alone** | Live VPS process/container, Nginx upstream/domain, deployed commit and traffic evidence. Repository Docker/CI files are not proof of live use. |
+| DTO/response/side-effect parity | **Open** | Controller DTOs, services, tests and API client contracts inspected for each capability. |
+| Test coverage and runtime validation | **Open** | Relevant unit/integration/E2E test evidence; no runtime tests were executed in this evidence pass. |
+
+**Phase 0 exit rule:** do not begin broad screen migration until all critical Customer, Business Operations and Platform Admin journeys have a verified target contract and actor/authorization classification; all gaps are explicitly dispositioned; and production frontend usage is evidenced or formally marked as an unresolved cutover blocker.
+
+---
+
+**End of Phase 0 evidence addendum — 2026-11-03.**
