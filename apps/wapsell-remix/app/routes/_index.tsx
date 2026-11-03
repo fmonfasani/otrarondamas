@@ -85,6 +85,7 @@ export default function Index() {
   const fetcher = useFetcher<typeof action>();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [orderConfirmation, setOrderConfirmation] = useState("");
   const total = useMemo(
     () => cart.reduce((sum, line) => sum + Number(line.product.precio) * line.quantity, 0),
     [cart],
@@ -92,6 +93,7 @@ export default function Index() {
 
   useEffect(() => {
     if (fetcher.data?.ok) {
+      setOrderConfirmation(fetcher.data.message);
       setCart([]);
       setCartOpen(false);
     }
@@ -133,6 +135,8 @@ export default function Index() {
           </button>
         </nav>
       </header>
+
+      {orderConfirmation ? <div className="order-confirmation" role="status"><strong>Pedido enviado</strong><span>{orderConfirmation}</span><button type="button" onClick={() => setOrderConfirmation("")} aria-label="Cerrar confirmación">×</button></div> : null}
 
       <section className="store-hero">
         <div className="hero-copy">
