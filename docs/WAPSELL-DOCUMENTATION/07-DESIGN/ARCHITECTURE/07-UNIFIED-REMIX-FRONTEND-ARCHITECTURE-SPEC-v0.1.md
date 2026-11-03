@@ -1295,9 +1295,11 @@ Legacy `/tienda/pedidos` validates stock without reserving/deducting it; canonic
 
 The sales HTTP integration suite explicitly characterizes a cross-tenant reuse of another business's idempotency key as a Prisma unique-constraint failure (P2002). The same suite verifies same-tenant replay returns the same sale and deducts stock once. Do not assume the key is tenant-scoped merely because the service uses a company-scoped Prisma client. Review the unique index and key namespace before changing clients or retry behavior.
 
-**F0-05 — Payment route source and compiled/runtime registration must remain aligned.**
+**F0-05 — Sale-payment HTTP route is not registered by the inspected source module graph.**
 
-The source tree contains `PaymentsController` declaring `POST/GET /ventas/:ventaId/pagos`, while `SalesController` declares sales routes and does not declare a payment route. The sales HTTP integration test documents that the compiled production stack registers the Sales payment handler before the Payments handler for POST, with GET served by Payments. However, the inspected `SalesModule` registers only `SalesController`, and `PaymentsModule` registers `PaymentController` at `/pagos`, not `PaymentsController`. This is a source/module-graph versus compiled-runtime evidence discrepancy. The test also contains direct controller tests separate from HTTP tests. Before relying on this route as a migration contract, verify a clean build from the exact source SHA, inspect the generated Nest route map, and rerun the HTTP suite. Do not select or delete a handler based only on source declarations.
+The source tree contains `PaymentsController` declaring `POST/GET /ventas/:ventaId/pagos` and delegating to `SalesService`. However, `SalesModule` registers only `SalesController`, whose inspected source declares no payment route. `PaymentsModule` registers only `PaymentController` at `/pagos`; it does not register `PaymentsController`. A repository-wide code search found the `PaymentsController` declaration and test references, but no production-module registration/import for that class. Consequently, **the inspected source does not establish that either `POST` or `GET /ventas/:ventaId/pagos` is registered in the current Nest application**.
+
+The integration-test header claims a compiled route dump where a Sales POST handler is registered before a Payments POST handler, but that claim conflicts with the inspected current source: `SalesController` has no such handler. Treat the test comment / historical dist route dump as stale or from a different build until reproduced from a clean build of the exact SHA. Do not assume the POS payment endpoint is currently live.
 
 **F0-06 — Cash D-05/D-06 are not fully closed business policy.**
 
@@ -1431,3 +1433,27 @@ The warning occurs during Git submodule cleanup after the main test/build failur
 - [ ] Verify production deployment evidence.
 
 **CI is currently RED.** No product behavior has been proven broken by these two runs because Jest executed zero tests and the API build stopped before integration verification. The repository cannot be treated as migration-ready until CI is recovered and the relevant invariants are actually executed.
+
+## 26. Payment route registration — source/module graph discrepancy refined (2026-11-03)
+
+A focused repository-wide search and direct inspection of all relevant source files refined F0-05:
+
+| Source | Verified declaration / registration |
+|---|---|
+| `apps/api/src/payments/payments.controller.ts` | Declares `@Controller('ventas/:ventaId/pagos')`, POST and GET; delegates to `SalesService` |
+| `apps/api/src/sales/sales.controller.ts` | Declares `@Controller('ventas')`; handlers are products, quote, create sale, list, detail and receipt. No payment handler exists in this file |
+| `apps/api/src/sales/sales.module.ts` | `controllers: [SalesController]`; no `PaymentsController` |
+| `apps/api/src/payments/payments.module.ts` | `controllers: [PaymentController]`; `PaymentController` is `@Controller('pagos')` and handles provider intents, confirmations, refunds, webhooks and analytics |
+| `apps/api/src/app.module.ts` | Imports both `SalesModule` and `PaymentsModule`; this does not register an unlisted controller class |
+
+A repository-wide search for `PaymentsController` found its declaration and test references, but no additional production-module import or registration. The current source graph therefore indicates that the POS route `/ventas/:ventaId/pagos` may be absent from the Nest route table. The integration test's opening comment says a compiled route dump showed a Sales POST handler, but the current `SalesController` source does not contain that handler. This contradiction is not resolved by the test file's existence.
+
+**Impact:** the POS Admin payment modal calls `POST /ventas/:ventaId/pagos` and expects `{ pago, saldo }`. Until the route is proven in a clean build, this is a potential production-critical integration defect, not merely a naming discrepancy.
+
+**Required verification in the dedicated CI recovery task:**
+1. Produce a clean build from the exact current `main` SHA after fixing the compiler blockers.
+2. Generate and capture the Nest route map from that exact build.
+3. Confirm whether `POST /ventas/:ventaId/pagos` and `GET /ventas/:ventaId/pagos` are registered, and identify the exact controller/handler for each.
+4. Run the real HTTP tests against that same freshly built artifact (do not reuse stale `dist`).
+5. If the route is absent, create a separate scoped implementation task to register the intended controller and add a route-registration regression test. Do not change module registration inside this architecture documentation PR.
+
