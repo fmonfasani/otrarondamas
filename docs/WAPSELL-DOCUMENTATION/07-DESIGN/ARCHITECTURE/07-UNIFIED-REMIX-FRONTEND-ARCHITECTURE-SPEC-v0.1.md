@@ -3,13 +3,13 @@
 **Document ID:** ARCH-FE-001  
 **Version:** 0.1.0  
 **Date:** 2026-11-03  
-**Status:** DRAFT — OWNER-DIRECTED ARCHITECTURE / TECHNICAL REVIEW REQUIRED  
+**Status:** FROZEN BASELINE FOR P1 — OPEN ITEMS TRACKED  
 **Scope:** Consolidation of Customer, Business Operations and Platform Admin experiences into one Remix frontend, retaining NestJS as the only backend.  
 **Target repository:** \`fmonfasani/otrarondamas\`
 
 > **Owner direction recorded 2026-11-03:** consolidate the Wapsell frontend into one Remix application and retain NestJS as the only backend. Migration must be progressive; existing applications remain intact until their capabilities are migrated and verified.
 >
-> **Document status:** this specification records the selected direction and defines the proposed target and migration controls. It does not claim that the target is implemented, does not silently amend canonical product decisions, and does not authorize database/schema changes, legacy deletion, production cutover or deployment. Technical details explicitly marked OPEN require resolution in the relevant contract/design gate before the affected implementation slice.
+> **Document status:** FROZEN as the implementation baseline for P1 on 2026-11-03. The selected frontend/backend topology, experience boundaries and migration constraints are the working architectural baseline. This freeze does not claim that the target is implemented or that Phase 0 is fully closed. Items marked OPEN remain explicit constraints: do not implement affected behavior until its contract/design gate is resolved. This freeze does not authorize database/schema changes, legacy deletion, production cutover or deployment. Changes to this baseline require an explicit Owner decision and a recorded change rationale.
 
 ---
 
@@ -1749,3 +1749,20 @@ Phase 0 authorization is not complete until:
 - The Remix frontend contains no authorization decisions based solely on cached user, role, permission, `empresaId` or client route state.
 
 **Phase 0 remains OPEN.** This matrix makes the target security contract testable, but source-level inspection does not establish runtime enforcement. Implementation remains out of scope for this documentation PR.
+
+
+## 31. Baseline freeze and change control (2026-11-03)
+
+**ARCH-FE-001 is frozen as the working architecture baseline for P1 implementation.**
+
+The freeze establishes the following:
+
+1. P1 may proceed against the selected topology: one Remix frontend, one NestJS backend, PostgreSQL/Prisma behind NestJS, and three isolated experience areas (Customer, Business Operations and Platform Admin).
+2. Migration remains incremental. Existing frontends and capabilities must be preserved until replacement parity and cutover are verified.
+3. Existing backend contracts, identity boundaries, tenant isolation and domain invariants remain authoritative. The frontend must not invent or duplicate them.
+4. Sections and findings marked OPEN are not silently resolved by this freeze. They are implementation constraints and must be addressed only when the corresponding vertical slice reaches that dependency.
+5. A change to a selected architectural decision, public contract, identity boundary, tenant-isolation rule, persistence model or migration invariant requires an explicit Owner decision, documented rationale and corresponding update to this specification before implementation.
+6. Clarifications that do not change an approved decision may be recorded as implementation notes or linked decisions without reopening the entire baseline.
+7. This freeze is not evidence of implementation, test completion, production readiness, Phase 0 closure, legacy retirement or deployment approval.
+
+**P1 execution rule:** implement the smallest end-to-end vertical slice that conforms to this baseline; validate it; then proceed to the next slice. Do not restart broad discovery unless new evidence reveals a material contradiction or security/domain risk.
