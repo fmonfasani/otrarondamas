@@ -3,13 +3,13 @@
 **Document ID:** ARCH-FE-001  
 **Version:** 0.1.0  
 **Date:** 2026-11-03  
-**Status:** DRAFT — OWNER-DIRECTED ARCHITECTURE / TECHNICAL REVIEW REQUIRED  
+**Status:** FROZEN BASELINE FOR P1 — OPEN ITEMS TRACKED  
 **Scope:** Consolidation of Customer, Business Operations and Platform Admin experiences into one Remix frontend, retaining NestJS as the only backend.  
 **Target repository:** \`fmonfasani/otrarondamas\`
 
 > **Owner direction recorded 2026-11-03:** consolidate the Wapsell frontend into one Remix application and retain NestJS as the only backend. Migration must be progressive; existing applications remain intact until their capabilities are migrated and verified.
 >
-> **Document status:** this specification records the selected direction and defines the proposed target and migration controls. It does not claim that the target is implemented, does not silently amend canonical product decisions, and does not authorize database/schema changes, legacy deletion, production cutover or deployment. Technical details explicitly marked OPEN require resolution in the relevant contract/design gate before the affected implementation slice.
+> **Document status:** FROZEN as the implementation baseline for P1 on 2026-11-03. The selected frontend/backend topology, experience boundaries and migration constraints are the working architectural baseline. This freeze does not claim that the target is implemented or that Phase 0 is fully closed. Items marked OPEN remain explicit constraints: do not implement affected behavior until its contract/design gate is resolved. This freeze does not authorize database/schema changes, legacy deletion, production cutover or deployment. Changes to this baseline require an explicit Owner decision and a recorded change rationale.
 
 ---
 
@@ -1256,3 +1256,513 @@ The source-level frontend/API inventory now covers the major routes and the prim
 ---
 
 **End of Phase 0 evidence addendum — pass 4, 2026-11-03.**
+
+## 23. Phase 0 — Critical journey, side-effect and test trace (2026-11-03)
+
+This section extends the source-level inventory with concrete operational side effects and identifies implementation risks that the unified frontend must not conceal. Evidence was inspected in `main` at base SHA `e9bc4cb5ac9cffa57d66b77695b698161fdebd4b`. The architecture branch contains this specification only; no application code was changed.
+
+### 23.1 Verified source-to-side-effect matrix
+
+| Journey / endpoint | Backend authority and access | Verified writes / side effects | Invariants and migration constraints |
+|---|---|---|---|
+| POS sale — `POST /ventas` | `SalesController`; `ventas.crear`; Approved Dossier; Business Context from ACTIVE Membership | Creates confirmed `Venta`, items, sequential per-company number, AuditLog, and deducts inventory through `InventoryService.deductStock()` in one transaction | Price/discount resolved server-side; Decimal totals; stock insufficiency rolls back. Idempotency lookup currently occurs before the create transaction. |
+| Sale payment — `POST /ventas/:id/pagos` | Intended handler delegates to `SalesService.createPayment()`; `ventas.crear`; Approved Dossier; Business Context | Creates approved `Pago`; cash additionally creates one `MovimientoCaja` against current opening in the same transaction; records AuditLog | Cash requires an open register; amount cannot exceed sale balance; received cash/change are distinct from collected amount. POS expects response `{ pago, saldo }`. |
+| Purchase creation / issue | `PurchasesController`; mutations require `compras.gestionar`; Approved Dossier; Business Context | Creates purchase in `BORRADOR`; issue transitions to `EMITIDA`; neither operation changes stock | Do not treat purchase creation or issue as physical stock intake. |
+| Purchase receipt — `POST /compras/:id/recepciones` | `compras.gestionar`; Approved Dossier; Business Context | Creates `RecepcionCompra`, one new `Lote` and `MovimientoStock(Entrada)` per received item; increments received quantities and recalculates purchase state in one transaction | Partial receipt is supported; over-receipt is rejected against quantities read before transaction. Concurrent receipt race/locking is not proven by this source trace and needs a dedicated invariant test. |
+| Supplier payment — `POST /compras/:id/pagos` | `compras.gestionar`; Approved Dossier; Business Context | Creates `PagoProveedor` and updates `totalPagado` / `saldo` in one transaction | Balance is computed from a purchase read before the transaction; concurrent payments need an explicit no-overpayment test/locking review. |
+| Supplier return — `POST /compras/:id/devoluciones` | `compras.gestionar`; Approved Dossier; Business Context | Creates return and linked stock-out movements in a transaction; requires evidence of purchase-linked lot/available stock | Preserve lot ownership and rollback on invalid/cross-business references. |
+| Cash opening / movement / count / close | `CashRegisterController`; Business Context; `caja.gastos` for manual movement and close; Approved Dossier | Opening creates `AperturaCaja`; movement creates `MovimientoCaja`; count derives expected cash from opening + categorized movements and creates `ArqueoCaja`; close creates `CierreCaja`, closes opening and marks register closed | Opening is unique while active; count requires two different users. D-05 threshold is still characterized as reference, not final policy. D-06 authorization must remain explicit; never auto-authorize. |
+| Public legacy storefront — `POST /tienda/pedidos` | Public `StoreController`; company comes from configured `TIENDA_EMPRESA_ID` unless a scoped public-store controller supplies it | Creates customer/order/items transactionally; validates stock but does not deduct it | No stock reservation at checkout; seller confirmation later owns deduction. Public tracking by order ID needs privacy/access review. |
+| Public canonical store order — `POST /store/order` | Public `StoreOrderController`; accepts `X-Idempotency-Key` | Calls the same StoreService with stock deduction enabled; order creation and stock deduction occur atomically | This is not behaviorally equivalent to legacy `/tienda/pedidos`. Canonical storefront route, stock timing, idempotency scope and customer/business resolution must be decided before UI consolidation. |
+| Staff order confirmation / cancellation | `OrdersController`; `pedidos.gestionar`; Approved Dossier; Business Context | Confirmation transitions `RECIBIDO → CONFIRMADO` and deducts stock in SERIALIZABLE transaction; cancellation of a confirmed order reverses stock with linked `Entrada` movements and writes AuditLog | Conditional state transition prevents double confirmation; cancellation states and reversal rules must be preserved. A source defect below requires correction in a separately authorized code task. |
+| Messaging order creation | `MessagingController` / `MessagingService`; authenticated actor + conversation authorization + Business Context | Builds order from persistent cart, associates conversation/customer, and uses conversation ID as idempotency key; order remains in the existing Orders workflow for stock/ERP confirmation | Do not move order creation or stock rules into Remix. Keep HTTP as recovery path if realtime publication fails. |
+
+### 23.2 Findings requiring explicit remediation or decision
+
+**F0-01 — Order cancellation idempotency branch is unreachable (source defect).**
+
+In `OrdersService.cancelOrder()`, the method first allows only `RECIBIDO`, `CONFIRMADO` and `ENTREGA_FALLIDA`; immediately afterward it checks whether the state is already `CANCELADO` and intends to return a no-op success. Since `CANCELADO` was excluded by the preceding guard, that idempotency branch cannot execute. A repeated cancellation currently reaches the conflict path instead of the documented no-op behavior. This does not change the architecture decision, but it must be fixed and covered before the cancellation journey is declared parity-complete. **No code change is authorized by this specification.**
+
+**F0-02 — Purchase receipt/payment concurrency requires stronger evidence.**
+
+The purchase receipt path reads purchase items and computes pending quantities before opening its write transaction. The payment path reads the current purchase balance before its transaction. The writes themselves are transactional, but the inspected code does not establish that two concurrent receipts cannot over-receive or two concurrent supplier payments cannot overpay. Add concurrent integration tests and inspect DB constraints/locking before treating these flows as safe under retries or simultaneous operators.
+
+**F0-03 — Storefront order endpoints have materially different stock semantics.**
+
+Legacy `/tienda/pedidos` validates stock without reserving/deducting it; canonical `/store/order` calls the same service with `deductStock=true` and atomically deducts stock at order creation. The staff Orders flow also deducts on confirmation. The frontend migration must not merge these routes or display a single implied stock policy until the owner-approved order/payment lifecycle selects the canonical path. This is a contract decision, not a UI implementation detail.
+
+**F0-04 — Sale idempotency key is globally unique in current schema/test characterization.**
+
+The sales HTTP integration suite explicitly characterizes a cross-tenant reuse of another business's idempotency key as a Prisma unique-constraint failure (P2002). The same suite verifies same-tenant replay returns the same sale and deducts stock once. Do not assume the key is tenant-scoped merely because the service uses a company-scoped Prisma client. Review the unique index and key namespace before changing clients or retry behavior.
+
+**F0-05 — Sale-payment HTTP route is not registered by the inspected source module graph.**
+
+The source tree contains `PaymentsController` declaring `POST/GET /ventas/:ventaId/pagos` and delegating to `SalesService`. However, `SalesModule` registers only `SalesController`, whose inspected source declares no payment route. `PaymentsModule` registers only `PaymentController` at `/pagos`; it does not register `PaymentsController`. A repository-wide code search found the `PaymentsController` declaration and test references, but no production-module registration/import for that class. Consequently, **the inspected source does not establish that either `POST` or `GET /ventas/:ventaId/pagos` is registered in the current Nest application**.
+
+The integration-test header claims a compiled route dump where a Sales POST handler is registered before a Payments POST handler, but that claim conflicts with the inspected current source: `SalesController` has no such handler. Treat the test comment / historical dist route dump as stale or from a different build until reproduced from a clean build of the exact SHA. Do not assume the POS payment endpoint is currently live.
+
+**F0-06 — Cash D-05/D-06 are not fully closed business policy.**
+
+The code blocks closure when a difference exceeds a reference threshold without an authorization. Authorization is delegated to `AuthorizationsService`, and the count must not self-authorize. The threshold is explicitly described in code as not yet owner-confirmed. Preserve the fail-closed behavior; obtain the final threshold/authorization policy before altering the cash workflow.
+
+### 23.3 Test-to-invariant evidence inventory
+
+The following tests exist in source and provide useful migration regression anchors. Their presence is not evidence that they passed in this work session.
+
+| Test source | Existing coverage found by source inspection | Remaining gap |
+|---|---|---|
+| `apps/api/test/integration/s-v1-07-sales-http.integration-spec.ts` | Sales tenant isolation, stock rollback, same-tenant idempotent replay, cross-tenant key characterization, payment response, cash movement, closed-cash rejection and permissions | Clean-build route registration evidence and concurrent payment/over-collection behavior |
+| `apps/api/test/integration/s-v1-13-cash-http.integration-spec.ts` | Real HTTP guards, ACTIVE/SUSPENDED/multiple Membership cases, tenant claim spoofing, permissions, opening, movement, count and cash-close preconditions | Complete D-05/D-06 owner policy and high-difference authorization/close scenarios |
+| `apps/api/test/integration/b3-movimientostock-producto.integration-spec.ts` | Cross-Business stock relation isolation, purchase receipt, supplier returns, FIFO deduction and concurrent negative-adjustment protection | Concurrent purchase receipt over-receipt behavior |
+| `apps/api/src/store/c3-idempotency.functional.spec.ts` | Idempotency key replay model, transaction source assertion, cart concurrency characterization and migration precondition | This file uses in-memory/mocked behavior for parts of the contract; it is not a substitute for DB-backed HTTP concurrency tests |
+| `apps/api/test/integration/s-v1-07-sales-business-context.integration-spec.ts` | Direct controller/service Business Context isolation and sales/payment behavior | Must be interpreted separately from compiled HTTP route registration |
+
+### 23.4 Phase 0 closure checklist — updated
+
+- [x] Frontend application and route inventory.
+- [x] Core NestJS authentication, Business Context, Membership, Permission and tenant-isolation boundaries.
+- [x] Sales, payments, purchase receipt/payment/return, cash, storefront order, staff order and messaging side-effect mapping.
+- [x] Existing regression-test locations and named invariants mapped.
+- [ ] Reconcile clean-build source/module graph with compiled runtime route map for sale payments.
+- [ ] Inspect DTO validation, response contracts and frontend call sites for every critical journey; record exact request/response examples.
+- [ ] Add or verify concurrency evidence for purchase receipt, supplier payment, sale payment and repeated order cancellation (separate implementation/test task).
+- [ ] Obtain runtime production deployment evidence (active frontend, API deployed SHA, containers/processes, reverse proxy and environment wiring). Production remains **NOT DETERMINED**; no live VPS access was available in this audit.
+- [ ] Independent technical review of this specification and unresolved owner decisions.
+
+**Phase 0 remains OPEN.** The current evidence is sufficient to define migration guardrails, not to authorize implementation or claim operational parity. No application code, database schema, migrations, production configuration or legacy application was changed in this phase.
+
+## 24. Phase 0 — Frontend call-site and DTO contract trace (2026-11-03)
+
+The following call sites were inspected on `main`. This matrix distinguishes the currently used frontend contract from backend routes that exist but are not shown to be consumed by the inspected applications.
+
+| Journey | Current caller | Request contract observed | Response / behavior consumed | Migration consequence |
+|---|---|---|---|---|
+| POS sale | `apps/pos-admin/src/features/ventas/NuevaVentaPage.tsx` → `api.crearVenta()` | `canal`, optional `clienteId`, `items[{ productoId, cantidad }]`, `idempotencyKey` | Receives a `Venta`; then opens payment modal using sale total/balance | Preserve idempotency key across retries; server remains authority for price, discounts, totals and stock. |
+| POS sale payment | `ModalCobro.tsx` → `api.crearPago()` | Cash: `{ medio, monto, montoRecibido? }`; transfer/QR: `{ medio, monto, referencia? }` | Reads `resp.saldo` and `resp.pago`; expects `{ pago, saldo }` | DTO/response are coupled to `SalesService.createPayment()`; any handler drift is a breaking UI contract. |
+| POS purchases | `ComprasPage.tsx` → `crearCompra`, `emitirCompra`, `recibirCompra`, `crearPagoCompra`, returns | Create: `proveedorId` + items; receipt: per-item `compraItemId`, quantity, lot number and expiry; payment: amount, method, optional reference | Uses purchase, receipt, supplier-payment and return records to refresh operational view | UI captures physical lot data; do not reduce receipt to a generic status change. DTO validation and returned shapes need contract tests. |
+| POS cash | `CajaPage.tsx` → `estadoCaja`, `abrirCaja`, movement/count/authorization/close helpers | Opening amount; movement type/amount/description; count amount + incoming user; authorization credentials/reason | UI refreshes cash status, movements, count and closure | Preserve handover identity and authorization interaction. Verify complete count/authorization UI states against D-05/D-06 before parity. |
+| Customer storefront (Vite) | `apps/tienda-online/src/lib/api.ts` | `POST /tienda/pedidos` with `CrearPedidoRequest` | Uses `PedidoCreado`; tracking via `GET /tienda/pedidos/:id` | Existing production-facing candidate uses legacy no-deduction path; don't silently switch stock semantics. |
+| Customer storefront (Remix) | `apps/wapsell-remix/app/routes/_index.tsx` | `POST /tienda/pedidos` with name, email, optional phone and items | Returns order result; catalog also reads `/tienda/productos` | Remix target currently calls the same legacy route, not `/store/order`. |
+| Canonical store order | No caller found in inspected POS, Tienda Online or Remix call sites | `POST /store/order`, optional `X-Idempotency-Key` | Service creates order and deducts stock atomically | Backend endpoint/test presence is not proof of frontend adoption. Its activation is a separate product/contract decision. |
+
+### 24.1 DTO validation observations
+
+- `CreateSaleDto` requires a valid channel and a non-empty items array; optional customer and idempotency key are UUIDs. Product price is not a client-owned field in the observed POS request.
+- `CreateSalePaymentDto` requires an allowed payment method and positive numeric amount; optional received amount must also be positive; optional reference is a string. The cash modal may omit `montoRecibido`, in which case the service treats the payment amount as the received amount and change as zero.
+- `CreatePurchaseDto` requires supplier UUID and a non-empty items array; optional date field is a date string. Purchase item duplicate-product validation is explicitly marked TODO in the service.
+- `ReceivePurchaseDto` requires a non-empty items array. Each receipt item uses a purchase-item UUID, positive quantity, date string for expiry and non-empty lot number.
+- The API bootstrap uses a global validation pipe with whitelist/transform behavior, so the selected route's DTO is part of the runtime contract. Unknown fields must not be assumed to survive validation.
+
+### 24.2 Critical frontend/backend contract conclusion
+
+The two inspected customer storefronts — the existing Vite store and the Remix root route — both call `/tienda/pedidos`. The newer `/store/order` route has backend source and test references, but no matching call site was found in these frontend applications. The earlier source-to-side-effect matrix therefore describes a backend capability, not the current storefront integration path.
+
+This distinction is material: the legacy route validates stock and defers deduction until seller confirmation; `/store/order` deducts stock at checkout. Do not migrate either frontend to `/store/order` until the order lifecycle and inventory policy are explicitly selected and regression-tested.
+
+### 24.3 Evidence still required
+
+- [ ] Capture concrete JSON request/response fixtures from clean-build HTTP tests for sales, payments, purchases, cash and both storefront routes.
+- [ ] Verify the complete cash count/authorization interaction in POS Admin, including blocked high-difference close and error recovery.
+- [ ] Inspect the exact checkout payload builders and tracking access policy in both customer frontends.
+- [ ] Establish whether `/store/order` is intentionally dormant, a future route or a missed integration.
+- [ ] Reconcile payment route registration from source modules against a clean production build before treating the route as canonical.
+
+## 25. CI evidence — Phase 0 pull request validation (2026-11-03)
+
+GitHub Actions for PR #106 completed with failures. The runs checked the PR merge ref `49c410e57835bec243461a339fc11b34e434d57e` (head `3ada53056ac609433c34e66fe0060bcea1b87727` merged by GitHub for CI against base `0fae0b98f7833e5a68b06352b5b8603c331e776a`). These are CI failures, not failures caused by the Markdown change; the merge ref includes the current base and the PR only adds documentation.
+
+### 25.1 Run #591 — B4 Verification Infrastructure
+
+- Run ID: `41575978148`.
+- Engineering Kit smoke tests: **PASS**.
+- `npm ci`: **PASS**.
+- Prisma client generation: **PASS** (Prisma 5.22.0).
+- API build: **FAIL** at `nest build`.
+- Database push, API unit tests and integration verification: **SKIPPED** because the build step failed.
+
+Build reported four TypeScript errors:
+1. `src/dossier/dossier.controller.ts:64` — TS2694: `Express.Multer.File` is not exported by the resolved global Express namespace.
+2. `src/dossier/dossier.customer.controller.ts:77` — same TS2694.
+3. `apps/api/tsconfig.build.json:3` — TS5101: `baseUrl` deprecated under TypeScript 6.
+4. `apps/api/tsconfig.build.json:3` — TS5107: `moduleResolution=node10` deprecated under TypeScript 6.
+
+The API package declares `typescript: ^6.0.0`; the lockfile resolves `6.0.3`. The API package also declares Nest CLI/Schematics 12, while the workflow uses Node 20. Dependency installation emitted engine warnings indicating Nest 12 packages require Node >=22.12.0. The build did not report a Node runtime crash; the direct blockers are the type and compiler-option errors above.
+
+### 25.2 Run #62 — Jest Tests
+
+- Run ID: `41575978218`.
+- Docker/PostgreSQL service initialization: **PASS**.
+- Checkout and Node setup: **PASS**.
+- Dependency installation: **PASS**.
+- Jest: **FAIL before executing tests**.
+- Result: **34 suites failed, 0 tests executed**.
+
+The 34 suites failed during TypeScript compilation, with repeated:
+- TS5011: inferred common source directory requires explicit `rootDir`.
+- TS5101: deprecated `baseUrl`.
+- TS5107: deprecated `moduleResolution=node10`.
+
+This is a test-toolchain/configuration failure, not evidence of 34 behavioral test failures. No test assertions ran.
+
+### 25.3 Additional CI hygiene signal
+
+Both job logs report checkout post-job cleanup warning:
+`fatal: No url found for submodule path 'worktrees/commerce-cart-order' in .gitmodules`.
+The warning occurs during Git submodule cleanup after the main test/build failure. It is a separate repository metadata inconsistency to investigate; it was not the primary cause of either failed step.
+
+### 25.4 CI recovery classification
+
+| Finding | Classification | Next diagnostic / recovery action |
+|---|---|---|
+| TS6 deprecation diagnostics (TS5101/TS5107) | Compiler/toolchain compatibility | Decide supported TypeScript baseline; align tsconfig with that baseline rather than suppressing blindly |
+| TS5011 in Jest compilation | Test tsconfig/rootDir mismatch | Inspect Jest/ts-jest tsconfig selection and establish an explicit test rootDir compatible with project layout |
+| Missing `Express.Multer.File` | Type declaration compatibility | Inspect resolved `@types/express`, `@types/multer`, Multer package versions and declaration augmentation |
+| Node 20 vs Nest 12 engine requirement | Runtime/toolchain mismatch | Align CI Node version with the API package's declared engine requirement and local/dev baseline |
+| Missing submodule URL for worktree path | Git metadata/checkout hygiene | Inspect `.gitmodules`, index gitlink and intended lifecycle of `worktrees/commerce-cart-order` |
+
+**No automatic fix was applied.** These findings affect the repository-wide API build/test infrastructure and must be handled as a dedicated CI recovery task. In particular, changing TypeScript major version, Node baseline, tsconfig inheritance or submodule metadata is outside this documentation-only Phase 0 scope.
+
+### 25.5 Updated Phase 0 / CI status
+
+- [x] Captured final results and job logs for PR #106 CI.
+- [x] Distinguished test discovery/compilation failures from executed failing assertions.
+- [x] Recorded concrete build errors and environment compatibility signals.
+- [ ] Resolve API build and Jest compiler configuration under an explicitly selected Node/TypeScript baseline.
+- [ ] Re-run build, unit tests and API integration suites after CI recovery.
+- [ ] Reconcile payment controller/module registration using the clean build and HTTP route map.
+- [ ] Verify production deployment evidence.
+
+**CI is currently RED.** No product behavior has been proven broken by these two runs because Jest executed zero tests and the API build stopped before integration verification. The repository cannot be treated as migration-ready until CI is recovered and the relevant invariants are actually executed.
+
+## 26. Payment route registration — source/module graph discrepancy refined (2026-11-03)
+
+A focused repository-wide search and direct inspection of all relevant source files refined F0-05:
+
+| Source | Verified declaration / registration |
+|---|---|
+| `apps/api/src/payments/payments.controller.ts` | Declares `@Controller('ventas/:ventaId/pagos')`, POST and GET; delegates to `SalesService` |
+| `apps/api/src/sales/sales.controller.ts` | Declares `@Controller('ventas')`; handlers are products, quote, create sale, list, detail and receipt. No payment handler exists in this file |
+| `apps/api/src/sales/sales.module.ts` | `controllers: [SalesController]`; no `PaymentsController` |
+| `apps/api/src/payments/payments.module.ts` | `controllers: [PaymentController]`; `PaymentController` is `@Controller('pagos')` and handles provider intents, confirmations, refunds, webhooks and analytics |
+| `apps/api/src/app.module.ts` | Imports both `SalesModule` and `PaymentsModule`; this does not register an unlisted controller class |
+
+A repository-wide search for `PaymentsController` found its declaration and test references, but no additional production-module import or registration. The current source graph therefore indicates that the POS route `/ventas/:ventaId/pagos` may be absent from the Nest route table. The integration test's opening comment says a compiled route dump showed a Sales POST handler, but the current `SalesController` source does not contain that handler. This contradiction is not resolved by the test file's existence.
+
+**Impact:** the POS Admin payment modal calls `POST /ventas/:ventaId/pagos` and expects `{ pago, saldo }`. Until the route is proven in a clean build, this is a potential production-critical integration defect, not merely a naming discrepancy.
+
+**Required verification in the dedicated CI recovery task:**
+1. Produce a clean build from the exact current `main` SHA after fixing the compiler blockers.
+2. Generate and capture the Nest route map from that exact build.
+3. Confirm whether `POST /ventas/:ventaId/pagos` and `GET /ventas/:ventaId/pagos` are registered, and identify the exact controller/handler for each.
+4. Run the real HTTP tests against that same freshly built artifact (do not reuse stale `dist`).
+5. If the route is absent, create a separate scoped implementation task to register the intended controller and add a route-registration regression test. Do not change module registration inside this architecture documentation PR.
+
+
+
+## 27. CI evidence — final reruns and temporary validation policy (2026-11-03)
+
+The two subsequent reruns on the updated PR head completed. Their results confirm that the repository-wide TypeScript/toolchain blocker persists; they do not provide behavioral test results.
+
+### 27.1 Run #593 — B4 Verification Infrastructure
+
+- Run ID: `41576414915`.
+- Job: `api-verification`, job ID `125720841365`.
+- Engineering Kit smoke tests: **PASS**.
+- `npm ci`: **PASS**.
+- Prisma generation: **PASS**.
+- API build (`nest build`): **FAIL**.
+- Database push, API unit tests and integration verification: **SKIPPED** after build failure.
+- Direct errors remained TS2694 at both dossier controller Multer file annotations, TS5101 for deprecated `baseUrl`, and TS5107 for deprecated `moduleResolution=node10`.
+
+Run: https://github.com/fmonfasani/otrarondamas/actions/runs/41576414915
+
+### 27.2 Run #64 — Jest Tests
+
+- Run ID: `41576414933`.
+- Job: `test (20)`, job ID `125722352242`.
+- Container initialization, checkout, Node setup and dependency installation: **PASS**.
+- Unit/integration Jest step: **FAIL before test execution**.
+- Jest reported 34 failed suites and **0 tests executed**.
+- Compilation errors: TS5011 (explicit `rootDir` required), TS5101 (`baseUrl` deprecation) and TS5107 (`moduleResolution=node10` deprecation).
+
+Run: https://github.com/fmonfasani/otrarondamas/actions/runs/41576414933
+
+### 27.3 Temporary validation policy while TypeScript recovery is deferred
+
+The team may continue documentation, architecture analysis and source-level contract tracing while the compiler configuration is unresolved. Validation must remain evidence-based and must not represent blocked checks as successful.
+
+| Validation lane | Allowed while blocked | Reporting rule |
+|---|---|---|
+| Documentation / architecture | Continue source inspection, traceability, decision records and consistency review | Report exact files/sections reviewed; no claim of runtime correctness |
+| Repository hygiene | Run checks that demonstrably do not require the blocked TypeScript compilation | Report each check separately; if it depends on TypeScript parsing/type services, mark it blocked |
+| Isolated executable checks | Run only tests/scripts that can execute independently of the failing TS compilation and do not require stale build output | Name the exact command and tests executed; do not generalize to the full suite |
+| API build / Jest TS suites / HTTP integration / E2E | Remain blocked until the toolchain issue is corrected | Explicitly mark **BLOCKED — NOT EXECUTED** or **FAILED BEFORE TEST EXECUTION**, as applicable |
+
+The following workarounds are not acceptable as evidence of recovery: suppressing diagnostics globally, adding `--noCheck`, converting failing suites to skips, accepting stale `dist` output, or marking required checks as successful without executing them. A temporary CI split is acceptable only if the existing required checks remain visible as blocked/failing and the independent lane cannot create a false green signal.
+
+### 27.4 Deferred CI recovery scope
+
+The compiler/toolchain repair remains a separate engineering task. It must establish and document a supported Node.js / TypeScript / NestJS version matrix, resolve the Jest `rootDir` selection, reconcile Express/Multer type declarations, and inspect the submodule cleanup warning. After repair, run a clean API build, unit tests, integration tests and route-map verification against the same commit and freshly generated build artifacts.
+
+**Status after runs #593 and #64:** CI remains **RED**. No behavioral tests were executed by Jest in run #64; API integration checks were skipped in run #593. This evidence does not justify either a product-pass or product-fail conclusion. The architecture work may continue, but implementation readiness and Phase 0 closure remain unproven.
+
+
+## 28. Phase 0 — Checkout y seguimiento público (2026-11-03)
+
+Inspección de código en `main`; no se ejecutaron pruebas HTTP en esta revisión.
+
+### Evidencia de callers
+
+- Vite `CheckoutPage.tsx` envía `POST /tienda/pedidos` con nombre, email, teléfono opcional e items `{productoId,cantidad}`. Consume `pedido.id`, vacía el carrito y navega a `/pedido/:id`. El checkout no cobra: el pago se coordina posteriormente con el comercio.
+- Remix `_index.tsx` envía el mismo contrato a `POST /tienda/pedidos`, pero solo usa el status y el mensaje de respuesta. No muestra ni conserva el ID para seguimiento.
+- Vite `SeguimientoPedidoPage.tsx` consulta `GET /tienda/pedidos/:id` y muestra estado, total, fecha y detalle de artículos.
+- Remix staff order detail consulta `GET /pedidos/:id`, pero ante cualquier error devuelve datos mock hardcodeados. Ese fallback puede presentar información ficticia como si fuera un pedido real y no debe preservarse en la migración.
+
+### Contrato backend
+
+- `CreateOrderDto`: nombre string mínimo 2, email válido, teléfono opcional y al menos un item.
+- `CreateOrderItemDto`: producto UUID y cantidad numérica positiva.
+- `StoreController` registra rutas públicas legacy `/tienda/**`.
+- `PublicStoreController` registra rutas equivalentes bajo `/:businessSlug/tienda/**`, resolviendo el Business por slug con Business Context.
+- `StoreOrderController` registra `POST /store/order` y `GET /store/tracking/:id`; `StoreModule` declara los tres controllers.
+- El endpoint legacy devuelve el resultado del servicio directamente; el endpoint canónico aplica `PedidoResponseDto`. Ambos contratos deben pasar por una allowlist de campos públicos antes de consolidarlos.
+
+### Nuevos hallazgos
+
+**F0-07 — Checkout no envía idempotency key.** Vite y Remix no mandan `X-Idempotency-Key` al crear pedidos. Deshabilitar el botón mientras una petición está en curso no evita duplicados por timeout, reintento o doble envío desde otra pestaña.
+
+**F0-08 — El retry idempotente canónico puede fallar antes de consultar la clave.** En `StoreService.createOrder()`, la validación de stock se realiza antes de la transacción y antes de buscar el pedido existente por `empresaId + idempotencyKey`. Como `/store/order` descuenta stock al crear, un retry tras perder la respuesta puede fallar por stock insuficiente antes de devolver el pedido ya creado.
+
+**F0-09 — No se verifica que el payload coincida con la clave.** El controller documenta 409 si la misma clave se reutiliza con payload diferente, pero el servicio inspeccionado devuelve el pedido existente sin comparar items ni datos de contacto. La migración crea un índice único global sobre `Pedido.idempotencyKey`, mientras el lookup del servicio incluye `empresaId`; una colisión entre negocios puede producir conflicto de constraint.
+
+**F0-10 — Tracking público usa el UUID como credencial.** La ruta no exige login y devuelve estado, total, fecha, productos, cantidades y precios unitarios. No expone nombre/email/teléfono en el projection inspeccionado, pero la posesión del UUID permite consultar esos datos comerciales. Evaluar token de tracking dedicado, rate limit y política de exposición antes de ampliar el uso.
+
+**F0-11 — Status de not-found no coincide con el comentario del controller.** El servicio de tracking lanza `BadRequestException` cuando no encuentra el pedido, lo que produce 400; el comentario de `StoreOrderController` documenta 404.
+
+### Guardrails y pruebas pendientes
+
+- Mantener el checkout sin cobro y con pedido `RECIBIDO` hasta que se cierre D-03 y el lifecycle comercial.
+- No migrar a `/store/order` hasta resolver stock timing, idempotency, business resolution y respuesta pública.
+- Remix debe mostrar el ID de pedido y permitir seguimiento, o documentar una decisión UX distinta.
+- Pruebas requeridas: replay tras pérdida de respuesta y deducción de stock, misma clave/mismo payload, misma clave/payload distinto, colisión entre negocios, aislamiento de tracking, not-found status y allowlist de respuesta.
+- Los hallazgos son source-level; CI bloqueado impide afirmar que las pruebas se ejecutaron.
+
+**Phase 0 remains OPEN.** Checkout y tracking están mapeados a nivel de código; idempotency y proyección pública requieren remediación y pruebas separadas antes de consolidar los frontends.
+
+
+## 29. Phase 0 — Authentication and authorization boundaries (2026-11-03)
+
+Source inspection of `main`; no live authentication flow or permission matrix was executed in this pass.
+
+### 29.1 Identity domains
+
+| Area | Identity | Current auth source | Authorization authority |
+|---|---|---|---|
+| Customer | `Cliente`, JWT `type: 'cliente'` | `/auth/cliente/registro`, `/auth/cliente/login`, Google callback; `/auth/cliente/me` | Customer-specific Business Context and endpoint policy; no staff permissions |
+| Business Operations | `Usuario`, JWT `type: 'usuario'` | `/auth/login`, Google callback, `/auth/me` | NestJS JWT + database-backed `PermissionsGuard` + Staff Identity + Business Context/Membership + dossier guards |
+| Platform Admin | Internal `Usuario` identity | Same staff JWT | Separate `PlatformAdminGuard` email allowlist; not inherited from business Owner/role |
+
+These are three authorization domains, not three frontend themes. The unified Remix app must preserve identity separation and route-level boundaries; a shared visual shell must not imply shared session or privilege.
+
+### 29.2 Backend guard chain and source-of-truth behavior
+
+- `AppModule` registers global guards in this order: `JwtAuthGuard`, `PermissionsGuard`, `StaffIdentityGuard`.
+- `JwtAuthGuard` requires a valid bearer JWT by default; `@Public()` bypasses it.
+- `PermissionsGuard` only acts when `@RequirePermission` metadata exists. It reads current `UsuarioPermiso` assignments from the database on every protected request, checks account active state, and rejects Customer identities. JWT permission claims are not the authorization source for these routes.
+- `StaffIdentityGuard` rejects `type: 'cliente'` from staff routes unless explicitly `@AllowCustomer()`; public routes are bypassed.
+- `BusinessContextService.resolveForAuthenticatedUser()` resolves the canonical User via the legacy Usuario link and its ACTIVE Membership. Missing link, no ACTIVE membership or multiple ACTIVE memberships fail closed. V1 has no business selector for multiple active memberships.
+- Customer `/auth/cliente/me` resolves the Customer through Business Context and scopes its query to that business; it does not trust the JWT's legacy `empresaId` as tenant authority.
+- Platform Admin route `GET /platform-admin/overview` is guarded by `PlatformAdminGuard`, which requires an internal identity and exact email membership in `PLATFORM_ADMIN_EMAILS`; empty/missing allowlist denies access. This is a separate platform boundary, not a business permission.
+
+### 29.3 Frontend session and integration discrepancies
+
+**F0-12 — Remix staff login response contract does not match NestJS.**
+
+NestJS `AuthService.issueSession()` returns `accessToken`, `usuario`, `empresaId`, `empresa` and `empresas`. Remix `loginWithNestJS()` reads `data.access_token` and `data.user`; its login action then dereferences `user.id`. With the inspected backend response, the token/user values are undefined and the action cannot establish the intended session. POS Admin consumes `accessToken` and `usuario`, matching the backend contract.
+
+**F0-13 — Remix validates JWT through a route not present in AuthController.**
+
+`requireAuth()` calls `POST /auth/validate`; the inspected `AuthController` exposes `POST /auth/login`, `GET /auth/me`, memberships and switch-company, but no `POST /auth/validate`. Therefore authenticated Remix loaders relying on `requireAuth()` will treat the request as invalid unless another registered controller supplies that route. No such controller was identified in the inspected auth source graph. Use `GET /auth/me` with the bearer token as the validation contract, or implement a deliberately scoped validation endpoint in a separate task.
+
+**F0-14 — Remix registration calls a nonexistent staff endpoint and sends the wrong DTO.**
+
+The Remix registration action posts to `POST /auth/register` with `{email,password,name}`. The inspected AuthController does not expose that route; Customer registration is `POST /auth/cliente/registro` with `{nombre,email,password}`, and it creates a Customer, not a staff User. The unified product must not silently map public Customer self-registration into staff account creation. Decide whether staff onboarding is invitation-only (current invitation endpoints) and remove or redesign the legacy Remix registration flow accordingly.
+
+**F0-15 — Remix tenant cookie and headers duplicate tenant authority.**
+
+`tenant.server.ts` trusts `empresaId` and `userId` from the Remix cookie and forwards `X-Empresa-Id` / `X-User-Id`. The NestJS Business Context model resolves business scope from the authenticated identity's canonical ACTIVE Membership and explicitly rejects arbitrary tenant context. The cookie/header mechanism is a legacy parallel context and must not be carried into the unified architecture as an authority. The API must derive tenant scope server-side from JWT + Membership; forwarded headers must not influence authorization.
+
+**F0-16 — Customer frontend does not revalidate the stored session on startup.**
+
+The Vite Customer `AuthContext` hydrates token and profile from localStorage and exposes them as authenticated state, but its mount logic does not call `apiAuth.me()`. The profile can remain stale after server-side account/business changes until a protected API request fails; the UI-only `MiCuentaPage` guard checks only the cached profile. The unified Customer area needs a server-validated session bootstrap and must treat client state as presentation, never authorization.
+
+**F0-17 — Staff POS route gate is also client-state only.**
+
+POS `ProtectedRoute` checks whether `user` exists in AuthContext. AuthContext attempts a background `/auth/me` refresh on mount but deliberately retains cached user state if refresh fails. This may briefly or indefinitely render protected UI with an invalid token; the backend remains the security boundary, but the unified app should represent session validation/loading/expiry explicitly and avoid treating cached profile presence as proof of authorization.
+
+### 29.4 Additional authorization consistency risks
+
+- `AuthService.switchEmpresa()` validates legacy `UserEmpresa`, updates `Usuario.empresaId`, and issues a new JWT. In contrast, Business Context V1 derives scope from canonical ACTIVE Membership and currently rejects multiple ACTIVE memberships. This creates two company-selection models. Do not use `switch-empresa` as the future business selector until the Membership lifecycle and single-active-membership policy are reconciled.
+- JWT strategy validates signature/expiry and returns claims; it does not query current account state for every authenticated route. `PermissionsGuard` checks active state only on routes with `@RequirePermission`. For routes protected only by JWT, account deactivation/revocation semantics need explicit review. Membership revocation currently changes membership state and emits an in-process event; verify all protected Business Context paths resolve membership on each request and that socket sessions are revoked as intended.
+- POS stores staff access tokens in localStorage or sessionStorage. Customer storefront stores Customer tokens in localStorage. Remix intends an HttpOnly cookie session but its current secret has an insecure `dev-secret` fallback and the backend JWT is passed through a session cookie. Production must fail startup without a strong `SESSION_SECRET`; cookie signing does not by itself make a bearer JWT opaque or revoke it.
+- Google OAuth redirects the access token in the query string to the frontend callback. This is a current token-transfer contract and needs callback route verification, one-time handling, URL cleanup, referrer/logging controls and CSRF/state review before consolidating auth.
+- `PlatformAdminGuard` uses a static email allowlist. Operational controls for allowlist ownership, audit logging, emergency removal and MFA/step-up are not established by this source inspection.
+
+### 29.5 Target rules for the unified Remix frontend
+
+1. Keep three explicit route namespaces/layouts and identity types: Customer, Business Operations, Platform Admin.
+2. Keep NestJS as the sole authentication and authorization authority. Remix loaders/actions may enforce navigation UX, but must call NestJS for protected data and must never trust client-supplied tenant IDs or permissions.
+3. Customer JWTs must never access staff operations; staff JWTs must not automatically acquire Platform Admin privileges.
+4. Business Operations context must be derived from the authenticated User's canonical ACTIVE Membership. Do not send `X-Empresa-Id` as authority. Multiple active memberships require a defined selection policy before the UI is implemented.
+5. Platform Admin must retain an independent allowlist/role policy and dedicated audit trail; business Owner role is insufficient.
+6. Use a server-side Remix session with mandatory production secret, secure/HttpOnly/SameSite cookie settings, explicit expiry/logout behavior and validated NestJS session bootstrap. Avoid exposing JWT to browser JavaScript where possible.
+7. Customer registration remains Customer-only. Staff onboarding must follow the approved invitation/provisioning workflow.
+8. Build an authorization test matrix for identity × route × permission × membership state × dossier state × tenant. Include direct HTTP/API tests; hidden navigation or route guards are not security evidence.
+
+### 29.6 Required implementation/test work (separate authorization)
+
+- Correct Remix login response mapping and validate session using an existing supported NestJS endpoint.
+- Decide staff registration/onboarding and remove the invalid `/auth/register` assumption.
+- Replace cookie tenant IDs/forwarded headers with Business Context-derived scope.
+- Add Customer and staff session revalidation and explicit expired/revoked UI state.
+- Reconcile `UserEmpresa` switching with Membership V1; no arbitrary active-membership selection.
+- Verify Platform Admin allowlist lifecycle, audit, MFA/step-up and session revocation.
+- Add HTTP tests for Customer token → staff endpoint denial; staff token → Customer-only endpoint policy; no permission / revoked permission; inactive user; no/multiple ACTIVE memberships; cross-business IDOR; Platform Admin allowlist empty/authorized/unauthorized; and deactivated identity behavior on endpoints without `@RequirePermission`.
+- Fix the Remix integration contracts only in a separately approved implementation task. CI currently blocks reliable full test execution.
+
+**Phase 0 remains OPEN.** The three identity domains and backend guard boundaries are mapped. Remix staff login, token validation, registration and tenant-cookie integration have source-level contract mismatches; no frontend migration should begin until these are corrected and covered by HTTP tests.
+
+
+## 30. Phase 0 — Authorization matrix and negative-test design (2026-11-03)
+
+This matrix is a source-derived contract baseline, not proof of runtime behavior. “Expected” outcomes below must be verified with HTTP integration tests against a clean build and a seeded multi-tenant database. A frontend route guard is never counted as an authorization control.
+
+### 30.1 Global authorization pipeline
+
+| Stage | Applies to | Allow condition | Denial / bypass behavior |
+|---|---|---|---|
+| JWT authentication | All routes by default | Valid bearer JWT, signature and expiry | 401; `@Public()` bypasses JWT |
+| Permission guard | Routes carrying `@RequirePermission` | Internal Usuario exists, active, and current DB permission assignment exists | 401 inactive/missing user; 403 Customer identity or missing permission |
+| Staff identity | All non-public routes unless `@AllowCustomer()` | Non-Customer identity | 403 Customer token on staff route |
+| Business Context | Controllers/services that explicitly resolve it | Internal identity has canonical User and exactly one ACTIVE Membership; Customer resolves to its persisted Customer/Empresa | 403/404/409 fail-closed |
+| Approved dossier | Explicitly guarded operational controllers | Dossier claim is not PENDIENTE | 403 while pending; self-service dossier routes intentionally remain available |
+| Platform Admin | `/platform-admin/**` controller | Usuario identity email is in non-empty `PLATFORM_ADMIN_EMAILS` allowlist | 403 otherwise |
+
+**Important implementation nuance:** `AuthorizationGuard` (RoleGrant/CapabilityGrant) exists in source but is not one of the three global `APP_GUARD` providers registered in `AppModule`. The globally registered permission system is `PermissionsGuard` using legacy `UsuarioPermiso`. Do not assume capability-based authorization protects routes unless the guard is explicitly applied; confirm all `@Authorize` usages and runtime guard metadata before treating that system as active.
+
+### 30.2 Route-family authorization matrix
+
+| Route family / representative API | Anonymous | Customer token | Staff token | Additional rule / expected result |
+|---|---|---|---|---|
+| `POST /auth/login`, `/auth/cliente/login`, Customer registration | Allowed | Allowed | Allowed | Public entry points; Customer registration creates retail Customer only |
+| `GET /auth/me` | 401 | Denied by staff identity / wrong identity semantics | Allowed | Fresh staff profile; database lookup |
+| `GET /auth/cliente/me` | 401 | Allowed | Rejected by explicit Customer type check | Resolves persisted Customer Business Context |
+| `GET /auth/memberships` | 401 | Must be rejected as non-staff | Allowed | Session Usuario ID → canonical User → own memberships only |
+| `POST /auth/switch-empresa/:empresaId` | 401 | Must be rejected | Authenticated staff only at controller level | Legacy UserEmpresa switching conflicts with Membership V1; do not expose as unified business selector until reconciled |
+| `GET/POST /tienda/**`, public store catalog/order/tracking | Allowed where `@Public` | Allowed | Allowed | Public/Customer storefront surface; verify slug/business scoping and response allowlists |
+| `GET/POST /store/order`, `/store/tracking/:id` | Allowed | Allowed | Allowed | Public order lifecycle; UUID tracking credential and idempotency risks F0-03/F0-07–F0-11 remain |
+| `GET/PATCH /legajo/cliente/mi-legajo/**` | 401 | Wholesale Customer only | Rejected | Customer must be wholesale; pending dossier is not a reason to block self-service |
+| `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` | 401 | Rejected | Owner only | Business Context + Owner role + same-business Customer filter |
+| `POST /invitaciones`, `GET /invitaciones`, `POST /invitaciones/mayorista` | 401 | Rejected | Requires `usuarios.gestionar` | Permission guard reads current database assignments |
+| `POST /invitaciones/activar`, `POST /invitaciones/mayorista/activar` | Allowed | Allowed | Allowed | Invitation token is the activation credential; test token expiry, replay and purpose separation |
+| Sales `/ventas/**` | 401 | Rejected | Staff identity + route permission + Business Context; sensitive operations also dossier gate | `ventas.crear` / `ventas.ver` as applicable; payment route registration remains unresolved F0-05 |
+| Orders `/pedidos/**` | 401 | Rejected | `pedidos.gestionar` + Approved Dossier + Business Context | Confirm same-business object access for every ID-based route |
+| Catalog `/catalogo/**` | 401 | Rejected | Staff identity + Business Context; mutation permission where declared | Exact per-handler permission metadata must be enumerated before route migration |
+| Cash `/caja/**` | 401 | Rejected | Approved Dossier + Business Context; `caja.gastos` for movement/close operations | Arqueo authorization D-06 remains separate and explicit |
+| Inventory `/inventario/**` | 401 | Rejected | Staff identity + Business Context; `inventario.ajustes` for adjustments | Read routes must still enforce tenant scope |
+| Purchases `/compras/**`, `/proveedores/**` | 401 | Rejected | `compras.gestionar` for mutations; Business Context | Scope and phase eligibility must be verified per operation |
+| Loyalty `/reglas-fidelizacion/**` | 401 | Rejected | `fidelizacion.gestionar` + Approved Dossier + Business Context | Both read and mutation routes currently described as permission protected |
+| Messaging `/messaging/**`, Socket.IO `/messaging` | 401 unless public metadata explicitly says otherwise | Customer identity with conversation-level access | Staff identity with conversation-level access | JWT + Business Context + participant authorization; `viewerAccess.canSend` governs read-only Owner view; revocation must invalidate socket access |
+| `GET /platform-admin/overview` | 401 | 403 | 403 unless allowlisted | `PlatformAdminGuard` checks internal identity and email allowlist; no business Owner bypass |
+
+This table intentionally distinguishes route-family policy from complete handler-level coverage. The exact decorators, DTO validation, object ownership checks and controller guard order must be captured in executable tests before the migration's route map is approved.
+
+### 30.3 Membership and dossier state matrix
+
+| Staff identity state | Expected Business Operations result | Expected Platform Admin result |
+|---|---|---|
+| JWT absent/expired | 401 | 401 |
+| Valid JWT, legacy Usuario deleted | `/auth/me` 404; permission-protected routes reject inactive/missing identity | Guard can only evaluate JWT identity/allowlist; stale-token behavior requires test and explicit policy |
+| Usuario inactive | Permission-protected route 401; routes without `@RequirePermission` need explicit revocation policy verification | Email allowlist alone does not check `activo`; potential gap |
+| No canonical User link/backfill | Business Context 404; no tenant fallback | Platform guard does not require Membership |
+| No ACTIVE Membership | Business Context 403 | Platform Admin remains independent of business membership |
+| Exactly one ACTIVE Membership | Resolve that business | Platform Admin remains independent |
+| More than one ACTIVE Membership | 409; never select arbitrarily | Platform Admin remains independent |
+| Membership SUSPENDED/revoked | Must fail Business Context on next request; socket invalidation separately verified | Does not itself revoke allowlisted platform access |
+| Dossier PENDIENTE | Login and self-service dossier allowed; explicitly dossier-gated operational controllers return 403 | Platform route not dossier-gated by current controller source |
+| Dossier APROBADO | Operational access still requires route permission and valid Business Context | Platform allowlist still required |
+
+**Stale-claim caveat:** JWT `estadoLegajo` and other non-expiry claims are not automatically refreshed on each request. `GET /auth/me` reads current dossier status, but `ApprovedDossierGuard` evaluates the token claim. Approval/revocation effects therefore need an explicit token-refresh/revocation strategy and tests; a fresh profile response alone does not update an already-issued token.
+
+### 30.4 Minimum negative-test catalogue
+
+| ID | Actor / setup | Request | Required assertion |
+|---|---|---|---|
+| AUTHZ-01 | No token | Staff-only `GET /ventas` | 401 |
+| AUTHZ-02 | Expired or invalid-signature JWT | Protected API | 401 |
+| AUTHZ-03 | Customer JWT | Staff endpoint `GET /pedidos` | 403, no data returned |
+| AUTHZ-04 | Staff JWT | Customer-only `GET /auth/cliente/me` | 404/403 according to explicit endpoint contract; never Customer data |
+| AUTHZ-05 | Customer retail JWT | `GET /legajo/cliente/mi-legajo` | 403 |
+| AUTHZ-06 | Customer wholesale JWT | Own dossier GET/PATCH | Allowed, only own Customer record |
+| AUTHZ-07 | Customer A JWT | Customer B dossier ID / another tenant | 404/403, no cross-customer disclosure |
+| AUTHZ-08 | Staff without required permission | Protected mutation | 403 |
+| AUTHZ-09 | Permission revoked after token issue | Same protected mutation | 403 on next request |
+| AUTHZ-10 | Usuario inactive | Permission-protected endpoint | 401 |
+| AUTHZ-11 | Usuario inactive | Authenticated route without `@RequirePermission` | Assert the explicitly chosen global account-revocation policy; current guard chain may allow it |
+| AUTHZ-12 | User with no canonical link | Business-scoped endpoint | Fail closed; no legacy empresaId fallback |
+| AUTHZ-13 | User with no ACTIVE Membership | Business-scoped endpoint | 403 |
+| AUTHZ-14 | User with two ACTIVE Memberships | Business-scoped endpoint | 409; no arbitrary business selected |
+| AUTHZ-15 | Suspended Membership after token issue | HTTP request and existing Messaging socket | HTTP denied; socket access revoked/disconnected as designed |
+| AUTHZ-16 | Staff with PENDIENTE dossier | Sales/Cash/Orders operational route | 403 |
+| AUTHZ-17 | Same staff identity | Own dossier completion route | Allowed |
+| AUTHZ-18 | Non-Owner staff | Membership suspend/reactivate and Customer dossier approval | 403 |
+| AUTHZ-19 | Owner | Membership in another Business | 404/403; no cross-business mutation |
+| AUTHZ-20 | Platform allowlist missing/empty | `GET /platform-admin/overview` | 403 |
+| AUTHZ-21 | Non-allowlisted staff Owner | Same platform endpoint | 403 |
+| AUTHZ-22 | Allowlisted internal identity | Same platform endpoint | Allowed; audit event/actor attribution required |
+| AUTHZ-23 | Customer identity whose email is allowlisted | Same platform endpoint | 403 because identity type is not Usuario |
+| AUTHZ-24 | Staff JWT after account deactivation | Platform endpoint | Assert explicit deactivation/revocation policy; current PlatformAdminGuard checks allowlist, not database active state |
+| AUTHZ-25 | Two businesses with same resource-shaped IDs/foreign IDs | Read/update by ID | No cross-tenant object access |
+| AUTHZ-26 | Remix cookie modified with another `empresaId` / forged tenant headers | Business operation | Tenant remains derived from JWT + ACTIVE Membership; forged context ignored |
+| AUTHZ-27 | Customer token replayed against staff Socket.IO namespace | Handshake/join/send | Denied unless explicit Customer participant flow authorizes that conversation |
+| AUTHZ-28 | Non-participant valid staff/Customer token | Conversation history/join/send | Denied by conversation-level authorization |
+| AUTHZ-29 | Owner read-only Messaging viewer | Send message | Denied when `canSend=false`; read behavior follows viewer policy |
+| AUTHZ-30 | Invitation token expired, reused, or wrong purpose | Staff/wholesale activation endpoint | Reject; no cross-purpose activation |
+
+### 30.5 Coverage gaps and design decisions
+
+1. **Account deactivation is not uniformly enforced.** `PermissionsGuard` checks `Usuario.activo` only when a handler declares `@RequirePermission`. The JWT guard checks signature and expiry; StaffIdentityGuard checks Customer-vs-staff type. PlatformAdminGuard checks email allowlist but not current database active state. Adopt a global internal-account status check or document a narrower policy, then test it. This is a security decision, not a UI-only fix.
+2. **Two permission models coexist in source.** Legacy `PermissionsGuard` is globally registered; `AuthorizationGuard` implements Membership RoleGrant/CapabilityGrant but is not globally registered in `AppModule`. Establish the intended authorization source and handler coverage before migrating route guards. Do not claim both models are enforced.
+3. **Business context and legacy switching conflict.** `/auth/switch-empresa/:empresaId` uses legacy UserEmpresa while Business Context V1 permits exactly one ACTIVE Membership. Define the membership selection lifecycle before implementing a business switcher.
+4. **Dossier approval can leave JWT claims stale.** Choose token refresh, server-side revocation/versioning, or database-backed dossier enforcement. Do not rely on frontend re-fetch alone.
+5. **Platform Admin requires stronger lifecycle controls.** Define allowlist ownership, MFA/step-up, audit events, account-active verification and emergency removal. Do not promote Owner into Platform Admin implicitly.
+6. **Permission metadata inventory remains incomplete.** Build a controller/handler-level export of all `@RequirePermission`, `@Authorize`, `@UseGuards`, `@Public`, `@AllowCustomer` and dossier guard declarations; reconcile source declarations with Nest's runtime route map from a successful clean build.
+
+### 30.6 Phase 0 exit criteria for authorization
+
+Phase 0 authorization is not complete until:
+- Every route in the target Remix route map has a named identity domain, backend endpoint, authentication policy, permission/capability, business scope, dossier condition and expected denial response.
+- The guard metadata inventory and runtime route map agree.
+- AUTHZ-01 through AUTHZ-30 are implemented as HTTP/integration tests or explicitly marked not applicable with rationale.
+- Cross-tenant, stale-token, revoked-membership, inactive-user and Customer-vs-staff negative cases pass.
+- Platform Admin lifecycle policy is approved.
+- The Remix frontend contains no authorization decisions based solely on cached user, role, permission, `empresaId` or client route state.
+
+**Phase 0 remains OPEN.** This matrix makes the target security contract testable, but source-level inspection does not establish runtime enforcement. Implementation remains out of scope for this documentation PR.
+
+
+## 31. Baseline freeze and change control (2026-11-03)
+
+**ARCH-FE-001 is frozen as the working architecture baseline for P1 implementation.**
+
+The freeze establishes the following:
+
+1. P1 may proceed against the selected topology: one Remix frontend, one NestJS backend, PostgreSQL/Prisma behind NestJS, and three isolated experience areas (Customer, Business Operations and Platform Admin).
+2. Migration remains incremental. Existing frontends and capabilities must be preserved until replacement parity and cutover are verified.
+3. Existing backend contracts, identity boundaries, tenant isolation and domain invariants remain authoritative. The frontend must not invent or duplicate them.
+4. Sections and findings marked OPEN are not silently resolved by this freeze. They are implementation constraints and must be addressed only when the corresponding vertical slice reaches that dependency.
+5. A change to a selected architectural decision, public contract, identity boundary, tenant-isolation rule, persistence model or migration invariant requires an explicit Owner decision, documented rationale and corresponding update to this specification before implementation.
+6. Clarifications that do not change an approved decision may be recorded as implementation notes or linked decisions without reopening the entire baseline.
+7. This freeze is not evidence of implementation, test completion, production readiness, Phase 0 closure, legacy retirement or deployment approval.
+
+**P1 execution rule:** implement the smallest end-to-end vertical slice that conforms to this baseline; validate it; then proceed to the next slice. Do not restart broad discovery unless new evidence reveals a material contradiction or security/domain risk.
