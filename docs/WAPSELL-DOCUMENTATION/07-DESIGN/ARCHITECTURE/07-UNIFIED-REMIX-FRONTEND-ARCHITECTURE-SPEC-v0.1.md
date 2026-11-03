@@ -1256,3 +1256,75 @@ The source-level frontend/API inventory now covers the major routes and the prim
 ---
 
 **End of Phase 0 evidence addendum — pass 4, 2026-11-03.**
+
+## 23. Phase 0 — Critical journey, side-effect and test trace (2026-11-03)
+
+This section extends the source-level inventory with concrete operational side effects and identifies implementation risks that the unified frontend must not conceal. Evidence was inspected in `main` at base SHA `e9bc4cb5ac9cffa57d66b77695b698161fdebd4b`. The architecture branch contains this specification only; no application code was changed.
+
+### 23.1 Verified source-to-side-effect matrix
+
+| Journey / endpoint | Backend authority and access | Verified writes / side effects | Invariants and migration constraints |
+|---|---|---|---|
+| POS sale — `POST /ventas` | `SalesController`; `ventas.crear`; Approved Dossier; Business Context from ACTIVE Membership | Creates confirmed `Venta`, items, sequential per-company number, AuditLog, and deducts inventory through `InventoryService.deductStock()` in one transaction | Price/discount resolved server-side; Decimal totals; stock insufficiency rolls back. Idempotency lookup currently occurs before the create transaction. |
+| Sale payment — `POST /ventas/:id/pagos` | Intended handler delegates to `SalesService.createPayment()`; `ventas.crear`; Approved Dossier; Business Context | Creates approved `Pago`; cash additionally creates one `MovimientoCaja` against current opening in the same transaction; records AuditLog | Cash requires an open register; amount cannot exceed sale balance; received cash/change are distinct from collected amount. POS expects response `{ pago, saldo }`. |
+| Purchase creation / issue | `PurchasesController`; mutations require `compras.gestionar`; Approved Dossier; Business Context | Creates purchase in `BORRADOR`; issue transitions to `EMITIDA`; neither operation changes stock | Do not treat purchase creation or issue as physical stock intake. |
+| Purchase receipt — `POST /compras/:id/recepciones` | `compras.gestionar`; Approved Dossier; Business Context | Creates `RecepcionCompra`, one new `Lote` and `MovimientoStock(Entrada)` per received item; increments received quantities and recalculates purchase state in one transaction | Partial receipt is supported; over-receipt is rejected against quantities read before transaction. Concurrent receipt race/locking is not proven by this source trace and needs a dedicated invariant test. |
+| Supplier payment — `POST /compras/:id/pagos` | `compras.gestionar`; Approved Dossier; Business Context | Creates `PagoProveedor` and updates `totalPagado` / `saldo` in one transaction | Balance is computed from a purchase read before the transaction; concurrent payments need an explicit no-overpayment test/locking review. |
+| Supplier return — `POST /compras/:id/devoluciones` | `compras.gestionar`; Approved Dossier; Business Context | Creates return and linked stock-out movements in a transaction; requires evidence of purchase-linked lot/available stock | Preserve lot ownership and rollback on invalid/cross-business references. |
+| Cash opening / movement / count / close | `CashRegisterController`; Business Context; `caja.gastos` for manual movement and close; Approved Dossier | Opening creates `AperturaCaja`; movement creates `MovimientoCaja`; count derives expected cash from opening + categorized movements and creates `ArqueoCaja`; close creates `CierreCaja`, closes opening and marks register closed | Opening is unique while active; count requires two different users. D-05 threshold is still characterized as reference, not final policy. D-06 authorization must remain explicit; never auto-authorize. |
+| Public legacy storefront — `POST /tienda/pedidos` | Public `StoreController`; company comes from configured `TIENDA_EMPRESA_ID` unless a scoped public-store controller supplies it | Creates customer/order/items transactionally; validates stock but does not deduct it | No stock reservation at checkout; seller confirmation later owns deduction. Public tracking by order ID needs privacy/access review. |
+| Public canonical store order — `POST /store/order` | Public `StoreOrderController`; accepts `X-Idempotency-Key` | Calls the same StoreService with stock deduction enabled; order creation and stock deduction occur atomically | This is not behaviorally equivalent to legacy `/tienda/pedidos`. Canonical storefront route, stock timing, idempotency scope and customer/business resolution must be decided before UI consolidation. |
+| Staff order confirmation / cancellation | `OrdersController`; `pedidos.gestionar`; Approved Dossier; Business Context | Confirmation transitions `RECIBIDO → CONFIRMADO` and deducts stock in SERIALIZABLE transaction; cancellation of a confirmed order reverses stock with linked `Entrada` movements and writes AuditLog | Conditional state transition prevents double confirmation; cancellation states and reversal rules must be preserved. A source defect below requires correction in a separately authorized code task. |
+| Messaging order creation | `MessagingController` / `MessagingService`; authenticated actor + conversation authorization + Business Context | Builds order from persistent cart, associates conversation/customer, and uses conversation ID as idempotency key; order remains in the existing Orders workflow for stock/ERP confirmation | Do not move order creation or stock rules into Remix. Keep HTTP as recovery path if realtime publication fails. |
+
+### 23.2 Findings requiring explicit remediation or decision
+
+**F0-01 — Order cancellation idempotency branch is unreachable (source defect).**
+
+In `OrdersService.cancelOrder()`, the method first allows only `RECIBIDO`, `CONFIRMADO` and `ENTREGA_FALLIDA`; immediately afterward it checks whether the state is already `CANCELADO` and intends to return a no-op success. Since `CANCELADO` was excluded by the preceding guard, that idempotency branch cannot execute. A repeated cancellation currently reaches the conflict path instead of the documented no-op behavior. This does not change the architecture decision, but it must be fixed and covered before the cancellation journey is declared parity-complete. **No code change is authorized by this specification.**
+
+**F0-02 — Purchase receipt/payment concurrency requires stronger evidence.**
+
+The purchase receipt path reads purchase items and computes pending quantities before opening its write transaction. The payment path reads the current purchase balance before its transaction. The writes themselves are transactional, but the inspected code does not establish that two concurrent receipts cannot over-receive or two concurrent supplier payments cannot overpay. Add concurrent integration tests and inspect DB constraints/locking before treating these flows as safe under retries or simultaneous operators.
+
+**F0-03 — Storefront order endpoints have materially different stock semantics.**
+
+Legacy `/tienda/pedidos` validates stock without reserving/deducting it; canonical `/store/order` calls the same service with `deductStock=true` and atomically deducts stock at order creation. The staff Orders flow also deducts on confirmation. The frontend migration must not merge these routes or display a single implied stock policy until the owner-approved order/payment lifecycle selects the canonical path. This is a contract decision, not a UI implementation detail.
+
+**F0-04 — Sale idempotency key is globally unique in current schema/test characterization.**
+
+The sales HTTP integration suite explicitly characterizes a cross-tenant reuse of another business's idempotency key as a Prisma unique-constraint failure (P2002). The same suite verifies same-tenant replay returns the same sale and deducts stock once. Do not assume the key is tenant-scoped merely because the service uses a company-scoped Prisma client. Review the unique index and key namespace before changing clients or retry behavior.
+
+**F0-05 — Payment route source and compiled/runtime registration must remain aligned.**
+
+The source tree contains `PaymentsController` declaring `POST/GET /ventas/:ventaId/pagos`, while `SalesController` declares sales routes and does not declare a payment route. The sales HTTP integration test documents that the compiled production stack registers the Sales payment handler before the Payments handler for POST, with GET served by Payments. However, the inspected `SalesModule` registers only `SalesController`, and `PaymentsModule` registers `PaymentController` at `/pagos`, not `PaymentsController`. This is a source/module-graph versus compiled-runtime evidence discrepancy. The test also contains direct controller tests separate from HTTP tests. Before relying on this route as a migration contract, verify a clean build from the exact source SHA, inspect the generated Nest route map, and rerun the HTTP suite. Do not select or delete a handler based only on source declarations.
+
+**F0-06 — Cash D-05/D-06 are not fully closed business policy.**
+
+The code blocks closure when a difference exceeds a reference threshold without an authorization. Authorization is delegated to `AuthorizationsService`, and the count must not self-authorize. The threshold is explicitly described in code as not yet owner-confirmed. Preserve the fail-closed behavior; obtain the final threshold/authorization policy before altering the cash workflow.
+
+### 23.3 Test-to-invariant evidence inventory
+
+The following tests exist in source and provide useful migration regression anchors. Their presence is not evidence that they passed in this work session.
+
+| Test source | Existing coverage found by source inspection | Remaining gap |
+|---|---|---|
+| `apps/api/test/integration/s-v1-07-sales-http.integration-spec.ts` | Sales tenant isolation, stock rollback, same-tenant idempotent replay, cross-tenant key characterization, payment response, cash movement, closed-cash rejection and permissions | Clean-build route registration evidence and concurrent payment/over-collection behavior |
+| `apps/api/test/integration/s-v1-13-cash-http.integration-spec.ts` | Real HTTP guards, ACTIVE/SUSPENDED/multiple Membership cases, tenant claim spoofing, permissions, opening, movement, count and cash-close preconditions | Complete D-05/D-06 owner policy and high-difference authorization/close scenarios |
+| `apps/api/test/integration/b3-movimientostock-producto.integration-spec.ts` | Cross-Business stock relation isolation, purchase receipt, supplier returns, FIFO deduction and concurrent negative-adjustment protection | Concurrent purchase receipt over-receipt behavior |
+| `apps/api/src/store/c3-idempotency.functional.spec.ts` | Idempotency key replay model, transaction source assertion, cart concurrency characterization and migration precondition | This file uses in-memory/mocked behavior for parts of the contract; it is not a substitute for DB-backed HTTP concurrency tests |
+| `apps/api/test/integration/s-v1-07-sales-business-context.integration-spec.ts` | Direct controller/service Business Context isolation and sales/payment behavior | Must be interpreted separately from compiled HTTP route registration |
+
+### 23.4 Phase 0 closure checklist — updated
+
+- [x] Frontend application and route inventory.
+- [x] Core NestJS authentication, Business Context, Membership, Permission and tenant-isolation boundaries.
+- [x] Sales, payments, purchase receipt/payment/return, cash, storefront order, staff order and messaging side-effect mapping.
+- [x] Existing regression-test locations and named invariants mapped.
+- [ ] Reconcile clean-build source/module graph with compiled runtime route map for sale payments.
+- [ ] Inspect DTO validation, response contracts and frontend call sites for every critical journey; record exact request/response examples.
+- [ ] Add or verify concurrency evidence for purchase receipt, supplier payment, sale payment and repeated order cancellation (separate implementation/test task).
+- [ ] Obtain runtime production deployment evidence (active frontend, API deployed SHA, containers/processes, reverse proxy and environment wiring). Production remains **NOT DETERMINED**; no live VPS access was available in this audit.
+- [ ] Independent technical review of this specification and unresolved owner decisions.
+
+**Phase 0 remains OPEN.** The current evidence is sufficient to define migration guardrails, not to authorize implementation or claim operational parity. No application code, database schema, migrations, production configuration or legacy application was changed in this phase.
