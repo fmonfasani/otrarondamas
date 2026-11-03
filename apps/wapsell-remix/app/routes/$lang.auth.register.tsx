@@ -3,13 +3,6 @@ import { redirect } from '@remix-run/node';
 import { RegisterForm } from '~/components/auth/RegisterForm';
 import { getApiBaseUrl } from '~/services/api.server';
 
-interface RegisterData {
-  email: string;
-  password: string;
-  name: string;
-  confirmPassword: string;
-}
-
 export const action: ActionFunction = async ({ request, params }) => {
   if (request.method !== 'POST') return null;
 
