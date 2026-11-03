@@ -6,7 +6,6 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
-// @ts-ignore
 import styles from "./app.css?url";
 
 export const links: LinksFunction = () => [
