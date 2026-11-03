@@ -1548,3 +1548,86 @@ Inspección de código en `main`; no se ejecutaron pruebas HTTP en esta revisió
 - Los hallazgos son source-level; CI bloqueado impide afirmar que las pruebas se ejecutaron.
 
 **Phase 0 remains OPEN.** Checkout y tracking están mapeados a nivel de código; idempotency y proyección pública requieren remediación y pruebas separadas antes de consolidar los frontends.
+
+
+## 29. Phase 0 — Authentication and authorization boundaries (2026-11-03)
+
+Source inspection of `main`; no live authentication flow or permission matrix was executed in this pass.
+
+### 29.1 Identity domains
+
+| Area | Identity | Current auth source | Authorization authority |
+|---|---|---|---|
+| Customer | `Cliente`, JWT `type: 'cliente'` | `/auth/cliente/registro`, `/auth/cliente/login`, Google callback; `/auth/cliente/me` | Customer-specific Business Context and endpoint policy; no staff permissions |
+| Business Operations | `Usuario`, JWT `type: 'usuario'` | `/auth/login`, Google callback, `/auth/me` | NestJS JWT + database-backed `PermissionsGuard` + Staff Identity + Business Context/Membership + dossier guards |
+| Platform Admin | Internal `Usuario` identity | Same staff JWT | Separate `PlatformAdminGuard` email allowlist; not inherited from business Owner/role |
+
+These are three authorization domains, not three frontend themes. The unified Remix app must preserve identity separation and route-level boundaries; a shared visual shell must not imply shared session or privilege.
+
+### 29.2 Backend guard chain and source-of-truth behavior
+
+- `AppModule` registers global guards in this order: `JwtAuthGuard`, `PermissionsGuard`, `StaffIdentityGuard`.
+- `JwtAuthGuard` requires a valid bearer JWT by default; `@Public()` bypasses it.
+- `PermissionsGuard` only acts when `@RequirePermission` metadata exists. It reads current `UsuarioPermiso` assignments from the database on every protected request, checks account active state, and rejects Customer identities. JWT permission claims are not the authorization source for these routes.
+- `StaffIdentityGuard` rejects `type: 'cliente'` from staff routes unless explicitly `@AllowCustomer()`; public routes are bypassed.
+- `BusinessContextService.resolveForAuthenticatedUser()` resolves the canonical User via the legacy Usuario link and its ACTIVE Membership. Missing link, no ACTIVE membership or multiple ACTIVE memberships fail closed. V1 has no business selector for multiple active memberships.
+- Customer `/auth/cliente/me` resolves the Customer through Business Context and scopes its query to that business; it does not trust the JWT's legacy `empresaId` as tenant authority.
+- Platform Admin route `GET /platform-admin/overview` is guarded by `PlatformAdminGuard`, which requires an internal identity and exact email membership in `PLATFORM_ADMIN_EMAILS`; empty/missing allowlist denies access. This is a separate platform boundary, not a business permission.
+
+### 29.3 Frontend session and integration discrepancies
+
+**F0-12 — Remix staff login response contract does not match NestJS.**
+
+NestJS `AuthService.issueSession()` returns `accessToken`, `usuario`, `empresaId`, `empresa` and `empresas`. Remix `loginWithNestJS()` reads `data.access_token` and `data.user`; its login action then dereferences `user.id`. With the inspected backend response, the token/user values are undefined and the action cannot establish the intended session. POS Admin consumes `accessToken` and `usuario`, matching the backend contract.
+
+**F0-13 — Remix validates JWT through a route not present in AuthController.**
+
+`requireAuth()` calls `POST /auth/validate`; the inspected `AuthController` exposes `POST /auth/login`, `GET /auth/me`, memberships and switch-company, but no `POST /auth/validate`. Therefore authenticated Remix loaders relying on `requireAuth()` will treat the request as invalid unless another registered controller supplies that route. No such controller was identified in the inspected auth source graph. Use `GET /auth/me` with the bearer token as the validation contract, or implement a deliberately scoped validation endpoint in a separate task.
+
+**F0-14 — Remix registration calls a nonexistent staff endpoint and sends the wrong DTO.**
+
+The Remix registration action posts to `POST /auth/register` with `{email,password,name}`. The inspected AuthController does not expose that route; Customer registration is `POST /auth/cliente/registro` with `{nombre,email,password}`, and it creates a Customer, not a staff User. The unified product must not silently map public Customer self-registration into staff account creation. Decide whether staff onboarding is invitation-only (current invitation endpoints) and remove or redesign the legacy Remix registration flow accordingly.
+
+**F0-15 — Remix tenant cookie and headers duplicate tenant authority.**
+
+`tenant.server.ts` trusts `empresaId` and `userId` from the Remix cookie and forwards `X-Empresa-Id` / `X-User-Id`. The NestJS Business Context model resolves business scope from the authenticated identity's canonical ACTIVE Membership and explicitly rejects arbitrary tenant context. The cookie/header mechanism is a legacy parallel context and must not be carried into the unified architecture as an authority. The API must derive tenant scope server-side from JWT + Membership; forwarded headers must not influence authorization.
+
+**F0-16 — Customer frontend does not revalidate the stored session on startup.**
+
+The Vite Customer `AuthContext` hydrates token and profile from localStorage and exposes them as authenticated state, but its mount logic does not call `apiAuth.me()`. The profile can remain stale after server-side account/business changes until a protected API request fails; the UI-only `MiCuentaPage` guard checks only the cached profile. The unified Customer area needs a server-validated session bootstrap and must treat client state as presentation, never authorization.
+
+**F0-17 — Staff POS route gate is also client-state only.**
+
+POS `ProtectedRoute` checks whether `user` exists in AuthContext. AuthContext attempts a background `/auth/me` refresh on mount but deliberately retains cached user state if refresh fails. This may briefly or indefinitely render protected UI with an invalid token; the backend remains the security boundary, but the unified app should represent session validation/loading/expiry explicitly and avoid treating cached profile presence as proof of authorization.
+
+### 29.4 Additional authorization consistency risks
+
+- `AuthService.switchEmpresa()` validates legacy `UserEmpresa`, updates `Usuario.empresaId`, and issues a new JWT. In contrast, Business Context V1 derives scope from canonical ACTIVE Membership and currently rejects multiple ACTIVE memberships. This creates two company-selection models. Do not use `switch-empresa` as the future business selector until the Membership lifecycle and single-active-membership policy are reconciled.
+- JWT strategy validates signature/expiry and returns claims; it does not query current account state for every authenticated route. `PermissionsGuard` checks active state only on routes with `@RequirePermission`. For routes protected only by JWT, account deactivation/revocation semantics need explicit review. Membership revocation currently changes membership state and emits an in-process event; verify all protected Business Context paths resolve membership on each request and that socket sessions are revoked as intended.
+- POS stores staff access tokens in localStorage or sessionStorage. Customer storefront stores Customer tokens in localStorage. Remix intends an HttpOnly cookie session but its current secret has an insecure `dev-secret` fallback and the backend JWT is passed through a session cookie. Production must fail startup without a strong `SESSION_SECRET`; cookie signing does not by itself make a bearer JWT opaque or revoke it.
+- Google OAuth redirects the access token in the query string to the frontend callback. This is a current token-transfer contract and needs callback route verification, one-time handling, URL cleanup, referrer/logging controls and CSRF/state review before consolidating auth.
+- `PlatformAdminGuard` uses a static email allowlist. Operational controls for allowlist ownership, audit logging, emergency removal and MFA/step-up are not established by this source inspection.
+
+### 29.5 Target rules for the unified Remix frontend
+
+1. Keep three explicit route namespaces/layouts and identity types: Customer, Business Operations, Platform Admin.
+2. Keep NestJS as the sole authentication and authorization authority. Remix loaders/actions may enforce navigation UX, but must call NestJS for protected data and must never trust client-supplied tenant IDs or permissions.
+3. Customer JWTs must never access staff operations; staff JWTs must not automatically acquire Platform Admin privileges.
+4. Business Operations context must be derived from the authenticated User's canonical ACTIVE Membership. Do not send `X-Empresa-Id` as authority. Multiple active memberships require a defined selection policy before the UI is implemented.
+5. Platform Admin must retain an independent allowlist/role policy and dedicated audit trail; business Owner role is insufficient.
+6. Use a server-side Remix session with mandatory production secret, secure/HttpOnly/SameSite cookie settings, explicit expiry/logout behavior and validated NestJS session bootstrap. Avoid exposing JWT to browser JavaScript where possible.
+7. Customer registration remains Customer-only. Staff onboarding must follow the approved invitation/provisioning workflow.
+8. Build an authorization test matrix for identity × route × permission × membership state × dossier state × tenant. Include direct HTTP/API tests; hidden navigation or route guards are not security evidence.
+
+### 29.6 Required implementation/test work (separate authorization)
+
+- Correct Remix login response mapping and validate session using an existing supported NestJS endpoint.
+- Decide staff registration/onboarding and remove the invalid `/auth/register` assumption.
+- Replace cookie tenant IDs/forwarded headers with Business Context-derived scope.
+- Add Customer and staff session revalidation and explicit expired/revoked UI state.
+- Reconcile `UserEmpresa` switching with Membership V1; no arbitrary active-membership selection.
+- Verify Platform Admin allowlist lifecycle, audit, MFA/step-up and session revocation.
+- Add HTTP tests for Customer token → staff endpoint denial; staff token → Customer-only endpoint policy; no permission / revoked permission; inactive user; no/multiple ACTIVE memberships; cross-business IDOR; Platform Admin allowlist empty/authorized/unauthorized; and deactivated identity behavior on endpoints without `@RequirePermission`.
+- Fix the Remix integration contracts only in a separately approved implementation task. CI currently blocks reliable full test execution.
+
+**Phase 0 remains OPEN.** The three identity domains and backend guard boundaries are mapped. Remix staff login, token validation, registration and tenant-cookie integration have source-level contract mismatches; no frontend migration should begin until these are corrected and covered by HTTP tests.
