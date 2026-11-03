@@ -1328,3 +1328,40 @@ The following tests exist in source and provide useful migration regression anch
 - [ ] Independent technical review of this specification and unresolved owner decisions.
 
 **Phase 0 remains OPEN.** The current evidence is sufficient to define migration guardrails, not to authorize implementation or claim operational parity. No application code, database schema, migrations, production configuration or legacy application was changed in this phase.
+
+## 24. Phase 0 — Frontend call-site and DTO contract trace (2026-11-03)
+
+The following call sites were inspected on `main`. This matrix distinguishes the currently used frontend contract from backend routes that exist but are not shown to be consumed by the inspected applications.
+
+| Journey | Current caller | Request contract observed | Response / behavior consumed | Migration consequence |
+|---|---|---|---|---|
+| POS sale | `apps/pos-admin/src/features/ventas/NuevaVentaPage.tsx` → `api.crearVenta()` | `canal`, optional `clienteId`, `items[{ productoId, cantidad }]`, `idempotencyKey` | Receives a `Venta`; then opens payment modal using sale total/balance | Preserve idempotency key across retries; server remains authority for price, discounts, totals and stock. |
+| POS sale payment | `ModalCobro.tsx` → `api.crearPago()` | Cash: `{ medio, monto, montoRecibido? }`; transfer/QR: `{ medio, monto, referencia? }` | Reads `resp.saldo` and `resp.pago`; expects `{ pago, saldo }` | DTO/response are coupled to `SalesService.createPayment()`; any handler drift is a breaking UI contract. |
+| POS purchases | `ComprasPage.tsx` → `crearCompra`, `emitirCompra`, `recibirCompra`, `crearPagoCompra`, returns | Create: `proveedorId` + items; receipt: per-item `compraItemId`, quantity, lot number and expiry; payment: amount, method, optional reference | Uses purchase, receipt, supplier-payment and return records to refresh operational view | UI captures physical lot data; do not reduce receipt to a generic status change. DTO validation and returned shapes need contract tests. |
+| POS cash | `CajaPage.tsx` → `estadoCaja`, `abrirCaja`, movement/count/authorization/close helpers | Opening amount; movement type/amount/description; count amount + incoming user; authorization credentials/reason | UI refreshes cash status, movements, count and closure | Preserve handover identity and authorization interaction. Verify complete count/authorization UI states against D-05/D-06 before parity. |
+| Customer storefront (Vite) | `apps/tienda-online/src/lib/api.ts` | `POST /tienda/pedidos` with `CrearPedidoRequest` | Uses `PedidoCreado`; tracking via `GET /tienda/pedidos/:id` | Existing production-facing candidate uses legacy no-deduction path; don't silently switch stock semantics. |
+| Customer storefront (Remix) | `apps/wapsell-remix/app/routes/_index.tsx` | `POST /tienda/pedidos` with name, email, optional phone and items | Returns order result; catalog also reads `/tienda/productos` | Remix target currently calls the same legacy route, not `/store/order`. |
+| Canonical store order | No caller found in inspected POS, Tienda Online or Remix call sites | `POST /store/order`, optional `X-Idempotency-Key` | Service creates order and deducts stock atomically | Backend endpoint/test presence is not proof of frontend adoption. Its activation is a separate product/contract decision. |
+
+### 24.1 DTO validation observations
+
+- `CreateSaleDto` requires a valid channel and a non-empty items array; optional customer and idempotency key are UUIDs. Product price is not a client-owned field in the observed POS request.
+- `CreateSalePaymentDto` requires an allowed payment method and positive numeric amount; optional received amount must also be positive; optional reference is a string. The cash modal may omit `montoRecibido`, in which case the service treats the payment amount as the received amount and change as zero.
+- `CreatePurchaseDto` requires supplier UUID and a non-empty items array; optional date field is a date string. Purchase item duplicate-product validation is explicitly marked TODO in the service.
+- `ReceivePurchaseDto` requires a non-empty items array. Each receipt item uses a purchase-item UUID, positive quantity, date string for expiry and non-empty lot number.
+- The API bootstrap uses a global validation pipe with whitelist/transform behavior, so the selected route's DTO is part of the runtime contract. Unknown fields must not be assumed to survive validation.
+
+### 24.2 Critical frontend/backend contract conclusion
+
+The two inspected customer storefronts — the existing Vite store and the Remix root route — both call `/tienda/pedidos`. The newer `/store/order` route has backend source and test references, but no matching call site was found in these frontend applications. The earlier source-to-side-effect matrix therefore describes a backend capability, not the current storefront integration path.
+
+This distinction is material: the legacy route validates stock and defers deduction until seller confirmation; `/store/order` deducts stock at checkout. Do not migrate either frontend to `/store/order` until the order lifecycle and inventory policy are explicitly selected and regression-tested.
+
+### 24.3 Evidence still required
+
+- [ ] Capture concrete JSON request/response fixtures from clean-build HTTP tests for sales, payments, purchases, cash and both storefront routes.
+- [ ] Verify the complete cash count/authorization interaction in POS Admin, including blocked high-difference close and error recovery.
+- [ ] Inspect the exact checkout payload builders and tracking access policy in both customer frontends.
+- [ ] Establish whether `/store/order` is intentionally dormant, a future route or a missed integration.
+- [ ] Reconcile payment route registration from source modules against a clean production build before treating the route as canonical.
+
