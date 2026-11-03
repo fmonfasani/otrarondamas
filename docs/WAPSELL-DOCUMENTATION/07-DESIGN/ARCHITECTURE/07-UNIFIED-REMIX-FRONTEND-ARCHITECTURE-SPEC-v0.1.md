@@ -1365,3 +1365,69 @@ This distinction is material: the legacy route validates stock and defers deduct
 - [ ] Establish whether `/store/order` is intentionally dormant, a future route or a missed integration.
 - [ ] Reconcile payment route registration from source modules against a clean production build before treating the route as canonical.
 
+## 25. CI evidence — Phase 0 pull request validation (2026-11-03)
+
+GitHub Actions for PR #106 completed with failures. The runs checked the PR merge ref `49c410e57835bec243461a339fc11b34e434d57e` (head `3ada53056ac609433c34e66fe0060bcea1b87727` merged by GitHub for CI against base `0fae0b98f7833e5a68b06352b5b8603c331e776a`). These are CI failures, not failures caused by the Markdown change; the merge ref includes the current base and the PR only adds documentation.
+
+### 25.1 Run #591 — B4 Verification Infrastructure
+
+- Run ID: `41575978148`.
+- Engineering Kit smoke tests: **PASS**.
+- `npm ci`: **PASS**.
+- Prisma client generation: **PASS** (Prisma 5.22.0).
+- API build: **FAIL** at `nest build`.
+- Database push, API unit tests and integration verification: **SKIPPED** because the build step failed.
+
+Build reported four TypeScript errors:
+1. `src/dossier/dossier.controller.ts:64` — TS2694: `Express.Multer.File` is not exported by the resolved global Express namespace.
+2. `src/dossier/dossier.customer.controller.ts:77` — same TS2694.
+3. `apps/api/tsconfig.build.json:3` — TS5101: `baseUrl` deprecated under TypeScript 6.
+4. `apps/api/tsconfig.build.json:3` — TS5107: `moduleResolution=node10` deprecated under TypeScript 6.
+
+The API package declares `typescript: ^6.0.0`; the lockfile resolves `6.0.3`. The API package also declares Nest CLI/Schematics 12, while the workflow uses Node 20. Dependency installation emitted engine warnings indicating Nest 12 packages require Node >=22.12.0. The build did not report a Node runtime crash; the direct blockers are the type and compiler-option errors above.
+
+### 25.2 Run #62 — Jest Tests
+
+- Run ID: `41575978218`.
+- Docker/PostgreSQL service initialization: **PASS**.
+- Checkout and Node setup: **PASS**.
+- Dependency installation: **PASS**.
+- Jest: **FAIL before executing tests**.
+- Result: **34 suites failed, 0 tests executed**.
+
+The 34 suites failed during TypeScript compilation, with repeated:
+- TS5011: inferred common source directory requires explicit `rootDir`.
+- TS5101: deprecated `baseUrl`.
+- TS5107: deprecated `moduleResolution=node10`.
+
+This is a test-toolchain/configuration failure, not evidence of 34 behavioral test failures. No test assertions ran.
+
+### 25.3 Additional CI hygiene signal
+
+Both job logs report checkout post-job cleanup warning:
+`fatal: No url found for submodule path 'worktrees/commerce-cart-order' in .gitmodules`.
+The warning occurs during Git submodule cleanup after the main test/build failure. It is a separate repository metadata inconsistency to investigate; it was not the primary cause of either failed step.
+
+### 25.4 CI recovery classification
+
+| Finding | Classification | Next diagnostic / recovery action |
+|---|---|---|
+| TS6 deprecation diagnostics (TS5101/TS5107) | Compiler/toolchain compatibility | Decide supported TypeScript baseline; align tsconfig with that baseline rather than suppressing blindly |
+| TS5011 in Jest compilation | Test tsconfig/rootDir mismatch | Inspect Jest/ts-jest tsconfig selection and establish an explicit test rootDir compatible with project layout |
+| Missing `Express.Multer.File` | Type declaration compatibility | Inspect resolved `@types/express`, `@types/multer`, Multer package versions and declaration augmentation |
+| Node 20 vs Nest 12 engine requirement | Runtime/toolchain mismatch | Align CI Node version with the API package's declared engine requirement and local/dev baseline |
+| Missing submodule URL for worktree path | Git metadata/checkout hygiene | Inspect `.gitmodules`, index gitlink and intended lifecycle of `worktrees/commerce-cart-order` |
+
+**No automatic fix was applied.** These findings affect the repository-wide API build/test infrastructure and must be handled as a dedicated CI recovery task. In particular, changing TypeScript major version, Node baseline, tsconfig inheritance or submodule metadata is outside this documentation-only Phase 0 scope.
+
+### 25.5 Updated Phase 0 / CI status
+
+- [x] Captured final results and job logs for PR #106 CI.
+- [x] Distinguished test discovery/compilation failures from executed failing assertions.
+- [x] Recorded concrete build errors and environment compatibility signals.
+- [ ] Resolve API build and Jest compiler configuration under an explicitly selected Node/TypeScript baseline.
+- [ ] Re-run build, unit tests and API integration suites after CI recovery.
+- [ ] Reconcile payment controller/module registration using the clean build and HTTP route map.
+- [ ] Verify production deployment evidence.
+
+**CI is currently RED.** No product behavior has been proven broken by these two runs because Jest executed zero tests and the API build stopped before integration verification. The repository cannot be treated as migration-ready until CI is recovered and the relevant invariants are actually executed.
