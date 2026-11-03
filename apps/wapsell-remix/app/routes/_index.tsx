@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { Form, useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useMemo, useState } from "react";
 
 type Product = {
@@ -159,11 +159,11 @@ export default function Index() {
           <div><span className="eyebrow">SELECCIÓN DEL COMERCIO</span><h2>El catálogo</h2></div>
           <span className="product-count">{products.length} productos</span>
         </div>
-        <fetcher.Form method="get" className="search-form">
+        <Form method="get" className="search-form">
           <span aria-hidden="true">⌕</span>
           <input type="search" name="search" placeholder="¿Qué estás buscando?" defaultValue="" aria-label="Buscar productos" />
           <button type="submit">Buscar</button>
-        </fetcher.Form>
+        </Form>
 
         {error ? (
           <div className="catalog-state" role="status"><span>!</span><p>{error}</p></div>
