@@ -1505,3 +1505,46 @@ The following workarounds are not acceptable as evidence of recovery: suppressin
 The compiler/toolchain repair remains a separate engineering task. It must establish and document a supported Node.js / TypeScript / NestJS version matrix, resolve the Jest `rootDir` selection, reconcile Express/Multer type declarations, and inspect the submodule cleanup warning. After repair, run a clean API build, unit tests, integration tests and route-map verification against the same commit and freshly generated build artifacts.
 
 **Status after runs #593 and #64:** CI remains **RED**. No behavioral tests were executed by Jest in run #64; API integration checks were skipped in run #593. This evidence does not justify either a product-pass or product-fail conclusion. The architecture work may continue, but implementation readiness and Phase 0 closure remain unproven.
+
+
+## 28. Phase 0 — Checkout y seguimiento público (2026-11-03)
+
+Inspección de código en `main`; no se ejecutaron pruebas HTTP en esta revisión.
+
+### Evidencia de callers
+
+- Vite `CheckoutPage.tsx` envía `POST /tienda/pedidos` con nombre, email, teléfono opcional e items `{productoId,cantidad}`. Consume `pedido.id`, vacía el carrito y navega a `/pedido/:id`. El checkout no cobra: el pago se coordina posteriormente con el comercio.
+- Remix `_index.tsx` envía el mismo contrato a `POST /tienda/pedidos`, pero solo usa el status y el mensaje de respuesta. No muestra ni conserva el ID para seguimiento.
+- Vite `SeguimientoPedidoPage.tsx` consulta `GET /tienda/pedidos/:id` y muestra estado, total, fecha y detalle de artículos.
+- Remix staff order detail consulta `GET /pedidos/:id`, pero ante cualquier error devuelve datos mock hardcodeados. Ese fallback puede presentar información ficticia como si fuera un pedido real y no debe preservarse en la migración.
+
+### Contrato backend
+
+- `CreateOrderDto`: nombre string mínimo 2, email válido, teléfono opcional y al menos un item.
+- `CreateOrderItemDto`: producto UUID y cantidad numérica positiva.
+- `StoreController` registra rutas públicas legacy `/tienda/**`.
+- `PublicStoreController` registra rutas equivalentes bajo `/:businessSlug/tienda/**`, resolviendo el Business por slug con Business Context.
+- `StoreOrderController` registra `POST /store/order` y `GET /store/tracking/:id`; `StoreModule` declara los tres controllers.
+- El endpoint legacy devuelve el resultado del servicio directamente; el endpoint canónico aplica `PedidoResponseDto`. Ambos contratos deben pasar por una allowlist de campos públicos antes de consolidarlos.
+
+### Nuevos hallazgos
+
+**F0-07 — Checkout no envía idempotency key.** Vite y Remix no mandan `X-Idempotency-Key` al crear pedidos. Deshabilitar el botón mientras una petición está en curso no evita duplicados por timeout, reintento o doble envío desde otra pestaña.
+
+**F0-08 — El retry idempotente canónico puede fallar antes de consultar la clave.** En `StoreService.createOrder()`, la validación de stock se realiza antes de la transacción y antes de buscar el pedido existente por `empresaId + idempotencyKey`. Como `/store/order` descuenta stock al crear, un retry tras perder la respuesta puede fallar por stock insuficiente antes de devolver el pedido ya creado.
+
+**F0-09 — No se verifica que el payload coincida con la clave.** El controller documenta 409 si la misma clave se reutiliza con payload diferente, pero el servicio inspeccionado devuelve el pedido existente sin comparar items ni datos de contacto. La migración crea un índice único global sobre `Pedido.idempotencyKey`, mientras el lookup del servicio incluye `empresaId`; una colisión entre negocios puede producir conflicto de constraint.
+
+**F0-10 — Tracking público usa el UUID como credencial.** La ruta no exige login y devuelve estado, total, fecha, productos, cantidades y precios unitarios. No expone nombre/email/teléfono en el projection inspeccionado, pero la posesión del UUID permite consultar esos datos comerciales. Evaluar token de tracking dedicado, rate limit y política de exposición antes de ampliar el uso.
+
+**F0-11 — Status de not-found no coincide con el comentario del controller.** El servicio de tracking lanza `BadRequestException` cuando no encuentra el pedido, lo que produce 400; el comentario de `StoreOrderController` documenta 404.
+
+### Guardrails y pruebas pendientes
+
+- Mantener el checkout sin cobro y con pedido `RECIBIDO` hasta que se cierre D-03 y el lifecycle comercial.
+- No migrar a `/store/order` hasta resolver stock timing, idempotency, business resolution y respuesta pública.
+- Remix debe mostrar el ID de pedido y permitir seguimiento, o documentar una decisión UX distinta.
+- Pruebas requeridas: replay tras pérdida de respuesta y deducción de stock, misma clave/mismo payload, misma clave/payload distinto, colisión entre negocios, aislamiento de tracking, not-found status y allowlist de respuesta.
+- Los hallazgos son source-level; CI bloqueado impide afirmar que las pruebas se ejecutaron.
+
+**Phase 0 remains OPEN.** Checkout y tracking están mapeados a nivel de código; idempotency y proyección pública requieren remediación y pruebas separadas antes de consolidar los frontends.
