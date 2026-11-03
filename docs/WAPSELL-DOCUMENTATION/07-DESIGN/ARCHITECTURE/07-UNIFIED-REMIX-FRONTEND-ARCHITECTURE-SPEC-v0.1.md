@@ -1109,3 +1109,67 @@ The table is representative, not a complete endpoint/DTO catalogue. Exact DTO fi
 ---
 
 **End of Phase 0 evidence addendum — 2026-11-03.**
+
+
+---
+
+## 20. Phase 0 — POS Admin and Customer Storefront mapping (pass 2, 2026-11-03)
+
+**Status: PARTIAL — source-level mapping only; not runtime parity certification.**
+
+### 20.1 POS Admin route mapping
+
+| Route | Feature and verified API contract | Authorization / disposition |
+|---|---|---|
+| `/login`, `/auth/google/callback` | Staff auth: `POST /auth/login`, `GET /auth/me`, Google OAuth routes. | Staff JWT. Existing client stores token in local/session storage; target Remix session must be server-managed and hardened. |
+| `/` | Dashboard; explicit development placeholder, no KPIs connected. | Placeholder. |
+| `/ventas` | `GET /ventas`. | `ventas.ver`, Approved Dossier, ACTIVE Membership Business Context. |
+| `/ventas/nueva` | `GET /ventas/productos`, `POST /ventas/cotizacion`, `POST /ventas`, `POST /ventas/:id/pagos`. | Search requires staff + Business Context; quote/create require `ventas.crear`; payment authorization/DTO needs separate PaymentsController review. |
+| `/ventas/:id`, `/ventas/:id/comprobante` | `GET /ventas/:id`, `GET /ventas/:id/comprobante`, `GET /ventas/:id/pagos`. | Sale reads require `ventas.ver`; payment policy remains to verify. |
+| `/orders` | `GET /pedidos`, `GET /pedidos/:id`, `PATCH /pedidos/:id/estado`, `POST /pedidos/:id/cancel`. | All require `pedidos.gestionar`, Approved Dossier and Business Context. |
+| `/inventory` | `GET /inventario/stock`, `GET /inventario/productos/:id/lotes`, `GET /inventario/productos/:id/movimientos`, `POST /inventario/ajustes`, `GET /inventario/alertas`. | Reads require staff + Business Context; adjustments require `inventario.ajustes`. |
+| `/compras` | Suppliers and purchases: `/proveedores/**`, `/compras/**` including issue, receipts, payments and returns. | Mutations require `compras.gestionar`; reads require staff + Business Context. Controller comments describe payments/returns as beyond RF-12 Phase 1 despite handlers being present; reconcile UI, service and tests. |
+| `/precios` | `GET/PATCH /catalogo/productos`. | Product mutation permission; exact decorator and UI gating to verify. |
+| `/customers` | `GET /clientes`, `GET /clientes/:id`, `POST /clientes`, `PATCH /clientes/:id`. | Reads require staff + Business Context; mutations require `clientes.gestionar`. |
+| `/fidelizacion` | `GET/POST /reglas-fidelizacion`, `GET/PATCH /reglas-fidelizacion/:id`, `GET /catalogo/jerarquia`. | All loyalty routes require `fidelizacion.gestionar`, Approved Dossier and Business Context. |
+| `/messaging` | `/messaging/conversations/**`, messages, associations and participants. | Staff JWT and global StaffIdentityGuard; detailed service checks, DTOs, sockets and tests remain open. |
+| `/cash` | `/caja/estado`, `/caja/apertura`, `/caja/movimientos`, `/caja/arqueo`, `/caja/arqueo/:id/autorizar`, `/caja/cierre`. | Approved Dossier + Business Context; `caja.gastos` required for movements and close; count authorization uses the separate D-06 credentials flow. |
+| `/profile` | `GET /auth/me`; profile mutation/upload contracts not closed. | Route exists; exact endpoint parity remains open. |
+| `/reports`, `/settings` | Explicit “En desarrollo” placeholders. | No functional API contract evidenced. |
+
+### 20.2 Customer Storefront route mapping
+
+| Route | Verified backend contract | Actor / disposition |
+|---|---|---|
+| `/` | `GET /tienda/productos`, `GET /tienda/jerarquia`. | Public API routes, although current React UI wraps catalog in a client-side auth gate. |
+| `/checkout` | `POST /tienda/pedidos`. | Public endpoint; legacy service validates stock but does not reserve/deduct it. |
+| `/pedido/:id` | `GET /tienda/pedidos/:id`. | Public tracking endpoint; review exposure and identifier behavior as part of security validation. |
+| `/login` | `POST /auth/cliente/login`, customer Google OAuth, `GET /auth/cliente/me`. | Customer JWT, distinct from staff `/auth/login`. |
+| `/registro` | `POST /auth/cliente/registro`. | Public retail-customer registration tied to `TIENDA_EMPRESA_ID`. |
+| `/activar-invitacion-mayorista` | `POST /invitaciones/mayorista/activar`. | Public invitation-token activation for wholesale customers. |
+| `/mi-cuenta` | `GET /auth/cliente/me`; edits not verified. | Customer JWT; Business Context resolves persisted Customer and Business. |
+| `/mi-cuenta/legajo` | `GET/PATCH /legajo/cliente/mi-legajo`, `GET /legajo/cliente/mi-legajo/estado`. | Customer JWT; backend checks customer actor and wholesale status. Pending customers can complete dossier. |
+
+### 20.3 Identity, storefront and migration constraints
+
+- Customer JWT identity (`cliente`) is separate from staff identity (`usuario`). Do not unify their authentication contracts or permissions.
+- Storefront AuthContext stores customer token/profile in `localStorage`; the React `RequiereAuth` wrapper is a UI gate, not backend authorization.
+- `/auth/cliente/me` resolves tenant context from persisted Customer data, not from caller-selected tenant state.
+- Public catalog and order endpoints remain public even though the current UI asks users to log in before catalog access.
+- Legacy `/tienda/*` and newer `/store/*` routes coexist. The documented legacy order path validates stock without deduction; the separate `/store/order` phase path has different stock/idempotency semantics. Canonicalization requires a decision on stock reservation, idempotency, customer linkage and business selection.
+- Customer Google OAuth currently returns access token in the callback query string. The target auth design must explicitly address token exposure in browser history, logs and referrers.
+- Staff dossier routes (`/legajo/*`) and wholesale-customer dossier routes (`/legajo/cliente/*`) are separate actor flows.
+
+### 20.4 Phase 0 remaining gates
+
+1. Inspect PaymentsController and profile routes/DTOs; verify all POS payment and profile calls.
+2. Complete Messaging HTTP/WebSocket contract, actor checks and test mapping.
+3. Compare Next.js route behavior and API usage with the other frontends.
+4. Establish live production frontend usage and deployed commit evidence; repository deployment files alone do not prove current runtime topology.
+5. Complete capability-level DTO, side-effect and E2E traceability.
+
+**Disposition:** POS Admin has substantial real API integration, but Dashboard/Reports/Settings are placeholders. Tienda Online has real public storefront and dedicated customer-auth flows, with session/security and duplicated-storefront-contract concerns. Remix remains incomplete. No broad screen migration should begin until remaining gates are closed or explicitly accepted.
+
+---
+
+**End of Phase 0 evidence addendum — pass 2, 2026-11-03.**
