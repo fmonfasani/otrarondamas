@@ -23,7 +23,9 @@ export function useRealtimeUpdates({ token, empresaId, userId }: UseRealtimeUpda
     newSocket.on('disconnect', () => setIsConnected(false));
     newSocket.on('error', (error: Error) => console.error('[WebSocket] Error:', error));
     setSocket(newSocket);
-    return () => newSocket.close();
+    return () => {
+      newSocket.close();
+    };
   }, [token, empresaId, userId]);
 
   const subscribe = useCallback((event: string, callback: (data: unknown) => void) => {
