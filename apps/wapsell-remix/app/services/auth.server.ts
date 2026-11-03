@@ -1,6 +1,16 @@
 import { createCookieSessionStorage } from '@remix-run/node';
 
 // Session storage configuration
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+// In production, fail closed if SESSION_SECRET is missing
+if (process.env.NODE_ENV === 'production' && !SESSION_SECRET) {
+  throw new Error(
+    'SESSION_SECRET environment variable must be set in production. ' +
+    'Set a strong, randomly-generated secret and restart the application.'
+  );
+}
+
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: '__session',
@@ -8,7 +18,7 @@ export const sessionStorage = createCookieSessionStorage({
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
     sameSite: 'lax',
-    secrets: [process.env.SESSION_SECRET || 'dev-secret'],
+    secrets: [SESSION_SECRET || 'dev-only-secret-do-not-use-in-production'],
     secure: process.env.NODE_ENV === 'production',
   },
 });
