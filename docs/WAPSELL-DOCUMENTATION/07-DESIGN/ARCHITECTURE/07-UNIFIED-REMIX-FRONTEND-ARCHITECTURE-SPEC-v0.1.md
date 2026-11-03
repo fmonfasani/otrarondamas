@@ -105,7 +105,7 @@ The following are specific code-level findings and must be treated as migration 
 5. The current session configuration has a development fallback secret. Production must fail closed when required secrets are absent; development defaults must never be accepted in production.
 6. Some dashboard and order loaders return mock/fallback data when the API is unavailable. Production UI must not represent fabricated values as live business data.
 7. Server-side API calls use an environment variable named \`VITE_API_URL\` in places. Server-only API configuration must be clearly separated from variables intentionally exposed to browser bundles.
-8. The current root CI and Remix-specific CI have separate responsibilities. Their triggers, dependency installation, validation coverage and deployment behavior need to be reconciled into one intentional pipeline.
+8. The current root CI and Remix-specific CI have separate responsibilities. The root `package.json` does not declare a `typecheck` script, while `.github/workflows/ci.yml` invokes `npm run typecheck` at the repository root. The root `build` script targets the NestJS API, while that workflow subsequently expects an `apps/wapsell-remix/build` artifact. The Remix-specific workflow independently installs the Remix app and runs its typecheck/build. These are configuration-level mismatches verified by reading the manifests/workflows; workflow execution status must be checked separately.
 9. The Remix application currently contains a Platform Admin route, but a frontend route is not evidence of backend authorization. Access must be enforced by NestJS and verified negatively.
 10. The root README's stated application inventory and current source inventory are not fully aligned. Documentation must be reconciled after the capability inventory; this draft does not rewrite historical evidence.
 
@@ -883,7 +883,7 @@ Target logical deployment:
 
 The frontend may serve Customer, Business and Platform routes through the same application deployment. Domain/subdomain separation may be retained for product/brand and security reasons, but must route to the same Remix application and preserve explicit route/host validation. The final host/domain mapping is OPEN until current DNS, Nginx, cookie scope, CORS, OAuth callback and production topology are verified.
 
-The current repository contains more than one deployment pattern (Docker Compose and workflow/PM2 references). This specification does not select or change the production deployment mechanism. A separate deployment reconciliation must establish the live source of truth before cutover.
+The current `docker-compose.prod.yml` defines the NestJS API plus `pos-admin` and `tienda-online` frontend services; it does not define a Remix service. The root `.github/workflows/ci.yml` contains a separate SSH/PM2 deployment path targeting `/opt/wapsell`. These are conflicting deployment descriptions in repository configuration, not proof of which path is currently serving production. This specification does not select or change the production deployment mechanism. A read-only VPS/Nginx/process audit must establish the live source of truth before cutover.
 
 ---
 
