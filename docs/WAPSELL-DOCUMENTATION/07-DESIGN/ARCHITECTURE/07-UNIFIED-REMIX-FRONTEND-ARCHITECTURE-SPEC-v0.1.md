@@ -109,7 +109,98 @@ The following are specific code-level findings and must be treated as migration 
 9. The Remix application currently contains a Platform Admin route, but a frontend route is not evidence of backend authorization. Access must be enforced by NestJS and verified negatively.
 10. The root README's stated application inventory and current source inventory are not fully aligned. Documentation must be reconciled after the capability inventory; this draft does not rewrite historical evidence.
 
-### 3.2 Inventory rule
+### 3.2 Verified route inventory
+
+The following route inventory is based on the route registration and directory structure inspected on current \`main\`. It records source paths and route intent only; it does not assert endpoint completeness or production usage.
+
+#### Remix foundation — \`apps/wapsell-remix/app/routes/\`
+
+| Existing route file | Current capability indicated by source | Target area | Initial disposition |
+|---|---|---|---|
+| \`_index.tsx\` | Store entry, catalog fetch, local cart state, checkout/order submission | Customer | EXTEND / reconcile against Tienda Online |
+| \`$lang.tsx\` | Locale/layout boundary | Shared experience infrastructure | PRESERVE / reconcile |
+| \`$lang.auth.tsx\` | Auth route layout | Shared route infrastructure | ADAPT |
+| \`$lang.auth.login.tsx\` | Staff login and session creation | Business | ADAPT; security contract required |
+| \`$lang.auth.register.tsx\` | Registration | Actor scope must be confirmed | RECONCILE |
+| \`$lang.dashboard._index.tsx\` | Staff dashboard/KPIs/recent orders; currently contains mock fallback behavior | Business | ADAPT; remove production mock fallback |
+| \`$lang.dashboard.negocios.tsx\` | Business list/selection surface | Business / Identity | RECONCILE with Membership and Business Context |
+| \`$lang.dashboard.pedidos.tsx\` | Orders list | Business | ADAPT; remove mock fallback |
+| \`$lang.dashboard.pedidos.$id.tsx\` | Order detail | Business | VERIFY parity and API contract |
+| \`$lang.dashboard.productos.tsx\` | Product management | Business | VERIFY parity |
+| \`$lang.platform-admin.tsx\` | Platform overview | Platform Admin | ADAPT; backend platform authorization required |
+| \`api.health.ts\` | Frontend health route | Operations | PRESERVE if used by deployment healthchecks |
+| \`api.stream.ts\` | Stream/SSE endpoint | Realtime integration | RECONCILE ownership and use |
+
+#### POS Admin — \`apps/pos-admin/src/App.tsx\`
+
+| Existing route | Capability | Target area | Initial disposition |
+|---|---|---|---|
+| \`/login\`, \`/auth/google/callback\` | Staff authentication / OAuth callback | Business | ADAPT to unified session design |
+| \`/\` | Dashboard | Business | MERGE with Remix dashboard after KPI parity |
+| \`/ventas\`, \`/ventas/nueva\`, \`/ventas/:id\` | Sales list, new sale/POS, sale detail | Business | MIGRATE; critical operational journey |
+| \`/ventas/:id/comprobante\` | Printable receipt | Business | MIGRATE with print regression test |
+| \`/orders\` | Orders | Business | MERGE with Remix orders after parity |
+| \`/inventory\` | Inventory | Business | MIGRATE |
+| \`/compras\` | Purchases | Business | MIGRATE |
+| \`/precios\` | Pricing | Business | MIGRATE |
+| \`/customers\` | Customers | Business | MIGRATE |
+| \`/fidelizacion\` | Loyalty | Business | MIGRATE |
+| \`/messaging\` | Messaging | Business | MIGRATE only against approved Messaging contracts |
+| \`/cash\` | Cash operations | Business | MIGRATE; preserve financial invariants |
+| \`/profile\` | Staff profile | Business | MIGRATE / reconcile with global User |
+| \`/reports\` | Placeholder ("en desarrollo") | Business | NOT IMPLEMENTED until backend use case exists |
+| \`/settings\` | Placeholder ("en desarrollo") | Business | NOT IMPLEMENTED until scope/API/permissions exist |
+
+#### Tienda Online — \`apps/tienda-online/src/App.tsx\`
+
+| Existing route | Capability | Target area | Initial disposition |
+|---|---|---|---|
+| \`/\` | Authenticated catalog | Customer | MERGE with Remix storefront; reconcile public/auth policy |
+| \`/checkout\` | Checkout | Customer | MIGRATE; server-authoritative validation |
+| \`/pedido/:id\` | Public order tracking | Customer | MIGRATE; verify token/ID access policy |
+| \`/login\`, \`/registro\` | Customer login/registration | Customer | MIGRATE; distinct from staff auth |
+| \`/activar-invitacion-mayorista\` | Wholesale invitation activation | Customer | MIGRATE if still required by current requirements |
+| \`/mi-cuenta\` | Customer account | Customer | MIGRATE |
+| \`/mi-cuenta/legajo\` | Customer file/document workflow | Customer | MIGRATE only with privacy and document-access controls |
+
+#### Next.js frontend — \`apps/wapsell-frontend/app/\`
+
+| Existing route group | Capability indicated by source tree | Target area | Initial disposition |
+|---|---|---|---|
+| \`[locale]/page.tsx\` | Localized entry/landing | Customer or shared public platform surface | DISCOVER actual use and required behavior |
+| \`[locale]/auth/login\` | Login | Actor scope must be confirmed | RECONCILE; do not merge blindly |
+| \`[locale]/auth/signup\` | Signup | Actor scope must be confirmed | RECONCILE |
+| \`[locale]/auth/recover\` | Account recovery | Actor scope must be confirmed | RECONCILE |
+| \`[locale]/dashboard\` | Dashboard | Business or platform; must be confirmed | DISCOVER |
+| \`[locale]/negocios\`, \`crear\`, \`[id]\` | Business listing/create/detail | Business / Platform | RECONCILE with Business lifecycle and Platform Admin boundaries |
+| \`api/auth/*\` | Next server route proxies for login, me, switch-empresa and tenant listing | Server adapter | MIGRATE only after endpoint and security contract review |
+| \`api/dashboard/*\` | Next server route proxies for KPI, top products and trends | Server adapter | MIGRATE only after endpoint and Permission mapping |
+
+The Next.js tree is present in the repository, but its production use, completeness and ownership are **NOT DETERMINABLE** from route presence alone. Phase 0 must establish whether any of these routes are used by a live domain, customer journey or internal workflow.
+
+### 3.3 Initial capability consolidation map
+
+| Capability | Existing source(s) | Remix status from inspected code | Migration rule |
+|---|---|---|---|
+| Customer storefront/catalog | Remix root route; Tienda Online | PARTIAL in Remix | Reconcile behavior and choose one canonical customer flow |
+| Cart/checkout | Remix root route; Tienda Online | PARTIAL in Remix | Preserve server validation and idempotency |
+| Customer identity/account | Tienda Online; Next auth routes | NOT PROVEN complete in Remix | Separate Customer identity from staff User |
+| Staff authentication | Remix auth; POS Admin auth; Next auth proxies | PARTIAL / competing implementations | One session design; NestJS remains authority |
+| Business context/switch | Remix tenant service; Next switch-empresa proxy; POS selector | INCONSISTENT / SECURITY RECONCILIATION REQUIRED | Server-validated Membership and context |
+| Dashboard | Remix dashboard; POS Admin; Next dashboard | PARTIAL / overlapping | One Business dashboard based on verified APIs |
+| Orders | Remix list/detail; POS Admin; Tienda tracking | PARTIAL across experiences | One domain contract, actor-specific views |
+| Product/catalog management | Remix products; POS Admin; Tienda catalog | PARTIAL across experiences | Shared domain data; separate staff/customer UI |
+| Sales/POS/receipt | POS Admin | NOT PRESENT as verified complete Remix workflow | Migrate without changing Sales domain rules |
+| Inventory | POS Admin | NOT PRESENT as verified complete Remix workflow | Migrate with stock invariants |
+| Purchases/suppliers | POS Admin | NOT PRESENT as verified complete Remix workflow | Migrate with purchasing contracts |
+| Pricing | POS Admin | NOT PRESENT as verified complete Remix workflow | Backend owns price calculation |
+| Customers/loyalty | POS Admin; Tienda customer account | PARTIAL / distinct actor semantics | Preserve Customer vs User distinction |
+| Cash | POS Admin | NOT PRESENT as verified complete Remix workflow | Preserve cash invariants and audit |
+| Messaging | POS Admin; Remix realtime scaffolding | NOT PROVEN end-to-end in Remix | Migrate only against approved Messaging contracts |
+| Platform Admin | Remix overview; Next Business routes | INITIAL SLICE / incomplete | Separate platform privilege and cross-tenant audit |
+| Reports/settings | POS Admin placeholders | NOT IMPLEMENTED | Do not fabricate completion |
+
+### 3.4 Inventory rule
 
 Before migrating any feature, create a route/use-case inventory with at least:
 
