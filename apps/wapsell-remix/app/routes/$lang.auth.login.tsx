@@ -1,4 +1,5 @@
 import { redirect, json, type ActionFunction, type LoaderFunction } from '@remix-run/node';
+import { Link } from '@remix-run/react';
 import { LoginForm } from '~/components/auth/LoginForm';
 import { loginWithNestJS, getSession, commitSession } from '~/services/auth.server';
 
@@ -15,7 +16,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   const password = formData.get('password');
 
   if (typeof email !== 'string' || typeof password !== 'string') {
-    return json({ error: 'Invalid form data' }, { status: 400 });
+    return json({ error: 'Formulario inválido' }, { status: 400 });
   }
 
   try {
@@ -31,10 +32,21 @@ export const action: ActionFunction = async ({ request, params }) => {
     });
   } catch (error) {
     if (error instanceof Response) throw error;
-    return json({ error: 'Invalid credentials' }, { status: 400 });
+    return json({ error: 'Email o contraseña incorrectos' }, { status: 400 });
   }
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return (
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <Link to="/" className="app-brand">
+          <span className="brand-mark">W</span>
+          <span>WAPSELL</span>
+        </Link>
+        <h1>Ingresar</h1>
+        <LoginForm />
+      </div>
+    </div>
+  );
 }
