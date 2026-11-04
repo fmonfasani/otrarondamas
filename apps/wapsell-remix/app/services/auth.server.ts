@@ -79,7 +79,7 @@ export async function loginWithNestJS(email: string, password: string) {
       user: data.user,
       empresas: data.empresas,
     };
-  } catch (error) {
+  } catch {
     throw new Error('Login failed');
   }
 }
