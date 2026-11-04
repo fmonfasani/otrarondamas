@@ -21,7 +21,7 @@ El script recopila estado Git, branches, worktrees, stashes, remotes (con creden
 Ejemplo desde PowerShell:
 
 ```powershell
-.\\capture-r0.ps1 -RepoPath 'D:\\Software Development\\Porfolio\\OtraRondaMas' -HetznerHost 'ALIAS_SSH_O usuario@HOST'
+.\capture-r0.ps1 -RepoPath 'D:\Software Development\Porfolio\OtraRondaMas' -HetznerHost 'ALIAS_SSH_O usuario@HOST'
 ```
 
 Se puede agregar cada clon local adicional con `-AdditionalRepoPaths`. El host debe ser un alias SSH ya configurado o `usuario@host`. Revisar el ZIP generado y quitar metadatos sensibles antes de compartirlo.
