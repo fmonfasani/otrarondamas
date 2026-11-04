@@ -1,55 +1,86 @@
-import { describe, it, expect } from 'vitest';
-import { appendTenantHeaders } from '../app/services/tenant.server';
-import type { TenantContext } from '../app/services/tenant.server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { requireAuth } from '../app/services/auth.server';
+import { getApiBaseUrl } from '../app/services/api.server';
+import { fetchAuthenticatedData } from '../app/services/tenant.server';
 
-const tenant: TenantContext = {
-  empresaId: '123',
-  empresaName: 'Test Empresa',
-  userId: 'user-123',
-};
+vi.mock('../app/services/auth.server', () => ({
+  requireAuth: vi.fn(),
+}));
 
-describe('Tenant Service', () => {
-  it('should append tenant headers correctly', () => {
-    const headers = appendTenantHeaders({}, tenant);
+vi.mock('../app/services/api.server', () => ({
+  getApiBaseUrl: vi.fn(),
+}));
 
-    expect(headers.get('x-empresa-id')).toBe('123');
-    expect(headers.get('x-user-id')).toBe('user-123');
+describe('Authenticated API adapter', () => {
+  const request = new Request('https://wapsell.test/dashboard');
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.mocked(requireAuth).mockResolvedValue('signed-jwt');
+    vi.mocked(getApiBaseUrl).mockReturnValue('https://api.wapsell.test');
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
   });
 
-  it('should preserve existing headers when adding tenant context', () => {
-    const existingHeaders = new Headers({
-      Authorization: 'Bearer token',
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('uses the authenticated JWT and preserves caller headers', async () => {
+    await fetchAuthenticatedData('/pedidos', request, {
+      headers: { Accept: 'application/json' },
     });
 
-    const headers = appendTenantHeaders(existingHeaders, tenant);
+    expect(requireAuth).toHaveBeenCalledWith(request);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init.headers);
 
-    expect(headers.get('authorization')).toBe('Bearer token');
-    expect(headers.get('content-type')).toBe('application/json');
+    expect(url).toBe('https://api.wapsell.test/pedidos');
+    expect(headers.get('authorization')).toBe('Bearer signed-jwt');
     expect(headers.get('accept')).toBe('application/json');
-    expect(headers.get('x-empresa-id')).toBe('123');
-    expect(headers.get('x-user-id')).toBe('user-123');
   });
 
-  it('should overwrite caller-provided tenant identifiers with session tenant context', () => {
-    const headers = appendTenantHeaders(
-      { 'X-Empresa-Id': 'attacker-business', 'X-User-Id': 'attacker-user' },
-      tenant,
-    );
+  it('does not forward cookie-derived tenant identifiers', async () => {
+    await fetchAuthenticatedData('/pedidos', request, {
+      headers: {
+        'X-Empresa-Id': 'attacker-business',
+        'X-User-Id': 'attacker-user',
+      },
+    });
 
-    expect(headers.get('x-empresa-id')).toBe('123');
-    expect(headers.get('x-user-id')).toBe('user-123');
+    const [, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init.headers);
+
+    expect(headers.has('x-empresa-id')).toBe(false);
+    expect(headers.has('x-user-id')).toBe(false);
   });
 
-  it('should accept tuple-based HeadersInit values', () => {
-    const headers = appendTenantHeaders(
-      [['Authorization', 'Bearer token']],
-      tenant,
-    );
+  it('normalizes endpoints without a leading slash', async () => {
+    await fetchAuthenticatedData('pedidos', request);
 
-    expect(headers.get('authorization')).toBe('Bearer token');
-    expect(headers.get('x-empresa-id')).toBe('123');
-    expect(headers.get('x-user-id')).toBe('user-123');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.wapsell.test/pedidos');
+  });
+
+  it('sets JSON content type when a request body is supplied', async () => {
+    await fetchAuthenticatedData('/pedidos', request, {
+      method: 'POST',
+      body: JSON.stringify({ estado: 'CONFIRMADO' }),
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init.headers).get('content-type')).toBe('application/json');
+  });
+
+  it('does not override an explicit content type', async () => {
+    await fetchAuthenticatedData('/pedidos', request, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/problem+json' },
+      body: '{}',
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init.headers).get('content-type')).toBe('application/problem+json');
   });
 });

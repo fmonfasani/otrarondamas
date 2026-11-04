@@ -1,12 +1,10 @@
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
-import { requireAuth } from '~/services/auth.server';
-import { fetchTenantData } from '~/services/tenant.server';
+import { fetchAuthenticatedData } from '~/services/tenant.server';
 import { OrdersList } from '~/components/orders/OrdersList';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAuth(request);
-  const response = await fetchTenantData('/pedidos', request);
+  const response = await fetchAuthenticatedData('/pedidos', request);
   if (!response.ok) throw new Response('Could not fetch orders.', { status: response.status });
   return json({ orders: await response.json() });
 }

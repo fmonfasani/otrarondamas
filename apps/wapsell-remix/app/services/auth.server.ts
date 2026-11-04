@@ -14,20 +14,32 @@ export const sessionStorage = createCookieSessionStorage({
 });
 export const { getSession, commitSession, destroySession } = sessionStorage;
 
+/**
+ * Validate the session against the existing authenticated profile endpoint.
+ * NestJS does not expose POST /auth/validate; GET /auth/me is the canonical
+ * authenticated-user endpoint and applies the API's identity guards.
+ */
 export async function validateJWT(token: string): Promise<boolean> {
   if (!token) return false;
+
+  let response: Response;
   try {
-    const response = await fetch(`${getApiBaseUrl()}/auth/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    response = await fetch(`${getApiBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (response.status === 401 || response.status === 403) return false;
-    if (!response.ok) throw new Response('Authentication service is unavailable.', { status: 503 });
-    return true;
-  } catch (error) {
-    if (error instanceof Response) throw error;
+  } catch {
     throw new Response('Authentication service is unavailable.', { status: 503 });
   }
+
+  if (response.status === 401 || response.status === 404) return false;
+  if (response.status === 403) {
+    throw new Response('This identity cannot access staff operations.', { status: 403 });
+  }
+  if (!response.ok) {
+    throw new Response('Authentication service is unavailable.', { status: 503 });
+  }
+
+  return true;
 }
 
 export async function getCurrentUser(token: string) {
@@ -58,6 +70,6 @@ export async function requireAuth(request: Request) {
   const session = await getSession(request.headers.get('Cookie'));
   const token = session.get('jwt');
   if (!token) throw new Response('Unauthorized', { status: 401 });
-  if (!(await validateJWT(token))) throw new Response('Token expired', { status: 401 });
+  if (!(await validateJWT(token))) throw new Response('Token expired or user no longer exists.', { status: 401 });
   return token;
 }
