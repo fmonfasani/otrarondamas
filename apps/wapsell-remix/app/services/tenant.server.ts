@@ -15,6 +15,9 @@ export async function fetchAuthenticatedData(
 ): Promise<Response> {
   const token = await requireAuth(request);
   const headers = new Headers(options.headers);
+  // Never propagate legacy/client-controlled tenant identifiers.
+  headers.delete('X-Empresa-Id');
+  headers.delete('X-User-Id');
   headers.set('Authorization', `Bearer ${token}`);
 
   if (options.body && !headers.has('Content-Type')) {
