@@ -15,13 +15,15 @@ describe('Auth Service', () => {
     else process.env.API_BASE_URL = originalApiBaseUrl;
   });
 
-  it('validates a token through the server-side NestJS endpoint', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 200 }));
-    await expect(validateJWT('valid-token')).resolves.toBe(true);
-    expect(fetch).toHaveBeenCalledWith('http://api.test/auth/validate', expect.objectContaining({
-      method: 'POST',
-      headers: expect.objectContaining({ Authorization: 'Bearer valid-token' }),
+  it('validates a token through the existing authenticated profile endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: 'user-1' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     }));
+    await expect(validateJWT('valid-token')).resolves.toBe(true);
+    expect(fetch).toHaveBeenCalledWith('http://api.test/auth/me', {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
   });
 
   it('rejects an empty token without making an API request', async () => {
@@ -32,6 +34,21 @@ describe('Auth Service', () => {
   it('rejects an expired token', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 401 }));
     await expect(validateJWT('expired-token')).resolves.toBe(false);
+  });
+
+  it('rejects a token whose user no longer exists', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 404 }));
+    await expect(validateJWT('deleted-user-token')).resolves.toBe(false);
+  });
+
+  it('preserves the forbidden response for customer-only identities', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 403 }));
+    await expect(validateJWT('customer-token')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('fails closed when the authentication service is unavailable', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('connection refused'));
+    await expect(validateJWT('valid-token')).rejects.toMatchObject({ status: 503 });
   });
 
   it('returns token and identity data after successful login', async () => {
