@@ -72,8 +72,7 @@ set +e
 echo "UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "HOST: $(hostname)"
 echo "OS: $(uname -a)"
-mapfile -t candidates < <(find /opt -mindepth 1 -maxdepth 2 -type d \( -iname "*wapsell*" -o -iname "*otraronda*" -o -iname "*waseller*" \) -print 2>/dev/null | sort -u)
-for d in "\${candidates[@]}" /opt/devps/repo; do
+while IFS= read -r -d '' d; do
   [ -d "$d" ] || continue
   root=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null) || continue
   echo; echo "===== REPOSITORY: $root ====="
@@ -89,7 +88,7 @@ for d in "\${candidates[@]}" /opt/devps/repo; do
   echo "--- TRACKED DIFF NAME-STATUS ---"; git -C "$root" diff --name-status HEAD
   echo "--- TRACKED DIFF STAT ---"; git -C "$root" diff --stat HEAD
   echo "--- UNTRACKED PATHS ---"; git -C "$root" ls-files --others --exclude-standard
-done
+done < <(find /opt -mindepth 1 -maxdepth 2 -type d \( -iname "*wapsell*" -o -iname "*otraronda*" -o -iname "*waseller*" \) -print0 2>/dev/null)
 echo
 echo "===== HOST INVENTORY (NO CONTAINER ENV/SECRETS) ====="
 echo "--- COMPOSE PROJECTS ---"; docker compose ls 2>&1
