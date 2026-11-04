@@ -38,7 +38,7 @@ function Write-RepoReport {
     Add-Section $lines 'Branches and tracking' { git -C $root branch -avv }
     Add-Section $lines 'Recent graph' { git -C $root log --all --graph --decorate --oneline -30 }
     Add-Section $lines 'Remotes (credentials redacted)' {
-        git -C $root remote -v 2>&1 | ForEach-Object { ([string]$_) -replace '(?i)(https?|ssh)://[^/@\s]+@', '$1://[REDACTED]@' }
+        git -C $root remote -v 2>&1 | ForEach-Object { ([string]$_) -replace '(?i)(https?|ssh)://[^/@\s]+@', '$1://[REDACTED]@' -replace '\?[^\s]+', '?[REDACTED]' }
     }
     Add-Section $lines 'Worktrees' { git -C $root worktree list --porcelain }
     Add-Section $lines 'Stashes' { git -C $root stash list }
@@ -81,7 +81,7 @@ while IFS= read -r -d '' d; do
   echo "--- STATUS ---"; git -C "$root" status --porcelain=v2 --branch --untracked-files=all
   echo "--- BRANCHES ---"; git -C "$root" branch -avv
   echo "--- RECENT GRAPH ---"; git -C "$root" log --all --graph --decorate --oneline -20
-  echo "--- REMOTES (credentials redacted) ---"; git -C "$root" remote -v 2>&1 | sed -E 's#(https?|ssh)://[^/@[:space:]]+@#\1://[REDACTED]@#g'
+  echo "--- REMOTES (credentials redacted) ---"; git -C "$root" remote -v 2>&1 | sed -E 's#(https?|ssh)://[^/@[:space:]]+@#\1://[REDACTED]@#g; s#\?[^[:space:]]+#?[REDACTED]#g'
   echo "--- WORKTREES ---"; git -C "$root" worktree list --porcelain
   echo "--- STASHES ---"; git -C "$root" stash list
   echo "--- SUBMODULES ---"; git -C "$root" submodule status --recursive
