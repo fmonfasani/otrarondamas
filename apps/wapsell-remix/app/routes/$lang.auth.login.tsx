@@ -46,9 +46,6 @@ export default function LoginPage() {
         </Link>
         <h1>Ingresar</h1>
         <LoginForm />
-        <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#77736d' }}>
-          ¿No tenés cuenta? <Link to="/es/auth/register" style={{ color: '#f07848', textDecoration: 'none', fontWeight: 700 }}>Crear una</Link>
-        </p>
       </div>
     </div>
   );

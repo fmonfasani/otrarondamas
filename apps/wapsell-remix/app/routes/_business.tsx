@@ -30,7 +30,8 @@ export const loader: LoaderFunction = async ({ request }) => {
     return json({ user });
   } catch (error) {
     console.error('Error verifying staff session:', error);
-    throw new Response('Could not verify your session', { status: 401 });
+    if (error instanceof Response) throw error;
+    throw new Response('Could not verify your session.', { status: 503 });
   }
 };
 
