@@ -1,0 +1,105 @@
+name: CI Recovery Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/ci-recovery-diagnostics.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: otrarondamas
+        ports:
+          - 5500:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d otrarondamas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      JWT_SECRET: s-v1-ci-only-jwt-secret
+      GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
+      GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
+      GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --workspace=@otrarondamas/api --include-workspace-root
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Diagnose API TypeScript
+        id: typecheck
+        continue-on-error: true
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+      - name: Diagnose API build
+        id: build
+        continue-on-error: true
+        run: npm run build --workspace=@otrarondamas/api
+
+      - name: Diagnose unit Jest
+        id: unit
+        continue-on-error: true
+        run: npx jest --config apps/api/package.json --runInBand
+
+      - name: Prepare integration database
+        id: database
+        continue-on-error: true
+        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
+      - name: Diagnose B3 integration Jest
+        id: b3
+        continue-on-error: true
+        run: |
+          cd apps/api
+          npx jest --config ./test/jest-e2e.json --runInBand \
+            test/integration/b3-tenant-isolation.integration-spec.ts \
+            test/integration/b3-producto-familia.integration-spec.ts \
+            test/integration/b3-producto-proveedor.integration-spec.ts
+
+      - name: Diagnose B4 integration Jest
+        id: b4
+        continue-on-error: true
+        run: |
+          cd apps/api
+          mapfile -t test_files < <(
+            find test/integration -maxdepth 1 -type f \
+              \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \) -print | sort
+          )
+          if [ "${#test_files[@]}" -eq 0 ]; then
+            echo "No B4 integration tests discovered"
+            exit 1
+          fi
+          npx jest --config ./test/jest-e2e.json --runInBand "${test_files[@]}"
+
+      - name: Diagnostic result summary
+        if: always()
+        run: |
+          echo "## CI Recovery Diagnostics" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Outcome |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| TypeScript | ${{ steps.typecheck.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API build | ${{ steps.build.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Unit Jest | ${{ steps.unit.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| DB setup | ${{ steps.database.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| B3 integration | ${{ steps.b3.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| B4 integration | ${{ steps.b4.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
