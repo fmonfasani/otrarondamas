@@ -1,23 +1,9 @@
-import { redirect, type LoaderFunction } from '@remix-run/node';
-
 /**
- * Root Landing Page
+ * Public root landing page.
  *
- * ROUTE: /
- * AREA: Public (no auth required)
- *
- * Entry point for Wapsell brand experience.
- * Redirects authenticated users to dashboard.
+ * The root route is intentionally public; authenticated users can navigate
+ * to the dashboard through the sign-in flow or the business area.
  */
-
-export const loader: LoaderFunction = async ({ request }) => {
-  const url = new URL(request.url);
-  if (url.pathname === '/') {
-    return redirect('/es');
-  }
-  return null;
-};
-
 export default function LandingPage() {
   return (
     <main className="landing-shell">
@@ -26,7 +12,7 @@ export default function LandingPage() {
           <span className="brand-mark">W</span>
           <span>WAPSELL</span>
         </a>
-        <nav className="landing-nav">
+        <nav className="landing-nav" aria-label="Navegación principal">
           <a href="/#features">Características</a>
           <a href="/es/auth/login">Ingresar</a>
         </nav>
@@ -63,7 +49,7 @@ export default function LandingPage() {
           <article className="feature-card">
             <div className="feature-icon">🏪</div>
             <h3>Tienda Online</h3>
-            <p>Cataálogo de productos, carrito y checkout simplificado para tus clientes.</p>
+            <p>Catálogo de productos, carrito y checkout simplificado para tus clientes.</p>
           </article>
           <article className="feature-card">
             <div className="feature-icon">📊</div>
@@ -77,8 +63,8 @@ export default function LandingPage() {
           </article>
           <article className="feature-card">
             <div className="feature-icon">🔒</div>
-            <h3>Seguro</h3>
-            <p>Autenticación segura, datos encriptados y cumplimiento de normativas.</p>
+            <h3>Acceso protegido</h3>
+            <p>Autenticación y control de acceso para las operaciones de tu negocio.</p>
           </article>
         </div>
       </section>

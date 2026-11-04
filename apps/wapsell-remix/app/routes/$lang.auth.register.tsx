@@ -64,9 +64,6 @@ export default function RegisterPage() {
         </Link>
         <h1>Crear cuenta</h1>
         <RegisterForm />
-        <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#77736d' }}>
-          ¿Ya tenés cuenta? <Link to="/es/auth/login" style={{ color: '#f07848', textDecoration: 'none', fontWeight: 700 }}>Ingresar</Link>
-        </p>
       </div>
     </div>
   );

@@ -48,10 +48,23 @@ export async function validateJWT(token: string): Promise<boolean> {
 }
 
 export async function getCurrentUser(token: string) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Response('Authentication service is unavailable.', { status: 503 });
+  }
+
+  if (response.status === 401 || response.status === 404) return null;
+  if (response.status === 403) {
+    throw new Response('This identity cannot access staff operations.', { status: 403 });
+  }
+  if (!response.ok) {
+    throw new Response('Authentication service is unavailable.', { status: 503 });
+  }
+
   return response.json();
 }
 
