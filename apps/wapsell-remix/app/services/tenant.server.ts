@@ -17,12 +17,11 @@ export async function validateTenantAccess(request: Request, requiredEmpresaId: 
   return Boolean(tenant && tenant.empresaId === requiredEmpresaId);
 }
 
-export function appendTenantHeaders(headers: HeadersInit, tenant: TenantContext): HeadersInit {
-  return {
-    ...Object.fromEntries(new Headers(headers).entries()),
-    'X-Empresa-Id': tenant.empresaId,
-    'X-User-Id': tenant.userId,
-  };
+export function appendTenantHeaders(headers: HeadersInit, tenant: TenantContext): Headers {
+  const mergedHeaders = new Headers(headers);
+  mergedHeaders.set('X-Empresa-Id', tenant.empresaId);
+  mergedHeaders.set('X-User-Id', tenant.userId);
+  return mergedHeaders;
 }
 
 export async function fetchTenantData(endpoint: string, request: Request, options: RequestInit = {}) {
