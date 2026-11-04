@@ -1,38 +1,29 @@
-import { getSession } from './auth.server';
+import { requireAuth } from './auth.server';
 import { getApiBaseUrl } from './api.server';
 
-export interface TenantContext { empresaId: string; empresaName: string; userId: string; }
+/**
+ * Authenticated server-to-server API adapter.
+ *
+ * Tenant scope is intentionally NOT read from Remix cookies or forwarded
+ * as X-Empresa-Id/X-User-Id. NestJS derives BusinessContext from the
+ * authenticated identity and its current ACTIVE Membership.
+ */
+export async function fetchAuthenticatedData(
+  endpoint: string,
+  request: Request,
+  options: RequestInit = {},
+): Promise<Response> {
+  const token = await requireAuth(request);
+  const headers = new Headers(options.headers);
+  headers.set('Authorization', `Bearer ${token}`);
 
-export async function getTenantFromSession(request: Request): Promise<TenantContext | null> {
-  const session = await getSession(request.headers.get('Cookie'));
-  const empresaId = session.get('empresaId');
-  const empresaName = session.get('empresaName');
-  const userId = session.get('userId');
-  if (!empresaId || !userId) return null;
-  return { empresaId, empresaName, userId };
-}
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
-export async function validateTenantAccess(request: Request, requiredEmpresaId: string): Promise<boolean> {
-  const tenant = await getTenantFromSession(request);
-  return Boolean(tenant && tenant.empresaId === requiredEmpresaId);
-}
-
-export function appendTenantHeaders(headers: HeadersInit, tenant: TenantContext): Headers {
-  const mergedHeaders = new Headers(headers);
-  mergedHeaders.set('X-Empresa-Id', tenant.empresaId);
-  mergedHeaders.set('X-User-Id', tenant.userId);
-  return mergedHeaders;
-}
-
-export async function fetchTenantData(endpoint: string, request: Request, options: RequestInit = {}) {
-  const tenant = await getTenantFromSession(request);
-  if (!tenant) throw new Response('Unauthorized', { status: 401 });
-  const session = await getSession(request.headers.get('Cookie'));
-  const jwt = session.get('jwt');
-  const requestHeaders = new Headers(options.headers);
-  requestHeaders.set('Authorization', `Bearer ${jwt}`);
-  requestHeaders.set('Content-Type', 'application/json');
-  const headers = appendTenantHeaders(requestHeaders, tenant);
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return fetch(`${getApiBaseUrl()}${normalizedEndpoint}`, { ...options, headers });
+  return fetch(`${getApiBaseUrl()}${normalizedEndpoint}`, {
+    ...options,
+    headers,
+  });
 }
