@@ -83,30 +83,24 @@ No se hizo merge, cierre ni modificación de PRs.
 
 ## 7. Evidencia CI inspeccionada
 
-### PR #100 — Remix quality gates
+### PR #100 — sin runs PR asociados al head consultado
 
-Run asociado: https://github.com/fmonfasani/otrarondamas/actions/runs/41826704585
+La consulta de workflow runs asociados al head `c64ed48bb91074e9188250a14656ac4bfc5ed23f` no devolvió runs PR-triggered. Por lo tanto, no se atribuyen a PR #100 los fallos de CI descritos abajo. El PR sigue bloqueado por `mergeable_state: dirty` y la divergencia de 67/18 commits, independientemente de la evidencia CI.
 
-- Job `Remix quality gates`: FAILURE.
-- Tests: 40 passed, 5 failed (45 total).
-- Los 5 fallos están en `tests/auth.test.ts`.
-- El mock espera `http://api.test/auth/me`, mientras el código llama `undefined/auth/validate` o `undefined/auth/login`.
-- También fallan las expectativas de error para identidad Customer, servicio de autenticación no disponible y credenciales inválidas.
-- Durante el cleanup de Git aparece: `No url found for submodule path 'worktrees/commerce-cart-order' in .gitmodules`.
+### PR #116 — CI recovery integrated (head `56aeb721`)
 
-Esto muestra incompatibilidad entre tests y contrato/configuración de autenticación en el head probado; no se presume cuál de los dos lados debe cambiar sin revisar la especificación vigente.
+Runs observados:
 
-### PR #116 — CI recovery integrated
+- [Remix Storefront CI — run 41826704585](https://github.com/fmonfasani/otrarondamas/actions/runs/41826704585): FAILURE. 40 tests passed y 5 failed (45 total), todos en `tests/auth.test.ts`. Los mocks esperaban `http://api.test/auth/me` y `http://api.test/auth/login`, pero el código llamó `undefined/auth/validate` y `undefined/auth/login`. También fallaron expectativas de error para identidad Customer, servicio de autenticación no disponible y credenciales inválidas.
+- [Jest Tests — run 41826704425](https://github.com/fmonfasani/otrarondamas/actions/runs/41826704425): FAILURE. 23/34 suites aprobadas y 11 fallidas; 288/339 tests aprobados y 51 fallidos.
+- [Lint and Type Check — run 41826704343](https://github.com/fmonfasani/otrarondamas/actions/runs/41826704343): FAILURE en TypeScript. Los logs muestran tipos Prisma no exportados (`Prisma.Decimal`, `DateTimeFilter`, `VentaWhereInput`, `ClienteUncheckedCreateInput`) y tipos `unknown/never` en servicios de ventas/tienda.
+- [B4 Verification Infrastructure — run 41826704319](https://github.com/fmonfasani/otrarondamas/actions/runs/41826704319): CANCELLED después de completar instalación, generación Prisma, build y db push; no cuenta como suite completa aprobada.
 
-Runs observados: https://github.com/fmonfasani/otrarondamas/actions
+En el run Remix Storefront CI, el cleanup de Git reportó: `No url found for submodule path 'worktrees/commerce-cart-order' in .gitmodules`.
 
-- `Lint and Type Check`: FAILURE en TypeScript.
-- Los logs muestran tipos Prisma no exportados (`Prisma.Decimal`, `DateTimeFilter`, `VentaWhereInput`, `ClienteUncheckedCreateInput`) y tipos `unknown/never` en servicios de ventas/tienda.
-- El job Jest reportó 23/34 suites aprobadas y 11 fallidas; 288/339 tests aprobados y 51 fallidos.
-- El job de verificación API fue cancelado después de completar instalación, generación Prisma, build y db push; no cuenta como suite completa aprobada.
-- El intento de publicar comentario automático del workflow falló por permisos del token (`Resource not accessible by integration`).
+El intento de publicar comentario automático del workflow falló por permisos del token (`Resource not accessible by integration`).
 
-**Conclusión:** PR #116 no está validado para merge. No equiparar generación/build exitosos con suite de tests aprobada.
+**Conclusión:** PR #116 no está validado para merge. La corrección de configuración que permite ejecutar Jest no equivale a tener la suite aprobada; quedan fallos de autenticación, tests y tipos Prisma.
 
 ### Otros runs
 
