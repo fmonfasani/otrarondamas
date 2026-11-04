@@ -1,7 +1,6 @@
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
-import { requireAuth } from '~/services/auth.server';
-import { fetchTenantData } from '~/services/tenant.server';
+import { fetchAuthenticatedData } from '~/services/tenant.server';
 import { OrderDetail } from '~/components/orders/OrderDetail';
 
 interface OrderItem { productId: string; productName: string; quantity: number; price: number; }
@@ -12,9 +11,11 @@ interface Order {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAuth(request);
   if (!params.id) throw new Response('Order id is required.', { status: 400 });
-  const response = await fetchTenantData(`/pedidos/${encodeURIComponent(params.id)}`, request);
+  const response = await fetchAuthenticatedData(
+    `/pedidos/${encodeURIComponent(params.id)}`,
+    request,
+  );
   if (!response.ok) throw new Response('Could not fetch order.', { status: response.status });
   return json({ order: (await response.json()) as Order });
 }
