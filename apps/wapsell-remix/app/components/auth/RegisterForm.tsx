@@ -1,4 +1,5 @@
 import { Form, useActionData, useNavigation } from '@remix-run/react';
+import { Link } from '@remix-run/react';
 
 interface ActionData {
   error?: string;
@@ -10,61 +11,68 @@ export function RegisterForm() {
   const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <Form method="post" className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Name
+    <Form method="post" className="auth-form">
+      <div className="auth-field">
+        <label htmlFor="name" className="auth-label">
+          Nombre completo
         </label>
         <input
+          id="name"
           type="text"
           name="name"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="Your full name"
+          className="auth-input"
+          placeholder="Tu nombre completo"
+          minLength={2}
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="auth-field">
+        <label htmlFor="email" className="auth-label">
           Email
         </label>
         <input
+          id="email"
           type="email"
           name="email"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="user@example.com"
+          className="auth-input"
+          placeholder="usuario@ejemplo.com"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Password
+      <div className="auth-field">
+        <label htmlFor="password" className="auth-label">
+          Contraseña
         </label>
         <input
+          id="password"
           type="password"
           name="password"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="auth-input"
           placeholder="••••••••"
+          minLength={6}
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Confirm Password
+      <div className="auth-field">
+        <label htmlFor="confirmPassword" className="auth-label">
+          Confirmar contraseña
         </label>
         <input
+          id="confirmPassword"
           type="password"
           name="confirmPassword"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="auth-input"
           placeholder="••••••••"
+          minLength={6}
         />
       </div>
 
       {actionData?.error && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="form-error" role="alert">
           {actionData.error}
         </div>
       )}
@@ -72,16 +80,13 @@ export function RegisterForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition"
+        className="auth-submit"
       >
-        {isSubmitting ? 'Loading...' : 'Create Account'}
+        {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
       </button>
 
-      <p className="text-center text-sm text-gray-600">
-        Already have an account?{' '}
-        <a href="/es/auth/login" className="text-blue-600 hover:underline">
-          Sign in
-        </a>
+      <p className="auth-footer">
+        ¿Ya tenés cuenta? <Link to="/es/auth/login">Ingresar</Link>
       </p>
     </Form>
   );

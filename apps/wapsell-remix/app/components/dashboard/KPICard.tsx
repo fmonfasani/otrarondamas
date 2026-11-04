@@ -4,7 +4,7 @@ interface KPICardProps {
   title: string;
   value: string | number;
   icon: ReactNode;
-  color: 'blue' | 'green' | 'red' | 'yellow';
+  color?: 'primary' | 'secondary' | 'success' | 'alert';
   trend?: {
     value: number;
     direction: 'up' | 'down';
@@ -12,28 +12,26 @@ interface KPICardProps {
 }
 
 const colorMap = {
-  blue: 'bg-blue-50 text-blue-600',
-  green: 'bg-green-50 text-green-600',
-  red: 'bg-red-50 text-red-600',
-  yellow: 'bg-yellow-50 text-yellow-600',
+  primary: 'kpi-primary',
+  secondary: 'kpi-secondary',
+  success: 'kpi-success',
+  alert: 'kpi-alert',
 };
 
-export function KPICard({ title, value, icon, color, trend }: KPICardProps) {
+export function KPICard({ title, value, icon, color = 'primary', trend }: KPICardProps) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-600 text-sm font-medium">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
-          {trend && (
-            <p className={`text-sm mt-2 ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-              {trend.direction === 'up' ? '↑' : '↓'} {trend.value}% vs last month
-            </p>
-          )}
-        </div>
-        <div className={`p-3 rounded-lg ${colorMap[color]}`}>
-          {icon}
-        </div>
+    <div className="kpi-card">
+      <div className="kpi-content">
+        <p className="kpi-title">{title}</p>
+        <p className="kpi-value">{value}</p>
+        {trend && (
+          <p className={`kpi-trend ${trend.direction === 'up' ? 'kpi-trend-up' : 'kpi-trend-down'}`}>
+            {trend.direction === 'up' ? '↑' : '↓'} {trend.value}% vs último mes
+          </p>
+        )}
+      </div>
+      <div className={`kpi-icon ${colorMap[color]}`}>
+        {icon}
       </div>
     </div>
   );
