@@ -3,6 +3,13 @@
 ## Purpose
 Improve engineering throughput while preserving correctness, traceability, and the operational stability of Otra Ronda Más. This repository contains the operating ERP/POS for Otra Ronda Más and documentation for the future Wapsell platform. Do not conflate them.
 
+## Quick Start for New Sessions
+**START HERE:** Read these files in order:
+1. [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) — Current state, decisions, where to find things
+2. [DECISIONS-CURRENT.md](docs/DECISIONS-CURRENT.md) — Approved decisions, timeline, governance
+3. [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Platform design & boundaries
+4. Then: `.claude/MASTER-INSTRUCTIONS.md` for task contracts
+
 ## Source-of-truth rules
 - Inspect the current repository state, relevant code, tests, workflows, and documentation before proposing or changing implementation.
 - Treat implementation and executable tests as evidence of current behavior. A specification, mockup, comment, or roadmap alone does not prove a feature exists.
