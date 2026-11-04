@@ -1,0 +1,13 @@
+change_id,environment,repository_or_path,historical_observation,classification,action,verification_required,status
+CHG-001,LOCAL,OtraRondaMas,"Prisma ^5.22.0 dependency reported in forensic audit 2026-11-03",UNIQUE-LOCAL,Preserve manifest and lockfile diff; do not assume current,Recheck package manifests and lockfile against current target,NOT_REVALIDATED
+CHG-002,LOCAL,OtraRondaMas,"React 18.0.0 update reported in design-system package",UNIQUE-LOCAL,Preserve and assess workspace compatibility,Inspect package manifests and run isolated install/build,NOT_REVALIDATED
+CHG-003,LOCAL,OtraRondaMas,"Worktrees p5/p6/e2e reported",UNKNOWN,Record each worktree HEAD/status and archive refs,git worktree list plus per-worktree status,NOT_REVALIDATED
+CHG-004,HETZNER,/opt/wapsell,"EmailModule registration fixes reported in app.module.ts and email.module.ts",UNIQUE-HETZNER,Preserve exact diff and verify against current source,Compare files and test module initialization/API health,NOT_REVALIDATED
+CHG-005,HETZNER,/opt/wapsell,"WAPSELL-DOCUMENTATION files reported",UNIQUE-HETZNER,Inventory and compare with canonical docs before porting,Hash/path/content comparison and decision log,NOT_REVALIDATED
+CHG-006,HETZNER,/opt/wapsell,"docker-compose and docker-compose.wapsell.yml changes reported",UNIQUE-HETZNER,Preserve separately; do not apply to production directly,Diff plus compose config validation in isolated environment,NOT_REVALIDATED
+CHG-007,HETZNER,/opt/wapsell,"nginx/Dockerfile changes reported",UNIQUE-HETZNER,Preserve and review build/runtime impact,Diff and image build validation,NOT_REVALIDATED
+CHG-008,HETZNER,/opt/wapsell,"package-lock.json large reduction reported",UNKNOWN,Do not port blindly; regenerate from approved manifests,Reproducible install and lockfile diff review,NOT_REVALIDATED
+CHG-009,HETZNER,/opt/wapsell,"CRLF/LF normalization reported",GENERATED,Exclude formatting-only noise unless required,Check .gitattributes and normalized diff,NOT_REVALIDATED
+CHG-010,GITHUB,otrarondamas,"CI/CD pipeline commit 2939750 reported in historical audit",UNIQUE-GITHUB,Verify commit ancestry and current workflow state,Fetch current refs and inspect workflows/PRs,NOT_REVALIDATED
+CHG-011,HETZNER,production,"PostgreSQL and Docker volumes contain operational state",UNKNOWN,Backup and verify restore; never treat as Git content,DB backup restore test and volume inventory,NOT_REVALIDATED
+CHG-012,LOCAL,all checkouts,"Untracked files and local-only work may exist",UNKNOWN,Inventory and preserve before any cleanup,git status --untracked-files=all and file classification,NOT_REVALIDATED
