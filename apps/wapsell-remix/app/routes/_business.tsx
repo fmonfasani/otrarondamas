@@ -21,11 +21,6 @@ import { requireAuth, getCurrentUser } from '~/services/auth.server';
 export const loader: LoaderFunction = async ({ request }) => {
   const token = await requireAuth(request);
 
-  const apiUrl = process.env.VITE_API_URL;
-  if (!apiUrl) {
-    throw new Response('Service configuration error', { status: 503 });
-  }
-
   try {
     const user = await getCurrentUser(token);
     if (!user) {
