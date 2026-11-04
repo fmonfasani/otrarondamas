@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { DigestPeriod, NotificationDigest, Prisma } from '@prisma/client'; // TODO: types
+import { DigestPeriod, NotificationDigest, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import type { BusinessContext } from '../business-context/business-context.types';
@@ -335,16 +335,18 @@ export class NotificationDigestService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<NotificationDigestResponse[]> {
-    const where:  any = {
+    const where: Prisma.NotificationDigestWhereInput = {
       usuarioId,
       empresaId,
+      ...(startDate || endDate
+        ? {
+            createdAt: {
+              ...(startDate ? { gte: startDate } : {}),
+              ...(endDate ? { lte: endDate } : {}),
+            },
+          }
+        : {}),
     };
-
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) (where.createdAt as any).gte = startDate;
-      if (endDate) (where.createdAt as any).lte = endDate;
-    }
 
     const digests = await this.prisma.notificationDigest.findMany({
       where,
