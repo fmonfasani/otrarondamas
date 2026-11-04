@@ -11,6 +11,7 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": "./",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
@@ -19,7 +20,8 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "ignoreDeprecations": "6.0"
   },
   "exclude": [
     "node_modules",
@@ -31,6 +33,9 @@
     "src/admin/**",
     "src/analytics/**",
     "src/i18n/**",
-    "src/payments/**mock*"
+    "src/payments/**mock*",
+    "**/*.spec.ts",
+    "test/**",
+    "**/__tests__/**"
   ]
 }
