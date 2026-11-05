@@ -3,10 +3,13 @@
  * TypeScript emits these imports unchanged; this loader resolves them to the
  * corresponding JavaScript files in dist without rewriting application code.
  */
-import { extname } from 'node:path';
 
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier.startsWith('.') && !extname(specifier)) {
+  // path.extname() treats names such as "./app.module" as having an extension
+  // (".module"), even though the emitted file is "app.module.js".
+  const hasRuntimeExtension = /\.(?:[cm]?js|json|node)$/i.test(specifier);
+
+  if (specifier.startsWith('.') && !hasRuntimeExtension) {
     try {
       return await nextResolve(`${specifier}.js`, context);
     } catch (error) {
