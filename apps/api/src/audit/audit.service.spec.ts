@@ -333,9 +333,9 @@ describe('AuditService', () => {
   describe('getUserActivitySummary', () => {
     it('should aggregate user activity by action type', async () => {
       const mockGroups = [
-        { accionEnum: 'CREAR_VENTA' as any, _count: { id: 5 } },
-        { accionEnum: 'ACTUALIZAR_VENTA' as any, _count: { id: 3 } },
-        { accionEnum: null, _count: { id: 0 } }, // Null accionEnum (legacy)
+        { accion: 'CREAR_VENTA' as any, _count: { id: 5 } },
+        { accion: 'ACTUALIZAR_VENTA' as any, _count: { id: 3 } },
+        { accion: null, _count: { id: 0 } }, // Null accionEnum (legacy)
       ];
 
       jest.spyOn(prisma.auditLog, 'groupBy').mockResolvedValue(mockGroups as any);
@@ -352,8 +352,8 @@ describe('AuditService', () => {
   describe('getActionDistribution', () => {
     it('should aggregate action distribution across all users', async () => {
       const mockGroups = [
-        { accionEnum: 'LOGIN' as any, _count: { id: 150 } },
-        { accionEnum: 'LOGOUT' as any, _count: { id: 145 } },
+        { accion: 'LOGIN' as any, _count: { id: 150 } },
+        { accion: 'LOGOUT' as any, _count: { id: 145 } },
       ];
 
       jest.spyOn(prisma.auditLog, 'groupBy').mockResolvedValue(mockGroups as any);
