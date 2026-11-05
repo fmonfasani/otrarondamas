@@ -404,8 +404,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       usuarioId: null,
     });
     expect(Number(res.body.total)).toBe(330); // 2×90.00 + 3×50.00
-    expect(res.body.pedidoItems).toHaveLength(2);
-    const itemA1 = res.body.pedidoItems.find(
+    expect(res.body.PedidoItem).toHaveLength(2);
+    const itemA1 = res.body.PedidoItem.find(
       (i: { productoId: string }) => i.productoId === productA1.id,
     );
     expect(Number(itemA1.precioUnitario)).toBe(90);
@@ -512,12 +512,12 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         )
         .expect(201);
 
-      expect(res.body.pedidoItems).toHaveLength(2);
-      for (const item of res.body.pedidoItems) {
+      expect(res.body.PedidoItem).toHaveLength(2);
+      for (const item of res.body.PedidoItem) {
         expect(Number(item.descuentoFidelizacionPorcentaje)).toBe(10);
         expect(item.reglaFidelizacionId).toBe(ruleA.id);
       }
-      const itemA1 = res.body.pedidoItems.find(
+      const itemA1 = res.body.PedidoItem.find(
         (i: { productoId: string }) => i.productoId === productA1.id,
       );
       expect(Number(itemA1.precioUnitario)).toBe(90); // frozen price excludes loyalty %
