@@ -991,7 +991,12 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
           .set('Authorization', auth)
           .send({ medio: 'transferencia', monto: 1 })
           .expect(403);
-        await request(BASE).get('/ventas').set('Authorization', auth).expect(403);
+        const listResponse = await request(BASE).get('/ventas').set('Authorization', auth);
+        if (listResponse.status !== 403) {
+          throw new Error(
+            `GET /ventas expected 403 after permission revocation; received ${listResponse.status}: ${JSON.stringify(listResponse.body)}`,
+          );
+        }
         await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', auth).expect(403);
         await request(BASE)
           .get(`/ventas/${saleA.id}/comprobante`)
