@@ -399,7 +399,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       precioUnitario: 10,
     });
 
-    const saleOf = (channel: string, CompraItem: ReturnType<typeof itemOf>[]) => ({
+    const saleOf = (channel: string, items: ReturnType<typeof itemOf>[]) => ({
       empresaId: companyA.id,
       usuarioId: userA.id,
       estado: 'CONFIRMADA' as const,
