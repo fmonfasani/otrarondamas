@@ -23,10 +23,10 @@ describe('AuthController GET /auth/me', () => {
       email: 'owner@example.com',
       nombre: 'Owner',
       empresaId: 'empresa-1',
-      empresa: { nombre: 'Negocio Uno' },
-      usuarioPermisos: [
-        { permiso: { nombre: 'ventas.crear' } },
-        { permiso: { nombre: 'productos.gestionar' } },
+      Empresa: { nombre: 'Negocio Uno' },
+      UsuarioPermiso: [
+        { Permiso: { nombre: 'ventas.crear' } },
+        { Permiso: { nombre: 'productos.gestionar' } },
       ],
       fotoUrl: null,
       googleId: null,
@@ -59,9 +59,9 @@ describe('AuthController GET /auth/me', () => {
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: 'usuario-1' },
       include: {
-        empresa: true,
-        usuarioPermisos: {
-          include: { permiso: { select: { nombre: true } } },
+        Empresa: true,
+        UsuarioPermiso: {
+          include: { Permiso: { select: { nombre: true } } },
         },
       },
     });
@@ -73,8 +73,8 @@ describe('AuthController GET /auth/me', () => {
       email: 'owner@example.com',
       nombre: 'Owner',
       empresaId: 'empresa-1',
-      empresa: { nombre: 'Negocio Uno' },
-      usuarioPermisos: [],
+      Empresa: { nombre: 'Negocio Uno' },
+      UsuarioPermiso: [],
       fotoUrl: null,
       googleId: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
