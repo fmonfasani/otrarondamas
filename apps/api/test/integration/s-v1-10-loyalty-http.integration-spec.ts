@@ -368,7 +368,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
       .expect(200);
     expect(own.body.id).toBe(ruleA2.id);
     expect(own.body.empresaId).toBe(companyA.id);
-    expect(own.body.familia).toEqual({ nombre: `S-V1-10 Fam A ${suffix}` });
+    expect(own.body.Familia).toEqual({ nombre: `S-V1-10 Fam A ${suffix}` });
 
     for (const claim of [companyA.id, companyB.id]) {
       const res = await request(BASE)
@@ -425,10 +425,10 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
       .get(`/reglas-fidelizacion/${created.body.id}`)
       .set('Authorization', bearer(legacyUserA.id, companyB.id))
       .expect(200);
-    expect(got.body.familia).toEqual({ nombre: `S-V1-10 Fam A ${suffix}` });
-    expect(got.body.subfamilia).toEqual({ nombre: `S-V1-10 Sub A ${suffix}` });
-    expect(got.body.tipo).toEqual({ nombre: `S-V1-10 Tip A ${suffix}` });
-    expect(got.body.subtipo).toEqual({ nombre: `S-V1-10 Subt A ${suffix}` });
+    expect(got.body.Familia).toEqual({ nombre: `S-V1-10 Fam A ${suffix}` });
+    expect(got.body.Subfamilia).toEqual({ nombre: `S-V1-10 Sub A ${suffix}` });
+    expect(got.body.Tipo).toEqual({ nombre: `S-V1-10 Tip A ${suffix}` });
+    expect(got.body.Subtipo).toEqual({ nombre: `S-V1-10 Subt A ${suffix}` });
 
     const cases: Array<[string, Record<string, unknown>, string]> = [
       ['familiaId', { familiaId: hierB.family.id }, 'Familia no encontrada'],
@@ -676,23 +676,23 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
         'createdAt',
         'descuentoPorcentaje',
         'empresaId',
-        'familia',
+        'Familia',
         'familiaId',
         'id',
         'marca',
         'nivelRequerido',
         'nombre',
-        'subfamilia',
+        'Subfamilia',
         'subfamiliaId',
-        'subtipo',
+        'Subtipo',
         'subtipoId',
-        'tipo',
+        'Tipo',
         'tipoId',
         'updatedAt',
       ].sort(),
     );
     expect(sample.descuentoPorcentaje).toBe('5');
-    expect(sample.subfamilia).toBeNull();
+    expect(sample.Subfamilia).toBeNull();
     // createdAt desc: ruleA2 was created after ruleA1 in beforeAll.
     const order = list.body.map((r: { id: string }) => r.id);
     expect(order.indexOf(ruleA2.id)).toBeLessThan(order.indexOf(ruleA1.id));

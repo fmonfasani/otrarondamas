@@ -1073,7 +1073,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .get(`/ventas/${sale.body.id}`)
       .set('Authorization', auth)
       .expect(200);
-    expect(detail.body.usuario.id).toBe(legacyCrossUser.id);
+    expect(detail.body.Usuario.id).toBe(legacyCrossUser.id);
   });
 
   // ------------------------------------------------------------- symmetry

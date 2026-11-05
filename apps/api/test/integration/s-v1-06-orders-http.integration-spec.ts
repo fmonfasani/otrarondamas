@@ -179,7 +179,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
         estado: status,
         canalOrigen: 'web',
         total: 10,
-        pedidoItems: {
+        PedidoItem: {
           create: items.map((i) => ({
             productoId: i.productId,
             cantidad: i.quantity,
@@ -295,7 +295,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
@@ -338,12 +338,12 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     const orderId = placed.body.id as string;
     const storedBefore = await prisma.pedido.findUniqueOrThrow({
       where: { id: orderId },
-      include: { pedidoItems: true },
+      include: { PedidoItem: true },
     });
     expect(storedBefore.empresaId).toBe(companyA.id);
-    expect(storedBefore.pedidoItems).toHaveLength(1);
-    expect(storedBefore.pedidoItems[0].productoId).toBe(product.id);
-    expect(Number(storedBefore.pedidoItems[0].cantidad)).toBe(2);
+    expect(storedBefore.PedidoItem).toHaveLength(1);
+    expect(storedBefore.PedidoItem[0].productoId).toBe(product.id);
+    expect(Number(storedBefore.PedidoItem[0].cantidad)).toBe(2);
     expect(await batchQuantity(batch.id)).toBe(startingQuantity);
 
     // Seller takes the order through the authenticated operational endpoint.
@@ -453,7 +453,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     expect(res.body.id).toBe(orderA.id);
     expect(res.body.empresaId).toBe(companyA.id);
-    expect(res.body.pedidoItems).toHaveLength(1);
+    expect(res.body.PedidoItem).toHaveLength(1);
   });
 
   it('SV6-H-05: GET /pedidos/:id de otro tenant → 404 (también con claim de ese tenant)', async () => {
@@ -623,7 +623,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
     const persisted = await prisma.pedido.findUniqueOrThrow({
       where: { id: order.id },
-      include: { pedidoItems: true },
+      include: { PedidoItem: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
     expect(await batchQuantity(batch.id)).toBe(8);

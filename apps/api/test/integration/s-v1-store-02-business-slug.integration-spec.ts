@@ -136,7 +136,7 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     if (server && !server.killed) server.kill();
     if (legacyServer && !legacyServer.killed) legacyServer.kill();
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });

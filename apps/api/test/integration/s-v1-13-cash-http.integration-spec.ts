@@ -143,7 +143,7 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
         orderBy: { id: 'asc' },
       }),
       cierres: await prisma.cierreCaja.findMany({
-        where: { aperturaCaja: { cajaId: cash.id } },
+        where: { AperturaCaja: { cajaId: cash.id } },
         orderBy: { id: 'asc' },
       }),
       autorizaciones: await prisma.autorizacion.findMany({
@@ -342,13 +342,13 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     const companies = [companyA.id, companyB.id];
     const cashIds = [cashA.id, cashB.id];
     await prisma.arqueoCaja.deleteMany({ where: { cajaId: { in: cashIds } } });
-    await prisma.cierreCaja.deleteMany({ where: { aperturaCaja: { cajaId: { in: cashIds } } } });
+    await prisma.cierreCaja.deleteMany({ where: { AperturaCaja: { cajaId: { in: cashIds } } } });
     await prisma.movimientoCaja.deleteMany({ where: { cajaId: { in: cashIds } } });
     await prisma.aperturaCaja.deleteMany({ where: { cajaId: { in: cashIds } } });
     await prisma.caja.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.autorizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.usuarioPermiso.deleteMany({
-      where: { usuario: { empresaId: { in: companies } } },
+      where: { Usuario: { empresaId: { in: companies } } },
     });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
