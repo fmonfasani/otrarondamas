@@ -16,7 +16,8 @@
     "test:quick": "npm run test --workspace=@otrarondamas/api -- --testPathPattern='(unit|spec)' --maxWorkers=50%",
     "ci:analyze": "bash ./scripts/analyze-ci-metrics.sh",
     "db:migrate": "npm run prisma:migrate --workspace=@otrarondamas/api",
-    "db:seed": "npm run prisma:seed --workspace=@otrarondamas/api"
+    "db:seed": "npm run prisma:seed --workspace=@otrarondamas/api",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json"
   },
   "repository": {
     "type": "git",
