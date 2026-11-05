@@ -35,7 +35,7 @@ jobs:
         run: npm run lint --workspace=@otrarondamas/api
 
       - name: TypeScript type check
-        run: npx tsc --noEmit -p tsconfig.build.json
+        run: ./node_modules/.bin/tsc --noEmit -p tsconfig.build.json
         working-directory: apps/api
 
       - name: Comment on PR (if lint errors)
