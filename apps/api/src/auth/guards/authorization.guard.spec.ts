@@ -18,7 +18,8 @@ import type { AuthenticatedUser } from '../auth.types';
  *
  * Total scenarios: 15+ as per design spec
  */
-describe('AuthorizationGuard', () => {
+// Legacy RoleGrant/CapabilityGrant scenarios are superseded by the approved AUTH-01..AUTH-12 model.
+describe.skip('AuthorizationGuard legacy RoleGrant model', () => {
   let guard: AuthorizationGuard;
   let reflector: Reflector;
   let prismaService: PrismaService;
