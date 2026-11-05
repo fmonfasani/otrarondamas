@@ -410,7 +410,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 5 }],
+          items: [{ productoId: productA.id, loteId: undefined, cantidad: 1, costoUnitario: 5 }],
         },
         userA.id,
       );
@@ -440,7 +440,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productB.id, cantidad: 1, costoUnitario: 5 }],
+          items: [{ productoId: productB.id, loteId: batchB.id, cantidad: 1, costoUnitario: 5 }],
         },
         userA.id,
       ),
@@ -464,7 +464,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productA.id, cantidad: 999, costoUnitario: 5 }],
+          items: [{ productoId: productA.id, loteId: undefined, cantidad: 999, costoUnitario: 5 }],
         },
         userA.id,
       ),
