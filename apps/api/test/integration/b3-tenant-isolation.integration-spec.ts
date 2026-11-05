@@ -880,15 +880,15 @@ describe('B3 tenant isolation — execution candidates', () => {
         include: { CompraItem: true },
       });
       expect(purchase.empresaId).toBe(companyA.id);
-      expect(purchase.items).toHaveLength(1);
-      expect(purchase.items[0].productoId).toBe(productA.id);
+      expect(purchase.CompraItem).toHaveLength(1);
+      expect(purchase.CompraItem[0].productoId).toBe(productA.id);
       const persisted = await prisma.compra.findUnique({
         where: { id: purchase.id },
         include: { CompraItem: true },
       });
       expect(persisted?.empresaId).toBe(companyA.id);
-      expect(persisted?.items).toHaveLength(1);
-      expect(persisted?.items[0].productoId).toBe(productA.id);
+      expect(persisted?.CompraItem).toHaveLength(1);
+      expect(persisted?.CompraItem[0].productoId).toBe(productA.id);
     });
 
     it('C-02: nested Compra.create cannot link Business A to Product B', async () => {
@@ -959,8 +959,8 @@ describe('B3 tenant isolation — execution candidates', () => {
         where: { numeroFactura: 'g64-tx-positive' },
         include: { CompraItem: true },
       });
-      expect(persisted?.items).toHaveLength(1);
-      expect(persisted?.items[0].productoId).toBe(productA.id);
+      expect(persisted?.CompraItem).toHaveLength(1);
+      expect(persisted?.CompraItem[0].productoId).toBe(productA.id);
     });
   });
 
