@@ -656,3 +656,35 @@ The following remain downstream design decisions and must not be guessed during 
 ### Gate
 
 These decisions authorize propagation into the canonical TO-BE, contracts, invariants, test specifications, and transformation traceability. They do **not** by themselves authorize schema changes, migrations, code implementation, destructive legacy retirement, deployment, or production cutover. Implementation readiness remains subject to the existing governance gates.
+
+
+---
+
+## 11. AUTH-ARCH-OWNER-APPROVAL — 2026-11-04
+
+**Status:** APPROVED — ARCHITECTURAL DIRECTION FOR MVP  
+**Authority:** Explicit Owner approval of AUTH-01 through AUTH-12 on 2026-11-04.  
+**Canonical closure:** [53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md](53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md)
+
+The Owner approved the following directions:
+
+| ID | Approved direction | Remaining technical detail |
+|---|---|---|
+| AUTH-01 | Canonical MVP roles: `OWNER`, `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK`. | Physical representation and legacy-role mapping. |
+| AUTH-02 | `Membership` is the sole effective-role authority. | Persistence contract and disposition of parallel RoleGrant structures. |
+| AUTH-03 | One canonical `Permission` catalogue. | Atomic IDs, names, domains and persistence. |
+| AUTH-04 | Fixed `Role → Permission` matrix for MVP. | Exact matrix rows and complete catalogue. |
+| AUTH-05 | Multi-business Membership; explicit server-side Business Switch. | Protocol, context binding and session contract. |
+| AUTH-06 | JWT carries authenticated identity and signed context; authorization is always server-side. | Claims, signature/key lifecycle, refresh, revocation and transport. |
+| AUTH-07 | Explicit `Usuario.id → User.id` mapping. | Integrity and reconciliation behavior. |
+| AUTH-08 | One authorization engine; `@Authorize` and `@RequirePermission` are transitional adapters. | Engine and adapter contract. |
+| AUTH-09 | Progressive Guard integration; no immediate global activation. | Route-level rollout and ordering. |
+| AUTH-10 | Explicit endpoint policy classification; unknown policies fail closed. | Complete route inventory and mapping. |
+| AUTH-11 | Reviewed mapping and gradual transition from `UsuarioPermiso`. | Mapping, parity, cutover and rollback. |
+| AUTH-12 | Incremental, reversible, tested migration. | Stages, evidence and rollback gates. |
+
+This closure supersedes incompatible P1-2 authorization design choices for the MVP target state. Historical P1-2 artifacts remain evidence but are not current normative designs.
+
+**Implementation boundary:** architectural direction and documentary propagation are approved. Code, schema, migrations, seeds, data changes, destructive legacy retirement, deployment and production cutover remain **NOT AUTHORIZED**.
+
+The 2026-10-24 T-01…T-10 closure remains binding; this decision refines authorization architecture without weakening server-side validation, tenant isolation, explicit route classification or auditability.
