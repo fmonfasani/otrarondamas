@@ -203,7 +203,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
 
   afterAll(async () => {
     await prisma.devolucionProveedorItem.deleteMany({
-      where: { devolucion: { empresaId: companyA.id } },
+      where: { DevolucionProveedor: { empresaId: companyA.id } },
     });
     await prisma.devolucionProveedor.deleteMany({ where: { empresaId: companyA.id } });
     await prisma.lote.deleteMany({
