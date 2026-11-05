@@ -247,9 +247,9 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
     const created = await db.devolucionProveedor.create({
       data: {
         ...baseReturn('gdp-positive'),
-        items: { create: [itemOf(productA.id, batchA.id)] },
+        DevolucionProveedorItem: { create: [itemOf(productA.id, batchA.id)] },
       },
-      include: { items: true },
+      include: { DevolucionProveedorItem: true },
     });
 
     expect(created.empresaId).toBe(companyA.id);
@@ -265,7 +265,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-product-b'),
-          items: { create: [itemOf(productB.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productB.id)] },
         },
       }),
     ).rejects.toThrow();
@@ -280,7 +280,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-lote-b'),
-          items: { create: [itemOf(productA.id, batchB.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productA.id, batchB.id)] },
         },
       }),
     ).rejects.toThrow();
@@ -334,7 +334,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-mixed'),
-          items: {
+          DevolucionProveedorItem: {
             create: [itemOf(productA.id, batchA.id), itemOf(productB.id)],
           },
         },
@@ -352,7 +352,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         await tx.devolucionProveedor.create({
           data: {
             ...baseReturn('gdp-tx-negative'),
-            items: { create: [itemOf(productB.id)] },
+            DevolucionProveedorItem: { create: [itemOf(productB.id)] },
           },
         });
       }),
@@ -366,7 +366,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       await tx.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-tx-positive'),
-          items: { create: [itemOf(productA.id, batchA.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productA.id, batchA.id)] },
         },
       });
     });
