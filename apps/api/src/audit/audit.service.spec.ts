@@ -248,7 +248,7 @@ describe('AuditService', () => {
       expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            accionEnum: 'CREAR_VENTA',
+            accion: 'CREAR_VENTA',
           }),
         }),
       );
