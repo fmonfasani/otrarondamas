@@ -177,6 +177,7 @@ describe('NotificationPreferencesService', () => {
       const otherContext: BusinessContext = {
         ...mockBusinessContext,
         usuarioId: 'user-2',
+        userId: 'user-2',
       };
 
       await expect(
