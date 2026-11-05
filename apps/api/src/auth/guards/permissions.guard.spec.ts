@@ -42,7 +42,7 @@ describe('PermissionsGuard current database authorization', () => {
   it('allows a permission granted in the database even when the JWT claim is stale and empty', async () => {
     findUnique.mockResolvedValue({
       activo: true,
-      usuarioPermisos: [{ permiso: { nombre: 'ventas.crear' } }],
+      UsuarioPermiso: [{ Permiso: { nombre: 'ventas.crear' } }],
     });
 
     await expect(guard.canActivate(executionContext(user({ permisos: [] })))).resolves.toBe(true);
@@ -56,7 +56,7 @@ describe('PermissionsGuard current database authorization', () => {
   });
 
   it('denies a permission revoked in the database even when the JWT still claims it', async () => {
-    findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
+    findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
 
     await expect(
       guard.canActivate(executionContext(user({ permisos: ['ventas.crear'] }))),
