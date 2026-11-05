@@ -1,7 +1,7 @@
 # Wapsell Approved Decisions (Current)
 ## Authoritative Decision Record
 
-**Last Updated:** 2026-11-03  
+**Last Updated:** 2026-11-04  
 **Status:** Active  
 **Next Review:** 2026-11-15 (post-reconciliation)
 
@@ -168,7 +168,7 @@ Candidates for archive (not yet superseded):
 ---
 
 **Authority:** Federico Monfasani (Project Owner)  
-**Last Reviewed:** 2026-11-03 (consolidation mission)  
+**Last Reviewed:** 2026-11-04 (AUTH/TENANCY owner decision propagation)  
 **Next Review:** 2026-11-15 (reconciliation completion)
 
 For detailed background, see:
