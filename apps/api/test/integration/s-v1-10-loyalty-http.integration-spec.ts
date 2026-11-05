@@ -285,7 +285,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: 'ignore',

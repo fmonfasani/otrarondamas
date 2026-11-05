@@ -119,12 +119,12 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createCatalog(companyA.id, 'A');
     productB = await createCatalog(companyB.id, 'B');
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT, TIENDA_EMPRESA_ID: '' },
       stdio: 'ignore',
     });
-    legacyServer = spawn('node', ['dist/src/main.js'], {
+    legacyServer = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id },
       stdio: 'ignore',

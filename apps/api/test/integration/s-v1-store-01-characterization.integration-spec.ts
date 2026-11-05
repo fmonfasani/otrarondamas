@@ -231,7 +231,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
       stdio: 'ignore',
@@ -241,7 +241,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     // on a developer machine an absent key would be silently re-injected from
     // .env (observed). An empty value is not overridden, and both cases take
     // the same `!companyId` branch in StoreService/AuthCustomerController.
-    serverNoEnv = spawn('node', ['dist/src/main.js'], {
+    serverNoEnv = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT: PORT_NOENV, TIENDA_EMPRESA_ID: '' },
       stdio: 'ignore',
