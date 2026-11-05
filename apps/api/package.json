@@ -98,12 +98,7 @@
     "rootDir": "src",
     "testRegex": ".*(spec|e2e-spec).ts$",
     "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "useESM": true
-        }
-      ]
+      "^.+\\.tsx?$": "<rootDir>/../jest-esm-transformer.cjs"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
@@ -113,9 +108,6 @@
     "preset": "ts-jest/presets/default-esm",
     "extensionsToTreatAsEsm": [
       ".ts"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/../test/jest.setup.ts"
     ]
   },
   "type": "module"
