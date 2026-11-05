@@ -259,3 +259,33 @@ Este documento **no modifica**:
 - datos.
 
 Su función es preparar la siguiente fase y dejar trazable qué decisiones pueden utilizarse y qué asuntos continúan abiertos.
+
+
+---
+
+## 11. OWNER AUTHORIZATION ARCHITECTURE CLOSURE — 2026-11-04
+
+**Status:** APPROVED — ARCHITECTURAL DIRECTION FOR MVP  
+**Authority:** AUTH-01…AUTH-12, explicit Owner approval.  
+**Canonical record:** `../../03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`
+
+This later Owner ruling supersedes the OPEN classifications in this 2026-10-01 process artifact only for the following architectural directions:
+
+- Canonical roles are `OWNER`, `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK`.
+- Membership is the sole authority for the effective role.
+- One canonical Permission catalogue is used.
+- MVP authorization uses a fixed Role→Permission matrix.
+- Multi-business Membership is supported; Business Switch is explicit and server-side.
+- JWT carries identity and signed context; authorization is always server-side.
+- Legacy `Usuario.id → User.id` mapping is explicit.
+- One authorization engine is canonical; decorators are transitional adapters.
+- Guard integration is progressive, not global immediately.
+- Every endpoint has explicit policy classification; unknown policies fail closed.
+- Legacy UsuarioPermiso is mapped and transitioned gradually.
+- Migration is incremental, reversible and tested.
+
+The prior statements that role/permission catalogue and Business Context direction require a new Owner decision are superseded at the architectural-direction level. They remain unresolved only where the technical details above are explicitly open.
+
+The exact Permission IDs and matrix rows, physical persistence, Business Switch protocol, JWT mechanics, legacy identity reconciliation, authorization engine/adapter contract, guard ordering, endpoint-by-endpoint classification, legacy mapping/parity/cutover, and migration/rollback plan remain OPEN.
+
+**Implementation remains NOT AUTHORIZED:** no code, schema, migrations, seeds, data changes, destructive legacy retirement or deployment.

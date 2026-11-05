@@ -1,3 +1,7 @@
+> **SUBSEQUENT OWNER RULING — 2026-11-04**  
+> This 2026-10-25 artifact is preserved as historical evidence of the approvals recorded on that date. Its P1-2 authorization target design is superseded wherever it conflicts with AUTH-01…AUTH-12 in `03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`. In particular, the former RoleGrant/CapabilityDefinition model and old role set are not the current MVP authorization target.  
+> The 2026-11-04 approval establishes architectural direction only and explicitly does **not** authorize code, schema, migration, seed, data or deployment work. Other unrelated design approvals recorded here are not modified by this addendum.  
+>
 # PHASE 2 DESIGN APPROVAL SUMMARY
 ## Wapsell TO-BE Implementation: All Designs Approved
 
@@ -393,3 +397,14 @@ Next: Coordinator orchestrates task dependencies and validates build gates.
 **Document Authority**: Design Review Board (architect, code-reviewer, ci-recovery, independent-reviewer)  
 **Final Authority**: Owner (Federico Monfasani) — APPROVED ✅
 
+
+
+---
+
+## Current applicability — Owner ruling 2026-11-04
+
+For the **P1-2 Authentication/Authorization workstream**, the historical statement above that implementation was authorized is no longer an operative authorization. The later Owner decision AUTH-01…AUTH-12 supersedes the conflicting P1-2 target design and explicitly leaves implementation **NOT AUTHORIZED**.
+
+No code, schema, migration, seed, backfill, data update, destructive legacy retirement, deployment or production cutover may proceed on the basis of the 2026-10-25 P1-2 approval wording. The other independent workstream approvals in this historical artifact are not changed by this authorization-specific ruling.
+
+Canonical authority: `03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`.
