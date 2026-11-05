@@ -161,8 +161,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         total: 100,
         totalPagado: 0,
         saldo: 100,
-        items: {
-          create: [
+        CompraItem: { create: [
             {
               productoId: productA.id,
               cantidadPedida: 10,
@@ -172,7 +171,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           ],
         },
       },
-      include: { items: true },
+      include: { CompraItem: true },
     });
     purchaseA = { id: purchase.id };
     purchaseItemA = { id: purchase.items[0].id };
