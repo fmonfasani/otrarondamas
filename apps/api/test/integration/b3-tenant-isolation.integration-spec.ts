@@ -399,7 +399,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       precioUnitario: 10,
     });
 
-    const saleOf = (channel: string, items: ReturnType<typeof itemOf>[]) => ({
+    const saleOf = (channel: string, CompraItem: ReturnType<typeof itemOf>[]) => ({
       empresaId: companyA.id,
       usuarioId: userA.id,
       estado: 'CONFIRMADA' as const,
@@ -473,7 +473,7 @@ describe('B3 tenant isolation — execution candidates', () => {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
-                producto: { connect: { id: productB.id } },
+                Producto: { connect: { id: productB.id } },
               },
             },
           },
@@ -499,7 +499,7 @@ describe('B3 tenant isolation — execution candidates', () => {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
-                producto: {
+                Producto: {
                   connectOrCreate: {
                     where: { id: productB.id },
                     create: {
@@ -876,15 +876,15 @@ describe('B3 tenant isolation — execution candidates', () => {
     it('C-01: Business A + Product A persists Compra and CompraItem', async () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const purchase = await db.compra.create({
-        data: { ...basePurchase('g64-positive'), items: { create: [itemOf(productA.id)] } },
-        include: { items: true },
+        data: { ...basePurchase('g64-positive'), CompraItem: { create: [itemOf(productA.id)] } },
+        include: { CompraItem: true },
       });
       expect(purchase.empresaId).toBe(companyA.id);
       expect(purchase.items).toHaveLength(1);
       expect(purchase.items[0].productoId).toBe(productA.id);
       const persisted = await prisma.compra.findUnique({
         where: { id: purchase.id },
-        include: { items: true },
+        include: { CompraItem: true },
       });
       expect(persisted?.empresaId).toBe(companyA.id);
       expect(persisted?.items).toHaveLength(1);
@@ -897,7 +897,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         db.compra.create({
           data: {
             ...basePurchase('g64-negative-nested'),
-            items: { create: [itemOf(productB.id)] },
+            CompraItem: { create: [itemOf(productB.id)] },
           },
         }),
       ).rejects.toThrow();
@@ -928,7 +928,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         db.compra.create({
           data: {
             ...basePurchase('g64-mixed'),
-            items: { create: [itemOf(productA.id), itemOf(productB.id)] },
+            CompraItem: { create: [itemOf(productA.id), itemOf(productB.id)] },
           },
         }),
       ).rejects.toThrow();
@@ -943,7 +943,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.$transaction(async (tx) => {
           await tx.compra.create({
-            data: { ...basePurchase('g64-tx-negative'), items: { create: [itemOf(productB.id)] } },
+            data: { ...basePurchase('g64-tx-negative'), CompraItem: { create: [itemOf(productB.id)] } },
           });
         }),
       ).rejects.toThrow();
@@ -951,13 +951,13 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await db.$transaction(async (tx) => {
         await tx.compra.create({
-          data: { ...basePurchase('g64-tx-positive'), items: { create: [itemOf(productA.id)] } },
+          data: { ...basePurchase('g64-tx-positive'), CompraItem: { create: [itemOf(productA.id)] } },
         });
       });
       expect(await countPurchases('g64-tx-positive')).toBe(1);
       const persisted = await prisma.compra.findFirst({
         where: { numeroFactura: 'g64-tx-positive' },
-        include: { items: true },
+        include: { CompraItem: true },
       });
       expect(persisted?.items).toHaveLength(1);
       expect(persisted?.items[0].productoId).toBe(productA.id);
