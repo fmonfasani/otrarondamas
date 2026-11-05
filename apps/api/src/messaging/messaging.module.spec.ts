@@ -1,3 +1,5 @@
+process.env.JWT_SECRET ??= 'test-only-jwt-secret';
+
 await jest.unstable_mockModule('../auth/auth-jwt.module', () => ({
   AuthJwtModule: class AuthJwtModuleMock {},
 }));
