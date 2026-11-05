@@ -528,3 +528,10 @@ Complete migration implementation covering:
 - **Summary:** `AUTHORIZATION-REFACTOR-SUMMARY.md` (this file)
 
 **Next:** Move to `docs/engineering/authorization/` once approved.
+
+
+---
+
+## Current applicability — Owner ruling 2026-11-04
+
+The historical status and sign-off above are retained as provenance only. For the MVP authorization target, this design is superseded wherever it conflicts with AUTH-01…AUTH-12. The 2026-11-04 approval closes architectural direction but **does not authorize implementation**. The migration SQL, seeds, backfill and implementation roadmap in this historical design must not be executed.
