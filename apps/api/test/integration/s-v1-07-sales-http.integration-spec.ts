@@ -1062,11 +1062,13 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     expect(movements[0].empresaId).toBe(companyA.id);
     expect(movements[0].usuarioId).toBe(legacyCrossUser.id);
 
-    await request(BASE)
+    const payment = await request(BASE)
       .post(`/ventas/${sale.body.id}/pagos`)
       .set('Authorization', auth)
       .send({ medio: 'transferencia', monto: 5 })
-      .expect(404);
+      .expect(201);
+    expect(payment.body.pago.empresaId).toBe(companyA.id);
+    expect(payment.body.pago.usuarioId).toBe(legacyCrossUser.id);
 
     // The sale is readable inside A (list embeds the legacy Usuario by FK).
     const detail = await request(BASE)
