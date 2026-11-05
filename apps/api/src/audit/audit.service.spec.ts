@@ -64,7 +64,7 @@ describe('AuditService', () => {
       const mockResult = {
         id: 'audit-id',
         ...dto,
-        accionEnum: 'CREAR_VENTA' as any,
+        accion: 'CREAR_VENTA' as any,
         fechaHora: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
