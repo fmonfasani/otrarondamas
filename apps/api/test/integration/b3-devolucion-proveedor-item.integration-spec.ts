@@ -253,7 +253,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
     });
 
     expect(created.empresaId).toBe(companyA.id);
-    expect(created.items).toHaveLength(1);
+    expect(created.DevolucionProveedorItem).toHaveLength(1);
     expect(created.items[0].productoId).toBe(productA.id);
     expect(created.items[0].loteId).toBe(batchA.id);
   });
