@@ -397,3 +397,14 @@ Next: Coordinator orchestrates task dependencies and validates build gates.
 **Document Authority**: Design Review Board (architect, code-reviewer, ci-recovery, independent-reviewer)  
 **Final Authority**: Owner (Federico Monfasani) — APPROVED ✅
 
+
+
+---
+
+## Current applicability — Owner ruling 2026-11-04
+
+For the **P1-2 Authentication/Authorization workstream**, the historical statement above that implementation was authorized is no longer an operative authorization. The later Owner decision AUTH-01…AUTH-12 supersedes the conflicting P1-2 target design and explicitly leaves implementation **NOT AUTHORIZED**.
+
+No code, schema, migration, seed, backfill, data update, destructive legacy retirement, deployment or production cutover may proceed on the basis of the 2026-10-25 P1-2 approval wording. The other independent workstream approvals in this historical artifact are not changed by this authorization-specific ruling.
+
+Canonical authority: `03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`.
