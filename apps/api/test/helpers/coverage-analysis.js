@@ -17,7 +17,7 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // ============================================================================
 // Configuration
@@ -329,8 +329,8 @@ function generateReport(coveredRelations) {
 }
 
 // Run if called directly
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 
-module.exports = { extractCoveredRelations, generateReport };
+export { extractCoveredRelations, generateReport };
