@@ -8,24 +8,24 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/src/main.js",
+    "start": "node --loader ./esm-loader.mjs ../../node_modules/@nestjs/cli/bin/nest.js start",
+    "start:dev": "node --loader ./esm-loader.mjs ../../node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:debug": "node --loader ./esm-loader.mjs ../../node_modules/@nestjs/cli/bin/nest.js start --debug --watch",
+    "start:prod": "node --loader ./esm-loader.mjs dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "npm run prisma:generate && jest",
-    "test:watch": "npm run prisma:generate && jest --watch",
-    "test:cov": "npm run prisma:generate && jest --coverage",
-    "test:debug": "npm run prisma:generate && node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "npm run prisma:generate && jest --config ./test/jest-e2e.json",
-    "test:relations": "npm run prisma:generate && jest --testPathPattern=test/integration/relations --maxWorkers=2 --testTimeout=30000 --json --outputFile=test-results.json",
+    "test": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
+    "test:watch": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --watch",
+    "test:cov": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --coverage",
+    "test:debug": "npm run prisma:generate && node --experimental-vm-modules --loader ts-node/esm --inspect-brk ../../node_modules/jest/bin/jest.js --runInBand",
+    "test:e2e": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
+    "test:relations": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --testPathPattern=test/integration/relations --maxWorkers=2 --testTimeout=30000 --json --outputFile=test-results.json",
     "test:relations:coverage": "npm run test:relations && node test/helpers/coverage-analysis.js test-results.json",
     "generate:relation-tests": "ts-node test/helpers/generate-relation-tests.ts",
     "prisma:migrate": "npx prisma migrate dev",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:sync-permisos": "ts-node prisma/sync-permisos-owner.ts",
+    "prisma:seed": "node --loader ts-node/esm ../../node_modules/ts-node/dist/bin.js prisma/seed.ts",
+    "prisma:sync-permisos": "node --loader ts-node/esm ../../node_modules/ts-node/dist/bin.js prisma/sync-permisos-owner.ts",
     "prisma:generate": "prisma generate",
-    "test:integration": "npm run prisma:generate && jest --config ./test/jest-e2e.json"
+    "test:integration": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1156.0",
@@ -98,12 +98,25 @@
     "rootDir": "src",
     "testRegex": ".*(spec|e2e-spec).ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
-  }
+    "testEnvironment": "node",
+    "preset": "ts-jest/presets/default-esm",
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/../test/jest.setup.ts"
+    ]
+  },
+  "type": "module"
 }
