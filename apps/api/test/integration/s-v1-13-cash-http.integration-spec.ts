@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as net from 'net';
-import * as bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import {
