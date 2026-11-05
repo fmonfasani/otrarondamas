@@ -1,4 +1,6 @@
-process.env.JWT_SECRET ??= 'test-only-jwt-secret';
+import { randomBytes } from 'node:crypto';
+
+process.env.JWT_SECRET ??= randomBytes(32).toString('hex');
 
 await jest.unstable_mockModule('../auth/auth-jwt.module', () => ({
   AuthJwtModule: class AuthJwtModuleMock {},
