@@ -6,14 +6,14 @@ const delegate = tsJest.createTransformer({
   },
 });
 
-const testFile = /(?:\\.spec|\\.integration-spec|\\.e2e-spec)\\.ts$/;
-const jestImport = /import\\s*\\{[^}]*\\bjest\\b[^}]*\\}\\s*from\\s*['"]@jest\\/globals['"]/s;
+const testFile = /(?:\.spec|\.integration-spec|\.e2e-spec)\.ts$/;
+const jestImport = /import\s*\{[^}]*\bjest\b[^}]*\}\s*from\s*['"]@jest\/globals['"]/s;
 
 module.exports = {
   process(sourceText, sourcePath, transformOptions) {
     const source =
       testFile.test(sourcePath) && !jestImport.test(sourceText)
-        ? `import { jest } from '@jest/globals';\\n${sourceText}`
+        ? \`import { jest } from '@jest/globals';\n\${sourceText}\`
         : sourceText;
 
     return delegate.process(source, sourcePath, transformOptions);
