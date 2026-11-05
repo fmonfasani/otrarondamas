@@ -130,7 +130,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     expect(args.where).toEqual({
       businessId: 'business-a',
       deletedAt: null,
-      ConversationParticipant: {
+      participants: {
         some: {
           businessId: 'business-a',
           leftAt: null,
