@@ -11,7 +11,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type {} from 'multer';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DossierService } from './dossier.service';
 import { UpdateDossierDto } from './dto/update-dossier.dto';
