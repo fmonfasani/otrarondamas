@@ -20,7 +20,7 @@
     "test:e2e": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "test:relations": "npm run prisma:generate && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --testPathPattern=test/integration/relations --maxWorkers=2 --testTimeout=30000 --json --outputFile=test-results.json",
     "test:relations:coverage": "npm run test:relations && node test/helpers/coverage-analysis.js test-results.json",
-    "generate:relation-tests": "ts-node test/helpers/generate-relation-tests.ts",
+    "generate:relation-tests": "node --loader ./esm-loader.mjs --loader ts-node/esm ../../node_modules/ts-node/dist/bin.js test/helpers/generate-relation-tests.ts",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:seed": "node --loader ts-node/esm ../../node_modules/ts-node/dist/bin.js prisma/seed.ts",
     "prisma:sync-permisos": "node --loader ts-node/esm ../../node_modules/ts-node/dist/bin.js prisma/sync-permisos-owner.ts",
