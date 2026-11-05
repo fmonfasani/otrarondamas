@@ -215,11 +215,11 @@ describe('B3 tenant isolation — execution candidates', () => {
     }
 
     await prisma.pedidoItem.deleteMany({
-      where: { pedido: { empresaId: { in: [companyA.id, companyB.id] } } },
+      where: { Pedido: { empresaId: { in: [companyA.id, companyB.id] } } },
     });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: [companyA.id, companyB.id] } } });
     await prisma.ventaItem.deleteMany({
-      where: { venta: { empresaId: { in: [companyA.id, companyB.id] } } },
+      where: { Venta: { empresaId: { in: [companyA.id, companyB.id] } } },
     });
     await prisma.venta.deleteMany({
       where: { empresaId: { in: [companyA.id, companyB.id] } },
@@ -227,7 +227,7 @@ describe('B3 tenant isolation — execution candidates', () => {
     await prisma.reglaFidelizacion.deleteMany({ where: { id: { in: [ruleA.id, ruleB.id] } } });
     await prisma.cliente.deleteMany({ where: { id: { in: [customerA.id, customerB.id] } } });
     await prisma.compraItem.deleteMany({
-      where: { compra: { empresaId: { in: [companyA.id, companyB.id] } } },
+      where: { Compra: { empresaId: { in: [companyA.id, companyB.id] } } },
     });
     await prisma.compra.deleteMany({ where: { empresaId: { in: [companyA.id, companyB.id] } } });
     await prisma.proveedor.deleteMany({ where: { id: { in: [supplierA.id, supplierB.id] } } });
@@ -311,7 +311,7 @@ describe('B3 tenant isolation — execution candidates', () => {
           estado: 'CONFIRMADA',
           canal: 'b3-test',
           total: 20,
-          ventaItems: {
+          VentaItem: {
             create: {
               productoId: productB.id,
               cantidad: 1,
@@ -319,14 +319,14 @@ describe('B3 tenant isolation — execution candidates', () => {
             },
           },
         },
-        include: { ventaItems: true },
+        include: { VentaItem: true },
       }),
     ).rejects.toThrow();
 
     const crossBusinessItems = await prisma.ventaItem.count({
       where: {
         productoId: productB.id,
-        venta: { empresaId: companyA.id },
+        Venta: { empresaId: companyA.id },
       },
     });
 
@@ -405,7 +405,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       estado: 'CONFIRMADA' as const,
       canal: channel,
       total: 10,
-      ventaItems: { create: items },
+      VentaItem: { create: items },
     });
 
     const countSales = (channel: string) => prisma.venta.count({ where: { canal: channel } });
@@ -419,17 +419,17 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       const created = await db.venta.create({
         data: saleOf(channel, [itemOf(productA.id)]),
-        include: { ventaItems: true },
+        include: { VentaItem: true },
       });
 
       expect(created.empresaId).toBe(companyA.id);
       const persisted = await prisma.venta.findUnique({
         where: { id: created.id },
-        include: { ventaItems: true },
+        include: { VentaItem: true },
       });
       expect(persisted?.empresaId).toBe(companyA.id);
-      expect(persisted?.ventaItems).toHaveLength(1);
-      expect(persisted?.ventaItems[0].productoId).toBe(productA.id);
+      expect(persisted?.VentaItem).toHaveLength(1);
+      expect(persisted?.VentaItem[0].productoId).toBe(productA.id);
     });
 
     it('RI-04/RI-05: Business A + Product B is rejected as not found and persists nothing', async () => {
@@ -455,7 +455,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       ).rejects.toMatchObject({ code: 'P2025' });
 
       expect(await countSales(channel)).toBe(0);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: channel } } })).toBe(0);
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: channel } } })).toBe(0);
     });
 
     it('RI-04: producto.connect to a Business B product is rejected', async () => {
@@ -469,7 +469,7 @@ describe('B3 tenant isolation — execution candidates', () => {
             usuarioId: userA.id,
             canal: channel,
             total: 10,
-            ventaItems: {
+            VentaItem: {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
@@ -495,7 +495,7 @@ describe('B3 tenant isolation — execution candidates', () => {
             usuarioId: userA.id,
             canal: channel,
             total: 10,
-            ventaItems: {
+            VentaItem: {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
@@ -564,7 +564,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.venta.update({
           where: { id: sale.id },
-          data: { ventaItems: { create: itemOf(productB.id) } },
+          data: { VentaItem: { create: itemOf(productB.id) } },
         }),
       ).rejects.toMatchObject({ code: 'P2025' });
 
@@ -587,7 +587,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         await tx.venta.create({ data: saleOf(positiveChannel, [itemOf(productA.id)]) });
       });
       expect(await countSales(positiveChannel)).toBe(1);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: positiveChannel } } })).toBe(
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: positiveChannel } } })).toBe(
         1,
       );
     });
@@ -619,19 +619,19 @@ describe('B3 tenant isolation — execution candidates', () => {
       const db = scopedPrisma.forCompany(companyA.id),
         originChannel = 'g61-positive';
       const order = await db.pedido.create({
-        data: { ...baseOrder(originChannel), pedidoItems: { create: [itemOf(productA.id)] } },
-        include: { pedidoItems: true },
+        data: { ...baseOrder(originChannel), PedidoItem: { create: [itemOf(productA.id)] } },
+        include: { PedidoItem: true },
       });
       expect(order.empresaId).toBe(companyA.id);
-      expect(order.pedidoItems).toHaveLength(1);
-      expect(order.pedidoItems[0].productoId).toBe(productA.id);
+      expect(order.PedidoItem).toHaveLength(1);
+      expect(order.PedidoItem[0].productoId).toBe(productA.id);
       const persisted = await prisma.pedido.findUnique({
         where: { id: order.id },
-        include: { pedidoItems: true },
+        include: { PedidoItem: true },
       });
       expect(persisted?.empresaId).toBe(companyA.id);
-      expect(persisted?.pedidoItems).toHaveLength(1);
-      expect(persisted?.pedidoItems[0].productoId).toBe(productA.id);
+      expect(persisted?.PedidoItem).toHaveLength(1);
+      expect(persisted?.PedidoItem[0].productoId).toBe(productA.id);
     });
 
     it('P-02: nested Pedido.create cannot link Business A to Product B', async () => {
@@ -639,7 +639,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         originChannel = 'g61-negative-nested';
       await expect(
         db.pedido.create({
-          data: { ...baseOrder(originChannel), pedidoItems: { create: [itemOf(productB.id)] } },
+          data: { ...baseOrder(originChannel), PedidoItem: { create: [itemOf(productB.id)] } },
         }),
       ).rejects.toThrow();
       expect(await countOrders(originChannel)).toBe(0);
@@ -677,13 +677,13 @@ describe('B3 tenant isolation — execution candidates', () => {
         db.pedido.create({
           data: {
             ...baseOrder(originChannel),
-            pedidoItems: { create: [itemOf(productA.id), itemOf(productB.id)] },
+            PedidoItem: { create: [itemOf(productA.id), itemOf(productB.id)] },
           },
         }),
       ).rejects.toThrow();
       expect(await countOrders(originChannel)).toBe(0);
       expect(
-        await prisma.pedidoItem.count({ where: { pedido: { canalOrigen: originChannel } } }),
+        await prisma.pedidoItem.count({ where: { Pedido: { canalOrigen: originChannel } } }),
       ).toBe(0);
     });
 
@@ -696,7 +696,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.pedido.update({
           where: { id: order.id },
-          data: { pedidoItems: { create: itemOf(productB.id) } },
+          data: { PedidoItem: { create: itemOf(productB.id) } },
         }),
       ).rejects.toThrow();
       expect(await countOrderItems(order.id)).toBe(0);
@@ -709,23 +709,23 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.$transaction(async (tx) => {
           await tx.pedido.create({
-            data: { ...baseOrder(negativeChannel), pedidoItems: { create: [itemOf(productB.id)] } },
+            data: { ...baseOrder(negativeChannel), PedidoItem: { create: [itemOf(productB.id)] } },
           });
         }),
       ).rejects.toThrow();
       expect(await countOrders(negativeChannel)).toBe(0);
       await db.$transaction(async (tx) => {
         await tx.pedido.create({
-          data: { ...baseOrder(positiveChannel), pedidoItems: { create: [itemOf(productA.id)] } },
+          data: { ...baseOrder(positiveChannel), PedidoItem: { create: [itemOf(productA.id)] } },
         });
       });
       expect(await countOrders(positiveChannel)).toBe(1);
       const persisted = await prisma.pedido.findFirst({
         where: { canalOrigen: positiveChannel },
-        include: { pedidoItems: true },
+        include: { PedidoItem: true },
       });
-      expect(persisted?.pedidoItems).toHaveLength(1);
-      expect(persisted?.pedidoItems[0].productoId).toBe(productA.id);
+      expect(persisted?.PedidoItem).toHaveLength(1);
+      expect(persisted?.PedidoItem[0].productoId).toBe(productA.id);
     });
 
     describe('relation isolation — Pedido → PedidoItem → ReglaFidelizacion (Gate 6.2)', () => {
@@ -753,24 +753,24 @@ describe('B3 tenant isolation — execution candidates', () => {
         const db = scopedPrisma.forCompany(companyA.id),
           originChannel = 'g62-positive';
         const order = await db.pedido.create({
-          data: { ...baseOrder(originChannel), pedidoItems: { create: [itemOf(ruleA.id)] } },
-          include: { pedidoItems: true },
+          data: { ...baseOrder(originChannel), PedidoItem: { create: [itemOf(ruleA.id)] } },
+          include: { PedidoItem: true },
         });
         expect(order.empresaId).toBe(companyA.id);
-        expect(order.pedidoItems).toHaveLength(1);
-        expect(order.pedidoItems[0].reglaFidelizacionId).toBe(ruleA.id);
+        expect(order.PedidoItem).toHaveLength(1);
+        expect(order.PedidoItem[0].reglaFidelizacionId).toBe(ruleA.id);
         const persisted = await prisma.pedido.findUnique({
           where: { id: order.id },
-          include: { pedidoItems: true },
+          include: { PedidoItem: true },
         });
-        expect(persisted?.pedidoItems[0].reglaFidelizacionId).toBe(ruleA.id);
+        expect(persisted?.PedidoItem[0].reglaFidelizacionId).toBe(ruleA.id);
       });
       it('R-02: nested Pedido.create cannot link Business A to Rule B', async () => {
         const db = scopedPrisma.forCompany(companyA.id),
           originChannel = 'g62-negative-nested';
         await expect(
           db.pedido.create({
-            data: { ...baseOrder(originChannel), pedidoItems: { create: [itemOf(ruleB.id)] } },
+            data: { ...baseOrder(originChannel), PedidoItem: { create: [itemOf(ruleB.id)] } },
           }),
         ).rejects.toThrow();
         expect(await countOrders(originChannel)).toBe(0);
@@ -804,7 +804,7 @@ describe('B3 tenant isolation — execution candidates', () => {
           db.pedido.create({
             data: {
               ...baseOrder(originChannel),
-              pedidoItems: { create: [itemOf(ruleA.id), itemOf(ruleB.id)] },
+              PedidoItem: { create: [itemOf(ruleA.id), itemOf(ruleB.id)] },
             },
           }),
         ).rejects.toThrow();
@@ -813,13 +813,13 @@ describe('B3 tenant isolation — execution candidates', () => {
       it('R-06: nested Pedido.update cannot add Rule B to an A Pedido', async () => {
         const db = scopedPrisma.forCompany(companyA.id);
         const order = await prisma.pedido.create({
-          data: { ...baseOrder('g62-update'), pedidoItems: { create: [itemOf(ruleA.id)] } },
+          data: { ...baseOrder('g62-update'), PedidoItem: { create: [itemOf(ruleA.id)] } },
           select: { id: true },
         });
         await expect(
           db.pedido.update({
             where: { id: order.id },
-            data: { pedidoItems: { create: itemOf(ruleB.id) } },
+            data: { PedidoItem: { create: itemOf(ruleB.id) } },
           }),
         ).rejects.toThrow();
         expect(await countOrderItems(order.id)).toBe(1);
@@ -827,10 +827,10 @@ describe('B3 tenant isolation — execution candidates', () => {
       it('R-07: null reglaFidelizacionId remains valid', async () => {
         const db = scopedPrisma.forCompany(companyA.id);
         const order = await db.pedido.create({
-          data: { ...baseOrder('g62-null'), pedidoItems: { create: [itemOf(null)] } },
-          include: { pedidoItems: true },
+          data: { ...baseOrder('g62-null'), PedidoItem: { create: [itemOf(null)] } },
+          include: { PedidoItem: true },
         });
-        expect(order.pedidoItems[0].reglaFidelizacionId).toBeNull();
+        expect(order.PedidoItem[0].reglaFidelizacionId).toBeNull();
         expect(await countOrderItems(order.id)).toBe(1);
       });
       it('R-08: relation isolation applies inside an interactive transaction', async () => {
@@ -840,14 +840,14 @@ describe('B3 tenant isolation — execution candidates', () => {
         await expect(
           db.$transaction(async (tx) => {
             await tx.pedido.create({
-              data: { ...baseOrder(negative), pedidoItems: { create: [itemOf(ruleB.id)] } },
+              data: { ...baseOrder(negative), PedidoItem: { create: [itemOf(ruleB.id)] } },
             });
           }),
         ).rejects.toThrow();
         expect(await countOrders(negative)).toBe(0);
         await db.$transaction(async (tx) => {
           await tx.pedido.create({
-            data: { ...baseOrder(positive), pedidoItems: { create: [itemOf(ruleA.id)] } },
+            data: { ...baseOrder(positive), PedidoItem: { create: [itemOf(ruleA.id)] } },
           });
         });
         expect(await countOrders(positive)).toBe(1);
@@ -934,7 +934,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       ).rejects.toThrow();
       expect(await countPurchases('g64-mixed')).toBe(0);
       expect(
-        await prisma.compraItem.count({ where: { compra: { numeroFactura: 'g64-mixed' } } }),
+        await prisma.compraItem.count({ where: { Compra: { numeroFactura: 'g64-mixed' } } }),
       ).toBe(0);
     });
 
@@ -989,19 +989,19 @@ describe('B3 tenant isolation — execution candidates', () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const channel = 'g63-positive';
       const sale = await db.venta.create({
-        data: { ...baseSale(channel), ventaItems: { create: [itemOf(ruleA.id)] } },
-        include: { ventaItems: true },
+        data: { ...baseSale(channel), VentaItem: { create: [itemOf(ruleA.id)] } },
+        include: { VentaItem: true },
       });
 
       expect(sale.empresaId).toBe(companyA.id);
-      expect(sale.ventaItems).toHaveLength(1);
-      expect(sale.ventaItems[0].reglaFidelizacionId).toBe(ruleA.id);
+      expect(sale.VentaItem).toHaveLength(1);
+      expect(sale.VentaItem[0].reglaFidelizacionId).toBe(ruleA.id);
 
       const persisted = await prisma.venta.findUnique({
         where: { id: sale.id },
-        include: { ventaItems: true },
+        include: { VentaItem: true },
       });
-      expect(persisted?.ventaItems[0].reglaFidelizacionId).toBe(ruleA.id);
+      expect(persisted?.VentaItem[0].reglaFidelizacionId).toBe(ruleA.id);
     });
 
     it('V-02: nested Venta.create cannot link Business A to Rule B', async () => {
@@ -1010,7 +1010,7 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await expect(
         db.venta.create({
-          data: { ...baseSale(channel), ventaItems: { create: [itemOf(ruleB.id)] } },
+          data: { ...baseSale(channel), VentaItem: { create: [itemOf(ruleB.id)] } },
         }),
       ).rejects.toThrow();
 
@@ -1057,7 +1057,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         db.venta.create({
           data: {
             ...baseSale(channel),
-            ventaItems: {
+            VentaItem: {
               create: [itemOf(ruleA.id), itemOf(ruleB.id)],
             },
           },
@@ -1070,14 +1070,14 @@ describe('B3 tenant isolation — execution candidates', () => {
     it('V-06: nested Venta.update cannot add Rule B to an A Venta', async () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const sale = await prisma.venta.create({
-        data: { ...baseSale('g63-update'), ventaItems: { create: [itemOf(ruleA.id)] } },
+        data: { ...baseSale('g63-update'), VentaItem: { create: [itemOf(ruleA.id)] } },
         select: { id: true },
       });
 
       await expect(
         db.venta.update({
           where: { id: sale.id },
-          data: { ventaItems: { create: itemOf(ruleB.id) } },
+          data: { VentaItem: { create: itemOf(ruleB.id) } },
         }),
       ).rejects.toThrow();
 
@@ -1087,11 +1087,11 @@ describe('B3 tenant isolation — execution candidates', () => {
     it('V-07: null reglaFidelizacionId remains valid', async () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const sale = await db.venta.create({
-        data: { ...baseSale('g63-null'), ventaItems: { create: [itemOf(null)] } },
-        include: { ventaItems: true },
+        data: { ...baseSale('g63-null'), VentaItem: { create: [itemOf(null)] } },
+        include: { VentaItem: true },
       });
 
-      expect(sale.ventaItems[0].reglaFidelizacionId).toBeNull();
+      expect(sale.VentaItem[0].reglaFidelizacionId).toBeNull();
       expect(await countSaleItems(sale.id)).toBe(1);
     });
 
@@ -1103,7 +1103,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.$transaction(async (tx) => {
           await tx.venta.create({
-            data: { ...baseSale(negative), ventaItems: { create: [itemOf(ruleB.id)] } },
+            data: { ...baseSale(negative), VentaItem: { create: [itemOf(ruleB.id)] } },
           });
         }),
       ).rejects.toThrow();
@@ -1112,12 +1112,12 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await db.$transaction(async (tx) => {
         await tx.venta.create({
-          data: { ...baseSale(positive), ventaItems: { create: [itemOf(ruleA.id)] } },
+          data: { ...baseSale(positive), VentaItem: { create: [itemOf(ruleA.id)] } },
         });
       });
 
       expect(await countSales(positive)).toBe(1);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: positive } } })).toBe(1);
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: positive } } })).toBe(1);
     });
   });
 });
