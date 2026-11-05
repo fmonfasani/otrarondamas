@@ -89,11 +89,11 @@ jobs:
           fi
 
           mapfile -t test_files < <(
-            printf '%s\\n' test/integration/tenant-isolation.integration-spec.ts "${discovered_test_files[@]}" | sort -u
+            printf '%s\n' test/integration/tenant-isolation.integration-spec.ts "${discovered_test_files[@]}" | sort -u
           )
 
-          printf 'Running %d API integration test files in one Jest process:\\n' "${#test_files[@]}"
-          printf '  %s\\n' "${test_files[@]}"
+          printf 'Running %d API integration test files in one Jest process:\n' "${#test_files[@]}"
+          printf '  %s\n' "${test_files[@]}"
           npm run test:integration:ci -- --runInBand --json --outputFile=test-results/integration.json "${test_files[@]}"
 
       # Preserve machine-readable Jest output even when a suite fails.
