@@ -50,7 +50,7 @@ describe('PermissionsGuard current database authorization', () => {
       where: { id: 'usuario-1' },
       select: {
         activo: true,
-        usuarioPermisos: { select: { permiso: { select: { nombre: true } } } },
+        UsuarioPermiso: { select: { Permiso: { select: { nombre: true } } } },
       },
     });
   });
