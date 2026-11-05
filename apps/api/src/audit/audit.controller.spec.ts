@@ -17,7 +17,7 @@ describe('AuditController', () => {
     nombre: 'Test User',
     permisos: [],
     rol: 'ASISTENTE_LOCAL',
-    estadoLegajo: 'ACTIVO',
+    estadoLegajo: 'APROBADO',
     type: 'usuario',
   };
 
