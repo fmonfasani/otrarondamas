@@ -1,7 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+
+type CreateAuditLogDto = {
+  empresaId: string;
+  usuarioId?: string;
+  accion: string;
+  entidadAfectada: string;
+  entidadId?: string;
+  valoresAnteriores?: any;
+  valoresPosteriores?: any;
+  motivo?: string;
+  autorizacionId?: string;
+  ventaId?: string;
+};
 
 describe('AuditService', () => {
   let service: AuditService;
