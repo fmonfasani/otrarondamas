@@ -174,7 +174,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       include: { CompraItem: true },
     });
     purchaseA = { id: purchase.id };
-    purchaseItemA = { id: purchase.items[0].id };
+    purchaseItemA = { id: purchase.CompraItem[0].id };
 
     batchA = await prisma.lote.create({
       data: {
