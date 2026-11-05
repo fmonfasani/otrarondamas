@@ -13,7 +13,7 @@ module.exports = {
   process(sourceText, sourcePath, transformOptions) {
     const source =
       testFile.test(sourcePath) && !jestImport.test(sourceText)
-        ? \`import { jest } from '@jest/globals';\n\${sourceText}\`
+        ? "import { jest } from '@jest/globals';\n" + sourceText
         : sourceText;
 
     return delegate.process(source, sourcePath, transformOptions);
