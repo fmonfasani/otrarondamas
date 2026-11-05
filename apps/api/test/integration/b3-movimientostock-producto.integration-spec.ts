@@ -359,10 +359,10 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       userA.id,
     );
 
-    expect(reception.movimientosStock.length).toBe(1);
-    expect(reception.movimientosStock[0].productoId).toBe(productA.id);
-    expect(reception.movimientosStock[0].motivo).toBe('Compra');
-    expect(reception.movimientosStock[0].tipoMovimiento).toBe('Entrada');
+    expect(reception.MovimientoStock.length).toBe(1);
+    expect(reception.MovimientoStock[0].productoId).toBe(productA.id);
+    expect(reception.MovimientoStock[0].motivo).toBe('Compra');
+    expect(reception.MovimientoStock[0].tipoMovimiento).toBe('Entrada');
   });
 
   it('MS-P-09: productive devolucion flow keeps working (crearDevolucion, W-2)', async () => {
@@ -414,7 +414,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         userA.id,
       );
 
-      expect(created.items[0].loteId).toBe(batchD.id);
+      expect(created.DevolucionProveedorItem[0].loteId).toBe(batchD.id);
       const after = await prisma.lote.findUniqueOrThrow({
         where: { id: batchD.id },
         select: { cantidad: true },
@@ -439,7 +439,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productB.id, loteId: batchB.id, cantidad: 1, costoUnitario: 5 }],
+          items: [{ productoId: productB.id, loteId: batchA.id, cantidad: 1, costoUnitario: 5 }],
         },
         userA.id,
       ),
