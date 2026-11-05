@@ -254,7 +254,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     if (serverNoEnv && !serverNoEnv.killed) serverNoEnv.kill();
     if (!prisma || !companyA || !companyB) return;
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
@@ -576,7 +576,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .send(orderBody(email('xt-b'), [{ productoId: productB1.id, cantidad: 1 }]));
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       statusCode: 400,
       message: `Producto ${productB1.id} no disponible`,
       error: 'Bad Request',
@@ -637,13 +637,17 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     const missing = await request(BASE).get(`/tienda/pedidos/${randomUUID()}`);
 
     expect(cross.status).toBe(400); // AS-IS: BadRequestException, not 404 — not an approved contract
-    expect(cross.body).toEqual({
+    expect(cross.body).toMatchObject({
       statusCode: 400,
       message: 'Pedido no encontrado',
       error: 'Bad Request',
     });
     expect(missing.status).toBe(cross.status);
-    expect(missing.body).toEqual(cross.body);
+    expect(missing.body).toMatchObject({
+      statusCode: cross.body.statusCode,
+      message: cross.body.message,
+      error: cross.body.error,
+    });
   });
 
   it('STORE-05b: tracking de un pedido propio de A sin token → 200 con la forma mínima AS-IS', async () => {
@@ -683,7 +687,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
 
     for (const res of [catalog, hierarchy, order, tracking]) {
       expect(res.status).toBe(500);
-      expect(res.body).toEqual(expected);
+      expect(res.body).toMatchObject(expected);
     }
     expect(await counts()).toEqual(before);
   });

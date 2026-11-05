@@ -307,7 +307,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     expect(result.id).toBe(orderA.id);
     expect(result.empresaId).toBe(companyA.id);
     expect(result.PedidoItem).toHaveLength(1);
-    expect(result.cliente.id).toBe(customerA.id);
+    expect(result.Cliente.id).toBe(customerA.id);
   });
 
   it('OBC-04: get of another tenant order fails closed, even with JWT claim of that tenant', async () => {
