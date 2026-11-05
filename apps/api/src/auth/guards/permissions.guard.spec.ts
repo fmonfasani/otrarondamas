@@ -64,7 +64,7 @@ describe('PermissionsGuard current database authorization', () => {
   });
 
   it('rejects a disabled or missing current Usuario', async () => {
-    findUnique.mockResolvedValue({ activo: false, usuarioPermisos: [] });
+    findUnique.mockResolvedValue({ activo: false, UsuarioPermiso: [] });
 
     await expect(guard.canActivate(executionContext(user()))).rejects.toBeInstanceOf(
       UnauthorizedException,

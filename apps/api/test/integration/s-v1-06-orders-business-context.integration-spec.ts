@@ -490,7 +490,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
     const proto = OrdersController.prototype;
     for (const handler of [proto.list, proto.get, proto.updateStatus]) {
-      findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
+      findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
       await expect(
         guard.canActivate(
           contextFor(
@@ -502,7 +502,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
       findUnique.mockResolvedValue({
         activo: true,
-        usuarioPermisos: [{ permiso: { nombre: 'pedidos.gestionar' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'pedidos.gestionar' } }],
       });
       await expect(
         guard.canActivate(
