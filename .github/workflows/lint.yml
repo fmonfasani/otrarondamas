@@ -12,6 +12,9 @@ on:
 
 jobs:
   lint:
+    permissions:
+      contents: read
+      issues: write
     name: Lint and Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 15

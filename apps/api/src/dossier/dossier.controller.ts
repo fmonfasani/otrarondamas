@@ -20,6 +20,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import type { UploadedDossierFile } from './uploaded-file.type';
 
 /**
  * RF-17 (docs/spec-login-roles.md): own dossier (self-service, without
@@ -61,7 +62,7 @@ export class DossierController {
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 10 * 1024 * 1024 } })) // 10MB
   async uploadDocument(
     @Body() dto: UploadDocumentDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: UploadedDossierFile,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const dossier = await this.dossierService.getOrCreateForUser(user.id);
