@@ -50,7 +50,12 @@ jobs:
         run: node --test tools/engineering/test/*.test.js
 
       - name: Install dependencies
-        run: npm ci --workspace=@otrarondamas/api --include-workspace-root
+        run: npm ci --workspace=@otrarondamas/api --include-workspace-root --ignore-scripts
+
+      # Re-enable lifecycle scripts only for the pinned Prisma packages that
+      # provide the query engines/client required by the explicit generation step.
+      - name: Prepare Prisma runtime
+        run: npm rebuild @prisma/engines @prisma/client --include-workspace-root
 
       - name: Generate Prisma Client
         run: npm run prisma:generate --workspace=@otrarondamas/api
@@ -59,7 +64,7 @@ jobs:
         run: npm run build --workspace=@otrarondamas/api
 
       - name: Prepare PostgreSQL schema
-        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+        run: ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
       # CI-specific Jest scripts intentionally do not regenerate Prisma Client:
       # the client was generated once above, before build and both test stages.
