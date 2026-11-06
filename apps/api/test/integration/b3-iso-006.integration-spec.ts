@@ -257,7 +257,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
             estado: 'CONFIRMADA',
             canal: channel,
             total: 10,
-            ventaItems: {
+            VentaItem: {
               create: {
                 productoId: productB.id,
                 cantidad: 1,
@@ -272,7 +272,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
     expect(await prisma.venta.count({ where: { canal: channel } })).toBe(0);
     expect(
       await prisma.ventaItem.count({
-        where: { productoId: productB.id, venta: { canal: channel } },
+        where: { productoId: productB.id, Venta: { canal: channel } },
       }),
     ).toBe(0);
   });

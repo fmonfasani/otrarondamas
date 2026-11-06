@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthorizationGuard } from './authorization.guard';
-import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth.types';
 
@@ -99,25 +98,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-1',
           membershipId: 'membership-1',
           roleTemplateId: mockOwnerRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockOwnerRoleTemplateId,
             name: 'OWNER',
             description: 'Full access',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockOwnerCapabilities.map((code) => ({
+            RoleCapability: mockOwnerCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockOwnerRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -127,7 +126,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [],
+          CapabilityGrant: [],
         },
       } as any);
 
@@ -151,25 +150,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-2',
           membershipId: 'membership-2',
           roleTemplateId: mockAsistenteRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockAsistenteRoleTemplateId,
             name: 'ASISTENTE_LOCAL',
             description: 'Store assistant',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
+            RoleCapability: mockAsistenteCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockAsistenteRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -179,7 +178,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [],
+          CapabilityGrant: [],
         },
       } as any);
 
@@ -198,25 +197,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-2',
           membershipId: 'membership-2',
           roleTemplateId: mockAsistenteRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockAsistenteRoleTemplateId,
             name: 'ASISTENTE_LOCAL',
             description: 'Store assistant',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
+            RoleCapability: mockAsistenteCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockAsistenteRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -226,7 +225,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [],
+          CapabilityGrant: [],
         },
       } as any);
 
@@ -244,22 +243,22 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-3',
           membershipId: 'membership-3',
           roleTemplateId: 'role-proveedor',
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: 'role-proveedor',
             name: 'PROVEEDOR',
             description: 'Supplier placeholder',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: [], // No capabilities
+            RoleCapability: [], // No capabilities
           },
-          capabilityGrants: [],
+          CapabilityGrant: [],
         },
       } as any);
 
@@ -279,25 +278,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-4',
           membershipId: 'membership-4',
           roleTemplateId: mockAsistenteRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockAsistenteRoleTemplateId,
             name: 'ASISTENTE_LOCAL',
             description: 'Store assistant',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
+            RoleCapability: mockAsistenteCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockAsistenteRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -307,7 +306,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [
+          CapabilityGrant: [
             {
               id: 'capgrant-1',
               roleGrantId: 'rolegrant-4',
@@ -317,7 +316,7 @@ describe('AuthorizationGuard', () => {
               grantedBy: 'owner-123',
               createdAt: new Date(),
               updatedAt: new Date(),
-              capability: {
+              CapabilityDefinition: {
                 id: 'capdef-catalog.change_prices',
                 code: 'catalog.change_prices',
                 description: 'Change product prices',
@@ -346,25 +345,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-4',
           membershipId: 'membership-4',
           roleTemplateId: mockAsistenteRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockAsistenteRoleTemplateId,
             name: 'ASISTENTE_LOCAL',
             description: 'Store assistant',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
+            RoleCapability: mockAsistenteCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockAsistenteRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -374,7 +373,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [
+          CapabilityGrant: [
             {
               id: 'capgrant-1',
               roleGrantId: 'rolegrant-4',
@@ -384,7 +383,7 @@ describe('AuthorizationGuard', () => {
               grantedBy: 'owner-123',
               createdAt: new Date(),
               updatedAt: new Date(),
-              capability: {
+              CapabilityDefinition: {
                 id: 'capdef-catalog.change_prices',
                 code: 'catalog.change_prices',
                 description: 'Change product prices',
@@ -412,25 +411,25 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: {
+        RoleGrant: {
           id: 'rolegrant-5',
           membershipId: 'membership-5',
           roleTemplateId: mockAsistenteRoleTemplateId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          roleTemplate: {
+          RoleTemplate: {
             id: mockAsistenteRoleTemplateId,
             name: 'ASISTENTE_LOCAL',
             description: 'Store assistant',
             empresaId: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
+            RoleCapability: mockAsistenteCapabilities.map((code) => ({
               id: `cap-${code}`,
               roleTemplateId: mockAsistenteRoleTemplateId,
               capabilityDefId: `capdef-${code}`,
               createdAt: new Date(),
-              capabilityDef: {
+              CapabilityDefinition: {
                 id: `capdef-${code}`,
                 code,
                 description: `Capability: ${code}`,
@@ -440,7 +439,7 @@ describe('AuthorizationGuard', () => {
               },
             })),
           },
-          capabilityGrants: [
+          CapabilityGrant: [
             {
               id: 'capgrant-2',
               roleGrantId: 'rolegrant-5',
@@ -450,7 +449,7 @@ describe('AuthorizationGuard', () => {
               grantedBy: 'owner-123',
               createdAt: new Date(),
               updatedAt: new Date(),
-              capability: {
+              CapabilityDefinition: {
                 id: 'capdef-purchases.manage',
                 code: 'purchases.manage',
                 description: 'Manage purchase orders',
@@ -468,7 +467,7 @@ describe('AuthorizationGuard', () => {
               grantedBy: 'owner-123',
               createdAt: new Date(),
               updatedAt: new Date(),
-              capability: {
+              CapabilityDefinition: {
                 id: 'capdef-catalog.change_prices',
                 code: 'catalog.change_prices',
                 description: 'Change product prices',
@@ -521,7 +520,7 @@ describe('AuthorizationGuard', () => {
         status: 'SUSPENDED',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: null,
+        RoleGrant: null,
       } as any);
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
@@ -538,7 +537,7 @@ describe('AuthorizationGuard', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: null, // Phase 2 P1-2 migration incomplete
+        RoleGrant: null, // Phase 2 P1-2 migration incomplete
       } as any);
 
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
