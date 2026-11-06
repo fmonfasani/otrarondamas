@@ -388,23 +388,46 @@ await prisma.$transaction(async (tx) => {
 
 ---
 
-## ORDEN DE CORRECCIÓN REVISADO
+## BLOQUEADORES DE MERGE — NO CERRADOS
 
-### Blockers para merge de PR #100
+### Defectos confirmados por código (reproducción pendiente)
 
-1. ✅ **findUnique bypass** — PR #125 en draft, CI failing TS6.0 issues (no relacionado con cambio)
-   - Requiere: Prueba PostgreSQL real + validación Prisma 5.22 ExtendedWhereUnique
-   
-2. ✅ **EmailTemplate.update brecha** — Corrección acotada
-   - Requiere: updateMany con (id, empresaId) + validar count > 0
-   
-3. ✅ **verifyRelationalOwnership race condition** — Reproducción + cuantificación de impacto
-   - Requiere: PostgreSQL con 2 tx concurrentes
+1. 🟡 **findUnique bypass** — P1 POTENCIAL
+   - Código vulnerable: línea 204 verifica si empresaId está en result
+   - Si select omite empresaId, verificación falla silenciosamente
+   - Caller explotable: NO VERIFICADO REMOTAMENTE
+   - **Estado PR #125**: Draft, CI failing TS6.0 (no relacionado a cambio)
+   - **Bloqueador**: NO — requiere reproducción PostgreSQL + validación Prisma 5.22
+   - **Acción**: Reproducir con 2 empresas, findUnique con select sin empresaId
 
-4. ⏳ **Auditoría de 19 modelos** — Clasificación + acceso real
-   - Requiere: Inventario de callers por modelo
+2. 🟡 **verifyRelationalOwnership race condition** — DEFECTO TRANSACCIONAL
+   - Cliente base capturado fuera de tx
+   - No ve registros no-yet-committed dentro de transacción
+   - **Bloqueador**: NO — requiere reproducción con 2 tx concurrentes
+   - **Acción**: Reproducir carrera entre verify + persist
 
-5. ⏳ **Cobertura relacional** — Identificar relaciones críticas explotables
+3. 🔴 **GET /pagos/:id IDOR** — DEFECTO CONFIRMADO (nuevo hallazgo)
+   - findUnique sin empresaId en contexto autenticado
+   - Callers: retry, cancel, getPaymentDetail
+   - **Bloqueador**: SÍ — refactor de callers requerido
+   - **Acción**: Corrección en rama independiente fix/security-payment-ownership
+
+4. 🔴 **PATCH /notifications/digests/:id IDOR** — DEFECTO CONFIRMADO
+   - markDigestAsOpened sin usuarioId del contexto autenticado
+   - Servicio actualiza por ID solamente
+   - **Bloqueador**: SÍ — refactor de handler + servicio requerido
+   - **Acción**: Corrección en rama independiente fix/security-notification-digest-idor
+
+5. ⚠️ **Webhooks de pago** — NUEVO HALLAZGO (investigación en curso)
+   - handlePaymentSuccess/Failed actualizan sin empresaId
+   - Webhook autenticado por firma, pero flujo interno sin validación empresarial
+   - **Estado**: Análisis de vinculación evento-empresa-intent pendiente
+   - **Bloqueador**: CONDICIONAL — depende de validación webhook
+
+### Deuda técnica (no bloqueador)
+
+- 19 modelos omitidos: auditoría de acceso + clasificación TENANT/PUBLIC/INHERITED
+- 40+ relaciones no registradas: auditar relaciones críticas (Pago→Venta, Pedido→Cliente)
 
 ---
 

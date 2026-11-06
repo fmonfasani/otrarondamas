@@ -146,22 +146,30 @@ const updated = await this.prisma.notificationDigest.update({
 
 ---
 
-### 🔴 EmailPreference (Servicio Dedicado) — ACCESO CRÍTICO
+### 🟡 EmailPreference (Servicio Dedicado) — ACCESO DISEÑO
 
 **Ubicación**: `src/email/preferences/email-preference.service.ts`
 
-**Patrón**:
+**Patrón actual**:
 ```typescript
 const existing = await this.prisma.emailPreference.findUnique({
-  where: { email },  // ⚠️ Lookupúnico por email, sin empresaId
+  where: { email },  // ⚠️ Lookup único global por email
 });
 ```
 
-**Riesgo**: Email es globalmente único en la BD, pero NO por empresa
+**Análisis**:
+- Email es globalmente único en schema (unsubscribeToken también)
+- Pero findUnique no valida empresaId del contexto
+- Operaciones posteriores (update, delete) requieren empresaId
+
+**Estado**: Defecto de consentimiento, no de aislamiento
+- Lectura previa global es intencional (mecanismo de autorización por token)
+- Pero operaciones debe validar ownership antes de modificar
 
 **Acción Requerida**:
-- [ ] Cambiar schema: `@@unique([email, empresaId])`
-- [ ] Cambiar queries: `where: { email_empresaId: { email, empresaId } }`
+- [ ] NO cambiar schema (email es globalmente único por diseño)
+- [ ] Validar empresaId en getOrCreate(), update(), delete() tras lookup global
+- [ ] Operaciones posteriores requieren: where { id, empresaId }
 
 ---
 
