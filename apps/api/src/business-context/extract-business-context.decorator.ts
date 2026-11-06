@@ -1,33 +1,34 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { BusinessContextService } from './business-context.service';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import type { BusinessContext } from './business-context.types';
+
+type RequestWithBusinessContext = {
+  businessContext?: BusinessContext;
+};
 
 /**
- * P8-2: @ExtractBusinessContext decorator
+ * Reads the business context previously resolved by BusinessContextGuard.
  *
- * Extracts the empresaId from the authenticated user's BusinessContext.
- * Fails closed if no valid context (calls BusinessContextService.resolveForAuthenticatedUser).
- *
- * Usage:
- *   @Get('templates')
- *   async listTemplates(@ExtractBusinessContext() empresaId: string) { ... }
+ * Apply BusinessContextGuard to the controller/route before using this
+ * decorator. The decorator deliberately does not attempt dependency
+ * resolution: ExecutionContext's request.app is an Express application,
+ * not Nest's dependency-injection container.
  */
 export const ExtractBusinessContext = createParamDecorator(
-  async (data: unknown, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user;
+  (_data: unknown, ctx: ExecutionContext): string => {
+    const request = ctx
+      .switchToHttp()
+      .getRequest<RequestWithBusinessContext>();
 
-    if (!user) {
-      throw new Error('No user in request context');
+    if (!request.businessContext?.businessId) {
+      throw new InternalServerErrorException(
+        'BusinessContextGuard debe ejecutarse antes de @ExtractBusinessContext',
+      );
     }
 
-    // Use the request scope to get BusinessContextService
-    const businessContextService = ctx.switchToHttp().getRequest().app.get(BusinessContextService);
-
-    if (!businessContextService) {
-      throw new Error('BusinessContextService not available');
-    }
-
-    const context = await businessContextService.resolveForAuthenticatedUser(user);
-    return context.businessId;
+    return request.businessContext.businessId;
   },
 );

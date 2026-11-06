@@ -92,7 +92,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
     await prisma.$connect();
     prismaFactory = new CompanyScopedPrismaService(prisma);
     inventoryService = new InventoryService(prismaFactory);
-    cartService = new CartService(prismaFactory, prisma, inventoryService);
+    cartService = new CartService(prismaFactory, inventoryService);
     suffix = Date.now();
 
     // Create two companies
@@ -233,7 +233,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      const updated = await cartService.updateItemQuantity(item.id, 5, companyA.id);
+      const updated = await cartService.updateItemQuantity(cart.id, item.id, 5, companyA.id);
       expect(Number(updated.cantidad)).toBe(5);
     });
 
@@ -241,7 +241,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      await expect(cartService.updateItemQuantity(item.id, 0, companyA.id)).rejects.toThrow(
+      await expect(cartService.updateItemQuantity(cart.id, item.id, 0, companyA.id)).rejects.toThrow(
         'Cantidad debe ser mayor a 0',
       );
     });
@@ -250,14 +250,14 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const cart = await cartService.getOrCreateCart(customerA.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      await expect(cartService.updateItemQuantity(item.id, 100, companyA.id)).rejects.toThrow(
+      await expect(cartService.updateItemQuantity(cart.id, item.id, 100, companyA.id)).rejects.toThrow(
         'Stock insuficiente',
       );
     });
 
     it('throws NotFoundException for non-existent item', async () => {
       await expect(
-        cartService.updateItemQuantity('nonexistent-id', 5, companyA.id),
+        cartService.updateItemQuantity('nonexistent-cart', 'nonexistent-id', 5, companyA.id),
       ).rejects.toThrow('Item del carrito no encontrado');
     });
   });
@@ -277,16 +277,41 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const cart = await cartService.getOrCreateCart(customerNew.id, companyA.id);
       const item = await cartService.addItem(cart.id, productA.id, 1, companyA.id);
 
-      await cartService.removeItem(item.id, companyA.id);
+      await cartService.removeItem(cart.id, item.id, companyA.id);
 
       const updated = await cartService.getCart(cart.id, companyA.id);
       expect(updated.items).toHaveLength(0);
     });
 
     it('throws NotFoundException for non-existent item', async () => {
-      await expect(cartService.removeItem('nonexistent-id', companyA.id)).rejects.toThrow(
+      await expect(cartService.removeItem('nonexistent-cart', 'nonexistent-id', companyA.id)).rejects.toThrow(
         'Item del carrito no encontrado',
       );
+    });
+    it('rejects item mutations when the route cart does not own the item', async () => {
+      const otherCustomer = await prisma.cliente.create({
+        data: {
+          empresaId: companyA.id,
+          nombre: `P6 Customer mismatch ${suffix}`,
+          email: `p6-customer-mismatch-${suffix}@example.test`,
+          activo: true,
+        },
+        select: { id: true },
+      });
+      const routeCart = await cartService.getOrCreateCart(customerA.id, companyA.id);
+      const itemCart = await cartService.getOrCreateCart(otherCustomer.id, companyA.id);
+      const item = await cartService.addItem(itemCart.id, productB.id, 1, companyA.id);
+
+      await expect(
+        cartService.updateItemQuantity(routeCart.id, item.id, 2, companyA.id),
+      ).rejects.toThrow('Item del carrito no encontrado');
+      await expect(
+        cartService.removeItem(routeCart.id, item.id, companyA.id),
+      ).rejects.toThrow('Item del carrito no encontrado');
+
+      const unchanged = await prisma.cartItem.findUnique({ where: { id: item.id } });
+      expect(unchanged).not.toBeNull();
+      expect(Number(unchanged?.cantidad)).toBe(1);
     });
   });
 
@@ -299,6 +324,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       const retrieved = await cartService.getCart(cart.id, companyA.id);
 
       expect(retrieved.items).toHaveLength(2);
+      expect(retrieved).not.toHaveProperty('Cliente');
       expect(retrieved.items[0].producto.nombre).toBeDefined();
       expect(retrieved.items[0].producto.precioMinorista).toBeDefined();
     });

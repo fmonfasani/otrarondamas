@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards, Query, BadRequestException } from '@nestjs/
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuthorizationGuard } from '../../auth/guards/authorization.guard';
 import { Authorize } from '../../auth/decorators/authorize.decorator';
-import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../../business-context/extract-business-context.decorator';
 import { AnalyticsDashboardService } from '../services/analytics-dashboard.service';
 
 @Controller('admin/dashboard')
@@ -12,18 +12,18 @@ export class DashboardController {
 
   @Get('kpis')
   @Authorize('dashboard.view')
-  async getDashboardKPIs(@CurrentUser() user: any, @Query('period') period: string = '30d') {
+  async getDashboardKPIs(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     const validPeriods = ['7d', '30d', '90d'];
     if (!validPeriods.includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }
-    return this.analyticsService.getDashboardKPIs(user.empresaId, period);
+    return this.analyticsService.getDashboardKPIs(businessId, period);
   }
 
   @Get('trends')
   @Authorize('dashboard.view')
   async getTrendChart(
-    @CurrentUser() user: any,
+    @ExtractBusinessContext() businessId: string,
     @Query('metric') metric: 'revenue' | 'orders' = 'revenue',
     @Query('period') period: string = '30d',
   ) {
@@ -33,13 +33,13 @@ export class DashboardController {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }
-    return this.analyticsService.getTrendChart(user.empresaId, metric, period);
+    return this.analyticsService.getTrendChart(businessId, metric, period);
   }
 
   @Get('top-products')
   @Authorize('dashboard.view')
   async getTopProducts(
-    @CurrentUser() user: any,
+    @ExtractBusinessContext() businessId: string,
     @Query('limit') limit?: string,
     @Query('metric') metric: 'revenue' | 'quantity' = 'revenue',
   ) {
@@ -50,24 +50,24 @@ export class DashboardController {
     if (!['revenue', 'quantity'].includes(metric)) {
       throw new BadRequestException('Invalid metric. Must be revenue or quantity');
     }
-    return this.analyticsService.getTopProducts(user.empresaId, limitNum, metric);
+    return this.analyticsService.getTopProducts(businessId, limitNum, metric);
   }
 
   @Get('channel-breakdown')
   @Authorize('dashboard.view')
-  async getChannelBreakdown(@CurrentUser() user: any, @Query('period') period: string = '30d') {
+  async getChannelBreakdown(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }
-    return this.analyticsService.getChannelBreakdown(user.empresaId, period);
+    return this.analyticsService.getChannelBreakdown(businessId, period);
   }
 
   @Get('geographic-breakdown')
   @Authorize('dashboard.view')
-  async getGeographicBreakdown(@CurrentUser() user: any, @Query('period') period: string = '30d') {
+  async getGeographicBreakdown(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
     }
-    return this.analyticsService.getGeographicBreakdown(user.empresaId, period);
+    return this.analyticsService.getGeographicBreakdown(businessId, period);
   }
 }

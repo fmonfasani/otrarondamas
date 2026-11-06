@@ -1,0 +1,55 @@
+name: Backend Validation
+
+on:
+  push:
+    branches:
+      - chatgpt/remote-audit-pr100
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/backend-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: NestJS API validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wapsell_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Build API
+        run: npm run build --workspace=@otrarondamas/api
+
+      - name: Lint API (non-mutating)
+        run: npm run lint --workspace=@otrarondamas/api
+
+      - name: Run API unit tests
+        run: npm test --workspace=@otrarondamas/api -- --runInBand --testPathIgnorePatterns=e2e

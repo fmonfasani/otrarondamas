@@ -9,6 +9,7 @@ import {
   Res,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -18,6 +19,8 @@ import { DossierService } from './dossier.service';
 import { UpdateDossierDto } from './dto/update-dossier.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
+import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -82,9 +85,10 @@ export class DossierController {
    */
   @RequirePermission('usuarios.gestionar')
   @Get('pendientes')
-  async listPending(@CurrentUser() user: AuthenticatedUser) {
+  @UseGuards(BusinessContextGuard)
+  async listPending(@ExtractBusinessContext() businessId: string) {
     const users = await this.prisma.usuario.findMany({
-      where: { empresaId: user.empresaId, estadoLegajo: 'PENDIENTE' },
+      where: { empresaId: businessId, estadoLegajo: 'PENDIENTE' },
       include: { Legajo: { include: { DocumentoLegajo: true } } },
     });
     return users.map((u) => ({
@@ -105,9 +109,13 @@ export class DossierController {
    */
   @RequirePermission('usuarios.gestionar')
   @Patch(':usuarioId/aprobar')
-  async approve(@Param('usuarioId') userId: string, @CurrentUser() user: AuthenticatedUser) {
+  @UseGuards(BusinessContextGuard)
+  async approve(
+    @Param('usuarioId') userId: string,
+    @ExtractBusinessContext() businessId: string,
+  ) {
     const userRecord = await this.prisma.usuario.findFirst({
-      where: { id: userId, empresaId: user.empresaId },
+      where: { id: userId, empresaId: businessId },
     });
     if (!userRecord) {
       throw new NotFoundException('Usuario no encontrado');
@@ -121,10 +129,13 @@ export class DossierController {
       return { aprobado: false, faltantes: missing };
     }
 
-    await this.prisma.usuario.update({
-      where: { id: userId },
+    const updated = await this.prisma.usuario.updateMany({
+      where: { id: userId, empresaId: businessId },
       data: { estadoLegajo: 'APROBADO' },
     });
+    if (updated.count !== 1) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
     return { aprobado: true, faltantes: [] };
   }
 
@@ -137,16 +148,20 @@ export class DossierController {
    */
   @RequirePermission('usuarios.gestionar')
   @Get('documentos/:documentoId/descargar')
+  @UseGuards(BusinessContextGuard)
   async downloadDocument(
     @Param('documentoId') documentId: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Res() res: Response,
   ) {
-    const document = await this.prisma.documentoLegajo.findUnique({
-      where: { id: documentId },
+    const document = await this.prisma.documentoLegajo.findFirst({
+      where: {
+        id: documentId,
+        Legajo: { Usuario: { empresaId: businessId } },
+      },
       include: { Legajo: { include: { Usuario: true } } },
     });
-    if (!document || document.Legajo.Usuario?.empresaId !== user.empresaId) {
+    if (!document) {
       throw new NotFoundException('Documento no encontrado');
     }
 

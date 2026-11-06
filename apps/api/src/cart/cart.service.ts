@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 
 /**
@@ -24,7 +23,6 @@ import { InventoryService } from '../inventory/inventory.service';
 export class CartService {
   constructor(
     private readonly prismaFactory: CompanyScopedPrismaService,
-    private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
   ) {}
 
@@ -110,10 +108,17 @@ export class CartService {
 
     let item;
     if (existingItem) {
-      // Update quantity
-      item = await db.cartItem.update({
-        where: { id: existingItem.id },
-        data: { cantidad: existingItem.cantidad.plus(cantidad) },
+      // Atomic increment, constrained again by cart and tenant to avoid a
+      // time-of-check/time-of-use gap between lookup and mutation.
+      const updated = await db.cartItem.updateMany({
+        where: { id: existingItem.id, cartId, Cart: { businessId } },
+        data: { cantidad: { increment: cantidad } },
+      });
+      if (updated.count !== 1) {
+        throw new NotFoundException('Item del carrito no encontrado');
+      }
+      item = await db.cartItem.findFirstOrThrow({
+        where: { id: existingItem.id, cartId, Cart: { businessId } },
         include: { Producto: { select: { nombre: true, precioMinorista: true } } },
       });
     } else {
@@ -131,7 +136,7 @@ export class CartService {
     return item;
   }
 
-  async updateItemQuantity(cartItemId: string, cantidad: number, businessId: string) {
+  async updateItemQuantity(cartId: string, cartItemId: string, cantidad: number, businessId: string) {
     if (cantidad <= 0) {
       throw new BadRequestException('Cantidad debe ser mayor a 0');
     }
@@ -143,7 +148,8 @@ export class CartService {
     const item = await db.cartItem.findFirst({
       where: {
         id: cartItemId,
-        Cart: { businessId }, // Validate at query time, not post-query
+        cartId,
+        Cart: { businessId }, // Validate item, route cart, and tenant at query time
       },
       include: { Cart: true, Producto: true },
     });
@@ -160,32 +166,31 @@ export class CartService {
       throw new BadRequestException(`Stock insuficiente. Disponible: ${availableStock}`);
     }
 
-    return db.cartItem.update({
-      where: { id: cartItemId },
+    const updated = await db.cartItem.updateMany({
+      where: { id: cartItemId, cartId, Cart: { businessId } },
       data: { cantidad },
+    });
+    if (updated.count !== 1) {
+      throw new NotFoundException('Item del carrito no encontrado');
+    }
+
+    return db.cartItem.findFirstOrThrow({
+      where: { id: cartItemId, cartId, Cart: { businessId } },
       include: { Producto: { select: { nombre: true, precioMinorista: true } } },
     });
   }
 
-  async removeItem(cartItemId: string, businessId: string) {
+  async removeItem(cartId: string, cartItemId: string, businessId: string) {
     const db = this.prismaFactory.forCompany(businessId);
 
     // SECURITY: Include Cart.businessId in where clause for primary validation
-    const item = await db.cartItem.findFirst({
-      where: {
-        id: cartItemId,
-        Cart: { businessId }, // Validate at query time, not post-query
-      },
-      include: { Cart: true },
+    const deleted = await db.cartItem.deleteMany({
+      where: { id: cartItemId, cartId, Cart: { businessId } },
     });
 
-    if (!item) {
+    if (deleted.count !== 1) {
       throw new NotFoundException('Item del carrito no encontrado');
     }
-
-    await db.cartItem.delete({
-      where: { id: cartItemId },
-    });
   }
 
   async getCart(cartId: string, businessId: string) {
@@ -206,9 +211,6 @@ export class CartService {
             },
           },
           orderBy: { createdAt: 'asc' },
-        },
-        Cliente: {
-          select: { id: true, nombre: true, email: true },
         },
       },
     });
@@ -232,7 +234,7 @@ export class CartService {
     }
 
     await db.cartItem.deleteMany({
-      where: { cartId },
+      where: { cartId, Cart: { businessId } },
     });
   }
 

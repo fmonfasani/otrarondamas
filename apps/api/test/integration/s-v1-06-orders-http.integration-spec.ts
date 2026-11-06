@@ -295,7 +295,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });

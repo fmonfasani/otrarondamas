@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthorizationGuard } from './authorization.guard';
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessContextService } from '../../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth.types';
 
 /**
@@ -22,6 +23,7 @@ describe('AuthorizationGuard', () => {
   let guard: AuthorizationGuard;
   let reflector: Reflector;
   let prismaService: PrismaService;
+  let businessContextService: BusinessContextService;
 
   // Mock data
   const mockUserId = 'user-123';
@@ -76,24 +78,36 @@ describe('AuthorizationGuard', () => {
             },
           },
         },
+        {
+          provide: BusinessContextService,
+          useValue: {
+            resolveForAuthenticatedUser: jest.fn().mockResolvedValue({
+              userId: 'canonical-user-123',
+              businessId: mockBusinessId,
+              membershipId: 'membership-1',
+              role: 'OWNER',
+              actorType: 'USER',
+              permissions: [],
+            }),
+          },
+        },
       ],
     }).compile();
 
     guard = module.get<AuthorizationGuard>(AuthorizationGuard);
     reflector = module.get<Reflector>(Reflector);
     prismaService = module.get<PrismaService>(PrismaService);
+    businessContextService = module.get<BusinessContextService>(BusinessContextService);
   });
 
   describe('Baseline Scenarios', () => {
     it('✓ allows OWNER to access endpoint requiring sales.create', async () => {
       // Setup
-      const context = mockContext('sales.create');
-      const user = mockAuthenticatedUser('usuario');
-
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-1',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'OWNER',
         status: 'ACTIVE',
@@ -136,16 +150,20 @@ describe('AuthorizationGuard', () => {
 
       // Assert
       expect(result).toBe(true);
+      expect(businessContextService.resolveForAuthenticatedUser).toHaveBeenCalledWith(
+        expect.objectContaining({ id: mockUserId, type: 'usuario' }),
+      );
+      expect(prismaService.membership.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'membership-1' } }),
+      );
     });
 
     it('✓ allows ASISTENTE_LOCAL to access endpoint requiring sales.create', async () => {
-      const context = mockContext('sales.create');
-      const user = mockAuthenticatedUser('usuario');
-
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-2',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'ASISTENTE_LOCAL',
         status: 'ACTIVE',
@@ -188,11 +206,11 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ denies ASISTENTE_LOCAL from accessing endpoint requiring users.manage', async () => {
-      const context = mockContext('users.manage');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('users.manage');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-2',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'ASISTENTE_LOCAL',
         status: 'ACTIVE',
@@ -234,11 +252,11 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ denies PROVEEDOR from accessing any operational endpoint', async () => {
-      const context = mockContext('sales.create');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-3',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'PROVEEDOR',
         status: 'ACTIVE',
@@ -269,11 +287,11 @@ describe('AuthorizationGuard', () => {
 
   describe('CapabilityGrant Overrides', () => {
     it('✓ allows ASISTENTE_LOCAL with grant for catalog.change_prices', async () => {
-      const context = mockContext('catalog.change_prices');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('catalog.change_prices');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-4',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'ASISTENTE_LOCAL',
         status: 'ACTIVE',
@@ -336,11 +354,11 @@ describe('AuthorizationGuard', () => {
 
     it('✓ CapabilityGrant persists across requests (DB source of truth)', async () => {
       // Same scenario as above, but verify DB is queried
-      const context = mockContext('catalog.change_prices');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('catalog.change_prices');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-4',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'ASISTENTE_LOCAL',
         status: 'ACTIVE',
@@ -402,11 +420,11 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✓ multiple CapabilityGrants on same membership union correctly', async () => {
-      const context = mockContext('purchases.manage');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('purchases.manage');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-5',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'ASISTENTE_LOCAL',
         status: 'ACTIVE',
@@ -488,7 +506,7 @@ describe('AuthorizationGuard', () => {
 
   describe('Guard Behavior', () => {
     it('✓ allows endpoints without @Authorize metadata (authentication-only)', async () => {
-      const context = mockContext(undefined);
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
       const result = await guard.canActivate(context);
@@ -496,26 +514,25 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ rejects unauthenticated request (missing user)', async () => {
-      const context = mockContextWithoutUser('sales.create');
+      const context = mockContextWithoutUser();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
     it('✗ rejects customer identity (requires staff)', async () => {
-      const context = mockContext('sales.create');
-      const user = mockAuthenticatedUser('cliente');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
 
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
 
     it('✗ rejects suspended membership', async () => {
-      const context = mockContext('sales.create');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-6',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'OWNER',
         status: 'SUSPENDED',
@@ -528,11 +545,11 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ rejects missing RoleGrant during migration', async () => {
-      const context = mockContext('sales.create');
+      const context = mockContext();
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-7',
-        userId: mockUserId,
+        userId: 'canonical-user-123',
         businessId: mockBusinessId,
         role: 'OWNER',
         status: 'ACTIVE',
@@ -546,7 +563,7 @@ describe('AuthorizationGuard', () => {
   });
 
   // Helper functions
-  function mockContext(capability?: string): Partial<ExecutionContext> {
+  function mockContext(): Partial<ExecutionContext> {
     const request = {
       user: mockAuthenticatedUser('usuario'),
     };
@@ -559,7 +576,7 @@ describe('AuthorizationGuard', () => {
     };
   }
 
-  function mockContextWithoutUser(capability?: string): Partial<ExecutionContext> {
+  function mockContextWithoutUser(): Partial<ExecutionContext> {
     const request = {
       user: undefined,
     };

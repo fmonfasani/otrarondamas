@@ -305,8 +305,8 @@ describe('P0-1: Empresa → Business Migration', () => {
       const ventas = await prisma.venta.findMany({
         take: 5,
         include: {
-          usuario: true,
-          cliente: true,
+          Usuario: true,
+          Cliente: true,
         },
       });
 

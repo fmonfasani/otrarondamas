@@ -98,7 +98,7 @@ describe('Store API — Catalog and Hierarchy', () => {
   });
 
   afterAll(async () => {
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });

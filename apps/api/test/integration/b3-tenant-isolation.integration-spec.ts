@@ -215,11 +215,11 @@ describe('B3 tenant isolation — execution candidates', () => {
     }
 
     await prisma.pedidoItem.deleteMany({
-      where: { pedido: { empresaId: { in: [companyA.id, companyB.id] } } },
+      where: { Pedido: { empresaId: { in: [companyA.id, companyB.id] } } },
     });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: [companyA.id, companyB.id] } } });
     await prisma.ventaItem.deleteMany({
-      where: { venta: { empresaId: { in: [companyA.id, companyB.id] } } },
+      where: { Venta: { empresaId: { in: [companyA.id, companyB.id] } } },
     });
     await prisma.venta.deleteMany({
       where: { empresaId: { in: [companyA.id, companyB.id] } },
@@ -326,7 +326,7 @@ describe('B3 tenant isolation — execution candidates', () => {
     const crossBusinessItems = await prisma.ventaItem.count({
       where: {
         productoId: productB.id,
-        venta: { empresaId: companyA.id },
+        Venta: { empresaId: companyA.id },
       },
     });
 
@@ -455,7 +455,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       ).rejects.toMatchObject({ code: 'P2025' });
 
       expect(await countSales(channel)).toBe(0);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: channel } } })).toBe(0);
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: channel } } })).toBe(0);
     });
 
     it('RI-04: producto.connect to a Business B product is rejected', async () => {
@@ -473,7 +473,7 @@ describe('B3 tenant isolation — execution candidates', () => {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
-                producto: { connect: { id: productB.id } },
+                Producto: { connect: { id: productB.id } },
               },
             },
           },
@@ -499,7 +499,7 @@ describe('B3 tenant isolation — execution candidates', () => {
               create: {
                 cantidad: 1,
                 precioUnitario: 10,
-                producto: {
+                Producto: {
                   connectOrCreate: {
                     where: { id: productB.id },
                     create: {
@@ -587,7 +587,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         await tx.venta.create({ data: saleOf(positiveChannel, [itemOf(productA.id)]) });
       });
       expect(await countSales(positiveChannel)).toBe(1);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: positiveChannel } } })).toBe(
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: positiveChannel } } })).toBe(
         1,
       );
     });
@@ -683,7 +683,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       ).rejects.toThrow();
       expect(await countOrders(originChannel)).toBe(0);
       expect(
-        await prisma.pedidoItem.count({ where: { pedido: { canalOrigen: originChannel } } }),
+        await prisma.pedidoItem.count({ where: { Pedido: { canalOrigen: originChannel } } }),
       ).toBe(0);
     });
 
@@ -1117,7 +1117,7 @@ describe('B3 tenant isolation — execution candidates', () => {
       });
 
       expect(await countSales(positive)).toBe(1);
-      expect(await prisma.ventaItem.count({ where: { venta: { canal: positive } } })).toBe(1);
+      expect(await prisma.ventaItem.count({ where: { Venta: { canal: positive } } })).toBe(1);
     });
   });
 });

@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/public.decorator';
 import { RequestUser } from '../auth/decorators/request-user.decorator';
 import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
+import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { EmailService } from './email.service';
 import { EmailTemplateService } from './templates/email-template.service';
 import { EmailPreferenceService } from './preferences/email-preference.service';
@@ -39,7 +40,7 @@ import { UpdateEmailPreferenceDto } from './dto/update-email-preference.dto';
  * TODO: Campaign management endpoints (create, schedule, execute, cancel, stats)
  */
 @Controller('emails')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BusinessContextGuard)
 export class EmailController {
   private readonly logger = new Logger(EmailController.name);
 
