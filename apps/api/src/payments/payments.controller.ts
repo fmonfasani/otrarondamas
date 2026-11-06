@@ -38,7 +38,6 @@ export class PaymentsController {
     );
   }
 
-  @RequirePermission('ventas.ver')
   @Get()
   async findAll(@Param('ventaId') saleId: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.findPaymentsBySale(
