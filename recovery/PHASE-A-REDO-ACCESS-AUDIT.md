@@ -237,19 +237,30 @@ Basado en auditoría de rutas:
 
 ---
 
-## ORDEN DE ACCIÓN
+## CORRECCIONES PRIORIZADAS
 
-1. **Inmediato** (Bloquea merge):
-   - [ ] EmailPreference: cambiar canReceiveEmail a CompanyScopedPrismaService
-   - [ ] EmailLog.retryFailed: hacer empresaId obligatorio
-   - [ ] NotificationDigest: cambiar update a where { id, empresaId }
+### BLOQUEADORES (impide merge)
 
-2. **Siguiente** (Completa ownership):
-   - [ ] Agregar 18 modelos a MODELS_WITH_COMPANY_ID
-   - [ ] Test B3 para cada uno
-   - [ ] Diseño: webhook validation + token encryption para public access
+1. **GET /pagos/:id IDOR** — rama fix/security-payment-ownership
+   - Cambiar getPaymentDetail para incluir empresaId en where
+   - Migrar callers: retry, cancel, tests
+   - Agregar tests cross-tenant negative
 
-3. **CI** (Habilita gates):
-   - [ ] test-relation-coverage.yml habilitado
-   - [ ] Integración tests ejecutables contra PostgreSQL real
+2. **PATCH /notifications/digests/:id IDOR** — rama fix/security-notification-digest-idor
+   - Pasar @CurrentUser() al handler
+   - Resolver empresaId autenticado con BusinessContextService
+   - Cambiar servicio: where { id, usuarioId, empresaId }
+   - Agregar tests cross-user negative
+
+### INVESTIGACIÓN (en paralelo)
+
+3. **Webhooks de pago** — análisis de vinculación
+   - handlePaymentSuccess/Failed: validación de empresaId en operación
+   - Separar de corrección GET /pagos/:id (cadena distinta)
+
+### DEUDA TÉCNICA (post-bloqueador)
+
+4. **19 modelos omitidos** — auditoría de acceso + clasificación TENANT/PUBLIC/INHERITED
+5. **40+ relaciones no registradas** — mapear riesgos por relación
+6. **CI gates**: PostgreSQL real, tests B3 exhaustivos
 

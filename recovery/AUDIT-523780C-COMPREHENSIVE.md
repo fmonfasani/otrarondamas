@@ -80,18 +80,25 @@ if (OPERATIONS_FIND_UNIQUE.has(operation)) {
 
 ### Impacto
 
-**Severidad**: P0 — Aislamiento multi-tenant completamente comprometido
+**Severidad**: 🟡 **P1 POTENCIAL** — Aislamiento multi-tenant comprometido si caller omite empresaId en select
 
-**Alcance**:
-- Afecta 28 modelos en MODELS_WITH_COMPANY_ID
-- Cada modelo es vulnerable si su query usa `select` sin `empresaId`
+**Precondiciones para explotación**:
+- Caller debe usar findUnique con parámetro `select` 
+- Select DEBE omitir campo `empresaId`
+- Caller debe tener acceso a ID válido de recurso de otra empresa
+- Búsqueda remota no identificó caller explotable (candidatos: ninguno verificado)
+
+**Alcance potencial** (si caller existe):
+- Afecta 28 modelos en MODELS_WITH_COMPANY_ID que tienen empresaId
+- Cada modelo sería vulnerable si select parcial omite empresaId
 - `findUniqueOrThrow` también vulnerable (no lanza P2025, retorna dato)
 
-**Cadena de explotación**:
-1. Attacker está autenticado como Company B
-2. Attacker conoce un ID de recurso de Company A (ej. via timing, inference, o shared data)
-3. Attacker construye query con `select` omitiendo `empresaId`
-4. Attacker obtiene datos confidenciales de Company A
+**Cadena de explotación (hipotética)**:
+1. Company B descubre ID de recurso de Company A (ej. via timing, inference, logs)
+2. Company B ejecuta findUnique con select omitiendo empresaId
+3. Verificación en línea 204 falla silenciosamente
+4. Retorna resultado sin validar empresa
+5. Data de Company A filtra a Company B
 
 ### Reproducción local (Pendiente BD real)
 
@@ -178,8 +185,8 @@ grep "'" src/prisma/company-scope.extension.ts | grep -v "//" | wc -l
 | EmailLog | email.service.ts:214-244 | create + findMany | ⚠️ Condicional | P1 condicional | Sin caller operativo |
 | NotificationDigest | notification-digest.service.ts | update | ❌ NO | P1 IDOR | Código vulnerable |
 | EmailTemplate | email.service.ts:84 | findFirst | ✅ SÍ (lectura) | P1 brecha | Update sin scope |
-| Payment | payments/ (TBD) | find/update | ❓ Verificar | ⏳ Pendiente | Auditoría de callers |
-| PaymentController | /pagos GET | findUnique | ❌ NO | ⚠️ Sospechoso | findUnique sin ownership |
+| Payment | payments/ + controller | findUnique/get | ❌ NO | 🔴 BLOQUEADOR | GET /pagos/:id IDOR confirmado |
+| PaymentWebhook | handlePaymentSuccess/Failed | update por providerPaymentId | ❓ Verificar | ⚠️ NUEVO | Vinculación evento-empresa pendiente |
 | AnalyticsEvent | analytics/ (TBD) | create/find | ❓ Verificar | ⏳ Pendiente | Filtros manuales |
 | RoleTemplate | role-template | - | nullable | ⚠️ Especial | Clasificar global/tenant |
 
