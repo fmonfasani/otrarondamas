@@ -181,11 +181,32 @@ export class EmailService {
   ): Promise<boolean> {
     try {
       const pref = await this.prisma.emailPreference.findUnique({
-        where: { unsubscribeToken: '' }, // Placeholder; actual lookup by email + empresaId
+        where: {
+          empresaId_email: {
+            empresaId,
+            email,
+          },
+        },
+        select: {
+          suscrito: true,
+          frecuencia: true,
+          categoriasOptIn: true,
+        },
       });
 
-      // For now, always return true (preference table exists but is not yet enforced)
-      // TODO: Implement full preference checks once EmailPreference is populated
+      // No stored preference means the recipient has not opted out.
+      if (!pref) return true;
+
+      if (!pref.suscrito || pref.frecuencia === 'NUNCA') return false;
+
+      const categories = (pref.categoriasOptIn ?? {}) as Record<string, unknown>;
+      const category = tipoEmail.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(categories, category)) {
+        return categories[category] === true;
+      }
+
+      // Unknown email categories default to subscription status only; do not
+      // infer a category preference that the user never configured.
       return true;
     } catch (err) {
       this.logger.error('canReceiveEmail check failed', err);
