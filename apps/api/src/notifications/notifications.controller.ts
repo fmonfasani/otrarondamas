@@ -232,8 +232,16 @@ export class NotificationsController {
    */
   @Patch('digests/:digestId/opened')
   @HttpCode(HttpStatus.OK)
-  async markDigestAsOpened(@Param('digestId') digestId: string) {
-    const updated = await this.digestService.markDigestAsOpened(digestId);
+  async markDigestAsOpened(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('digestId') digestId: string,
+  ) {
+    const context = await this.resolveContext(user);
+    const updated = await this.digestService.markDigestAsOpened(
+      user.id,
+      context.businessId,
+      digestId,
+    );
 
     return {
       success: true,
