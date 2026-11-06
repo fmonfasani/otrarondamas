@@ -59,7 +59,7 @@ jobs:
         run: npm run build --workspace=@otrarondamas/api
 
       - name: Prepare PostgreSQL schema
-        run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+        run: ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
 
       # CI-specific Jest scripts intentionally do not regenerate Prisma Client:
       # the client was generated once above, before build and both test stages.
