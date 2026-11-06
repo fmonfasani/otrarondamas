@@ -192,27 +192,12 @@ export function companyScopeExtension(companyId: string) {
             }
 
             if (OPERATIONS_FIND_UNIQUE.has(operation)) {
-              // empresaId cannot be injected into the `where` of findUnique
-              // without a compound unique backing it (see comment above), so
-              // it is verified AFTER running the query: if the record exists
-              // but belongs to another company, it is treated as "not found"
-              // — the data of another company is never returned.
-              const result = await query(a);
-              if (
-                result &&
-                typeof result === 'object' &&
-                'empresaId' in result &&
-                (result as { empresaId: unknown }).empresaId !== companyId
-              ) {
-                if (operation === 'findUniqueOrThrow') {
-                  throw new Prisma.PrismaClientKnownRequestError(`No ${model} found`, {
-                    code: 'P2025',
-                    clientVersion: Prisma.prismaVersion.client,
-                  });
-                }
-                return null;
-              }
-              return result;
+              // Prisma 5.22 supports non-unique scalar filters alongside a
+              // unique selector in WhereUniqueInput (ExtendedWhereUnique).
+              // Enforce tenant scope in SQL, before projection, so callers
+              // cannot bypass isolation by omitting empresaId from select.
+              a.where = { ...(a.where ?? {}), empresaId: companyId };
+              return query(a);
             }
 
             // upsert and any operation not explicitly covered: it is rejected
