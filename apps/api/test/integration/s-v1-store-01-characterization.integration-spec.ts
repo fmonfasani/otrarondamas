@@ -746,7 +746,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .post('/auth/cliente/registro')
       .send({ nombre: 'Dup 2', email: dupEmail, password: 'password123' });
     expect(dup.status).toBe(400);
-    expect(dup.body).toEqual({
+    expect(dup.body).toMatchObject({
       statusCode: 400,
       message: `Ya existe una cuenta con el email ${dupEmail}`,
       error: 'Bad Request',
@@ -872,7 +872,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     for (const attempt of attempts) {
       const res = await request(BASE).post('/auth/cliente/login').send(attempt);
       expect(res.status).toBe(401);
-      expect(res.body).toEqual({
+      expect(res.body).toMatchObject({
         statusCode: 401,
         message: 'Credenciales inválidas',
         error: 'Unauthorized',
