@@ -48,7 +48,7 @@ export class PaymentService {
     // Check if payment already exists
     const existingPayment = venta.Payment.find((p) => p.estado === 'PENDING');
     if (existingPayment) {
-      return this.getPaymentDetail(existingPayment.id);
+      return this.getPaymentDetail(empresaId, existingPayment.id);
     }
 
     let provider: IPaymentProvider = this.stripeProvider;
@@ -212,14 +212,16 @@ export class PaymentService {
   }
 
   /**
-   * Get payment details
+   * Get payment details within the authenticated business boundary.
+   * Related records are scoped independently because their empresaId is
+   * stored directly and the database does not enforce composite tenant FKs.
    */
-  async getPaymentDetail(paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
+  async getPaymentDetail(empresaId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, empresaId },
       include: {
-        PaymentIntent: true,
-        Refund: true,
+        PaymentIntent: { where: { empresaId } },
+        Refund: { where: { empresaId } },
       },
     });
 

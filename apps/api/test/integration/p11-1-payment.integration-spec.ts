@@ -550,6 +550,74 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
     });
   });
 
+  describe('Payment Detail Isolation', () => {
+    it('should not return a payment owned by another business', async () => {
+      const otherEmpresa = await prisma.empresa.create({
+        data: {
+          nombre: `Payment Isolation Tenant ${Date.now()}`,
+          slug: `payment-isolation-${Date.now()}`,
+          configuracion: {},
+        },
+      });
+      const payment = await prisma.payment.create({
+        data: {
+          empresaId: testEmpresa.id,
+          ventaId: testVenta.id,
+          monto: 100,
+          moneda: 'ARS',
+          proveedor: 'STRIPE',
+          providerPaymentId: `pi_isolation_${Date.now()}`,
+          estado: 'PENDING',
+        },
+      });
+
+      await expect(
+        paymentService.getPaymentDetail(otherEmpresa.id, payment.id),
+      ).rejects.toThrow('Payment not found');
+
+      await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+    });
+
+    it('should not return related refunds owned by another business', async () => {
+      const otherEmpresa = await prisma.empresa.create({
+        data: {
+          nombre: `Refund Isolation Tenant ${Date.now()}`,
+          slug: `refund-isolation-${Date.now()}`,
+          configuracion: {},
+        },
+      });
+      const payment = await prisma.payment.create({
+        data: {
+          empresaId: testEmpresa.id,
+          ventaId: testVenta.id,
+          monto: 100,
+          moneda: 'ARS',
+          proveedor: 'STRIPE',
+          providerPaymentId: `pi_refund_isolation_${Date.now()}`,
+          estado: 'COMPLETED',
+        },
+      });
+      const foreignRefund = await prisma.refund.create({
+        data: {
+          empresaId: otherEmpresa.id,
+          paymentId: payment.id,
+          monto: 10,
+          razon: 'CUSTOMER_REQUEST',
+          estado: 'PENDING',
+        },
+      });
+
+      const detail = await paymentService.getPaymentDetail(testEmpresa.id, payment.id);
+
+      expect(detail.refunds).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: foreignRefund.id })]),
+      );
+
+      await prisma.refund.delete({ where: { id: foreignRefund.id } });
+      await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+    });
+  });
+
   describe('Authorization Checks', () => {
     it('✅ should require ventas.crear permission for payment intent', async () => {
       // Mock would require permission checking in controller
@@ -674,7 +742,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
         metodo: 'CARD',
       });
 
-      const detail = await paymentService.getPaymentDetail(createResult.paymentId);
+      const detail = await paymentService.getPaymentDetail(testEmpresa.id, createResult.paymentId);
       expect(detail.ultimosDigitos).toBe('4242');
       expect(detail.ultimosDigitos).not.toContain('1234'); // Never store full card
     });
