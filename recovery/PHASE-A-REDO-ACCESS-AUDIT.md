@@ -1,9 +1,10 @@
-# PHASE A REDO: Auditoría de Rutas de Acceso — Cómo se usan realmente los 18 modelos omitidos
+# PHASE A REDO: Auditoría de Rutas de Acceso — Cómo se usan realmente los 19 modelos omitidos
 
 **Date**: 2026-11-06  
 **Auditor**: Claude Haiku 4.5 (Local)  
-**Scope**: Servicios de aplicación — acceso real a modelos omitidos  
-**Objetivo**: Identificar cada punto de acceso sin filtro de empresa
+**Scope**: Servicios de aplicación — acceso real a 19 modelos omitidos de MODELS_WITH_COMPANY_ID  
+**Objetivo**: Identificar cada punto de acceso sin filtro de empresa  
+**Estado**: 18 modelos con empresaId directo auditados; 1 modelo (RoleTemplate) clasificado como nullable/global
 
 ---
 
@@ -166,13 +167,13 @@ const existing = await this.prisma.emailPreference.findUnique({
 
 ## RESUMEN DE RUTAS DE ACCESO
 
-| Modelo | Ubicación | Operación | Filtro | Riesgo |
-|--------|-----------|-----------|--------|--------|
-| EmailPreference | email.service:183 | findUnique | ❌ NINGUNO | 🔴 P0 |
-| EmailLog | email.service:244 | findMany | ⚠️ Condicional | 🔴 P0 |
-| EmailTemplate | email.service:84 | findFirst | ✅ empresaId | ⚠️ P1 |
-| NotificationDigest | notification-digest.service | update | ❌ ID only | 🔴 P0 |
-| EmailPreference | email-preference.service | findUnique | ❌ email only | 🔴 P0 |
+| Modelo | Ubicación | Operación | Filtro | Clasificación | Estado |
+|--------|-----------|-----------|--------|----------------|--------|
+| EmailPreference | email.service:183 | findUnique | ❌ NINGUNO | P1 funcional | Defecto consentimiento |
+| EmailLog | email.service:244 | findMany | ⚠️ Condicional | P1 condicional | Sin caller operativo |
+| EmailTemplate | email.service:84 | findFirst | ✅ empresaId | P1 brecha | Update sin scope |
+| NotificationDigest | notification-digest.service | update | ❌ ID only | P1 IDOR | Código vulnerable |
+| EmailPreference | email-preference.service | findUnique | ❌ email only | P1 funcional | Defecto de diseño |
 
 ---
 
@@ -220,10 +221,11 @@ Basado en auditoría de rutas:
 
 ## CRITERIO DE SALIDA: PHASE A REDO
 
-✅ **VERIFICADO**: 18 modelos auditados en rutas reales
-⏳ **IDENTIFICADO**: 5 P0 (acceso sin scope), 2 public-access patterns
-⏳ **PRÓXIMO**: Clasificación final: TENANT / PUBLIC / INHERITED
-⏳ **PRÓXIMO**: Diseño de protección para cada patrón de acceso
+✅ **VERIFICADO**: 19 modelos auditados en rutas reales
+✅ **CLASIFICADO**: 18 modelos TENANT (con empresaId directo), 1 modelo GLOBAL (RoleTemplate nullable)
+✅ **HALLAZGOS RECLASIFICADOS**: 5 defectos potenciales (P1), 2 public-access patterns
+⏳ **PRÓXIMO**: Reproducción HTTP de IDOR (NotificationDigest, Payment)
+⏳ **PRÓXIMO**: Diseño de corrección por superficie (GET /pagos/:id, PATCH /digests/:id)
 
 ---
 

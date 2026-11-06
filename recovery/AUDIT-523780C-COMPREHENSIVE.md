@@ -376,7 +376,7 @@ await prisma.$transaction(async (tx) => {
 ### 🟡 DEUDA TÉCNICA (No P0, pero validar)
 
 **PARTE 3 — 19 modelos omitidos**: DEUDA DE COBERTURA
-- 18 modelos con empresaId directo fuera del registry
+- 18 modelos con empresaId directo fuera del registry (DevolucionCliente, Reembolso, AnalyticsEvent, AnalyticsAggregation, AnalyticsDashboard, NotificationPreference, NotificationDigest, PhoneNumber, SMSAlert, EmailTemplate, EmailLog, EmailPreference, EmailCampaign, Payment, PaymentIntent, PaymentWebhook, Refund, UserEmpresa)
 - 1 modelo (RoleTemplate) con empresaId nullable → requiere clasificación especial (global/tenant)
 - No todos requieren el mismo control
 - **Acción**: Auditoría de acceso por modelo + clasificación TENANT / PUBLIC / INHERITED
