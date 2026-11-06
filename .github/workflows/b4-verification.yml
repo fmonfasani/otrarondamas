@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# Avoid spending runner minutes validating obsolete commits when a newer
+# commit for the same PR/branch has already arrived.
+concurrency:
+  group: b4-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   api-verification:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:15-alpine
@@ -35,26 +42,35 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Run Engineering Kit smoke tests
         run: node --test tools/engineering/test/*.test.js
-      - run: npm ci --workspace=@otrarondamas/api --include-workspace-root
-      - run: npm run prisma:generate --workspace=@otrarondamas/api
-      - run: npm run build --workspace=@otrarondamas/api
-      - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
-      - run: npm test --workspace=@otrarondamas/api -- --runInBand
 
-      # Run the tenant, S-V1, FS-1a and messaging HTTP integration suites in
-      # one Jest process. The previous separate invocations repeated Jest and
-      # ts-jest startup; discovery remains explicit and fails closed if empty.
+      - name: Install dependencies
+        run: npm ci --workspace=@otrarondamas/api --include-workspace-root
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
+      - name: Build API
+        run: npm run build --workspace=@otrarondamas/api
+
+      - name: Prepare PostgreSQL schema
+        run: ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+
+      # CI-specific Jest scripts intentionally do not regenerate Prisma Client:
+      # the client was generated once above, before build and both test stages.
+      - name: Run API unit tests
+        run: |
+          mkdir -p apps/api/test-results
+          npm run test:ci --workspace=@otrarondamas/api -- --runInBand --json --outputFile=test-results/unit.json
+
+      # Keep the tenant, S-V1, FS-1a and messaging HTTP suites in one Jest
+      # process to avoid repeated Jest/ts-jest startup and shared-DB races.
       - name: Run API integration verification suites
-        env:
-          JWT_SECRET: s-v1-ci-only-jwt-secret
-          GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
-          GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
-          GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
         shell: bash
         run: |
           cd apps/api
@@ -78,4 +94,14 @@ jobs:
 
           printf 'Running %d API integration test files in one Jest process:\n' "${#test_files[@]}"
           printf '  %s\n' "${test_files[@]}"
-          npm run test:integration -- --runInBand "${test_files[@]}"
+          npm run test:integration:ci -- --runInBand --json --outputFile=test-results/integration.json "${test_files[@]}"
+
+      # Preserve machine-readable Jest output even when a suite fails.
+      - name: Upload B4 test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b4-test-reports
+          path: apps/api/test-results/*.json
+          if-no-files-found: ignore
+          retention-days: 7

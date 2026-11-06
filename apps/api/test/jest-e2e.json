@@ -7,7 +7,7 @@
   "rootDir": "..",
   "testRegex": "test/.*\\.(e2e|integration)-spec\\.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.tsx?$": "<rootDir>/jest-esm-transformer.cjs"
   },
   "testEnvironment": "node",
   "detectOpenHandles": true,
@@ -18,5 +18,9 @@
   "maxWorkers": "50%",
   "testTimeout": 30000,
   "verbose": true,
-  "bail": false
+  "bail": false,
+  "preset": "ts-jest/presets/default-esm",
+  "extensionsToTreatAsEsm": [
+    ".ts"
+  ]
 }
