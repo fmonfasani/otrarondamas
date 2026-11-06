@@ -255,7 +255,11 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     if (!prisma || !companyA || !companyB) return;
     const companies = [companyA.id, companyB.id];
     await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
-    await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
+    const pedidoIdsForCleanup = await prisma.pedido.findMany({
+      where: { empresaId: { in: companies } },
+      select: { id: true },
+    });
+    await prisma.pedido.deleteMany({ where: { id: { in: pedidoIdsForCleanup.map(({ id }) => id) } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
