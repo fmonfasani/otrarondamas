@@ -243,7 +243,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: 'ignore',
@@ -331,13 +331,13 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
 
     const row = await prisma.compra.findUniqueOrThrow({
       where: { id: res.body.id },
-      select: { empresaId: true, usuarioId: true, items: { select: { productoId: true } } },
+      select: { empresaId: true, usuarioId: true, CompraItem: { select: { productoId: true } } },
     });
     expect(row.empresaId).toBe(companyA.id);
     // Compra.usuarioId is a legacy Usuario id (the JWT `sub`), not the
     // canonical User id of the Membership.
     expect(row.usuarioId).toBe(legacyUserA.id);
-    expect(row.items.map((i) => i.productoId)).toEqual([productA.id]);
+    expect(row.CompraItem.map((i) => i.productoId)).toEqual([productA.id]);
   });
 
   it('SV5P-H-06: compra con proveedor cross-tenant → 404 y nada persiste', async () => {

@@ -203,7 +203,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
 
   afterAll(async () => {
     await prisma.devolucionProveedorItem.deleteMany({
-      where: { devolucion: { empresaId: companyA.id } },
+      where: { DevolucionProveedor: { empresaId: companyA.id } },
     });
     await prisma.devolucionProveedor.deleteMany({ where: { empresaId: companyA.id } });
     await prisma.lote.deleteMany({
@@ -247,15 +247,15 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
     const created = await db.devolucionProveedor.create({
       data: {
         ...baseReturn('gdp-positive'),
-        items: { create: [itemOf(productA.id, batchA.id)] },
+        DevolucionProveedorItem: { create: [itemOf(productA.id, batchA.id)] },
       },
-      include: { items: true },
+      include: { DevolucionProveedorItem: true },
     });
 
     expect(created.empresaId).toBe(companyA.id);
-    expect(created.items).toHaveLength(1);
-    expect(created.items[0].productoId).toBe(productA.id);
-    expect(created.items[0].loteId).toBe(batchA.id);
+    expect(created.DevolucionProveedorItem).toHaveLength(1);
+    expect(created.DevolucionProveedorItem[0].productoId).toBe(productA.id);
+    expect(created.DevolucionProveedorItem[0].loteId).toBe(batchA.id);
   });
 
   it('D-02: nested create cannot link Business A to Product B', async () => {
@@ -265,7 +265,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-product-b'),
-          items: { create: [itemOf(productB.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productB.id)] },
         },
       }),
     ).rejects.toThrow();
@@ -280,7 +280,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-lote-b'),
-          items: { create: [itemOf(productA.id, batchB.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productA.id, batchB.id)] },
         },
       }),
     ).rejects.toThrow();
@@ -334,7 +334,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       db.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-mixed'),
-          items: {
+          DevolucionProveedorItem: {
             create: [itemOf(productA.id, batchA.id), itemOf(productB.id)],
           },
         },
@@ -352,7 +352,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
         await tx.devolucionProveedor.create({
           data: {
             ...baseReturn('gdp-tx-negative'),
-            items: { create: [itemOf(productB.id)] },
+            DevolucionProveedorItem: { create: [itemOf(productB.id)] },
           },
         });
       }),
@@ -366,7 +366,7 @@ describe('B3 relation isolation — DevolucionProveedorItem ownership candidate'
       await tx.devolucionProveedor.create({
         data: {
           ...baseReturn('gdp-tx-positive'),
-          items: { create: [itemOf(productA.id, batchA.id)] },
+          DevolucionProveedorItem: { create: [itemOf(productA.id, batchA.id)] },
         },
       });
     });

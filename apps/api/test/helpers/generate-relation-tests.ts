@@ -13,12 +13,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'node:url';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { RELATIONS_WITH_OWNERSHIP } from '../../src/prisma/relation-ownership';
 import { RelationTestGenerator } from './relation-test-generator';
 
-const RELATIONS_OUTPUT_DIR = path.resolve(__dirname, '../../test/integration/relations');
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const RELATIONS_OUTPUT_DIR = path.resolve(currentDir, '../../test/integration/relations');
 
 const THRESHOLD_PCT = 75;
 
