@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
+import { spawnApiServer } from './helpers/spawn-api-server';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -252,11 +253,7 @@ describe('S-V1-05 — Inventario (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApiServer({ PORT }, 'ignore');
     await waitPort(Number(PORT));
   }, 120000);
 

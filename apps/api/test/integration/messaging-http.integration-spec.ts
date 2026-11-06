@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
+import { spawnApiServer } from './helpers/spawn-api-server';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -162,11 +163,7 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    server = spawnApiServer({ PORT }, ['ignore', 'pipe', 'pipe']);
     server.stdout?.on('data', (chunk: Buffer) => {
       serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
     });
