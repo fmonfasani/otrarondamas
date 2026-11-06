@@ -19,6 +19,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
+import type { UploadedDossierFile } from './uploaded-file.type';
 
 /**
  * RF-17 (docs/spec-login-roles.md): self-service dossier for the wholesale
@@ -74,7 +75,7 @@ export class CustomerDossierController {
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async uploadDocument(
     @Body() dto: UploadDocumentDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: UploadedDossierFile,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     this.requireWholesale(user);
