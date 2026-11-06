@@ -104,7 +104,7 @@ Caso 2: findUniqueOrThrow sin empresaId → no lanza P2025, retorna data
 
 ---
 
-## PARTE 2: HALLAZGO 2 — 46 Modelos con empresaId, 28 Protegidos, 18 Omitidos
+## PARTE 2: HALLAZGO 2 — 47 Modelos con empresaId, 28 Protegidos, 19 Omitidos
 
 ### Inventario completo (SHA 523780c)
 
@@ -119,10 +119,10 @@ grep "'" src/prisma/company-scope.extension.ts | grep -v "//" | wc -l
 → 28 modelos protegidos
 
 # Discrepancia
-47 - 28 = 19 omitidos (tu auditoría remota dice 18; investigar diferencia)
+47 - 28 = 19 omitidos (verificado)
 ```
 
-### Lista de 18 modelos omitidos (según tu auditoría remota)
+### Lista de 19 modelos omitidos — Clasificación Final
 
 1. **DevolucionCliente** — Devoluciones del cliente
    - Ubicación schema: model DevolucionCliente
@@ -157,22 +157,33 @@ grep "'" src/prisma/company-scope.extension.ts | grep -v "//" | wc -l
    - **CRÍTICO**: Transacciones monetarias
    - Riesgo: Acceso a historial de pagos de otra empresa
 
-16. **RoleTemplate, UserEmpresa** — Identidad y roles
-   - Riesgo: Permisos de usuarios de otra empresa
+16. **RoleTemplate** — Plantilla de roles
+   - ⚠️ CLASIFICACIÓN ESPECIAL: `empresaId` es **nullable**
+   - Semántica: puede ser global (empresaId: null) o tenant-scoped (empresaId: 'A')
+   - Requiere análisis: si es global, NO debe tener validación de empresa
+   - Riesgo: Confundir global/tenant lleva a control incorrecto
+
+17. **UserEmpresa** — Relación usuario-empresa
+   - Ubicación schema: model UserEmpresa
+   - Relaciones: Usuario (FK), Empresa (FK)
+   - Riesgo: Permisos de usuarios cruzados entre empresas
 
 ### Acceso real a modelos omitidos
 
 **Auditoría de código actual** (ya ejecutada):
 
-| Modelo | Ubicación | Operación | Filtro empresaId | Riesgo |
-|--------|-----------|-----------|------------------|--------|
-| EmailPreference | email.service.ts:183 | findUnique | ❌ NO | 🔴 P0 |
-| EmailLog | email.service.ts:214-244 | create + findMany | ⚠️ Condicional | 🔴 P0 |
-| NotificationDigest | notification-digest.service.ts | update | ❌ NO | 🔴 P0 |
-| AnalyticsEvent | analytics/ (TBD) | create/find | ❓ Verificar | 🔴 P0 |
-| Payment | payments/ (TBD) | find/update | ❓ Verificar | 🔴 P0 |
+| Modelo | Ubicación | Operación | Filtro empresaId | Clasificación | Estado |
+|--------|-----------|-----------|------------------|----------------|--------|
+| EmailPreference | email.service.ts:183 | findUnique | ❌ NO | P1 funcional | Defecto consentimiento |
+| EmailLog | email.service.ts:214-244 | create + findMany | ⚠️ Condicional | P1 condicional | Sin caller operativo |
+| NotificationDigest | notification-digest.service.ts | update | ❌ NO | P1 IDOR | Código vulnerable |
+| EmailTemplate | email.service.ts:84 | findFirst | ✅ SÍ (lectura) | P1 brecha | Update sin scope |
+| Payment | payments/ (TBD) | find/update | ❓ Verificar | ⏳ Pendiente | Auditoría de callers |
+| PaymentController | /pagos GET | findUnique | ❌ NO | ⚠️ Sospechoso | findUnique sin ownership |
+| AnalyticsEvent | analytics/ (TBD) | create/find | ❓ Verificar | ⏳ Pendiente | Filtros manuales |
+| RoleTemplate | role-template | - | nullable | ⚠️ Especial | Clasificar global/tenant |
 
-**Conclusión**: No basta agregar nombres al registry. Cada acceso real requiere validación.
+**Conclusión**: No basta agregar nombres al registry. Cada acceso real requiere validación específica por caller + contexto autenticado.
 
 ---
 
@@ -326,17 +337,86 @@ await prisma.$transaction(async (tx) => {
 
 ---
 
-## CONCLUSIONES Y ORDEN DE CORRECCIÓN
+## CLASIFICACIONES FINALES — VERIFICADAS LOCALES + REMOTAS
 
-### Blockers P0 para merge
+### ✅ DEFECTOS CONFIRMADOS
 
-1. **findUnique bypass** → Extended Where Unique fix (ya implementado localmente)
-2. **18 modelos omitidos** → Auditoría de acceso + clasificación TENANT/PUBLIC/INHERITED
-3. **Relaciones incompletas** → Registro exhaustivo + tests B3
+**PARTE 1 — findUnique select omisión**: 🟡 **P1 POTENCIAL**
+- Código vulnerable confirmado (línea 204)
+- Caller explotable: NO VERIFICADO REMOTAMENTE
+- Impacto: Fuga cross-tenant si se omite empresaId en select
+- **Reproducción pendiente**: PostgreSQL real con 2 empresas
 
-### Sin estas correcciones
+**PARTE 5 — verifyRelationalOwnership fuera de tx**: 🟡 **DEFECTO TRANSACCIONAL CONFIRMADO**
+- Cliente base capturado, separado de transacción (VERIFICADO REMOTO)
+- No ve registros no-yet-committed dentro de la tx
+- Posible race condition: si relación se elimina entre verify + persist
+- **Impacto**: TOCTOU, consistencia de datos, no fuga automática cross-tenant
+- **Reproducción pendiente**: PostgreSQL con 2 tx concurrentes
 
-- PR #100 no debería mergear
-- Aislamiento multi-tenant está comprometido
-- Datos de empresas A pueden filtrarse a empresa B
+**PARTE 2 — EmailTemplate.update brecha**: 🟡 **BRECHA DE DEFENSA EN PROFUNDIDAD**
+- Lectura filtra por empresaId (protegida)
+- Escritura posterior solo por ID (sin empresaId)
+- Violación de defensa en capas
+- **Corrección requerida**: updateMany({ where: { id, empresaId } })
+
+---
+
+### ❌ RIESGOS DESCARTADOS
+
+**PARTE 3 — retryFailed empresaId opcional**: 🟢 **RIESGO NULO**
+- Búsqueda remota: CERO callers encontrados
+- Método definido, pero nunca invocado
+- Código aparentemente planificado, no implementado
+- Lógica actual: solo incrementa contador, NO realiza reenvío
+- **Clasificación**: Código muerto/incompleto — REMOVER DE HALLAZGOS
+
+---
+
+### 🟡 DEUDA TÉCNICA (No P0, pero validar)
+
+**PARTE 3 — 19 modelos omitidos**: DEUDA DE COBERTURA
+- 18 modelos con empresaId directo fuera del registry
+- 1 modelo (RoleTemplate) con empresaId nullable → requiere clasificación especial (global/tenant)
+- No todos requieren el mismo control
+- **Acción**: Auditoría de acceso por modelo + clasificación TENANT / PUBLIC / INHERITED
+
+**PARTE 3 — 40+ relaciones no registradas**: DEUDA DE COBERTURA
+- visitUnregisteredRelation procesa algunos casos (create, update, upsert)
+- Operaciones connect/disconnect/set: no verificadas
+- **Acción**: Auditar relaciones críticas (Pago→Venta, Pedido→Cliente, etc.)
+
+---
+
+## ORDEN DE CORRECCIÓN REVISADO
+
+### Blockers para merge de PR #100
+
+1. ✅ **findUnique bypass** — PR #125 en draft, CI failing TS6.0 issues (no relacionado con cambio)
+   - Requiere: Prueba PostgreSQL real + validación Prisma 5.22 ExtendedWhereUnique
+   
+2. ✅ **EmailTemplate.update brecha** — Corrección acotada
+   - Requiere: updateMany con (id, empresaId) + validar count > 0
+   
+3. ✅ **verifyRelationalOwnership race condition** — Reproducción + cuantificación de impacto
+   - Requiere: PostgreSQL con 2 tx concurrentes
+
+4. ⏳ **Auditoría de 19 modelos** — Clasificación + acceso real
+   - Requiere: Inventario de callers por modelo
+
+5. ⏳ **Cobertura relacional** — Identificar relaciones críticas explotables
+
+---
+
+## HALLAZGOS SIN REPRODUCCIÓN — NO CLASIFICAR P0
+
+- findUnique select omisión: código vulnerable, pero **caller explotable no verificado**
+- connect no registrado: patrón vulnerable, pero **relación específica no identificada**
+- EmailPreference canReceiveEmail: defecto funcional, pero **no fuga cross-tenant**
+
+**Regla**: No marcar P0 sin demostrar:
+1. Código vulnerable PRESENTE
+2. Caller EXPLOTABLE existe
+3. Reproducción EJECUTADA
+4. Impacto CUANTIFICADO
 

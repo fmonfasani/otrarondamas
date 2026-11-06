@@ -112,23 +112,36 @@ const template = await this.prisma.emailTemplate.findFirst({
 
 ---
 
-### 🟡 NotificationDigest — ACCESO MIXTO
+### 🔴 NotificationDigest — IDOR CONFIRMADO
 
 **Ubicación**: `src/notifications/notification-digest.service.ts`
 
 **Patrón encontrado**:
 ```typescript
 const updated = await this.prisma.notificationDigest.update({
-  where: { id },
+  where: { id },  // ← SOLO ID, sin empresaId ni usuarioId
   data: { /* ... */ },
 });
 ```
 
-**Problema**: Update por ID sin empresaId — pasa sin validación de tenant
+**Hallazgo remoto confirmado**: 
+- PATCH autenticado globalmente
+- Handler no recibe `usuarioId` del contexto autenticado
+- Servicio consulta/actualiza por `digestId` solamente
+- Otro usuario puede proporcionar cualquier `digestId` y modificar digest ajeno
+
+**Escenario IDOR**:
+1. Usuario A: `PATCH /notifications/digests/{id-de-A}` → markDigestAsOpened(id)
+2. Attacker (Usuario B): `PATCH /notifications/digests/{id-de-A}` → misma operación
+3. **Resultado**: Digest de Usuario A modificado por Usuario B
+
+**Impacto**: ⚠️ Modificación de estado sin verificación de ownership
 
 **Acción Requerida**:
-- [ ] Cambiar a: `where: { id, empresaId }`
-- [ ] O: usar CompanyScopedPrismaService
+- [ ] Controller: Obtener `usuarioId` del contexto autenticado
+- [ ] Service: Cambiar signature a `markDigestAsOpened(usuarioId: string, digestId: string)`
+- [ ] Query: `where: { id: digestId, usuario: { empresaId, id: usuarioId } }`
+- [ ] Test: Cross-tenant IDOR attempt (Usuario B intenta marcar digest de Usuario A)
 
 ---
 
