@@ -97,14 +97,20 @@ export class EmailPreferenceService {
       throw new NotFoundException('Unsubscribe token not found or expired');
     }
 
-    return await this.prisma.emailPreference.update({
-      where: { id: pref.id },
+    const updated = await this.prisma.emailPreference.updateMany({
+      where: { id: pref.id, empresaId: pref.empresaId, unsubscribeToken: token },
       data: {
         suscrito: false,
         desuscritaEn: new Date(),
         motivoDesuscripcion: reason || 'User clicked unsubscribe link',
       },
     });
+
+    if (updated.count !== 1) {
+      throw new NotFoundException('Unsubscribe token not found or expired');
+    }
+
+    return { success: true };
   }
 
   /**
