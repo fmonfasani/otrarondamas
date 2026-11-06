@@ -302,7 +302,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pago.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.ventaItem.deleteMany({ where: { venta: { empresaId: { in: companies } } } });
+    await prisma.ventaItem.deleteMany({ where: { Venta: { empresaId: { in: companies } } } });
     await prisma.venta.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });

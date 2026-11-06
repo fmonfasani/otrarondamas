@@ -348,7 +348,7 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     await prisma.caja.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.autorizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.usuarioPermiso.deleteMany({
-      where: { usuario: { empresaId: { in: companies } } },
+      where: { Usuario: { empresaId: { in: companies } } },
     });
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });

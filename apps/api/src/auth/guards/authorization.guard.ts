@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessContextService } from '../../business-context/business-context.service';
+import type { BusinessContext } from '../../business-context/business-context.types';
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import type { AuthenticatedUser } from '../auth.types';
 
@@ -36,6 +38,7 @@ export class AuthorizationGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
+    private readonly businessContextService: BusinessContextService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -60,14 +63,20 @@ export class AuthorizationGuard implements CanActivate {
       throw new ForbiddenException('Este permiso requiere una identidad de usuario interno');
     }
 
-    // Load Membership context with RoleGrant + CapabilityGrant
+    // Resolve the canonical User + active Membership from the authenticated
+    // legacy identity. JWT user.id is a legacy Usuario ID, not Membership.userId.
+    const businessContext: BusinessContext =
+      await this.businessContextService.resolveForAuthenticatedUser(user);
+
+    if (!businessContext.membershipId) {
+      throw new ForbiddenException('No se pudo resolver la membresía activa');
+    }
+
+    request.businessContext = businessContext;
+
+    // Load the exact membership selected by BusinessContextService.
     const membership = await this.prisma.membership.findUnique({
-      where: {
-        userId_businessId: {
-          userId: user.id,
-          businessId: user.empresaId,
-        },
-      },
+      where: { id: businessContext.membershipId },
       include: {
         RoleGrant: {
           include: {
@@ -128,6 +137,10 @@ export class AuthorizationGuard implements CanActivate {
         }
       });
     }
+
+    // Expose the resolved capability set to handlers that need dynamic
+    // visibility rules (for example, own audit logs vs. all business logs).
+    request.capabilities = Array.from(capabilities);
 
     // Check if user has the required capability
     if (!capabilities.has(requiredCapability)) {

@@ -139,9 +139,9 @@ describe('C5B Phase 2: Cart API', () => {
   });
 
   afterAll(async () => {
-    await prisma.cartItem.deleteMany({ where: { cart: { businessId: testCompanyId } } });
+    await prisma.cartItem.deleteMany({ where: { Cart: { businessId: testCompanyId } } });
     await prisma.cart.deleteMany({ where: { businessId: testCompanyId } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });
@@ -209,7 +209,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -317,7 +317,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -393,7 +393,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -452,7 +452,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });

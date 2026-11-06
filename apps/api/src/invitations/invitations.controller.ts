@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InvitationsService } from './invitations.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -6,6 +6,8 @@ import { ActivateInvitationDto } from './dto/activate-invitation.dto';
 import { CreateWholesaleInvitationDto } from './dto/create-wholesale-invitation.dto';
 import { ActivateWholesaleInvitationDto } from './dto/activate-wholesale-invitation.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
+import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -19,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @ApiTags('invitaciones')
 @Controller('invitaciones')
+@UseGuards(BusinessContextGuard)
 export class InvitationsController {
   constructor(
     private readonly invitationsService: InvitationsService,
@@ -28,16 +31,20 @@ export class InvitationsController {
   @ApiBearerAuth()
   @RequirePermission('usuarios.gestionar')
   @Post()
-  create(@Body() dto: CreateInvitationDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.invitationsService.create(user.empresaId, user.id, dto);
+  create(
+    @Body() dto: CreateInvitationDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
+  ) {
+    return this.invitationsService.create(businessId, user.id, dto);
   }
 
   @ApiBearerAuth()
   @RequirePermission('usuarios.gestionar')
   @Get()
-  async list(@CurrentUser() user: AuthenticatedUser) {
+  async list(@ExtractBusinessContext() businessId: string) {
     return this.prisma.invitacion.findMany({
-      where: { empresaId: user.empresaId },
+      where: { empresaId: businessId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -73,8 +80,9 @@ export class InvitationsController {
   createWholesale(
     @Body() dto: CreateWholesaleInvitationDto,
     @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
   ) {
-    return this.invitationsService.createWholesale(user.empresaId, user.id, dto);
+    return this.invitationsService.createWholesale(businessId, user.id, dto);
   }
 
   /**

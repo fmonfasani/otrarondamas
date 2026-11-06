@@ -41,6 +41,14 @@ export class AuthController {
     return this.authService.login(dto.email, dto.password);
   }
 
+  // Validate JWT without fetching full user data
+  @ApiBearerAuth()
+  @Post('validate')
+  @HttpCode(HttpStatus.OK)
+  validate(@CurrentUser() user: AuthenticatedUser) {
+    return { valid: true, userId: user.id };
+  }
+
   // Unlike the rest of /auth, it queries the DB on every call (not only
   // what already comes in the JWT) — the profile module needs data that
   // can change without a re-login (photo, company name) and that makes
