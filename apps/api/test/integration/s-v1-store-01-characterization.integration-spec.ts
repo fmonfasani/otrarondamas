@@ -254,7 +254,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     if (serverNoEnv && !serverNoEnv.killed) serverNoEnv.kill();
     if (!prisma || !companyA || !companyB) return;
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     const pedidoIdsForCleanup = await prisma.pedido.findMany({
       where: { empresaId: { in: companies } },
       select: { id: true },
