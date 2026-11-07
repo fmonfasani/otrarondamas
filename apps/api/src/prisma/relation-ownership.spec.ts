@@ -22,19 +22,21 @@ describe('relation-ownership', () => {
       }
     });
 
-    it('solo VentaItem tiene relaciones registradas', () => {
+    it('registra únicamente modelos opt-in con relaciones de ownership', () => {
       expect(modelHasRelationsWithOwnership('VentaItem')).toBe(true);
       expect(modelHasRelationsWithOwnership('Venta')).toBe(false);
       expect(modelHasRelationsWithOwnership('Pedido')).toBe(false);
+      expect(modelHasRelationsWithOwnership('Producto')).toBe(true);
+      expect(modelHasRelationsWithOwnership('Lote')).toBe(true);
     });
   });
 
-  describe('Venta.create con ventaItems anidados', () => {
+  describe('Venta.create con VentaItem anidados', () => {
     it('extrae el Producto referenciado por cada item, sin duplicados', () => {
       const refs = collectRelationalReferences('Venta', 'create', {
         data: {
           canal: 'x',
-          ventaItems: { create: [item('p1'), item('p2'), item('p1')] },
+          VentaItem: { create: [item('p1'), item('p2'), item('p1')] },
         },
       });
       expect(refs).toEqual([
@@ -43,9 +45,9 @@ describe('relation-ownership', () => {
       ]);
     });
 
-    it('acepta ventaItems.create como objeto único', () => {
+    it('acepta VentaItem.create como objeto único', () => {
       const refs = collectRelationalReferences('Venta', 'create', {
-        data: { ventaItems: { create: item('p1') } },
+        data: { VentaItem: { create: item('p1') } },
       });
       expect(refs).toEqual([{ model: 'Producto', where: { id: 'p1' } }]);
     });
@@ -53,7 +55,7 @@ describe('relation-ownership', () => {
     it('extrae también desde createMany anidado y connectOrCreate', () => {
       const refs = collectRelationalReferences('Venta', 'create', {
         data: {
-          ventaItems: {
+          VentaItem: {
             createMany: { data: [item('p1')] },
             connectOrCreate: { where: { id: 'x' }, create: item('p2') },
           },
@@ -66,7 +68,7 @@ describe('relation-ownership', () => {
       const refs = collectRelationalReferences('Venta', 'update', {
         where: { id: 'v1' },
         data: {
-          ventaItems: {
+          VentaItem: {
             create: item('p1'),
             update: { where: { id: 'i1' }, data: { productoId: 'p2' } },
             updateMany: { where: {}, data: { productoId: 'p3' } },
@@ -81,7 +83,7 @@ describe('relation-ownership', () => {
       expect(collectRelationalReferences('Venta', 'create', { data: { canal: 'x' } })).toEqual([]);
       expect(
         collectRelationalReferences('Venta', 'findMany', {
-          where: { ventaItems: { some: { productoId: 'p1' } } },
+          where: { VentaItem: { some: { productoId: 'p1' } } },
         }),
       ).toEqual([]);
     });
@@ -112,9 +114,9 @@ describe('relation-ownership', () => {
       ).toEqual(['p1', 'p2']);
     });
 
-    it('trata producto.connect como una referencia más', () => {
+    it('trata Producto.connect como una referencia más', () => {
       const refs = collectRelationalReferences('VentaItem', 'create', {
-        data: { cantidad: 1, precioUnitario: 1, producto: { connect: { id: 'p1' } } },
+        data: { cantidad: 1, precioUnitario: 1, Producto: { connect: { id: 'p1' } } },
       });
       expect(refs).toEqual([{ model: 'Producto', where: { id: 'p1' } }]);
     });
@@ -134,10 +136,10 @@ describe('relation-ownership', () => {
       ['create', { create: { nombre: 'x' } }],
       ['connectOrCreate', { connectOrCreate: { where: { id: 'p1' }, create: {} } }],
       ['disconnect', { disconnect: true }],
-    ])('rechaza producto.%s', (name, operation) => {
+    ])('rechaza Producto.%s', (name, operation) => {
       expect(() =>
         collectRelationalReferences('VentaItem', 'create', {
-          data: { cantidad: 1, precioUnitario: 1, producto: operation },
+          data: { cantidad: 1, precioUnitario: 1, Producto: operation },
         }),
       ).toThrow(/no tiene manejo de ownership definido/);
     });
@@ -154,7 +156,7 @@ describe('relation-ownership', () => {
     it('propaga el rechazo desde un item anidado dentro de Venta.create', () => {
       expect(() =>
         collectRelationalReferences('Venta', 'create', {
-          data: { ventaItems: { create: { producto: { create: {} } } } },
+          data: { VentaItem: { create: { Producto: { create: {} } } } },
         }),
       ).toThrow(/no tiene manejo de ownership definido/);
     });

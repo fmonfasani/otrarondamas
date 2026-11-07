@@ -2,7 +2,7 @@
 # raíz del monorepo (ver docker-compose.prod.yml) porque depende de
 # packages/shared-types.
 #
-# node:20-bookworm-slim (Debian) en vez de -alpine: el query engine nativo
+# node:22-bookworm-slim (Debian) en vez de -alpine: el query engine nativo
 # de Prisma que se genera acá busca libssl vía glibc, y Alpine (musl)
 # rompe en runtime con "Error loading shared library libssl.so.1.1: No
 # such file or directory" (probado localmente). bookworm-slim tampoco trae
@@ -11,7 +11,7 @@
 # (Debian 12 trae OpenSSL 3) — de ahí el `apt-get install openssl` en las
 # dos etapas.
 
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 WORKDIR /repo
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
@@ -32,7 +32,7 @@ RUN npm run build --workspace=@otrarondamas/api
 
 # ---------------------------------------------------------------------------
 
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /repo
 ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
@@ -43,6 +43,7 @@ COPY packages/shared-types/package.json packages/shared-types/package.json
 RUN npm install --omit=dev --legacy-peer-deps --prefer-offline
 
 COPY --from=builder /repo/apps/api/dist apps/api/dist
+COPY --from=builder /repo/apps/api/esm-loader.mjs apps/api/esm-loader.mjs
 COPY --from=builder /repo/apps/api/prisma apps/api/prisma
 COPY --from=builder /repo/node_modules/.prisma node_modules/.prisma
 COPY --from=builder /repo/packages/shared-types packages/shared-types
@@ -53,4 +54,4 @@ COPY --from=builder /repo/packages/shared-types packages/shared-types
 RUN cp apps/api/prisma/seed-data-minorista.json apps/api/dist/prisma/seed-data-minorista.json
 
 EXPOSE 3000
-CMD ["node", "apps/api/dist/src/main.js"]
+CMD ["node", "--loader", "apps/api/esm-loader.mjs", "apps/api/dist/src/main.js"]

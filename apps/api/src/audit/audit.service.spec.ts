@@ -1,7 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from './audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAuditLogDto } from './dto/create-audit-log.dto';
+
+type CreateAuditLogDto = {
+  empresaId: string;
+  usuarioId?: string;
+  accion: string;
+  entidadAfectada: string;
+  entidadId?: string;
+  valoresAnteriores?: any;
+  valoresPosteriores?: any;
+  motivo?: string;
+  autorizacionId?: string;
+  ventaId?: string;
+};
 
 describe('AuditService', () => {
   let service: AuditService;
@@ -52,7 +64,7 @@ describe('AuditService', () => {
       const mockResult = {
         id: 'audit-id',
         ...dto,
-        accionEnum: 'CREAR_VENTA' as any,
+        accion: 'CREAR_VENTA' as any,
         fechaHora: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -236,7 +248,7 @@ describe('AuditService', () => {
       expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            accionEnum: 'CREAR_VENTA',
+            accion: 'CREAR_VENTA',
           }),
         }),
       );
@@ -321,9 +333,9 @@ describe('AuditService', () => {
   describe('getUserActivitySummary', () => {
     it('should aggregate user activity by action type', async () => {
       const mockGroups = [
-        { accionEnum: 'CREAR_VENTA' as any, _count: { id: 5 } },
-        { accionEnum: 'ACTUALIZAR_VENTA' as any, _count: { id: 3 } },
-        { accionEnum: null, _count: { id: 0 } }, // Null accionEnum (legacy)
+        { accion: 'CREAR_VENTA' as any, _count: { id: 5 } },
+        { accion: 'ACTUALIZAR_VENTA' as any, _count: { id: 3 } },
+        { accion: null, _count: { id: 0 } }, // Null accionEnum (legacy)
       ];
 
       jest.spyOn(prisma.auditLog, 'groupBy').mockResolvedValue(mockGroups as any);
@@ -340,8 +352,8 @@ describe('AuditService', () => {
   describe('getActionDistribution', () => {
     it('should aggregate action distribution across all users', async () => {
       const mockGroups = [
-        { accionEnum: 'LOGIN' as any, _count: { id: 150 } },
-        { accionEnum: 'LOGOUT' as any, _count: { id: 145 } },
+        { accion: 'LOGIN' as any, _count: { id: 150 } },
+        { accion: 'LOGOUT' as any, _count: { id: 145 } },
       ];
 
       jest.spyOn(prisma.auditLog, 'groupBy').mockResolvedValue(mockGroups as any);
