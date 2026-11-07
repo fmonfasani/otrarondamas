@@ -408,8 +408,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       usuarioId: null,
     });
     expect(Number(res.body.total)).toBe(330); // 2×90.00 + 3×50.00
-    expect(res.body.pedidoItems).toHaveLength(2);
-    const itemA1 = res.body.pedidoItems.find(
+    expect(res.body.PedidoItem).toHaveLength(2);
+    const itemA1 = res.body.PedidoItem.find(
       (i: { productoId: string }) => i.productoId === productA1.id,
     );
     expect(Number(itemA1.precioUnitario)).toBe(90);
@@ -516,12 +516,12 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         )
         .expect(201);
 
-      expect(res.body.pedidoItems).toHaveLength(2);
-      for (const item of res.body.pedidoItems) {
+      expect(res.body.PedidoItem).toHaveLength(2);
+      for (const item of res.body.PedidoItem) {
         expect(Number(item.descuentoFidelizacionPorcentaje)).toBe(10);
         expect(item.reglaFidelizacionId).toBe(ruleA.id);
       }
-      const itemA1 = res.body.pedidoItems.find(
+      const itemA1 = res.body.PedidoItem.find(
         (i: { productoId: string }) => i.productoId === productA1.id,
       );
       expect(Number(itemA1.precioUnitario)).toBe(90); // frozen price excludes loyalty %
@@ -580,10 +580,13 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .send(orderBody(email('xt-b'), [{ productoId: productB1.id, cantidad: 1 }]));
 
     expect(res.status).toBe(400);
+    // AS-IS: path/timestamp are added by the global I18nExceptionFilter (e8b88b9).
     expect(res.body).toEqual({
       statusCode: 400,
       message: `Producto ${productB1.id} no disponible`,
       error: 'Bad Request',
+      path: '/tienda/pedidos',
+      timestamp: expect.any(String),
     });
     expect(await counts()).toEqual(before);
     expect(await prisma.cliente.count({ where: { email: email('xt-b') } })).toBe(0);
@@ -638,16 +641,23 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     });
 
     const cross = await request(BASE).get(`/tienda/pedidos/${orderB.id}`);
-    const missing = await request(BASE).get(`/tienda/pedidos/${randomUUID()}`);
+    const missingId = randomUUID();
+    const missing = await request(BASE).get(`/tienda/pedidos/${missingId}`);
 
     expect(cross.status).toBe(400); // AS-IS: BadRequestException, not 404 — not an approved contract
     expect(cross.body).toEqual({
       statusCode: 400,
       message: 'Pedido no encontrado',
       error: 'Bad Request',
+      path: `/tienda/pedidos/${orderB.id}`,
+      timestamp: expect.any(String),
     });
     expect(missing.status).toBe(cross.status);
-    expect(missing.body).toEqual(cross.body);
+    // Indistinguishable apart from the per-request path/timestamp.
+    const { path: _crossPath, timestamp: _crossTs, ...crossRest } = cross.body;
+    const { path: missingPath, timestamp: _missingTs, ...missingRest } = missing.body;
+    expect(missingRest).toEqual(crossRest);
+    expect(missingPath).toBe(`/tienda/pedidos/${missingId}`);
   });
 
   it('STORE-05b: tracking de un pedido propio de A sin token → 200 con la forma mínima AS-IS', async () => {
@@ -683,11 +693,17 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     const order = await request(BASE_NOENV)
       .post('/tienda/pedidos')
       .send(orderBody(email('noenv-order'), [{ productoId: productA1.id, cantidad: 1 }]));
-    const tracking = await request(BASE_NOENV).get(`/tienda/pedidos/${randomUUID()}`);
+    const trackingId = randomUUID();
+    const tracking = await request(BASE_NOENV).get(`/tienda/pedidos/${trackingId}`);
 
-    for (const res of [catalog, hierarchy, order, tracking]) {
+    for (const [res, path] of [
+      [catalog, '/tienda/productos'],
+      [hierarchy, '/tienda/jerarquia'],
+      [order, '/tienda/pedidos'],
+      [tracking, `/tienda/pedidos/${trackingId}`],
+    ] as const) {
       expect(res.status).toBe(500);
-      expect(res.body).toEqual(expected);
+      expect(res.body).toEqual({ ...expected, path, timestamp: expect.any(String) });
     }
     expect(await counts()).toEqual(before);
   });
