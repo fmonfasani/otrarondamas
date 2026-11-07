@@ -103,7 +103,7 @@ describe('S-V1-01 — GET /auth/memberships (HTTP, stack real)', () => {
       data: { userId: user.id, businessId: companyA.id, role: 'OWNER', status: 'ACTIVE' },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: 'ignore',

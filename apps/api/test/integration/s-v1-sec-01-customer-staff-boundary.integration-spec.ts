@@ -46,7 +46,7 @@ describe('S-V1-SEC-01 — Customer identity cannot access staff endpoints', () =
     });
 
   beforeAll(async () => {
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: 'ignore',

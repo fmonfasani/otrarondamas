@@ -57,15 +57,15 @@ describe('NotificationAnalyticsService', () => {
   describe('getDeliveryRate', () => {
     it('should calculate delivery rate metrics', async () => {
       const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const endDate = new Date();
 
-      // Track some deliveries
+      // Track some deliveries before capturing the inclusive end of the period.
       service.trackDelivery('notif-1', 'push', 'sent');
       service.trackDelivery('notif-2', 'push', 'sent');
       service.trackDelivery('notif-3', 'push', 'failed');
       service.trackDelivery('notif-4', 'email', 'sent');
       service.trackDelivery('notif-5', 'email', 'bounced');
 
+      const endDate = new Date();
       const metrics = await service.getDeliveryRate('biz-1', startDate, endDate);
 
       expect(metrics).toEqual(
@@ -95,13 +95,13 @@ describe('NotificationAnalyticsService', () => {
 
     it('should calculate per-channel delivery rates', async () => {
       const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const endDate = new Date();
 
       service.trackDelivery('notif-1', 'push', 'sent');
       service.trackDelivery('notif-2', 'push', 'sent');
       service.trackDelivery('notif-3', 'push', 'failed');
       service.trackDelivery('notif-4', 'email', 'sent');
 
+      const endDate = new Date();
       const metrics = await service.getDeliveryRate('biz-1', startDate, endDate);
 
       // Push: 2/3 sent = 66.67%

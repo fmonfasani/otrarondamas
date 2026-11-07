@@ -13,7 +13,8 @@ describe('NotificationPreferencesService', () => {
     usuarioId: 'user-1',
     empresaId: 'biz-1',
     role: 'OWNER' as any,
-    userId: null,
+    userId: 'user-1',
+    businessId: 'biz-1',
     isOwner: true,
   };
 
@@ -88,6 +89,7 @@ describe('NotificationPreferencesService', () => {
       const otherContext: BusinessContext = {
         ...mockBusinessContext,
         usuarioId: 'user-2',
+        userId: 'user-2',
       };
 
       await expect(service.getUserPreferences('user-1', 'biz-1', otherContext)).rejects.toThrow(
@@ -99,6 +101,7 @@ describe('NotificationPreferencesService', () => {
       const otherContext: BusinessContext = {
         ...mockBusinessContext,
         empresaId: 'biz-2',
+        businessId: 'biz-2',
       };
 
       await expect(service.getUserPreferences('user-1', 'biz-1', otherContext)).rejects.toThrow(
@@ -174,6 +177,7 @@ describe('NotificationPreferencesService', () => {
       const otherContext: BusinessContext = {
         ...mockBusinessContext,
         usuarioId: 'user-2',
+        userId: 'user-2',
       };
 
       await expect(

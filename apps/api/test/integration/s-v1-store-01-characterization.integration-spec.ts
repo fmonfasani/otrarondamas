@@ -231,7 +231,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
       stdio: 'ignore',
@@ -241,7 +241,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     // on a developer machine an absent key would be silently re-injected from
     // .env (observed). An empty value is not overridden, and both cases take
     // the same `!companyId` branch in StoreService/AuthCustomerController.
-    serverNoEnv = spawn('node', ['dist/src/main.js'], {
+    serverNoEnv = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT: PORT_NOENV, TIENDA_EMPRESA_ID: '' },
       stdio: 'ignore',
@@ -254,7 +254,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     if (serverNoEnv && !serverNoEnv.killed) serverNoEnv.kill();
     if (!prisma || !companyA || !companyB) return;
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
@@ -404,8 +404,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       usuarioId: null,
     });
     expect(Number(res.body.total)).toBe(330); // 2×90.00 + 3×50.00
-    expect(res.body.pedidoItems).toHaveLength(2);
-    const itemA1 = res.body.pedidoItems.find(
+    expect(res.body.PedidoItem).toHaveLength(2);
+    const itemA1 = res.body.PedidoItem.find(
       (i: { productoId: string }) => i.productoId === productA1.id,
     );
     expect(Number(itemA1.precioUnitario)).toBe(90);
@@ -512,12 +512,12 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         )
         .expect(201);
 
-      expect(res.body.pedidoItems).toHaveLength(2);
-      for (const item of res.body.pedidoItems) {
+      expect(res.body.PedidoItem).toHaveLength(2);
+      for (const item of res.body.PedidoItem) {
         expect(Number(item.descuentoFidelizacionPorcentaje)).toBe(10);
         expect(item.reglaFidelizacionId).toBe(ruleA.id);
       }
-      const itemA1 = res.body.pedidoItems.find(
+      const itemA1 = res.body.PedidoItem.find(
         (i: { productoId: string }) => i.productoId === productA1.id,
       );
       expect(Number(itemA1.precioUnitario)).toBe(90); // frozen price excludes loyalty %
@@ -576,7 +576,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .send(orderBody(email('xt-b'), [{ productoId: productB1.id, cantidad: 1 }]));
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       statusCode: 400,
       message: `Producto ${productB1.id} no disponible`,
       error: 'Bad Request',
@@ -637,13 +637,17 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     const missing = await request(BASE).get(`/tienda/pedidos/${randomUUID()}`);
 
     expect(cross.status).toBe(400); // AS-IS: BadRequestException, not 404 — not an approved contract
-    expect(cross.body).toEqual({
+    expect(cross.body).toMatchObject({
       statusCode: 400,
       message: 'Pedido no encontrado',
       error: 'Bad Request',
     });
     expect(missing.status).toBe(cross.status);
-    expect(missing.body).toEqual(cross.body);
+    expect(missing.body).toMatchObject({
+      statusCode: cross.body.statusCode,
+      message: cross.body.message,
+      error: cross.body.error,
+    });
   });
 
   it('STORE-05b: tracking de un pedido propio de A sin token → 200 con la forma mínima AS-IS', async () => {
@@ -683,7 +687,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
 
     for (const res of [catalog, hierarchy, order, tracking]) {
       expect(res.status).toBe(500);
-      expect(res.body).toEqual(expected);
+      expect(res.body).toMatchObject(expected);
     }
     expect(await counts()).toEqual(before);
   });

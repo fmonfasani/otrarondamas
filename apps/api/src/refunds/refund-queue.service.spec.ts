@@ -65,7 +65,10 @@ describe('RefundQueueService', () => {
     service = module.get<RefundQueueService>(RefundQueueService);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // onModuleInit starts a real polling interval; always stop it so tests do
+    // not keep invoking processNextBatch after their mocks have been cleared.
+    await service.onModuleDestroy();
     jest.clearAllMocks();
   });
 
