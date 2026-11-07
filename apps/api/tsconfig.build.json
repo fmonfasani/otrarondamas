@@ -1,6 +1,23 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "./" },
-  "include": ["src/**/*", "prisma/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
+  "compilerOptions": {
+    "rootDir": "./"
+  },
+  "include": [
+    "src/**/*",
+    "prisma/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.spec.ts",
+    "src/search/**",
+    "src/assets/**",
+    "src/seo/**",
+    "src/admin/**",
+    "src/analytics/**",
+    "src/i18n/**",
+    "src/payments/**mock*"
+  ]
 }

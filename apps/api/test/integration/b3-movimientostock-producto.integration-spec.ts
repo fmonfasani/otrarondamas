@@ -161,8 +161,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         total: 100,
         totalPagado: 0,
         saldo: 100,
-        items: {
-          create: [
+        CompraItem: { create: [
             {
               productoId: productA.id,
               cantidadPedida: 10,
@@ -172,10 +171,10 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           ],
         },
       },
-      include: { items: true },
+      include: { CompraItem: true },
     });
     purchaseA = { id: purchase.id };
-    purchaseItemA = { id: purchase.items[0].id };
+    purchaseItemA = { id: purchase.CompraItem[0].id };
 
     batchA = await prisma.lote.create({
       data: {
@@ -360,10 +359,10 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       userA.id,
     );
 
-    expect(reception.movimientosStock.length).toBe(1);
-    expect(reception.movimientosStock[0].productoId).toBe(productA.id);
-    expect(reception.movimientosStock[0].motivo).toBe('Compra');
-    expect(reception.movimientosStock[0].tipoMovimiento).toBe('Entrada');
+    expect(reception.MovimientoStock.length).toBe(1);
+    expect(reception.MovimientoStock[0].productoId).toBe(productA.id);
+    expect(reception.MovimientoStock[0].motivo).toBe('Compra');
+    expect(reception.MovimientoStock[0].tipoMovimiento).toBe('Entrada');
   });
 
   it('MS-P-09: productive devolucion flow keeps working (crearDevolucion, W-2)', async () => {
@@ -410,12 +409,12 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productA.id, cantidad: 1, costoUnitario: 5 }],
+          items: [{ productoId: productA.id, loteId: undefined, cantidad: 1, costoUnitario: 5 }],
         },
         userA.id,
       );
 
-      expect(created.items[0].loteId).toBe(batchD.id);
+      expect(created.DevolucionProveedorItem[0].loteId).toBe(batchD.id);
       const after = await prisma.lote.findUniqueOrThrow({
         where: { id: batchD.id },
         select: { cantidad: true },
@@ -440,7 +439,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productB.id, cantidad: 1, costoUnitario: 5 }],
+          items: [{ productoId: productB.id, loteId: batchA.id, cantidad: 1, costoUnitario: 5 }],
         },
         userA.id,
       ),
@@ -464,7 +463,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         purchaseA.id,
         {
           motivo: reason,
-          items: [{ productoId: productA.id, cantidad: 999, costoUnitario: 5 }],
+          items: [{ productoId: productA.id, loteId: undefined, cantidad: 999, costoUnitario: 5 }],
         },
         userA.id,
       ),

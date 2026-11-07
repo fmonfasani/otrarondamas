@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { pathToFileURL } from 'node:url';
 
 // S-V1-01 — Idempotent backfill Usuario → User + Membership.
 //
@@ -140,7 +141,7 @@ async function main() {
 }
 
 // Only runs when invoked directly with ts-node, not when imported from tests.
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((e) => {
     console.error(e);
     process.exit(1);
