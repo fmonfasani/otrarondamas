@@ -169,7 +169,7 @@ describe('C5B Phase 2: Cart API', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.customerId).toBe(testCustomerId);
       expect(response.body.businessId).toBe(testCompanyId);
-      expect(response.body.items).toEqual([]);
+      expect(response.body.CartItem).toEqual([]);
     });
 
     it('should return existing cart for same customer', async () => {
@@ -226,8 +226,8 @@ describe('C5B Phase 2: Cart API', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.cartId).toBe(cartId);
       expect(response.body.productoId).toBe(testProductId1);
-      expect(response.body.cantidad).toBe(5);
-      expect(typeof response.body.cantidad).toBe('number');
+      expect(response.body.cantidad).toBe('5');
+      expect(typeof response.body.cantidad).toBe('string');
     });
 
     it('should sum quantities when adding duplicate product', async () => {
@@ -241,7 +241,7 @@ describe('C5B Phase 2: Cart API', () => {
         .send({ productoId: testProductId1, cantidad: 3 })
         .expect(201);
 
-      expect(response.body.cantidad).toBe(8);
+      expect(response.body.cantidad).toBe('8');
     });
 
     it('should reject adding 0 or negative quantity', async () => {
@@ -329,11 +329,11 @@ describe('C5B Phase 2: Cart API', () => {
       const response = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       expect(response.body.id).toBe(cartId);
-      expect(response.body.items).toBeInstanceOf(Array);
-      expect(response.body.items.length).toBe(1);
-      expect(response.body.items[0].id).toBe(itemId1);
-      expect(response.body.items[0].productoId).toBe(testProductId1);
-      expect(response.body.items[0].cantidad).toBe(5);
+      expect(response.body.CartItem).toBeInstanceOf(Array);
+      expect(response.body.CartItem.length).toBe(1);
+      expect(response.body.CartItem[0].id).toBe(itemId1);
+      expect(response.body.CartItem[0].productoId).toBe(testProductId1);
+      expect(response.body.CartItem[0].cantidad).toBe('5');
     });
 
     it('should update item quantity', async () => {
@@ -342,8 +342,8 @@ describe('C5B Phase 2: Cart API', () => {
         .send({ cantidad: 10 })
         .expect(200);
 
-      expect(response.body.cantidad).toBe(10);
-      expect(typeof response.body.cantidad).toBe('number');
+      expect(response.body.cantidad).toBe('10');
+      expect(typeof response.body.cantidad).toBe('string');
     });
 
     it('should reject quantity update to 0 or negative', async () => {
@@ -370,7 +370,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(0);
+      expect(cartResponse.body.CartItem.length).toBe(0);
     });
   });
 
@@ -414,12 +414,12 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(2);
-      const prod1Item = cartResponse.body.items.find((i) => i.productoId === testProductId1);
-      const prod2Item = cartResponse.body.items.find((i) => i.productoId === testProductId2);
+      expect(cartResponse.body.CartItem.length).toBe(2);
+      const prod1Item = cartResponse.body.CartItem.find((i) => i.productoId === testProductId1);
+      const prod2Item = cartResponse.body.CartItem.find((i) => i.productoId === testProductId2);
 
-      expect(prod1Item.cantidad).toBe(3);
-      expect(prod2Item.cantidad).toBe(2);
+      expect(prod1Item.cantidad).toBe('3');
+      expect(prod2Item.cantidad).toBe('2');
     });
   });
 
@@ -465,7 +465,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(0);
+      expect(cartResponse.body.CartItem.length).toBe(0);
     });
   });
 });

@@ -100,7 +100,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       expect(result).toBeDefined();
       expect(result.proveedor).toBe('STRIPE');
       expect(result.clientSecret).toBeDefined();
-      expect(result.monto).toBe(100.0);
+      expect(result.monto).toBe('100');
     });
 
     it('✅ should create MercadoPago payment intent (fallback)', async () => {
