@@ -551,52 +551,44 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
   });
 
   describe('Payment Detail Isolation', () => {
-    it('should not return a payment owned by another business', async () => {
-      const otherEmpresa = await prisma.empresa.create({
+    const createOtherEmpresa = (label: string) =>
+      prisma.empresa.create({
         data: {
-          nombre: `Payment Isolation Tenant ${Date.now()}`,
-          slug: `payment-isolation-${Date.now()}`,
+          nombre: `${label} Isolation Tenant ${Date.now()}`,
+          slug: `${label.toLowerCase()}-isolation-${Date.now()}`,
           configuracion: {},
         },
       });
-      const payment = await prisma.payment.create({
+
+    const createOwnPayment = (prefix: string, estado: 'PENDING' | 'COMPLETED') =>
+      prisma.payment.create({
         data: {
           empresaId: testEmpresa.id,
           ventaId: testVenta.id,
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: `pi_isolation_${Date.now()}`,
-          estado: 'PENDING',
+          providerPaymentId: `${prefix}_${Date.now()}`,
+          estado,
         },
       });
 
-      await expect(
-        paymentService.getPaymentDetail(otherEmpresa.id, payment.id),
-      ).rejects.toThrow('Payment not found');
+    it('should not return a payment owned by another business', async () => {
+      const otherEmpresa = await createOtherEmpresa('Payment');
+      const payment = await createOwnPayment('pi_isolation', 'PENDING');
 
-      await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+      try {
+        await expect(
+          paymentService.getPaymentDetail(otherEmpresa.id, payment.id),
+        ).rejects.toThrow('Payment not found');
+      } finally {
+        await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+      }
     });
 
     it('should not return related refunds owned by another business', async () => {
-      const otherEmpresa = await prisma.empresa.create({
-        data: {
-          nombre: `Refund Isolation Tenant ${Date.now()}`,
-          slug: `refund-isolation-${Date.now()}`,
-          configuracion: {},
-        },
-      });
-      const payment = await prisma.payment.create({
-        data: {
-          empresaId: testEmpresa.id,
-          ventaId: testVenta.id,
-          monto: 100,
-          moneda: 'ARS',
-          proveedor: 'STRIPE',
-          providerPaymentId: `pi_refund_isolation_${Date.now()}`,
-          estado: 'COMPLETED',
-        },
-      });
+      const otherEmpresa = await createOtherEmpresa('Refund');
+      const payment = await createOwnPayment('pi_refund_isolation', 'COMPLETED');
       const foreignRefund = await prisma.refund.create({
         data: {
           empresaId: otherEmpresa.id,
@@ -607,14 +599,16 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
         },
       });
 
-      const detail = await paymentService.getPaymentDetail(testEmpresa.id, payment.id);
+      try {
+        const detail = await paymentService.getPaymentDetail(testEmpresa.id, payment.id);
 
-      expect(detail.refunds).not.toEqual(
-        expect.arrayContaining([expect.objectContaining({ id: foreignRefund.id })]),
-      );
-
-      await prisma.refund.delete({ where: { id: foreignRefund.id } });
-      await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+        expect(detail.refunds).not.toEqual(
+          expect.arrayContaining([expect.objectContaining({ id: foreignRefund.id })]),
+        );
+      } finally {
+        await prisma.refund.delete({ where: { id: foreignRefund.id } });
+        await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
+      }
     });
   });
 
