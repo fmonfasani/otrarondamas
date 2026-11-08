@@ -742,6 +742,8 @@ describe('P9-2: Business Metrics & KPIs', () => {
           subtipoId: subtipo.id,
           nombre: `Test Product ${i + 1}`,
           codigoInterno: `PROD-${Date.now()}-${i}`,
+          unidadBase: 'UNIDAD',
+          costo: new Prisma.Decimal(50 + i * 5),
           precioMinorista: new Prisma.Decimal(100 + i * 10),
           activo: true,
         },
@@ -765,6 +767,7 @@ describe('P9-2: Business Metrics & KPIs', () => {
     // Create user for orders/sales
     const usuario = await db.usuario.create({
       data: {
+        empresaId: companyId,
         nombre: `Test User for Company ${companyId}`,
         email: `user-${companyId}@test.com`,
         passwordHash: 'hashed_password',
