@@ -56,6 +56,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
 
   let customerA: { id: string };
   let hierA: Awaited<ReturnType<typeof mkHierarchy>>;
+  let hierB: Awaited<ReturnType<typeof mkHierarchy>>;
 
   const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 

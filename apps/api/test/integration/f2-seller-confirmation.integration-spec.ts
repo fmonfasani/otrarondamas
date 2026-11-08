@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
  * F2 — Seller Confirmation: Contract & Acceptance Tests
@@ -26,7 +27,8 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
-  let previousTiendaEmpresaId: string | undefined;
+  let storeEmpresa: OwnStoreEmpresa;
+  let testUsuarioId: string;
   let testPedidoId: string;
 
   beforeAll(async () => {
@@ -39,14 +41,8 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
-    const empresa = await prisma.empresa.create({
-      data: { nombre: `f2-seller ${Date.now()}`, slug: `f2-seller-${Date.now()}`, configuracion: {} },
-      select: { id: true },
-    });
-    testCompanyId = empresa.id;
-    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
-    process.env.TIENDA_EMPRESA_ID = testCompanyId;
+    storeEmpresa = await createOwnStoreEmpresa(prisma, 'f2-seller');
+    testCompanyId = storeEmpresa.id;
 
     // Create test seller (staff) — use OWNER or ASISTENTE_LOCAL
     const usuario = await prisma.usuario.create({
@@ -89,9 +85,7 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
     await prisma.cliente.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.usuario.deleteMany({ where: { empresaId: testCompanyId } });
 
-    await prisma.empresa.delete({ where: { id: testCompanyId } });
-    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
-    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
+    await storeEmpresa.release();
     await app.close();
   });
 

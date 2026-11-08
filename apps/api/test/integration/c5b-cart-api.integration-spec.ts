@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
  * C5B Phase 2: Cart API Integration Tests
@@ -21,7 +22,7 @@ describe('C5B Phase 2: Cart API', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
-  let previousTiendaEmpresaId: string | undefined;
+  let storeEmpresa: OwnStoreEmpresa;
   let testCustomerId: string;
   let testProductId1: string;
   let testProductId2: string;
@@ -36,14 +37,8 @@ describe('C5B Phase 2: Cart API', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
-    const empresa = await prisma.empresa.create({
-      data: { nombre: `c5b-cart ${Date.now()}`, slug: `c5b-cart-${Date.now()}`, configuracion: {} },
-      select: { id: true },
-    });
-    testCompanyId = empresa.id;
-    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
-    process.env.TIENDA_EMPRESA_ID = testCompanyId;
+    storeEmpresa = await createOwnStoreEmpresa(prisma, 'c5b-cart');
+    testCompanyId = storeEmpresa.id;
 
     // Create test customer
     const customer = await prisma.cliente.create({
@@ -159,9 +154,7 @@ describe('C5B Phase 2: Cart API', () => {
     await prisma.subfamilia.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.familia.deleteMany({ where: { empresaId: testCompanyId } });
 
-    await prisma.empresa.delete({ where: { id: testCompanyId } });
-    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
-    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
+    await storeEmpresa.release();
     await app.close();
     await prisma.$disconnect();
   });

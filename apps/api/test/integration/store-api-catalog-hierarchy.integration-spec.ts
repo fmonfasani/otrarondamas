@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
  * C5A/C5B: Store API — GET /store/catalog and GET /store/hierarchy.
@@ -14,7 +15,7 @@ describe('Store API — Catalog and Hierarchy', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
-  let previousTiendaEmpresaId: string | undefined;
+  let storeEmpresa: OwnStoreEmpresa;
   let testProductId: string;
 
   beforeAll(async () => {
@@ -27,14 +28,8 @@ describe('Store API — Catalog and Hierarchy', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
-    const empresa = await prisma.empresa.create({
-      data: { nombre: `store-api-hier ${Date.now()}`, slug: `store-api-hier-${Date.now()}`, configuracion: {} },
-      select: { id: true },
-    });
-    testCompanyId = empresa.id;
-    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
-    process.env.TIENDA_EMPRESA_ID = testCompanyId;
+    storeEmpresa = await createOwnStoreEmpresa(prisma, 'store-api-hier');
+    testCompanyId = storeEmpresa.id;
 
     // Create test hierarchy and product
     const suffix = Date.now();
@@ -115,9 +110,7 @@ describe('Store API — Catalog and Hierarchy', () => {
     await prisma.subfamilia.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.familia.deleteMany({ where: { empresaId: testCompanyId } });
 
-    await prisma.empresa.delete({ where: { id: testCompanyId } });
-    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
-    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
+    await storeEmpresa.release();
     await app.close();
     await prisma.$disconnect();
   });
