@@ -134,10 +134,14 @@ jobs:
   # Stage 5: Deploy to Hetzner
   deploy:
     name: Deploy to Hetzner VPS
-    needs: [quality, build]
+    needs: [quality, build, test, security]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Required reviewers on this environment make every production deploy a manual approval.
+    environment:
+      name: production
+      url: https://wapsell.com
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
