@@ -1,8 +1,11 @@
+import { randomUUID } from 'crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import { signStaffToken } from './helpers/staff-token.fixture';
 
 /**
  * P9-2: Business Metrics & KPIs Integration Tests
@@ -651,31 +654,35 @@ describe('P9-2: Business Metrics & KPIs', () => {
   // ========== Helper Functions ==========
 
   async function createUserAndGetToken(companyId: string, email: string): Promise<string> {
-    // Create a user for the company
-    const user = await prisma.usuario.create({
+    const suffix = randomUUID().slice(0, 8);
+    const uniqueEmail = `${suffix}-${email}`;
+    const usuario = await prisma.usuario.create({
       data: {
-        nombre: `Test User ${Date.now()}`,
-        email,
-        passwordHash: 'hashed_password', // In real scenarios, use bcrypt
+        empresaId: companyId,
+        nombre: `Test User ${suffix}`,
+        email: uniqueEmail,
         activo: true,
+        rol: 'OWNER',
       },
+      select: { id: true },
     });
+    await seedUsuarioPermissions(prisma, [usuario.id], ['metrics.read']);
 
-    // Create membership to link user to company
+    const user = await prisma.user.create({
+      data: { email: uniqueEmail, nombre: `Test User ${suffix}`, usuarioId: usuario.id },
+      select: { id: true },
+    });
     await prisma.membership.create({
-      data: {
-        userId: user.id,
-        businessId: companyId,
-        role: 'owner',
-      },
+      data: { userId: user.id, businessId: companyId, role: 'OWNER', status: 'ACTIVE' },
     });
 
-    // Generate a JWT token (mock - in real tests use actual auth endpoint)
-    // This is a simplified version; real implementation would call /auth/login
-    const token = Buffer.from(JSON.stringify({ userId: user.id, empresaId: companyId })).toString(
-      'base64',
-    );
-    return token;
+    return signStaffToken({
+      sub: usuario.id,
+      email: uniqueEmail,
+      nombre: `Test User ${suffix}`,
+      empresaId: companyId,
+      permisos: ['metrics.read'],
+    });
   }
 
   async function setupCompanyTestData(

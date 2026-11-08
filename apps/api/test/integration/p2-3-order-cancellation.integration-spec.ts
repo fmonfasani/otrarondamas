@@ -55,6 +55,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   let userIds: string[];
 
   let customerA: { id: string };
+  let customerB: { id: string };
   let hierA: Awaited<ReturnType<typeof mkHierarchy>>;
   let hierB: Awaited<ReturnType<typeof mkHierarchy>>;
 

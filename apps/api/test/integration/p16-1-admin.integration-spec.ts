@@ -82,7 +82,7 @@ describe('P16-1: Admin Dashboard Integration Tests', () => {
         name: 'Admin',
         description: 'Administrator role',
         empresaId: businessId,
-        roleCapabilities: {
+        RoleCapability: {
           create: capabilities.map((cap) => ({
             capabilityDefId: cap.id,
           })),
