@@ -741,7 +741,7 @@ describe('P9-2: Business Metrics & KPIs', () => {
           tipoId: tipo.id,
           subtipoId: subtipo.id,
           nombre: `Test Product ${i + 1}`,
-          codigo: `PROD-${Date.now()}-${i}`,
+          codigoInterno: `PROD-${Date.now()}-${i}`,
           precioMinorista: new Prisma.Decimal(100 + i * 10),
           activo: true,
         },
