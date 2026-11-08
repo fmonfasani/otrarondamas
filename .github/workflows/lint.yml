@@ -22,17 +22,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=@otrarondamas/api
+
       - name: Run ESLint
         run: npm run lint --workspace=@otrarondamas/api
 
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit -p tsconfig.build.json
         working-directory: apps/api
 
       - name: Comment on PR (if lint errors)

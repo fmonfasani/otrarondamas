@@ -195,7 +195,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
         total: options.total ?? 20,
         numero: 800000 + counter,
         estado: options.estado ?? 'CONFIRMADA',
-        ventaItems: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
+        VentaItem: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
       },
       select: { id: true },
     });
@@ -322,7 +322,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: 'ignore',
@@ -338,7 +338,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pago.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.ventaItem.deleteMany({ where: { venta: { empresaId: { in: companies } } } });
+    await prisma.ventaItem.deleteMany({ where: { Venta: { empresaId: { in: companies } } } });
     await prisma.venta.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
@@ -991,7 +991,12 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
           .set('Authorization', auth)
           .send({ medio: 'transferencia', monto: 1 })
           .expect(403);
-        await request(BASE).get('/ventas').set('Authorization', auth).expect(403);
+        const listResponse = await request(BASE).get('/ventas').set('Authorization', auth);
+        if (listResponse.status !== 403) {
+          throw new Error(
+            `GET /ventas expected 403 after permission revocation; received ${listResponse.status}: ${JSON.stringify(listResponse.body)}`,
+          );
+        }
         await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', auth).expect(403);
         await request(BASE)
           .get(`/ventas/${saleA.id}/comprobante`)
@@ -1075,7 +1080,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .get(`/ventas/${sale.body.id}`)
       .set('Authorization', auth)
       .expect(200);
-    expect(detail.body.usuario.id).toBe(legacyCrossUser.id);
+    expect(detail.body.Usuario.id).toBe(legacyCrossUser.id);
   });
 
   // ------------------------------------------------------------- symmetry
