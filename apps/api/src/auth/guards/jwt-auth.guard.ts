@@ -30,6 +30,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (isPublic) {
       return true;
     }
+    if (context.getType() === 'ws') {
+      // Socket.IO has no HTTP headers for passport to read. Realtime clients
+      // are authenticated once, by the gateway's namespace middleware, which
+      // attaches the identity to socket.data. Fail closed without it.
+      const client = context.switchToWs().getClient<{ data?: { authenticatedUser?: unknown } }>();
+      return Boolean(client?.data?.authenticatedUser);
+    }
     return super.canActivate(context);
   }
 }
