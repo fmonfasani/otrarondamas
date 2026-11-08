@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -8,6 +8,7 @@ import {
   seedUsuarioPermissions,
   withRevokedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-05 — HTTP boundary of PURCHASES against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -243,11 +244,7 @@ describe('S-V1-05 — Compras (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

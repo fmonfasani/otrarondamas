@@ -1,7 +1,8 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
+import { spawnApi } from './helpers/api-server.fixture';
 
 describe('S-V1-SEC-01 — Customer identity cannot access staff endpoints', () => {
   const PORT = '3392';
@@ -46,11 +47,7 @@ describe('S-V1-SEC-01 — Customer identity cannot access staff endpoints', () =
     });
 
   beforeAll(async () => {
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 70000);
 

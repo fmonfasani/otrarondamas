@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -7,6 +7,7 @@ import {
   deleteUsuarioPermissionsForCompanies,
   seedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 /**
  * P2-3: Order Cancellation Integration Tests (17 scenarios)
@@ -295,11 +296,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
     await waitPort(Number(PORT));
   }, 120000);
 
