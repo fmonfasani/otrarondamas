@@ -132,11 +132,11 @@ describe('NotificationDigestService', () => {
 
       const result = await service.sendDigestEmail('user-1', 'biz-1', DigestPeriod.DAILY);
 
-      expect(emailService.send).toHaveBeenCalledWith({
-        to: 'user@example.com',
-        subject: expect.stringContaining('Resumen de Notificaciones'),
-        html: expect.any(String),
-      });
+      expect(emailService.send).toHaveBeenCalledWith(
+        'user@example.com',
+        expect.stringContaining('Resumen de Notificaciones'),
+        expect.any(String),
+      );
       expect(result.sentAt).toBeTruthy();
     });
 

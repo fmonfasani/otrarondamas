@@ -77,7 +77,7 @@ describe('CustomerDossierController Owner authorization and tenant context', () 
         esMayorista: true,
         estadoLegajo: 'PENDIENTE',
       },
-      include: { legajo: true },
+      include: { Legajo: true },
     });
   });
 

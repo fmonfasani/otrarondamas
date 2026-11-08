@@ -11,7 +11,8 @@ const workflow = (name) => fs.readFileSync(path.join(root, '.github/workflows', 
 test('B4 retains build, complete unit suite, and required tenant regression coverage', () => {
   const content = workflow('b4-verification.yml');
   assert.match(content, /npm run build --workspace=@otrarondamas\/api/);
-  assert.match(content, /npm test --workspace=@otrarondamas\/api -- --runInBand/);
+  assert.match(content, /npm run test:ci --workspace=@otrarondamas\/api -- --runInBand/);
+  assert.match(content, /npm run test:integration:ci -- --runInBand/);
   assert.match(content, /tenant-isolation\.integration-spec\.ts/);
   assert.match(content, /s-v1-\*\.integration-spec\.ts/);
   assert.match(content, /fs-1a-\*\.integration-spec\.ts/);
