@@ -187,7 +187,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         estado: status,
         canalOrigen: 'web',
         total: 100,
-        pedidoItems: {
+        PedidoItem: {
           create: items.map((i) => ({
             productoId: i.productId,
             cantidad: i.quantity,

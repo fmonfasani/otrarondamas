@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
