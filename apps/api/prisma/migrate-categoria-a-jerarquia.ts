@@ -17,13 +17,15 @@
  * them NOT NULL and drops Categoria
  * (20260922090002_catalogo_jerarquia_fk_not_null_y_drop_categoria).
  *
- * Usage: npx ts-node prisma/migrate-categoria-a-jerarquia.ts
+ * Usage: node --loader ts-node/esm prisma/migrate-categoria-a-jerarquia.ts
  */
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'node:url';
 
 const prisma = new PrismaClient();
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 interface FamilyHierarchy {
   prefijo: string;
@@ -93,7 +95,7 @@ async function createFamilySubfamilyGen(companyId: string, oldCategoryName: stri
 }
 
 async function main() {
-  const hierarchyPath = path.join(__dirname, 'seed-data-jerarquia-catalogo.json');
+  const hierarchyPath = path.join(currentDir, 'seed-data-jerarquia-catalogo.json');
   const hierarchyData: { familias: FamilyHierarchy[]; subfamilias: SubfamilyHierarchy[] } =
     JSON.parse(fs.readFileSync(hierarchyPath, 'utf-8'));
 

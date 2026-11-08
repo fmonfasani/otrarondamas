@@ -119,12 +119,12 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createCatalog(companyA.id, 'A');
     productB = await createCatalog(companyB.id, 'B');
-    server = spawn('node', ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT, TIENDA_EMPRESA_ID: '' },
       stdio: 'ignore',
     });
-    legacyServer = spawn('node', ['dist/src/main.js'], {
+    legacyServer = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id },
       stdio: 'ignore',
@@ -136,7 +136,7 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     if (server && !server.killed) server.kill();
     if (legacyServer && !legacyServer.killed) legacyServer.kill();
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });

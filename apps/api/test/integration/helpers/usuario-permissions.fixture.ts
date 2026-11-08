@@ -44,7 +44,7 @@ export async function deleteUsuarioPermissionsForCompanies(
   companyIds: string[],
 ): Promise<void> {
   await prisma.usuarioPermiso.deleteMany({
-    where: { usuario: { empresaId: { in: companyIds } } },
+    where: { Usuario: { empresaId: { in: companyIds } } },
   });
 }
 
