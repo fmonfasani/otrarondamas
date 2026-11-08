@@ -14,6 +14,7 @@ describe('Store API — Catalog and Hierarchy', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
+  let previousTiendaEmpresaId: string | undefined;
   let testProductId: string;
 
   beforeAll(async () => {
@@ -26,8 +27,14 @@ describe('Store API — Catalog and Hierarchy', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Setup: use TIENDA_EMPRESA_ID (fixed for public store)
-    testCompanyId = process.env.TIENDA_EMPRESA_ID || '22dc5550-be63-44bd-bad7-8b7da0b2c6ca';
+    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
+    const empresa = await prisma.empresa.create({
+      data: { nombre: `store-api-hier ${Date.now()}`, slug: `store-api-hier-${Date.now()}`, configuracion: {} },
+      select: { id: true },
+    });
+    testCompanyId = empresa.id;
+    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
+    process.env.TIENDA_EMPRESA_ID = testCompanyId;
 
     // Create test hierarchy and product
     const suffix = Date.now();
@@ -98,7 +105,7 @@ describe('Store API — Catalog and Hierarchy', () => {
   });
 
   afterAll(async () => {
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });
@@ -108,6 +115,9 @@ describe('Store API — Catalog and Hierarchy', () => {
     await prisma.subfamilia.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.familia.deleteMany({ where: { empresaId: testCompanyId } });
 
+    await prisma.empresa.delete({ where: { id: testCompanyId } });
+    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
+    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
     await app.close();
     await prisma.$disconnect();
   });

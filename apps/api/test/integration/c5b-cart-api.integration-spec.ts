@@ -21,6 +21,7 @@ describe('C5B Phase 2: Cart API', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
+  let previousTiendaEmpresaId: string | undefined;
   let testCustomerId: string;
   let testProductId1: string;
   let testProductId2: string;
@@ -35,8 +36,14 @@ describe('C5B Phase 2: Cart API', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Setup: use TIENDA_EMPRESA_ID for public store
-    testCompanyId = process.env.TIENDA_EMPRESA_ID || '22dc5550-be63-44bd-bad7-8b7da0b2c6ca';
+    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
+    const empresa = await prisma.empresa.create({
+      data: { nombre: `c5b-cart ${Date.now()}`, slug: `c5b-cart-${Date.now()}`, configuracion: {} },
+      select: { id: true },
+    });
+    testCompanyId = empresa.id;
+    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
+    process.env.TIENDA_EMPRESA_ID = testCompanyId;
 
     // Create test customer
     const customer = await prisma.cliente.create({
@@ -139,9 +146,9 @@ describe('C5B Phase 2: Cart API', () => {
   });
 
   afterAll(async () => {
-    await prisma.cartItem.deleteMany({ where: { cart: { businessId: testCompanyId } } });
+    await prisma.cartItem.deleteMany({ where: { Cart: { businessId: testCompanyId } } });
     await prisma.cart.deleteMany({ where: { businessId: testCompanyId } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });
@@ -152,6 +159,9 @@ describe('C5B Phase 2: Cart API', () => {
     await prisma.subfamilia.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.familia.deleteMany({ where: { empresaId: testCompanyId } });
 
+    await prisma.empresa.delete({ where: { id: testCompanyId } });
+    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
+    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
     await app.close();
     await prisma.$disconnect();
   });
@@ -209,7 +219,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -317,7 +327,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -393,7 +403,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });
@@ -452,7 +462,7 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     afterEach(async () => {
-      await prisma.cartItem.deleteMany({ where: { cart: { customerId } } });
+      await prisma.cartItem.deleteMany({ where: { Cart: { customerId } } });
       await prisma.cart.deleteMany({ where: { customerId } });
       await prisma.cliente.delete({ where: { id: customerId } });
     });

@@ -26,6 +26,7 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
+  let previousTiendaEmpresaId: string | undefined;
   let testPedidoId: string;
 
   beforeAll(async () => {
@@ -38,7 +39,14 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    testCompanyId = process.env.TIENDA_EMPRESA_ID || '22dc5550-be63-44bd-bad7-8b7da0b2c6ca';
+    // Own Empresa: cleanup below deletes by empresaId, so it must never target a real store.
+    const empresa = await prisma.empresa.create({
+      data: { nombre: `f2-seller ${Date.now()}`, slug: `f2-seller-${Date.now()}`, configuracion: {} },
+      select: { id: true },
+    });
+    testCompanyId = empresa.id;
+    previousTiendaEmpresaId = process.env.TIENDA_EMPRESA_ID;
+    process.env.TIENDA_EMPRESA_ID = testCompanyId;
 
     // Create test seller (staff) — use OWNER or ASISTENTE_LOCAL
     const usuario = await prisma.usuario.create({
@@ -79,8 +87,11 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
     await prisma.pedidoItem.deleteMany({ where: { pedidoId: testPedidoId } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.cliente.deleteMany({ where: { empresaId: testCompanyId } });
-    await prisma.usuario.deleteMany({ where: { email: { contains: 'f2' } } });
+    await prisma.usuario.deleteMany({ where: { empresaId: testCompanyId } });
 
+    await prisma.empresa.delete({ where: { id: testCompanyId } });
+    if (previousTiendaEmpresaId === undefined) delete process.env.TIENDA_EMPRESA_ID;
+    else process.env.TIENDA_EMPRESA_ID = previousTiendaEmpresaId;
     await app.close();
   });
 

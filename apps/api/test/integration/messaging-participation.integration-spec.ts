@@ -219,7 +219,7 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['dist/src/main.js'], {
+    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
       cwd: process.cwd(),
       env: { ...process.env, PORT },
       stdio: ['ignore', 'pipe', 'pipe'],

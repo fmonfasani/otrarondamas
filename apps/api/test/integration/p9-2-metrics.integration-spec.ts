@@ -51,6 +51,8 @@ describe('P9-2: Business Metrics & KPIs', () => {
     const company1 = await prisma.empresa.create({
       data: {
         nombre: `Metrics Test Company 1 - ${Date.now()}`,
+        slug: `p9-metrics-1-${Date.now()}`,
+        configuracion: {},
       },
     });
     company1Id = company1.id;
@@ -58,6 +60,8 @@ describe('P9-2: Business Metrics & KPIs', () => {
     const company2 = await prisma.empresa.create({
       data: {
         nombre: `Metrics Test Company 2 - ${Date.now()}`,
+        slug: `p9-metrics-2-${Date.now()}`,
+        configuracion: {},
       },
     });
     company2Id = company2.id;
