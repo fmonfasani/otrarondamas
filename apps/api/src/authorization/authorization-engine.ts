@@ -8,6 +8,11 @@ import {
   type Permission,
   type Role,
 } from './canonical-permissions';
+import {
+  resolveRequirement,
+  type CanonicalRequest,
+  type CanonicalRequirement,
+} from './canonical-permission.decorator';
 
 /**
  * Single canonical authorization engine — stage 2 of the Authorization spec v0.2
@@ -47,6 +52,10 @@ export interface EvaluationInput {
   legacyRole: string | null | undefined;
   /** Whether the account / Membership is active. */
   active: boolean;
+  /** Endpoint's `@CanonicalPermission` (stage 3). When present it replaces the legacy translation. */
+  declared?: CanonicalRequirement;
+  /** Raw request, for declarations that depend on the body. */
+  request?: CanonicalRequest;
 }
 
 /** Canonical permissions a code translates to; `undefined` = unknown code. */
@@ -60,12 +69,17 @@ export function translateCode(
 }
 
 /**
- * Pure canonical decision. Unknown codes and unknown roles fail closed (AUTH-10). A legacy
- * code that maps to several canonical permissions is allowed when the role holds any of
- * them and flagged `ambiguous`.
+ * Pure canonical decision. Unknown codes and unknown roles fail closed (AUTH-10).
+ * - With an endpoint declaration (stage 3) the role must hold ALL the declared permissions.
+ * - Without one, the legacy code is translated (§5.1); a code that maps to several
+ *   canonical permissions is allowed when the role holds any of them and flagged `ambiguous`.
  */
 export function evaluate(input: EvaluationInput): CanonicalEvaluation {
-  const translated = translateCode(input.code);
+  const declared =
+    input.declared === undefined
+      ? undefined
+      : resolveRequirement(input.declared, input.request ?? {});
+  const translated = declared ?? translateCode(input.code);
   const mappedRole = input.legacyRole ? canonicalRoleFor(input.legacyRole) : undefined;
   const canonicalRole = mappedRole ?? null;
 
@@ -78,7 +92,7 @@ export function evaluate(input: EvaluationInput): CanonicalEvaluation {
       reason: 'CUSTOMER_POLICY',
     };
   }
-  if (!translated) {
+  if (!translated || translated.length === 0 || !translated.every(isPermission)) {
     return {
       decision: 'DENY',
       required: [],
@@ -88,14 +102,16 @@ export function evaluate(input: EvaluationInput): CanonicalEvaluation {
     };
   }
 
-  const ambiguous = translated.length > 1;
+  const ambiguous = declared === undefined && translated.length > 1;
   const base = { required: translated, canonicalRole, ambiguous };
 
   if (!input.active) return { ...base, decision: 'DENY', reason: 'INACTIVE' };
   if (mappedRole === undefined) return { ...base, decision: 'DENY', reason: 'UNKNOWN_ROLE' };
   if (mappedRole === null) return { ...base, decision: 'DENY', reason: 'NOT_A_MEMBERSHIP_ROLE' };
 
-  return translated.some((permission) => roleHasPermission(mappedRole, permission))
+  const holds = (permission: Permission) => roleHasPermission(mappedRole, permission);
+  const allowed = declared === undefined ? translated.some(holds) : translated.every(holds);
+  return allowed
     ? { ...base, decision: 'ALLOW', reason: 'ROLE_HAS_PERMISSION' }
     : { ...base, decision: 'DENY', reason: 'ROLE_LACKS_PERMISSION' };
 }
@@ -132,6 +148,8 @@ export function shadowCompare(input: ShadowInput): CanonicalEvaluation | undefin
           legacy: input.legacyAllowed ? 'ALLOW' : 'DENY',
           canonical: result.decision,
           reason: result.reason,
+          declared: input.declared !== undefined,
+          required: result.required,
           ambiguous: result.ambiguous,
         }),
       );

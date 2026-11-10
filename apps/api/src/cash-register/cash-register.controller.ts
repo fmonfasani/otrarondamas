@@ -10,6 +10,10 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import {
+  CanonicalPermission,
+  CASH_MANUAL_MOVEMENT,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-09 (cash register and cash counts). See cash-register.service.ts for
@@ -71,6 +75,7 @@ export class CashRegisterController {
   // (Ingreso/Egreso/Gasto/Retiro), not only expenses: the seed has no more
   // granular permission per type, and creating a new one without a decision
   // on which role holds it would be an unauthorized business rule.
+  @CanonicalPermission(CASH_MANUAL_MOVEMENT)
   @RequirePermission('caja.gastos')
   @Post('movimientos')
   async registerMovement(@Body() dto: RegisterMovementDto, @CurrentUser() user: AuthenticatedUser) {
@@ -114,6 +119,7 @@ export class CashRegisterController {
 
   // Closes the shift irreversibly (no reopen endpoint) — same permission as
   // expenses/withdrawals, see the controller comment.
+  @CanonicalPermission('CASH_CLOSE')
   @RequirePermission('caja.gastos')
   @Post('cierre')
   async close(@CurrentUser() user: AuthenticatedUser) {

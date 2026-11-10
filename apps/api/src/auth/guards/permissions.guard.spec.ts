@@ -4,6 +4,10 @@ import type { Reflector } from '@nestjs/core';
 import type { AuthenticatedUser } from '../auth.types';
 import type { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsGuard } from './permissions.guard';
+import {
+  CanonicalPermission,
+  ORDER_STATUS_CHANGE,
+} from '../../authorization/canonical-permission.decorator';
 
 describe('PermissionsGuard current database authorization', () => {
   let getAllAndOverride: jest.Mock;
@@ -99,6 +103,36 @@ describe('PermissionsGuard current database authorization', () => {
       await expect(guard.canActivate(executionContext(user()))).resolves.toBe(true);
       expect(divergences()).toEqual([
         expect.objectContaining({ legacy: 'ALLOW', canonical: 'DENY', canonicalRole: 'VENDEDOR' }),
+      ]);
+    });
+
+    it('evaluates the endpoint declaration with the request body (#168: Vendedor cannot cancel)', async () => {
+      getAllAndOverride.mockReturnValue('pedidos.gestionar');
+      findUnique.mockResolvedValue({
+        activo: true,
+        rol: 'ASISTENTE_LOCAL',
+        UsuarioPermiso: [{ Permiso: { nombre: 'pedidos.gestionar' } }],
+      });
+      const handler = () => undefined;
+      CanonicalPermission(ORDER_STATUS_CHANGE)(handler, 'updateStatus', { value: handler });
+      const contextWith = (estado: string) =>
+        ({
+          getHandler: () => handler,
+          getClass: () => class {},
+          switchToHttp: () => ({ getRequest: () => ({ user: user(), body: { estado } }) }),
+        }) as unknown as ExecutionContext;
+
+      await expect(guard.canActivate(contextWith('CONFIRMADO'))).resolves.toBe(true);
+      expect(divergences()).toEqual([]);
+
+      await expect(guard.canActivate(contextWith('CANCELADO'))).resolves.toBe(true);
+      expect(divergences()).toEqual([
+        expect.objectContaining({
+          legacy: 'ALLOW',
+          canonical: 'DENY',
+          declared: true,
+          required: ['ORDER_CANCEL'],
+        }),
       ]);
     });
 

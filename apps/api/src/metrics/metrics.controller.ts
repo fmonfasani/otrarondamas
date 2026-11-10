@@ -26,6 +26,7 @@ import {
   LTVMetricDto,
   DashboardKPIDto,
 } from './dto/responses';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * P9-2 Business Metrics & KPIs Controller
@@ -66,6 +67,7 @@ export class MetricsController {
    */
   @Get('revenue')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getRevenue(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -89,6 +91,7 @@ export class MetricsController {
    */
   @Get('gmv')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getGMV(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -106,6 +109,7 @@ export class MetricsController {
    */
   @Get('orders')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getOrders(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -128,6 +132,7 @@ export class MetricsController {
    */
   @Get('aov')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getAOV(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -156,6 +161,7 @@ export class MetricsController {
    */
   @Get('retention')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getRetention(
     @ExtractBusinessContext() businessId: string,
     @Query('cohortPeriod') cohortPeriod: 'weekly' | 'monthly' = 'monthly',
@@ -176,6 +182,7 @@ export class MetricsController {
    */
   @Get('ltv')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getLTV(
     @ExtractBusinessContext() businessId: string,
     @Query() query: GetLTVQueryDto,
@@ -199,6 +206,7 @@ export class MetricsController {
    */
   @Get('channels')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getChannels(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -227,6 +235,7 @@ export class MetricsController {
    */
   @Get('products')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getProducts(
     @ExtractBusinessContext() businessId: string,
     @Query() query: GetProductsQueryDto,
@@ -247,6 +256,7 @@ export class MetricsController {
    */
   @Get('cac')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getCAC(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
@@ -280,6 +290,7 @@ export class MetricsController {
    */
   @Get('dashboard')
   @RequirePermission('metrics.read')
+  @CanonicalPermission('REPORTS_VIEW')
   async getDashboard(
     @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,

@@ -12,6 +12,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { Public } from '../auth/decorators/public.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-17 (docs/spec-login-roles.md): create() requires usuarios.gestionar
@@ -30,6 +31,7 @@ export class InvitationsController {
 
   @ApiBearerAuth()
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Post()
   create(
     @Body() dto: CreateInvitationDto,
@@ -41,6 +43,7 @@ export class InvitationsController {
 
   @ApiBearerAuth()
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Get()
   async list(@ExtractBusinessContext() businessId: string) {
     return this.prisma.invitacion.findMany({
@@ -76,6 +79,7 @@ export class InvitationsController {
    */
   @ApiBearerAuth()
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Post('mayorista')
   createWholesale(
     @Body() dto: CreateWholesaleInvitationDto,

@@ -19,6 +19,10 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import {
+  CanonicalPermission,
+  ORDER_STATUS_CHANGE,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * PRIVATE surface (pos-admin) — counterpart of store.controller.ts.
@@ -46,18 +50,21 @@ export class OrdersController {
   }
 
   @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission('ORDERS_VIEW')
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser, @Query('estado') status?: string) {
     return this.ordersService.list(await this.resolveCompanyIdFromContext(user), status);
   }
 
   @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission('ORDERS_VIEW')
   @Get(':id')
   async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.ordersService.get(id, await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission(ORDER_STATUS_CHANGE)
   @Patch(':id/estado')
   async updateStatus(
     @Param('id') id: string,
@@ -83,6 +90,7 @@ export class OrdersController {
    * Concurrency: SERIALIZABLE isolation prevents race conditions
    */
   @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission('ORDER_CANCEL')
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancel(

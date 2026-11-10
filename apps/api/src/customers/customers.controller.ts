@@ -8,6 +8,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * Phase 1 of the Loyalty roadmap: minimal Cliente CRUD.
@@ -70,12 +71,14 @@ export class CustomersController {
   }
 
   @RequirePermission('clientes.gestionar')
+  @CanonicalPermission('CUSTOMERS_MANAGE')
   @Post()
   async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: AuthenticatedUser) {
     return this.customersService.create(await this.contextCompanyId(user), dto);
   }
 
   @RequirePermission('clientes.gestionar')
+  @CanonicalPermission('CUSTOMERS_MANAGE')
   @Patch(':id')
   async update(
     @Param('id') id: string,

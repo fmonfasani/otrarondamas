@@ -21,6 +21,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { StripeProviderService } from './providers/stripe-provider.service';
 import { MercadoPagoProviderService } from './providers/mercadopago-provider.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 @ApiTags('pagos')
 @ApiBearerAuth()
@@ -43,6 +44,7 @@ export class PaymentController {
    * POST /pagos/intents - Create payment intent
    */
   @RequirePermission('ventas.crear')
+  @CanonicalPermission('PAYMENTS_REGISTER')
   @Post('intents')
   async createPaymentIntent(
     @Body() dto: CreatePaymentIntentDto,
@@ -56,6 +58,7 @@ export class PaymentController {
    * POST /pagos/confirm - Confirm payment
    */
   @RequirePermission('ventas.editar')
+  @CanonicalPermission('PAYMENTS_REGISTER')
   @Post('confirm')
   async confirmPayment(@Body() dto: ConfirmPaymentDto, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
@@ -100,6 +103,7 @@ export class PaymentController {
    * POST /pagos/:id/refund - Initiate refund
    */
   @RequirePermission('ventas.reembolsar')
+  @CanonicalPermission('PAYMENTS_REFUND')
   @Post(':id/refund')
   async refundPayment(
     @Param('id') paymentId: string,
@@ -226,6 +230,7 @@ export class PaymentController {
    * POST /pagos/:id/retry - Retry failed payment
    */
   @RequirePermission('ventas.editar')
+  @CanonicalPermission('PAYMENTS_REGISTER')
   @Post(':id/retry')
   async retryPayment(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
@@ -247,6 +252,7 @@ export class PaymentController {
    * DELETE /pagos/:id/cancel - Cancel pending payment
    */
   @RequirePermission('ventas.eliminar')
+  @CanonicalPermission('SALES_CANCEL')
   @Post(':id/cancel')
   async cancelPayment(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);

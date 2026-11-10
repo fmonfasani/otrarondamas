@@ -5,6 +5,7 @@ import { Authorize } from '../../auth/decorators/authorize.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ExtractBusinessContext } from '../../business-context/extract-business-context.decorator';
 import { AuditReportingService } from '../../audit/audit-reporting.service';
+import { CanonicalPermission } from '../../authorization/canonical-permission.decorator';
 
 @Controller('admin/audit')
 @UseGuards(JwtAuthGuard, AuthorizationGuard)
@@ -13,6 +14,7 @@ export class AuditAdminController {
 
   @Get('logs')
   @Authorize('audit.view')
+  @CanonicalPermission('AUDIT_VIEW_ALL')
   async getAuditLogs(
     @CurrentUser() user: any,
     @ExtractBusinessContext() businessId: string,
@@ -51,6 +53,7 @@ export class AuditAdminController {
 
   @Get('logs/export')
   @Authorize('audit.view')
+  @CanonicalPermission('AUDIT_VIEW_ALL')
   async exportAuditLogs(
     @CurrentUser() user: any,
     @ExtractBusinessContext() businessId: string,

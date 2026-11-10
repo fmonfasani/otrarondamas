@@ -7,6 +7,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 @ApiTags('pagos')
 @ApiBearerAuth()
@@ -24,6 +25,7 @@ export class PaymentsController {
   }
 
   @RequirePermission('ventas.crear')
+  @CanonicalPermission('PAYMENTS_REGISTER')
   @Post()
   async create(
     @Param('ventaId') saleId: string,

@@ -19,6 +19,10 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import {
+  CanonicalPermission,
+  PRODUCT_UPDATE,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * Product CRUD on RF-03 + the hierarchical catalog categorization model
@@ -119,6 +123,7 @@ export class CatalogController {
   }
 
   @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
   @Post()
   async createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: AuthenticatedUser) {
     const companyId = await this.resolveCompanyIdFromContext(user);
@@ -159,6 +164,7 @@ export class CatalogController {
   }
 
   @RequirePermission('productos.gestionar')
+  @CanonicalPermission(PRODUCT_UPDATE)
   @Patch(':id')
   async updateProduct(
     @Param('id') id: string,

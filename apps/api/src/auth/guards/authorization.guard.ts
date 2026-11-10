@@ -13,6 +13,7 @@ import type { BusinessContext } from '../../business-context/business-context.ty
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import type { AuthenticatedUser } from '../auth.types';
 import { shadowCompare } from '../../authorization/authorization-engine';
+import { readCanonicalRequirement } from '../../authorization/canonical-permission.decorator';
 
 /**
  * Hierarchical capability authorization (Phase 2 P1-2).
@@ -117,6 +118,8 @@ export class AuthorizationGuard implements CanActivate {
         legacyRole: membership.role,
         active: true,
         legacyAllowed,
+        declared: readCanonicalRequirement(context),
+        request,
       });
 
     if (!membership.RoleGrant) {

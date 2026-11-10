@@ -226,7 +226,32 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 |---|---|---|
 | 1 | Done — catalogue, matrix and legacy mapping as typed data (no schema change, no seed) | `apps/api/src/authorization/canonical-permissions.ts`, PR #174 |
 | 2 | Shadow mode — `authorization-engine.ts` evaluates every `@RequirePermission` / `@Authorize` request and logs `authz.shadow.divergence` when it disagrees with the legacy decision; **the legacy guards still decide** | `authorization-engine.spec.ts`, `permissions.guard.spec.ts` |
-| 3–5 | Pending | — |
+| 3 | Shadow mode, legacy surface — the 65 endpoints with `@RequirePermission` / `@Authorize` declare `@CanonicalPermission` (all listed permissions required); the engine uses the declaration instead of the §5.1 translation. Endpoints with no legacy decorator are not declared yet, so fail-closed on undeclared policy (`AUTH-10`) is still pending | `canonical-permission.decorator.spec.ts` (coverage test), PR for #161 stage 3 / #168 |
+| 4–5 | Pending | — |
+
+**Stage 3 declarations that differ from the coarse §5.1 translation** (shadow only; they become effective only when
+the engine is made authoritative):
+
+| Endpoint | Declared | Effect against the matrix |
+|---|---|---|
+| `GET /pedidos`, `GET /pedidos/:id` | `ORDERS_VIEW` | — |
+| `PATCH /pedidos/:id/estado` | `ORDER_CONFIRM` (→ CONFIRMADO), `ORDER_CANCEL` (→ CANCELADO) | Gestor de Stock cannot confirm; Vendedor cannot cancel (#168) |
+| `POST /pedidos/:id/cancel` | `ORDER_CANCEL` | Vendedor and Gestor de Stock denied |
+| `POST /caja/movimientos` | `CASH_WITHDRAW` when `tipo = Retiro`, else `CASH_EXPENSE` | Vendedor cannot withdraw |
+| `POST /caja/cierre` | `CASH_CLOSE` | same roles as `CASH_EXPENSE` |
+| `PATCH /catalogo/productos/:id` | `CATALOG_MANAGE` + `PRICING_CHANGE` when a price field is sent | Gestor de Stock edits products but not prices |
+| `GET /admin/audit/logs`, `/logs/export` (`audit.view`) | `AUDIT_VIEW_ALL` | lists every user's logs: Vendedor and Gestor denied |
+| `POST /pagos/intents`, `POST /ventas/:id/pagos` (`ventas.crear`) | `PAYMENTS_REGISTER` | same roles as `SALES_CREATE` |
+| `PUT /devoluciones/:id/process-refund` | `PAYMENTS_REFUND` | — |
+
+**Questions for the Owner raised by stage 3** (not decided here):
+
+1. `POST /catalogo/productos` always sets a price (`precioMinorista` is required). It is declared `CATALOG_MANAGE`
+   only, so the Gestor de Stock could create a product with its first price. Should creating a product also require
+   `PRICING_CHANGE`, or is the initial price part of cataloguing?
+2. `POST /pagos/:id/cancel` cancels a *pending payment*, not a Sale, but the §5.1 mapping of `ventas.eliminar` gives
+   `SALES_CANCEL`, which the Vendedor does not hold. Kept as `SALES_CANCEL`; `PAYMENTS_REGISTER` may fit better.
+3. Manual cash `Ingreso` / `Egreso` movements have no specific permission and are declared `CASH_EXPENSE`.
 
 The legacy source of truth is per-user (`UsuarioPermiso`), the matrix is per role, so for current users the two
 decisions differ (for example, an Owner without a `UsuarioPermiso` row is denied today and allowed by the matrix).
