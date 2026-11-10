@@ -451,6 +451,20 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(res.body.id).toBe(orderA.id);
     expect(res.body.empresaId).toBe(companyA.id);
     expect(res.body.PedidoItem).toHaveLength(1);
+    // Frontend-facing contract (owner decision 2026-11-09): real estado,
+    // customer and items, amounts as Decimal strings.
+    expect(res.body.estado).toBe('RECIBIDO');
+    expect(res.body.cliente).toEqual(
+      expect.objectContaining({ id: customerA.id, nombre: expect.any(String) }),
+    );
+    expect(res.body.items).toEqual([
+      expect.objectContaining({
+        productId: productA.id,
+        productName: expect.any(String),
+        quantity: '2',
+        price: expect.any(String),
+      }),
+    ]);
   });
 
   it('SV6-H-05: GET /pedidos/:id de otro tenant → 404 (también con claim de ese tenant)', async () => {
