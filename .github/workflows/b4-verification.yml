@@ -75,7 +75,6 @@ jobs:
       # QUARANTINE: suites still red on main, each waiting on an owner decision.
       # Remove an entry only together with the change that makes it green;
       # never add one to get a PR through.
-      #   c5b-cart-api              POST cart response has no CartItem
       #   p2-3-order-cancellation   ENTREGA_FALLIDA and repeated cancel -> 409
       - name: Run API integration verification suites
         shell: bash
@@ -83,7 +82,6 @@ jobs:
           cd apps/api
 
           quarantine=(
-            test/integration/c5b-cart-api.integration-spec.ts
             test/integration/p2-3-order-cancellation.integration-spec.ts
           )
 
