@@ -1,3 +1,8 @@
+> **OWNER RECONCILIATION — 2026-11-04 (NORMATIVE NOTICE)**  
+> **Status:** HISTORICAL DESIGN — SUPERSEDED FOR MVP WHERE CONFLICTING.  
+> The target architecture in this proposal conflicts with the Owner-approved AUTH-01…AUTH-12 closure in `03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`. Preserve this document as historical design evidence; do not treat its RoleTemplate/CapabilityDefinition/RoleGrant/CapabilityGrant model, old role set, permission matrix, no-metadata allow behavior, or migration plan as current approved target state. Membership is the sole effective-role authority; the MVP uses one Permission catalogue and a fixed Role→Permission matrix. Exact IDs, matrix rows, persistence and migration mechanics remain OPEN.  
+> **No implementation is authorized:** do not execute SQL, migrations, seeds, backfills, schema or code changes based on this historical proposal.  
+>
 # Authorization Refactor Design (Phase 2 P1-2)
 **Date:** 2026-10-25  
 **Status:** Design Review Ready  

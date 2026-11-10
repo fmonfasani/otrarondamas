@@ -1,7 +1,7 @@
 # Wapsell Approved Decisions (Current)
 ## Authoritative Decision Record
 
-**Last Updated:** 2026-11-03  
+**Last Updated:** 2026-11-04  
 **Status:** Active  
 **Next Review:** 2026-11-15 (post-reconciliation)
 
@@ -168,7 +168,7 @@ Candidates for archive (not yet superseded):
 ---
 
 **Authority:** Federico Monfasani (Project Owner)  
-**Last Reviewed:** 2026-11-03 (consolidation mission)  
+**Last Reviewed:** 2026-11-04 (AUTH/TENANCY owner decision propagation)  
 **Next Review:** 2026-11-15 (reconciliation completion)
 
 For detailed background, see:
@@ -178,3 +178,32 @@ For detailed background, see:
 - `docs/03-DECISIONS/` (extended decision history)
 
 🤖 Generated with Claude Code
+
+
+---
+
+## 2026-11-04 — Authentication, Authorization & Tenancy Architecture
+
+**Status:** APPROVED — ARCHITECTURAL DIRECTION FOR MVP  
+**Authority:** Explicit Owner approval of twelve decisions AUTH-01…AUTH-12.  
+**Canonical record:** `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`  
+**Decision Register:** `docs/WAPSELL-DOCUMENTATION/03-DECISIONS/00-DECISION-REGISTER.md`
+
+Approved directions:
+- Canonical roles: `OWNER`, `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK`.
+- `Membership` is the sole effective-role authority.
+- One canonical `Permission` catalogue and a fixed Role→Permission matrix for MVP.
+- Multi-business Membership with explicit server-side Business Switch.
+- JWT carries identity and signed context; authorization is always server-side.
+- Explicit legacy `Usuario.id → User.id` mapping.
+- One authorization engine; `@Authorize` and `@RequirePermission` are transitional adapters.
+- Progressive Guard integration, not immediate global activation.
+- Explicit endpoint classification; unknown policies fail closed.
+- Reviewed, gradual `UsuarioPermiso` transition.
+- Incremental, reversible migration backed by tests.
+
+**Authority correction:** the 2026-10-25 P1-2 authorization design and its old role/capability model are superseded wherever they conflict with the 2026-11-04 Owner decision. The 2026-10-25 record remains historical evidence; unrelated approvals in that record are not changed by this addendum.
+
+**Implementation boundary:** no code, schema, migration, seed, data update, destructive legacy retirement, deployment or production cutover is authorized by this architectural approval. Technical contracts and implementation readiness remain open.
+
+The previous governance statement that there were no current unresolved Owner decisions is superseded for Authentication, Authorization and Tenancy by this dated Owner approval.

@@ -86,3 +86,14 @@ This decision closure does **not** by itself authorize schema changes, migration
 
 - **DOCUMENTED:** Owner acceptance of T-01 through T-10 on 2026-10-24.
 - **NOT CLAIMED:** code implementation, runtime verification, test execution, CI success, migration, or production cutover.
+
+
+---
+
+## 6. Subsequent Owner architecture approval — 2026-11-04
+
+The Owner subsequently approved AUTH-01…AUTH-12, recorded in `53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`.
+
+That later decision refines the authorization architecture direction, including canonical MVP roles, Membership as the sole effective-role authority, one Permission catalogue, fixed Role→Permission assignment, explicit multi-business switching, signed JWT context with server-side authorization, explicit legacy identity mapping, one authorization engine, progressive guard integration, explicit endpoint classification, gradual legacy permission mapping and reversible migration.
+
+The 2026-10-24 T-01…T-10 policies remain binding. This addendum does not close the technical details listed in §2 and does not authorize code, schema, migration, seed, data, legacy retirement, deployment or production cutover.

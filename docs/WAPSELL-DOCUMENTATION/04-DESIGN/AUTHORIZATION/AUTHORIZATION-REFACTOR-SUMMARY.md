@@ -1,3 +1,10 @@
+> **OWNER RECONCILIATION — 2026-11-04 (NORMATIVE NOTICE)**  
+> **Status:** HISTORICAL DESIGN — SUPERSEDED FOR MVP WHERE CONFLICTING.  
+> The Owner approved AUTH-01…AUTH-12 in `03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`. This document remains AS-IS/proposal provenance only. Its role set (`ASISTENTE_LOCAL`, `PROVEEDOR`, `REPARTIDOR`), Capability catalogue as a parallel canonical model, RoleGrant as effective-role authority, per-Membership CapabilityGrant overrides, no-metadata allow behavior, and proposed implementation plan are not the approved MVP target state.  
+> Canonical MVP roles are `OWNER`, `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK`; Membership is the sole effective-role authority; one Permission catalogue and a fixed Role→Permission matrix apply. The exact permission matrix and technical contracts remain OPEN.  
+> The 2026-10-25 “Pending Owner Approval” status is historical; the 2026-11-04 decision resolves the architectural direction but **does not authorize implementation**. Do not execute the migration SQL, seeds, backfill, schema changes or code changes from this design.  
+> See also `53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md` for the complete reconciliation.  
+>
 # Authorization Refactor (Phase 2 P1-2) - Executive Summary
 
 **Date:** 2026-10-25  
@@ -521,3 +528,10 @@ Complete migration implementation covering:
 - **Summary:** `AUTHORIZATION-REFACTOR-SUMMARY.md` (this file)
 
 **Next:** Move to `docs/engineering/authorization/` once approved.
+
+
+---
+
+## Current applicability — Owner ruling 2026-11-04
+
+The historical status and sign-off above are retained as provenance only. For the MVP authorization target, this design is superseded wherever it conflicts with AUTH-01…AUTH-12. The 2026-11-04 approval closes architectural direction but **does not authorize implementation**. The migration SQL, seeds, backfill and implementation roadmap in this historical design must not be executed.

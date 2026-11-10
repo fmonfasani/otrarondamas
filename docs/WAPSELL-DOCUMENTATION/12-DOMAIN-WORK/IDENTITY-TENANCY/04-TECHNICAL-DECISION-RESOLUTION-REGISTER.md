@@ -265,3 +265,33 @@ Solo después de esa aprobación se continúa con Contracts → Invariants → T
 **Implementation authorized:** NO
 
 **Estado del artefacto:** DRAFT — NOT APPROVED.
+
+
+---
+
+## 11. OWNER APPROVAL UPDATE — 2026-11-04
+
+**Authority:** AUTH-01…AUTH-12, explicit Owner approval.  
+**Canonical record:** `../../03-DECISIONS/53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md`
+
+This addendum supersedes earlier status classifications only where the 2026-11-04 Owner approval closes architectural direction. It does not close technical details or authorize implementation.
+
+| Existing TD-ID | Updated status | Reconciled treatment |
+|---|---|---|
+| TD-ID-003 Role / Permission catalog | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | Four canonical MVP roles; one Permission catalogue; fixed Role→Permission matrix. Exact IDs, rows and persistence remain open. |
+| TD-ID-004 Business Context / switching | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | Multi-business Membership and explicit server-side Business Switch approved. Protocol, context binding and UX/API contract remain open. |
+| TD-ID-005 Context in session/token | **DIRECTION PARTIALLY CLOSED; TECHNICAL DETAIL OPEN** | JWT carries identity and signed context assertion; exact claims, binding and lifecycle remain open. |
+| TD-ID-006 JWT claims | **POLICY CLOSED; TECHNICAL DETAIL OPEN** | JWT is not authorization; no embedded Permission list is authoritative. Claims and signing mechanics remain open. |
+| TD-ID-008 Authorization enforcement | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | One engine, transitional decorator adapters, progressive guard integration, explicit endpoint policy and fail-closed unknown policy. Exact contract and route mapping remain open. |
+| TD-ID-001 Physical User/Business/Membership model | **OPEN** | AUTH-02 does not approve physical schema, constraints or migrations. |
+| TD-ID-007 Session / Revocation | **OPEN** | Server-side authorization revalidation remains binding; exact revocation/session mechanics remain open. |
+| TD-ID-009 Tenant isolation mechanics | **POLICY CLOSED; TECHNICAL DETAIL OPEN** | Application-level tenant isolation remains mandatory under T-06; implementation mechanism remains open. |
+| TD-ID-011 Duplicate identity data migration | **EVIDENCE REQUIRED / OPEN** | Inspect actual data before defining reconciliation; no data change authorized. |
+| TD-ID-013 Empresa→Business migration | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | Incremental, reversible migration approved as direction; physical migration/cutover remain open. |
+| TD-ID-014 Legacy compatibility | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | Explicit legacy identity/permission mapping and gradual transition; exact coexistence mechanics remain open. |
+| TD-ID-015 Legacy cutover | **OPEN** | Cutover criteria and rollback remain to be specified. |
+| TD-ID-016 Rollback | **DIRECTION CLOSED; TECHNICAL DETAIL OPEN** | Reversibility is mandatory; concrete rollback procedure remains open. |
+
+The 2026-10-01 document's remaining Owner Decision Required entries for role catalogue, permission catalogue and Business Switch direction must not be read as still awaiting conceptual approval. Their technical details remain open as listed above.
+
+**Implementation remains NOT AUTHORIZED:** code, schema, migration, seeds, data changes, destructive legacy retirement and deployment are outside this approval.
