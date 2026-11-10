@@ -719,7 +719,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       // Both answer 200: the loser gets the idempotent result (owner decision
       // 2026-11-09; the endpoint answers 200 since #135).
       const statuses = [res1.status, res2.status];
-      expect(statuses.sort()).toEqual([200, 200]);
+      expect(statuses).toEqual([200, 200]);
 
       // Stock is reversed exactly once
       expect(await batchQuantity(batch.id)).toBe(startQuantity);
