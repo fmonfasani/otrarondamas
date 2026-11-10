@@ -168,12 +168,14 @@ export class OrdersService {
    * Allowed preconditions: RECIBIDO, CONFIRMADO, ENTREGA_FALLIDA
    * Blocked states: EN_PREPARACION, LISTO, ASIGNADO, EN_CAMINO, ENTREGADO, PARCIALMENTE_ENTREGADO
    *
-   * Stock reversal algorithm (if CONFIRMADO):
+   * Stock reversal algorithm (if CONFIRMADO or ENTREGA_FALLIDA — stock was
+   * deducted when the order was confirmed, and a failed delivery keeps it out):
    * - Find all MovimientoStock entries of type 'Salida' (EGRESO) for this order
    * - For each EGRESO: create matching ENTRADA in same batch with same quantity
    * - Update Lote.cantidad: qty += EGRESO.cantidad (stock reversal)
    * - Validate: stock never goes negative after reversal
-   * - Idempotent: Multiple cancellations = safe (no double-reversal because estado=CANCELADO)
+   * - Idempotent: cancelling a CANCELADO order answers 200 with stockReversedItems 0
+   *   (owner decision 2026-11-09), and stock is never reversed twice
    *
    * Audit logging:
    * - Event type: CANCELAR_ORDEN
@@ -182,8 +184,8 @@ export class OrdersService {
    *
    * Concurrency safety:
    * - SERIALIZABLE isolation level prevents race conditions
-   * - Only one concurrent cancellation succeeds (others get P2034)
-   * - Failed cancellations throw BadRequestException cleanly (not 500)
+   * - Exactly one concurrent cancellation reverses stock; the losing request
+   *   (count 0 or P2034) re-reads the order and answers the idempotent result
    *
    * Error handling:
    * - 404 Not Found: Order not found
@@ -206,20 +208,22 @@ export class OrdersService {
             throw new NotFoundException('Pedido no encontrado');
           }
 
+          // Idempotency first: an already-cancelled order is a no-op success.
+          // (It used to be checked after the state guard below, which rejects
+          // CANCELADO, so a repeated cancel answered 409.)
+          if (order.estado === 'CANCELADO') {
+            return {
+              ...order,
+              stockReversedItems: 0,
+            };
+          }
+
           // Check if order is in a cancellable state
           const cancellableStates = ['RECIBIDO', 'CONFIRMADO', 'ENTREGA_FALLIDA'];
           if (!cancellableStates.includes(order.estado)) {
             throw new ConflictException(
               `El pedido está en estado ${order.estado} y no puede ser cancelado. Solo se pueden cancelar pedidos en estados: RECIBIDO, CONFIRMADO o ENTREGA_FALLIDA.`,
             );
-          }
-
-          // If already CANCELADO, idempotency: return success (no-op)
-          if (order.estado === 'CANCELADO') {
-            return {
-              ...order,
-              stockReversedItems: 0,
-            };
           }
 
           // Atomic state transition: only transition if not yet CANCELADO
@@ -230,13 +234,14 @@ export class OrdersService {
           });
 
           if (transition.count === 0) {
-            // Another concurrent request already cancelled it (or it transitioned out)
-            throw new BadRequestException('El pedido ya fue cancelado por otro usuario.');
+            // Another concurrent request already cancelled it: settled below.
+            throw new ConcurrentCancellation();
           }
 
-          // Stock reversal: if order was CONFIRMADO, reverse all EGRESO movements
+          // Stock reversal: stock was deducted on confirmation, so reverse it
+          // for CONFIRMADO and for ENTREGA_FALLIDA (a failed delivery).
           let stockReversedItems = 0;
-          if (order.estado === 'CONFIRMADO') {
+          if (order.estado === 'CONFIRMADO' || order.estado === 'ENTREGA_FALLIDA') {
             // Find all EGRESO movements for this order
             const egressos = await tx.movimientoStock.findMany({
               where: {
@@ -321,10 +326,25 @@ export class OrdersService {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent cancellation
       // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
       // This is an expected state conflict, not an internal server error.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-        throw new BadRequestException('El pedido ya fue cancelado por otro usuario.');
+      const lostRace =
+        error instanceof ConcurrentCancellation ||
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034');
+      if (lostRace) {
+        // The winner reversed the stock; answer the same idempotent result a
+        // repeated cancel gets, instead of an error.
+        const current = await db.pedido.findUnique({
+          where: { id },
+          include: { PedidoItem: true },
+        });
+        if (current?.estado === 'CANCELADO') {
+          return { ...current, stockReversedItems: 0 };
+        }
+        throw new ConflictException('El pedido cambió de estado mientras se cancelaba.');
       }
       throw error;
     }
   }
 }
+
+// Internal signal: a concurrent request cancelled the order first.
+class ConcurrentCancellation extends Error {}
