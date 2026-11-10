@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { DigestPeriod } from '@prisma/client';
+import { DigestPeriod, Prisma } from '@prisma/client';
 import { NotificationDigestService } from './notification-digest.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -163,22 +163,36 @@ describe('NotificationDigestService', () => {
   });
 
   describe('markDigestAsOpened', () => {
-    it('should mark digest as opened', async () => {
-      jest.spyOn(prisma.notificationDigest, 'findUnique').mockResolvedValueOnce(mockDigest as any);
+    it('should scope the update to the owning user and business', async () => {
+      const openedAt = new Date();
       jest.spyOn(prisma.notificationDigest, 'update').mockResolvedValueOnce({
         ...mockDigest,
-        openedAt: new Date(),
+        openedAt,
       } as any);
 
-      const result = await service.markDigestAsOpened('digest-1');
+      const result = await service.markDigestAsOpened('user-1', 'biz-1', 'digest-1');
 
-      expect(result.openedAt).toBeTruthy();
+      expect(result.openedAt).toEqual(openedAt);
+      expect(prisma.notificationDigest.update).toHaveBeenCalledWith({
+        where: {
+          id: 'digest-1',
+          usuarioId: 'user-1',
+          empresaId: 'biz-1',
+        },
+        data: { openedAt: expect.any(Date) },
+      });
     });
 
-    it('should throw NotFoundException if digest does not exist', async () => {
-      jest.spyOn(prisma.notificationDigest, 'findUnique').mockResolvedValueOnce(null);
+    it('should return not found when the digest belongs to another user or business', async () => {
+      const notFound = new Prisma.PrismaClientKnownRequestError(
+        'Record to update not found.',
+        { code: 'P2025', clientVersion: 'test' },
+      );
+      jest.spyOn(prisma.notificationDigest, 'update').mockRejectedValueOnce(notFound);
 
-      await expect(service.markDigestAsOpened('digest-1')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.markDigestAsOpened('user-2', 'biz-2', 'digest-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
