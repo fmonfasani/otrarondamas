@@ -1,3 +1,5 @@
+> **HISTORICAL — superseded (OR-B4-004, 2026-11-10).** Este archivo conserva el texto de la v0.4 (DRAFT). El único archivo canónico es `00-WAPSELL-SPEC-GENERAL.md` (v0.5, APPROVED por OR-B4). No es normativo.
+
 # Wapsell — General Specification
 
 **Version:** 0.4 | **Status:** DRAFT — FOR OWNER REVIEW | **Date:** 2026-10-03
