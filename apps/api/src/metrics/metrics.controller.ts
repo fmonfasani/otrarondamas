@@ -1,9 +1,9 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
+import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
-import { AuthenticatedUser } from '../auth/auth.types';
 import { MetricsService } from './metrics.service';
 import { CohortAnalysisService } from './cohort-analysis.service';
 import {
@@ -40,12 +40,12 @@ import {
  * - Dashboard KPIs
  *
  * All endpoints require JWT authentication and 'metrics.read' permission.
- * Company scoping is enforced via @CurrentUser() extraction.
+ * Tenant scoping is derived from the authenticated BusinessContext.
  */
 @ApiTags('metrics')
 @ApiBearerAuth()
 @Controller('metrics')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), BusinessContextGuard)
 export class MetricsController {
   constructor(
     private readonly metricsService: MetricsService,
@@ -67,14 +67,14 @@ export class MetricsController {
   @Get('revenue')
   @RequirePermission('metrics.read')
   async getRevenue(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<RevenueMetricDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     return this.metricsService.getRevenueMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
       query.groupBy,
@@ -90,13 +90,13 @@ export class MetricsController {
   @Get('gmv')
   @RequirePermission('metrics.read')
   async getGMV(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<GMVMetricDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
-    return this.metricsService.getGMVMetrics(user.empresaId, startDate, endDate, query.groupBy);
+    return this.metricsService.getGMVMetrics(businessId, startDate, endDate, query.groupBy);
   }
 
   /**
@@ -107,14 +107,14 @@ export class MetricsController {
   @Get('orders')
   @RequirePermission('metrics.read')
   async getOrders(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<OrderMetricDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     return this.metricsService.getOrderMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
       query.compareTo as any,
@@ -129,14 +129,14 @@ export class MetricsController {
   @Get('aov')
   @RequirePermission('metrics.read')
   async getAOV(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<AOVMetricDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     return this.metricsService.getAOVMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
       query.groupBy,
@@ -157,11 +157,11 @@ export class MetricsController {
   @Get('retention')
   @RequirePermission('metrics.read')
   async getRetention(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query('cohortPeriod') cohortPeriod: 'weekly' | 'monthly' = 'monthly',
     @Query('lookbackMonths') lookbackMonths: number = 12,
   ): Promise<RetentionMatrixDto> {
-    return this.cohortService.generateRetentionMatrix(user.empresaId, cohortPeriod, lookbackMonths);
+    return this.cohortService.generateRetentionMatrix(businessId, cohortPeriod, lookbackMonths);
   }
 
   /**
@@ -177,14 +177,14 @@ export class MetricsController {
   @Get('ltv')
   @RequirePermission('metrics.read')
   async getLTV(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: GetLTVQueryDto,
   ): Promise<LTVMetricDto> {
     const cohortStartDate = new Date(query.cohortStartDate);
     const cohortEndDate = new Date(query.cohortEndDate);
 
     return this.cohortService.getCohortLTV(
-      user.empresaId,
+      businessId,
       cohortStartDate,
       cohortEndDate,
       query.lookbackMonths,
@@ -200,14 +200,14 @@ export class MetricsController {
   @Get('channels')
   @RequirePermission('metrics.read')
   async getChannels(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<ChannelMetricDto[]> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     return this.metricsService.getChannelMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
       query.compareTo as any,
@@ -228,13 +228,13 @@ export class MetricsController {
   @Get('products')
   @RequirePermission('metrics.read')
   async getProducts(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: GetProductsQueryDto,
   ): Promise<TopProductsDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
-    return this.metricsService.getProductMetrics(user.empresaId, startDate, endDate, query.topN);
+    return this.metricsService.getProductMetrics(businessId, startDate, endDate, query.topN);
   }
 
   /**
@@ -248,14 +248,14 @@ export class MetricsController {
   @Get('cac')
   @RequirePermission('metrics.read')
   async getCAC(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<CACMetricDto> {
     const startDate = new Date(query.startDate);
     const endDate = new Date(query.endDate);
 
     // Fetch new customers in date range (those who signed up)
-    const db = (this.metricsService as any).prismaFactory.forCompany(user.empresaId);
+    const db = (this.metricsService as any).prismaFactory.forCompany(businessId);
     const newCustomers = await db.cliente.count({
       where: {
         createdAt: { gte: startDate, lte: endDate },
@@ -281,7 +281,7 @@ export class MetricsController {
   @Get('dashboard')
   @RequirePermission('metrics.read')
   async getDashboard(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query() query: DateRangeQueryDto,
   ): Promise<DashboardKPIDto> {
     const startDate = new Date(query.startDate);
@@ -289,19 +289,19 @@ export class MetricsController {
 
     // Fetch all KPIs
     const [revenue, orders, aov, retention] = await Promise.all([
-      this.metricsService.getRevenueMetrics(user.empresaId, startDate, endDate),
-      this.metricsService.getOrderMetrics(user.empresaId, startDate, endDate),
-      this.metricsService.getAOVMetrics(user.empresaId, startDate, endDate),
-      this.cohortService.generateRetentionMatrix(user.empresaId, 'monthly', 1),
+      this.metricsService.getRevenueMetrics(businessId, startDate, endDate),
+      this.metricsService.getOrderMetrics(businessId, startDate, endDate),
+      this.metricsService.getAOVMetrics(businessId, startDate, endDate),
+      this.cohortService.generateRetentionMatrix(businessId, 'monthly', 1),
     ]);
 
     const channels = await this.metricsService.getChannelMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
     );
     const products = await this.metricsService.getProductMetrics(
-      user.empresaId,
+      businessId,
       startDate,
       endDate,
       1,

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BusinessContextModule } from '../business-context/business-context.module';
 import { EmailService } from './email.service';
 import { EmailTemplateService } from './templates/email-template.service';
 import { EmailPreferenceService } from './preferences/email-preference.service';
@@ -20,7 +21,7 @@ import { EmailController } from './email.controller';
  * Backwards compatible with RF-17 (Resend-based email).
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, BusinessContextModule],
   controllers: [EmailController],
   providers: [
     EmailService,

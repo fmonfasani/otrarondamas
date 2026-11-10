@@ -14,6 +14,12 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @Public()
+  @Get('health')
+  health(): { status: string } {
+    return { status: 'ok' };
+  }
+
   /**
    * Permission guard verification endpoint (no real business logic):
    * confirms that a user without 'caja.gastos' gets 403 and one with the

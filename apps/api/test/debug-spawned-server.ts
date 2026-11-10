@@ -144,7 +144,7 @@ async function main() {
     console.log('Body:', JSON.stringify(res.body, null, 2));
 
     // Cleanup
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: empresa.id } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: empresa.id } } });
     await prisma.pedido.deleteMany({ where: { empresaId: empresa.id } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: empresa.id } });
     await prisma.lote.deleteMany({ where: { empresaId: empresa.id } });

@@ -1,9 +1,9 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
+import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
-import type { AuthenticatedUser } from '../auth/auth.types';
 
 /**
  * Minimal, read-only listing, not a user management module (no
@@ -17,13 +17,13 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 @ApiTags('usuarios')
 @ApiBearerAuth()
 @Controller('usuarios')
-@UseGuards(ApprovedDossierGuard) // RF-17: cash count support, see cash-register.controller.ts
+@UseGuards(BusinessContextGuard, ApprovedDossierGuard) // RF-17: cash count support, see cash-register.controller.ts
 export class UsersController {
   constructor(private readonly prismaFactory: CompanyScopedPrismaService) {}
 
   @Get()
-  async findAll(@CurrentUser() user: AuthenticatedUser) {
-    const db = this.prismaFactory.forCompany(user.empresaId);
+  async findAll(@ExtractBusinessContext() businessId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
     return db.usuario.findMany({
       where: { activo: true },
       select: { id: true, nombre: true, email: true },

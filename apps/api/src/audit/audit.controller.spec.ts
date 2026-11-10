@@ -3,6 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AuditController } from './audit.controller';
 import { AuditReportingService } from './audit-reporting.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessContextService } from '../business-context/business-context.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 
 describe('AuditController', () => {
@@ -61,6 +62,12 @@ describe('AuditController', () => {
             },
           },
         },
+        {
+          // Required by the controller-level AuthorizationGuard; these tests
+          // call the handlers directly, so the guard itself is not exercised.
+          provide: BusinessContextService,
+          useValue: { resolveForAuthenticatedUser: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -98,20 +105,12 @@ describe('AuditController', () => {
         offset: 0,
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [
-          {
-            Permiso: { nombre: 'audit.leer' },
-          },
-        ],
-      } as any);
-
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce(mockResponse);
 
       const result = await controller.listAuditLogs(
         mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer'],
         'VENTA_CREADA',
         undefined,
         undefined,
@@ -127,12 +126,6 @@ describe('AuditController', () => {
     });
 
     it('Test 2: should apply all filters (accion, entidad, userId, dates)', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
-      } as any);
-
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
         items: [mockAuditLog].map((log) => ({
           id: log.id,
@@ -156,6 +149,8 @@ describe('AuditController', () => {
 
       const result = await controller.listAuditLogs(
         mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer_otros'],
         'VENTA_CREADA',
         'Venta',
         'user-1',
@@ -181,12 +176,6 @@ describe('AuditController', () => {
     });
 
     it('Test 3: should enforce pagination limit (max 500)', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
         items: [],
         total: 0,
@@ -196,6 +185,8 @@ describe('AuditController', () => {
 
       await controller.listAuditLogs(
         mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer'],
         undefined,
         undefined,
         undefined,
@@ -216,12 +207,6 @@ describe('AuditController', () => {
     });
 
     it('Test 4: should return empty result when no logs match', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
         items: [],
         total: 0,
@@ -231,6 +216,8 @@ describe('AuditController', () => {
 
       const result = await controller.listAuditLogs(
         mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer'],
         'NONEXISTENT',
         undefined,
         undefined,
@@ -265,34 +252,32 @@ describe('AuditController', () => {
         createdAt: '2026-10-25T14:32:10.000Z',
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest.spyOn(service, 'getAuditLogDetail').mockResolvedValueOnce(mockDetail);
 
-      const result = await controller.getAuditLogDetail(mockAuthenticatedUser, 'audit-1');
+      const result = await controller.getAuditLogDetail(
+        mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer'],
+        'audit-1',
+      );
 
       expect(result).toEqual(mockDetail);
       expect(result.id).toBe('audit-1');
     });
 
     it('Test 6: should enforce authorization (audit.leer = own logs only)', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'getAuditLogDetail')
         .mockRejectedValueOnce(new NotFoundException('Audit log not found'));
 
-      await expect(controller.getAuditLogDetail(mockAuthenticatedUser, 'audit-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.getAuditLogDetail(
+          mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
+          'audit-1',
+        ),
+      ).rejects.toThrow(NotFoundException);
 
       expect(service.getAuditLogDetail).toHaveBeenCalledWith(
         'audit-1',
@@ -303,18 +288,17 @@ describe('AuditController', () => {
     });
 
     it('Test 7: should return 404 for cross-tenant access', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'getAuditLogDetail')
         .mockRejectedValueOnce(new NotFoundException('Audit log not found'));
 
       await expect(
-        controller.getAuditLogDetail(mockAuthenticatedUser, 'audit-999'),
+        controller.getAuditLogDetail(
+          mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
+          'audit-999',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -330,16 +314,10 @@ describe('AuditController', () => {
         ],
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
-      } as any);
-
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
 
       const result = await controller.getAuditSummary(
-        mockAuthenticatedUser,
+        'business-1',
         '2026-10-01',
         '2026-10-31',
         'accion',
@@ -351,16 +329,10 @@ describe('AuditController', () => {
     });
 
     it('Test 9: should require audit.leer_otros permission (admin only)', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest.spyOn(service, 'getAuditSummary').mockRejectedValueOnce(new Error('Unauthorized'));
 
       await expect(
-        controller.getAuditSummary(mockAuthenticatedUser, '2026-10-01', '2026-10-31', 'accion'),
+        controller.getAuditSummary('business-1', '2026-10-01', '2026-10-31', 'accion'),
       ).rejects.toThrow();
     });
 
@@ -374,16 +346,10 @@ describe('AuditController', () => {
         ],
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
-      } as any);
-
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
 
       const result = await controller.getAuditSummary(
-        mockAuthenticatedUser,
+        'business-1',
         '2026-10-01',
         '2026-10-31',
         undefined,
@@ -407,16 +373,10 @@ describe('AuditController', () => {
         ],
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
-      } as any);
-
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
 
       const result = await controller.getAuditSummary(
-        mockAuthenticatedUser,
+        'business-1',
         '2026-10-01',
         '2026-10-31',
         'usuario',
@@ -452,16 +412,12 @@ describe('AuditController', () => {
         offset: 0,
       };
 
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
-      } as any);
-
       jest.spyOn(service, 'getUserActivityTrail').mockResolvedValueOnce(mockTrail);
 
       const result = await controller.getUserActivityTrail(
         mockAuthenticatedUser,
+        'business-1',
+        ['audit.leer_otros'],
         'user-123',
         '2026-10-20',
         '2026-10-25',
@@ -475,12 +431,6 @@ describe('AuditController', () => {
     });
 
     it('Test 13: should enforce auth (audit.leer = self only)', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'getUserActivityTrail')
         .mockRejectedValueOnce(new NotFoundException('User activity not found'));
@@ -488,6 +438,8 @@ describe('AuditController', () => {
       await expect(
         controller.getUserActivityTrail(
           mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
           'user-999',
           undefined,
           undefined,
@@ -498,12 +450,6 @@ describe('AuditController', () => {
     });
 
     it('Test 14: should return 404 for cross-tenant user', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'getUserActivityTrail')
         .mockRejectedValueOnce(new NotFoundException('User not found in this business'));
@@ -511,6 +457,8 @@ describe('AuditController', () => {
       await expect(
         controller.getUserActivityTrail(
           mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
           'user-foreign',
           undefined,
           undefined,
@@ -523,12 +471,6 @@ describe('AuditController', () => {
 
   describe('Edge Cases and Validation', () => {
     it('Test 15: should reject invalid date format', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'listAuditLogs')
         .mockRejectedValueOnce(
@@ -538,6 +480,8 @@ describe('AuditController', () => {
       await expect(
         controller.listAuditLogs(
           mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
           undefined,
           undefined,
           undefined,
@@ -550,12 +494,6 @@ describe('AuditController', () => {
     });
 
     it('Test 16: should reject date range where fecha_desde > fecha_hasta', async () => {
-      jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
-        id: 'user-1',
-        empresaId: 'business-1',
-        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
-      } as any);
-
       jest
         .spyOn(service, 'listAuditLogs')
         .mockRejectedValueOnce(new BadRequestException('fecha_desde must be <= fecha_hasta'));
@@ -563,6 +501,8 @@ describe('AuditController', () => {
       await expect(
         controller.listAuditLogs(
           mockAuthenticatedUser,
+          'business-1',
+          ['audit.leer'],
           undefined,
           undefined,
           undefined,

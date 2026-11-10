@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BusinessContextModule } from '../business-context/business-context.module';
 import { MetricsService } from './metrics.service';
 import { CohortAnalysisService } from './cohort-analysis.service';
 import { MetricsController } from './metrics.controller';
@@ -24,7 +25,7 @@ import { MetricsController } from './metrics.controller';
  * No schema modifications required.
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, BusinessContextModule],
   providers: [MetricsService, CohortAnalysisService],
   controllers: [MetricsController],
 })

@@ -596,7 +596,7 @@ export class MessagingService {
     try {
       const itemIdsToRemove = cart.CartItem.map((item) => item.id);
       for (const itemId of itemIdsToRemove) {
-        await this.cartService.removeItem(itemId, context.businessId);
+        await this.cartService.removeItem(cart.id, itemId, context.businessId);
       }
     } catch (error) {
       // Log but don't throw: item removal is best-effort; order is committed.

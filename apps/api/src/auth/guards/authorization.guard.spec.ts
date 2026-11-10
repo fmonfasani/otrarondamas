@@ -3,6 +3,7 @@ import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@ne
 import { Reflector } from '@nestjs/core';
 import { AuthorizationGuard } from './authorization.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessContextService } from '../../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth.types';
 
 /**
@@ -73,6 +74,18 @@ describe('AuthorizationGuard', () => {
             roleCapability: {
               findMany: jest.fn(),
             },
+          },
+        },
+        {
+          // The guard resolves the active Membership through BusinessContext
+          // (JWT user.id is a legacy Usuario id, not Membership.userId).
+          provide: BusinessContextService,
+          useValue: {
+            resolveForAuthenticatedUser: jest.fn().mockResolvedValue({
+              userId: mockUserId,
+              businessId: mockBusinessId,
+              membershipId: 'membership-resolved',
+            }),
           },
         },
       ],

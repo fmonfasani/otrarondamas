@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuthorizationGuard } from '../../auth/guards/authorization.guard';
 import { Authorize } from '../../auth/decorators/authorize.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { ExtractBusinessContext } from '../../business-context/extract-business-context.decorator';
 import { AuditReportingService } from '../../audit/audit-reporting.service';
 
 @Controller('admin/audit')
@@ -14,6 +15,7 @@ export class AuditAdminController {
   @Authorize('audit.view')
   async getAuditLogs(
     @CurrentUser() user: any,
+    @ExtractBusinessContext() businessId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('accion') accion?: string,
@@ -30,7 +32,7 @@ export class AuditAdminController {
     const offset = (pageNum - 1) * limitNum;
 
     // Admin has audit.view which implies audit.leer_otros
-    const result = await this.auditService.listAuditLogs(user.empresaId, user.id, true, {
+    const result = await this.auditService.listAuditLogs(businessId, user.id, true, {
       accion,
       entidad,
       filterUserId: usuarioId,
@@ -51,6 +53,7 @@ export class AuditAdminController {
   @Authorize('audit.view')
   async exportAuditLogs(
     @CurrentUser() user: any,
+    @ExtractBusinessContext() businessId: string,
     @Query('format') format: 'csv' | 'json' = 'json',
     @Query('accion') accion?: string,
     @Query('entidad') entidad?: string,
@@ -59,7 +62,7 @@ export class AuditAdminController {
       throw new BadRequestException('Invalid format. Must be csv or json');
     }
 
-    const result = await this.auditService.listAuditLogs(user.empresaId, user.id, true, {
+    const result = await this.auditService.listAuditLogs(businessId, user.id, true, {
       accion,
       entidad,
       limit: 10000, // Max export

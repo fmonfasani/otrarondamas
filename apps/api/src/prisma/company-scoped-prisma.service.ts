@@ -3,8 +3,8 @@ import { PrismaService } from './prisma.service';
 import { companyScopeExtension } from './company-scope.extension';
 
 /**
- * Factory of Prisma clients with the multi-company isolation filter
- * (INV-01) already applied. Regular provider (singleton, NOT Scope.REQUEST).
+ * Factory of Prisma clients with the tenant isolation filter (INV-01)
+ * already applied to models keyed by empresaId or businessId. Regular provider (singleton, NOT Scope.REQUEST).
  *
  * History: the first version of this service used
  * `@Injectable({ scope: Scope.REQUEST })` + `@Inject(REQUEST)` to read the
@@ -21,13 +21,14 @@ import { companyScopeExtension } from './company-scope.extension';
  * The replacement avoids the problem by design: it does not depend on
  * NestJS resolving anything special per request. The caller (a controller,
  * after the guard has already run) passes the empresaId explicitly, read
- * from @CurrentUser().
+ * from the authenticated business context (or the verified legacy company
+ * context during the migration).
  *
  * Usage in a controller:
  *   constructor(private readonly prismaFactory: CompanyScopedPrismaService) {}
- *   getProduct(@CurrentUser() user: AuthenticatedUser) {
- *     const db = this.prismaFactory.forCompany(user.empresaId);
- *     return db.producto.findMany(); // already filtered by empresaId
+ *   getProduct(@ExtractBusinessContext() businessId: string) {
+ *     const db = this.prismaFactory.forCompany(businessId);
+ *     return db.producto.findMany(); // empresaId and businessId filters applied
  *   }
  */
 @Injectable()

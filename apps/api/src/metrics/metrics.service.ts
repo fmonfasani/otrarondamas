@@ -397,6 +397,7 @@ export class MetricsService {
     const ventaItems = await db.ventaItem.findMany({
       where: {
         Venta: {
+          empresaId: companyId,
           createdAt: { gte: startDate, lte: endDate },
           estado: 'CONFIRMADA',
         },
