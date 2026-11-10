@@ -19,6 +19,7 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { InventoryService } from './inventory.service';
 import { RegisterAdjustmentDto } from './dto/register-adjustment.dto';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * Phase 1 of the inventory roadmap (RF-11 / INV-CONS-*): read-only
@@ -99,6 +100,7 @@ export class InventoryController {
   // with the inventario.ajustes permission, which already existed in the seed
   // before this phase (see docs/scaffolding-notas.md section 16).
   @RequirePermission('inventario.ajustes')
+  @CanonicalPermission('INVENTORY_ADJUST')
   @Post('ajustes')
   @HttpCode(HttpStatus.CREATED)
   async registerAdjustment(

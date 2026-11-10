@@ -10,6 +10,7 @@ import { Authorize } from '../auth/decorators/authorize.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { AuditLogDto, AuditLogListResponseDto } from './dto/audit-log.dto';
 import { AuditSummaryDto } from './dto/summary.dto';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 @ApiTags('audit')
 @ApiBearerAuth()
@@ -28,6 +29,7 @@ export class AuditController {
    */
   @Get()
   @Authorize('audit.leer')
+  @CanonicalPermission('AUDIT_VIEW_OWN')
   @ApiQuery({ name: 'accion', required: false, example: 'VENTA_CREADA' })
   @ApiQuery({ name: 'entidad', required: false, example: 'Venta' })
   @ApiQuery({ name: 'userId', required: false, example: 'user-123' })
@@ -70,6 +72,7 @@ export class AuditController {
    */
   @Get(':id')
   @Authorize('audit.leer')
+  @CanonicalPermission('AUDIT_VIEW_OWN')
   async getAuditLogDetail(
     @CurrentUser() user: AuthenticatedUser,
     @ExtractBusinessContext() businessId: string,
@@ -92,6 +95,7 @@ export class AuditController {
    */
   @Get('summary/aggregates')
   @Authorize('audit.leer_otros')
+  @CanonicalPermission('AUDIT_VIEW_ALL')
   @ApiQuery({
     name: 'fecha_desde',
     required: true,
@@ -135,6 +139,7 @@ export class AuditController {
    */
   @Get('usuario/:userId')
   @Authorize('audit.leer')
+  @CanonicalPermission('AUDIT_VIEW_OWN')
   @ApiQuery({ name: 'fecha_desde', required: false, example: '2026-10-20' })
   @ApiQuery({ name: 'fecha_hasta', required: false, example: '2026-10-25' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })

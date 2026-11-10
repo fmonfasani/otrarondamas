@@ -19,6 +19,7 @@ import { ListSalesDto } from './dto/list-sales.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-05: in-person sales. No DELETE — INV-02 forbids physically deleting
@@ -54,6 +55,7 @@ export class SalesController {
   // sale. The frontend calls it 300 ms after the last change in the cart to
   // show the exact total computed with Prisma.Decimal on the server.
   @RequirePermission('ventas.crear')
+  @CanonicalPermission('SALES_CREATE')
   @Post('cotizacion')
   @HttpCode(HttpStatus.OK)
   async quote(@Body() dto: QuoteSaleDto, @CurrentUser() user: AuthenticatedUser) {
@@ -61,24 +63,28 @@ export class SalesController {
   }
 
   @RequirePermission('ventas.crear')
+  @CanonicalPermission('SALES_CREATE')
   @Post()
   async create(@Body() dto: CreateSaleDto, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.create(dto, await this.resolveCompanyIdFromContext(user), user.id);
   }
 
   @RequirePermission('ventas.ver')
+  @CanonicalPermission('SALES_VIEW')
   @Get()
   async findAll(@Query() dto: ListSalesDto, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.findAll(await this.resolveCompanyIdFromContext(user), dto);
   }
 
   @RequirePermission('ventas.ver')
+  @CanonicalPermission('SALES_VIEW')
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.findOne(id, await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('ventas.ver')
+  @CanonicalPermission('SALES_VIEW')
   @Get(':id/comprobante')
   async getReceipt(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.getReceipt(id, await this.resolveCompanyIdFromContext(user));

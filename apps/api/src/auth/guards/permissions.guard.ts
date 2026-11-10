@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth.types';
 import { shadowCompare } from '../../authorization/authorization-engine';
+import { readCanonicalRequirement } from '../../authorization/canonical-permission.decorator';
 
 /**
  * Granular permission authorization (RF-02 / section 3.2 of the SDD).
@@ -79,6 +80,8 @@ export class PermissionsGuard implements CanActivate {
       legacyRole: currentUser.rol,
       active: true,
       legacyAllowed: allowed,
+      declared: readCanonicalRequirement(context),
+      request,
     });
 
     if (!allowed) {

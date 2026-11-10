@@ -4,6 +4,7 @@ import { AuthorizationGuard } from '../../auth/guards/authorization.guard';
 import { Authorize } from '../../auth/decorators/authorize.decorator';
 import { ExtractBusinessContext } from '../../business-context/extract-business-context.decorator';
 import { AnalyticsDashboardService } from '../services/analytics-dashboard.service';
+import { CanonicalPermission } from '../../authorization/canonical-permission.decorator';
 
 @Controller('admin/dashboard')
 @UseGuards(JwtAuthGuard, AuthorizationGuard)
@@ -12,6 +13,7 @@ export class DashboardController {
 
   @Get('kpis')
   @Authorize('dashboard.view')
+  @CanonicalPermission('REPORTS_VIEW')
   async getDashboardKPIs(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     const validPeriods = ['7d', '30d', '90d'];
     if (!validPeriods.includes(period)) {
@@ -22,6 +24,7 @@ export class DashboardController {
 
   @Get('trends')
   @Authorize('dashboard.view')
+  @CanonicalPermission('REPORTS_VIEW')
   async getTrendChart(
     @ExtractBusinessContext() businessId: string,
     @Query('metric') metric: 'revenue' | 'orders' = 'revenue',
@@ -38,6 +41,7 @@ export class DashboardController {
 
   @Get('top-products')
   @Authorize('dashboard.view')
+  @CanonicalPermission('REPORTS_VIEW')
   async getTopProducts(
     @ExtractBusinessContext() businessId: string,
     @Query('limit') limit?: string,
@@ -55,6 +59,7 @@ export class DashboardController {
 
   @Get('channel-breakdown')
   @Authorize('dashboard.view')
+  @CanonicalPermission('REPORTS_VIEW')
   async getChannelBreakdown(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');
@@ -64,6 +69,7 @@ export class DashboardController {
 
   @Get('geographic-breakdown')
   @Authorize('dashboard.view')
+  @CanonicalPermission('REPORTS_VIEW')
   async getGeographicBreakdown(@ExtractBusinessContext() businessId: string, @Query('period') period: string = '30d') {
     if (!['7d', '30d', '90d'].includes(period)) {
       throw new BadRequestException('Invalid period. Must be 7d, 30d, or 90d');

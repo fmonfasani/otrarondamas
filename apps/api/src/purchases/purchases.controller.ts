@@ -22,6 +22,7 @@ import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { ReceivePurchaseDto } from './dto/receive-purchase.dto';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { CreateSupplierReturnDto } from './dto/create-supplier-return.dto';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-12, Phase 1: suppliers, purchase order, receipt. No supplier
@@ -54,12 +55,14 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('proveedores')
   async createSupplier(@Body() dto: CreateSupplierDto, @CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.createSupplier(await this.resolveCompanyIdFromContext(user), dto);
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Patch('proveedores/:id')
   async updateSupplier(
     @Param('id') id: string,
@@ -84,6 +87,7 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('compras')
   async createPurchase(@Body() dto: CreatePurchaseDto, @CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.createPurchase(
@@ -94,6 +98,7 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('compras/:id/emitir')
   @HttpCode(HttpStatus.OK)
   async issuePurchase(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
@@ -101,6 +106,7 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('compras/:id/recepciones')
   @HttpCode(HttpStatus.CREATED)
   async receivePurchase(
@@ -122,6 +128,7 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('compras/:id/pagos')
   @HttpCode(HttpStatus.CREATED)
   async createPayment(
@@ -143,6 +150,7 @@ export class PurchasesController {
   }
 
   @RequirePermission('compras.gestionar')
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Post('compras/:id/devoluciones')
   @HttpCode(HttpStatus.CREATED)
   async createReturn(

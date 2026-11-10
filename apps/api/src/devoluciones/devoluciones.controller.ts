@@ -25,6 +25,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /* eslint-disable indent -- known false positive of the base `indent` rule
    with decorators on class properties */
@@ -48,6 +49,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('customers.request_return')
+  @CanonicalPermission('CUSTOMER_POLICY')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create customer return request' })
@@ -95,6 +97,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('orders.authorize_returns')
+  @CanonicalPermission('REFUNDS_MANAGE')
   @Put(':id/authorize')
   @ApiOperation({ summary: 'Authorize return request' })
   @ApiResponse({ status: 200, type: DevolucionDto })
@@ -112,6 +115,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('orders.process_returns')
+  @CanonicalPermission('REFUNDS_MANAGE')
   @Put(':id/receive')
   @ApiOperation({ summary: 'Mark return as received' })
   @ApiResponse({ status: 200, type: DevolucionDto })
@@ -129,6 +133,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('payments.process_refunds')
+  @CanonicalPermission('PAYMENTS_REFUND')
   @Put(':id/process-refund')
   @ApiOperation({ summary: 'Trigger refund processing' })
   @ApiResponse({

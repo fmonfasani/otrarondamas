@@ -111,6 +111,8 @@ describe('canonical authorization engine (#161 stage 2)', () => {
         legacy: 'DENY',
         canonical: 'ALLOW',
         reason: 'ROLE_HAS_PERMISSION',
+        declared: false,
+        required: ['SALES_CREATE'],
         ambiguous: false,
       });
     });

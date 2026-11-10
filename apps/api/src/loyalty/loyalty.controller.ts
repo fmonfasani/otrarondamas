@@ -8,6 +8,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * Phase 4 of the Loyalty roadmap — CRUD of ReglaFidelizacion.
@@ -34,24 +35,28 @@ export class LoyaltyController {
   }
 
   @RequirePermission('fidelizacion.gestionar')
+  @CanonicalPermission('PRICING_CHANGE')
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
     return this.loyaltyService.list(await this.resolveCompanyIdFromContext(user));
   }
 
   @RequirePermission('fidelizacion.gestionar')
+  @CanonicalPermission('PRICING_CHANGE')
   @Get(':id')
   async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.loyaltyService.get(await this.resolveCompanyIdFromContext(user), id);
   }
 
   @RequirePermission('fidelizacion.gestionar')
+  @CanonicalPermission('PRICING_CHANGE')
   @Post()
   async create(@Body() dto: CreateLoyaltyRuleDto, @CurrentUser() user: AuthenticatedUser) {
     return this.loyaltyService.create(await this.resolveCompanyIdFromContext(user), dto);
   }
 
   @RequirePermission('fidelizacion.gestionar')
+  @CanonicalPermission('PRICING_CHANGE')
   @Patch(':id')
   async update(
     @Param('id') id: string,

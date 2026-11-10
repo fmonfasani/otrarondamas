@@ -24,6 +24,7 @@ import { BusinessContextGuard } from '../business-context/business-context.guard
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-17 (docs/spec-login-roles.md): own dossier (self-service, without
@@ -84,6 +85,7 @@ export class DossierController {
    * APROBADA accounts.
    */
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Get('pendientes')
   @UseGuards(BusinessContextGuard)
   async listPending(@ExtractBusinessContext() businessId: string) {
@@ -108,6 +110,7 @@ export class DossierController {
    * data.
    */
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Patch(':usuarioId/aprobar')
   @UseGuards(BusinessContextGuard)
   async approve(
@@ -147,6 +150,7 @@ export class DossierController {
    * Usuario, they have no direct empresaId, see company-scope.extension.ts).
    */
   @RequirePermission('usuarios.gestionar')
+  @CanonicalPermission('USERS_MANAGE')
   @Get('documentos/:documentoId/descargar')
   @UseGuards(BusinessContextGuard)
   async downloadDocument(

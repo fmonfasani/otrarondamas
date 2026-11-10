@@ -3,6 +3,7 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { Public } from './auth/decorators/public.decorator';
 import { RequirePermission } from './auth/decorators/require-permission.decorator';
+import { CanonicalPermission } from './authorization/canonical-permission.decorator';
 
 @Controller()
 export class AppController {
@@ -29,6 +30,7 @@ export class AppController {
    */
   @ApiBearerAuth()
   @RequirePermission('caja.gastos')
+  @CanonicalPermission('CASH_EXPENSE')
   @Get('protegido/caja-gastos')
   checkCashRegisterExpenses(): { ok: true } {
     return { ok: true };
