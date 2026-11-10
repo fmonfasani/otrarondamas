@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -7,6 +8,10 @@ import { BusinessContextModule } from '../../src/business-context/business-conte
 import { PaymentService } from '../../src/payments/payment.service';
 import { StripeProviderService } from '../../src/payments/providers/stripe-provider.service';
 import { MercadoPagoProviderService } from '../../src/payments/providers/mercadopago-provider.service';
+
+// Every record this suite creates is tagged with RUN, so ids never collide with
+// a previous run and cleanup only touches this run's Businesses.
+const RUN = randomUUID().slice(0, 8);
 
 describe('P11-1: Payment Gateway Integration Tests', () => {
   let app: INestApplication;
@@ -41,7 +46,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
     testEmpresa = await prisma.empresa.create({
       data: {
         nombre: `Test Company ${Date.now()}`,
-        slug: `test-company-${Date.now()}`,
+        slug: `test-company-${RUN}-${Date.now()}`,
         configuracion: {},
       },
     });
@@ -76,14 +81,22 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
 
   afterAll(async () => {
     // Cleanup
-    await prisma.payment.deleteMany();
-    await prisma.paymentIntent.deleteMany();
-    await prisma.paymentWebhook.deleteMany();
-    await prisma.refund.deleteMany();
-    await prisma.venta.deleteMany();
-    await prisma.cliente.deleteMany();
-    await prisma.usuario.deleteMany();
-    await prisma.empresa.deleteMany();
+    // Scoped to this run: the previous unfiltered deleteMany() calls wiped
+    // every Business, sale and payment in whatever database the suite ran on.
+    const empresas = await prisma.empresa.findMany({
+      where: { slug: { contains: RUN } },
+      select: { id: true },
+    });
+    const ids = empresas.map((empresa) => empresa.id);
+    const where = { empresaId: { in: ids } };
+    await prisma.paymentWebhook.deleteMany({ where });
+    await prisma.refund.deleteMany({ where });
+    await prisma.paymentIntent.deleteMany({ where });
+    await prisma.payment.deleteMany({ where });
+    await prisma.venta.deleteMany({ where });
+    await prisma.cliente.deleteMany({ where });
+    await prisma.usuario.deleteMany({ where });
+    await prisma.empresa.deleteMany({ where: { id: { in: ids } } });
 
     await app.close();
   });
@@ -130,7 +143,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       const otherEmpresa = await prisma.empresa.create({
         data: {
           nombre: `Other Company ${Date.now()}`,
-          slug: `other-company-${Date.now()}`,
+          slug: `other-company-${RUN}-${Date.now()}`,
           configuracion: {},
         },
       });
@@ -219,7 +232,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_expired',
+          providerPaymentId: `pi_expired_${RUN}`,
           estado: 'PENDING',
         },
       });
@@ -228,8 +241,8 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
         data: {
           empresaId: testEmpresa.id,
           paymentId: payment.id,
-          clientSecret: 'cs_expired',
-          providerIntentId: 'pi_expired',
+          clientSecret: `cs_expired_${RUN}`,
+          providerIntentId: `pi_expired_${RUN}`,
           expiresAt: new Date(Date.now() - 60000), // 1 min ago
         },
       });
@@ -280,7 +293,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       );
 
       expect(refundResult.estado).toBe('COMPLETED');
-      expect(refundResult.monto).toBe(50.0);
+      expect(refundResult.monto.toString()).toBe('50');
     });
 
     it('❌ should reject refund of pending payment', async () => {
@@ -309,7 +322,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 50.0,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_test',
+          providerPaymentId: `pi_test_${RUN}`,
           estado: 'COMPLETED',
         },
       });
@@ -363,13 +376,13 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_webhook_test',
+          providerPaymentId: `pi_webhook_test_${RUN}`,
           estado: 'PENDING',
         },
       });
 
       await paymentService.handleWebhook(testEmpresa.id, 'payment.success', {
-        paymentId: 'pi_webhook_test',
+        paymentId: `pi_webhook_test_${RUN}`,
       });
 
       const updatedPayment = await prisma.payment.findUnique({
@@ -387,13 +400,13 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_failed_test',
+          providerPaymentId: `pi_failed_test_${RUN}`,
           estado: 'PENDING',
         },
       });
 
       await paymentService.handleWebhook(testEmpresa.id, 'payment.failed', {
-        paymentId: 'pi_failed_test',
+        paymentId: `pi_failed_test_${RUN}`,
       });
 
       const updatedPayment = await prisma.payment.findUnique({
@@ -411,7 +424,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_refund',
+          providerPaymentId: `pi_refund_${RUN}`,
           estado: 'COMPLETED',
         },
       });
@@ -423,11 +436,14 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 50,
           razon: 'CUSTOMER_REQUEST',
           estado: 'PENDING',
+          // Providers report refunds by their own id, which the service matches.
+          providerRefundId: `re_refund_${RUN}`,
         },
       });
 
       await paymentService.handleWebhook(testEmpresa.id, 'refund.completed', {
-        refundId: refund.providerRefundId || refund.id,
+        id: `evt_refund_${RUN}`,
+        refundId: refund.providerRefundId,
       });
 
       const updatedRefund = await prisma.refund.findUnique({
@@ -439,7 +455,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
 
     it('✅ should prevent duplicate webhook processing', async () => {
       const payload = {
-        id: 'evt_duplicate',
+        id: `evt_duplicate_${RUN}`,
         paymentId: 'pi_dup_test',
       };
 
@@ -465,7 +481,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       const otherEmpresa = await prisma.empresa.create({
         data: {
           nombre: `Tenant ${Date.now()}`,
-          slug: `tenant-${Date.now()}`,
+          slug: `tenant-${RUN}-${Date.now()}`,
           configuracion: {},
         },
       });
@@ -492,7 +508,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       const otherEmpresa = await prisma.empresa.create({
         data: {
           nombre: `Tenant2 ${Date.now()}`,
-          slug: `tenant2-${Date.now()}`,
+          slug: `tenant2-${RUN}-${Date.now()}`,
           configuracion: {},
         },
       });
@@ -519,7 +535,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       const otherEmpresa = await prisma.empresa.create({
         data: {
           nombre: `Tenant3 ${Date.now()}`,
-          slug: `tenant3-${Date.now()}`,
+          slug: `tenant3-${RUN}-${Date.now()}`,
           configuracion: {},
         },
       });
@@ -531,7 +547,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
           monto: 100,
           moneda: 'ARS',
           proveedor: 'STRIPE',
-          providerPaymentId: 'pi_tenant',
+          providerPaymentId: `pi_tenant_${RUN}`,
           estado: 'COMPLETED',
         },
       });
@@ -555,7 +571,7 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       prisma.empresa.create({
         data: {
           nombre: `${label} Isolation Tenant ${Date.now()}`,
-          slug: `${label.toLowerCase()}-isolation-${Date.now()}`,
+          slug: `${label.toLowerCase()}-isolation-${RUN}-${Date.now()}`,
           configuracion: {},
         },
       });
