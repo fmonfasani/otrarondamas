@@ -1,14 +1,12 @@
 name: Lint and Type Check (PR)
 
 on:
+  # Required status check on main: no path filter, or a PR outside these paths
+  # would wait forever for a check that never starts.
   pull_request:
     branches:
       - main
       - develop
-    paths:
-      - 'apps/api/**'
-      - 'packages/**'
-      - '.github/workflows/lint.yml'
 
 jobs:
   lint:
