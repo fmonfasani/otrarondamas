@@ -2,6 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { IPaymentProvider } from '../interfaces/payment-provider.interface';
 import * as crypto from 'crypto';
 
+// Constant-time comparison of two hex digests; false on any length mismatch.
+function digestsMatch(expected: string, received: string): boolean {
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(received, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /**
  * Mock MercadoPago implementation for testing
  * In production, replace with official MercadoPago SDK
@@ -15,7 +22,8 @@ export class MercadoPagoProviderService implements IPaymentProvider {
   constructor() {
     this.accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || 'APP_USR_test_mock';
     this.publicKey = process.env.MERCADOPAGO_PUBLIC_KEY || 'APP_USR_test_public';
-    this.webhookToken = process.env.MERCADOPAGO_WEBHOOK_TOKEN || 'webhook_test_mock';
+    // No default: without MERCADOPAGO_WEBHOOK_TOKEN every webhook fails verification.
+    this.webhookToken = process.env.MERCADOPAGO_WEBHOOK_TOKEN ?? '';
   }
 
   async createPaymentIntent(monto: number, moneda: string, metadata: any) {
@@ -81,16 +89,20 @@ export class MercadoPagoProviderService implements IPaymentProvider {
    * Uses X-Signature header with timestamp and HMAC-SHA256
    */
   async verifyWebhookSignature(signature: string, payload: any) {
+    if (!this.webhookToken || !signature) {
+      return { valid: false };
+    }
     try {
-      // MercadoPago format: "ts=<timestamp>,v1=<signature>"
-      // We'll use a simplified verification for testing
+      // MercadoPago format: "ts=<timestamp>,v1=<signature>" (simplified: the
+      // v1 value is an HMAC of the payload). A bare digest is also accepted.
       const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
       const computedSignature = crypto
         .createHmac('sha256', this.webhookToken)
         .update(payloadString)
         .digest('hex');
 
-      const isValid = signature.includes(computedSignature);
+      const v1 = /(?:^|,)\s*v1=([^,]+)/.exec(signature)?.[1] ?? signature;
+      const isValid = digestsMatch(computedSignature, v1.trim());
       return {
         valid: isValid,
         payload: isValid ? payload : null,

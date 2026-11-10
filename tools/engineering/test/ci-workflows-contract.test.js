@@ -11,12 +11,24 @@ const workflow = (name) => fs.readFileSync(path.join(root, '.github/workflows', 
 test('B4 retains build, complete unit suite, and required tenant regression coverage', () => {
   const content = workflow('b4-verification.yml');
   assert.match(content, /npm run build --workspace=@otrarondamas\/api/);
-  assert.match(content, /npm test --workspace=@otrarondamas\/api -- --runInBand/);
-  assert.match(content, /tenant-isolation\.integration-spec\.ts/);
-  assert.match(content, /s-v1-\*\.integration-spec\.ts/);
-  assert.match(content, /fs-1a-\*\.integration-spec\.ts/);
-  assert.match(content, /messaging-http\*\.integration-spec\.ts/);
-  assert.match(content, /if \[ "\$\{#discovered_test_files\[@\]\}" -eq 0 \]/);
+  assert.match(content, /npm run test:ci --workspace=@otrarondamas\/api -- --runInBand/);
+  assert.match(content, /npm run test:integration:ci -- --runInBand/);
+  // Owner decision 2026-11-09: B4 gates every integration suite (a superset of
+  // the former s-v1-*, fs-1a-* and messaging-http* selection) ...
+  assert.match(content, /find test\/integration -maxdepth 1 -type f -name '\*\.integration-spec\.ts'/);
+  // ... the tenant suites are mandatory and cannot be quarantined away ...
+  assert.match(content, /for required in tenant-isolation b3-tenant-isolation; do/);
+  assert.match(content, /if \[ "\$\{#test_files\[@\]\}" -eq 0 \]/);
+  // ... and the only exclusion is the explicit, named quarantine.
+  assert.match(content, /grep -vxF -f <\(printf '%s\\n' "\$\{quarantine\[@\]\}"\)/);
+});
+
+test('B4 quarantine never contains the tenant isolation suites', () => {
+  const content = workflow('b4-verification.yml');
+  const quarantine = content.match(/quarantine=\(([\s\S]*?)\)/);
+  assert.ok(quarantine, 'B4 must declare its quarantine list explicitly');
+  assert.doesNotMatch(quarantine[1], /tenant-isolation/);
+  assert.doesNotMatch(quarantine[1], /s-v1-sec-01/);
 });
 
 test('B3 retains the explicit tenant and relation candidate suites', () => {

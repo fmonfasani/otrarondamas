@@ -1,5 +1,5 @@
 import { Outlet } from '@remix-run/react';
-import { LoaderFunction, redirect, json } from '@remix-run/node';
+import { LoaderFunction, json } from '@remix-run/node';
 import { requireAuth } from '~/services/auth.server';
 
 /**

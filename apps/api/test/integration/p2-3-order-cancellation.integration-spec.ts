@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -7,6 +7,7 @@ import {
   deleteUsuarioPermissionsForCompanies,
   seedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 /**
  * P2-3: Order Cancellation Integration Tests (17 scenarios)
@@ -55,7 +56,9 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   let userIds: string[];
 
   let customerA: { id: string };
+  let customerB: { id: string };
   let hierA: Awaited<ReturnType<typeof mkHierarchy>>;
+  let hierB: Awaited<ReturnType<typeof mkHierarchy>>;
 
   const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 
@@ -185,7 +188,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         estado: status,
         canalOrigen: 'web',
         total: 100,
-        pedidoItems: {
+        PedidoItem: {
           create: items.map((i) => ({
             productoId: i.productId,
             cantidad: i.quantity,
@@ -278,7 +281,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       data: { userId: userB.id, businessId: companyB.id, role: 'OWNER', status: 'ACTIVE' },
     });
     await prisma.membership.create({
-      data: { userId: userNoPerms.id, businessId: companyA.id, role: 'VIEWER', status: 'ACTIVE' },
+      data: { userId: userNoPerms.id, businessId: companyA.id, role: 'PROVEEDOR', status: 'ACTIVE' },
     });
 
     hierA = await mkHierarchy(companyA.id, 'A');
@@ -293,11 +296,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
     await waitPort(Number(PORT));
   }, 120000);
 
@@ -305,7 +304,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
     const companies = [companyA.id, companyB.id];
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
@@ -687,7 +686,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   });
 
   describe('Concurrency Tests', () => {
-    it('P2-3-016: Simultaneous cancellation (one succeeds, other 409)', async () => {
+    it('P2-3-016: Simultaneous cancellation (both answer 200, stock reversed once)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch = await mkBatch(companyA.id, product.id, 100);
       const startQuantity = await batchQuantity(batch.id);
@@ -717,9 +716,10 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
           .send({ motivo: 'Concurrent 2' }),
       ]);
 
-      // One succeeds with 201, one succeeds with 201 (idempotent)
+      // Both answer 200: the loser gets the idempotent result (owner decision
+      // 2026-11-09; the endpoint answers 200 since #135).
       const statuses = [res1.status, res2.status];
-      expect(statuses.sort()).toEqual([201, 201]); // Both succeed due to idempotency
+      expect(statuses).toEqual([200, 200]);
 
       // Stock is reversed exactly once
       expect(await batchQuantity(batch.id)).toBe(startQuantity);

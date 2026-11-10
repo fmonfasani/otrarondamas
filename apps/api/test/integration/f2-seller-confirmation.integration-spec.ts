@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
  * F2 — Seller Confirmation: Contract & Acceptance Tests
@@ -26,6 +27,8 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
+  let storeEmpresa: OwnStoreEmpresa;
+  let testUsuarioId: string;
   let testPedidoId: string;
 
   beforeAll(async () => {
@@ -38,7 +41,8 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    testCompanyId = process.env.TIENDA_EMPRESA_ID || '22dc5550-be63-44bd-bad7-8b7da0b2c6ca';
+    storeEmpresa = await createOwnStoreEmpresa(prisma, 'f2-seller');
+    testCompanyId = storeEmpresa.id;
 
     // Create test seller (staff) — use OWNER or ASISTENTE_LOCAL
     const usuario = await prisma.usuario.create({
@@ -79,8 +83,9 @@ describe('F2: Seller Confirmation (Acceptance Tests)', () => {
     await prisma.pedidoItem.deleteMany({ where: { pedidoId: testPedidoId } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.cliente.deleteMany({ where: { empresaId: testCompanyId } });
-    await prisma.usuario.deleteMany({ where: { email: { contains: 'f2' } } });
+    await prisma.usuario.deleteMany({ where: { empresaId: testCompanyId } });
 
+    await storeEmpresa.release();
     await app.close();
   });
 
