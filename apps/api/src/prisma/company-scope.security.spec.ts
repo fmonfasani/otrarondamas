@@ -13,6 +13,7 @@ import { CompanyScopedPrismaService } from './company-scoped-prisma.service';
 describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () => {
   let prisma: PrismaService;
   let factory: CompanyScopedPrismaService;
+  const businessIds: string[] = [];
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -21,12 +22,27 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
     prisma = module.get<PrismaService>(PrismaService);
     factory = module.get<CompanyScopedPrismaService>(CompanyScopedPrismaService);
+
+    // Real Businesses: the former hard-coded ids ('empresa-test-001/002') did
+    // not exist, so every create failed on Usuario_empresaId_fkey.
+    const tag = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    for (const label of ['a', 'b']) {
+      const empresa = await prisma.empresa.create({
+        data: {
+          nombre: `B3-FINDUNIQUE ${label} ${tag}`,
+          slug: `b3-findunique-${label}-${tag}`,
+          configuracion: {},
+        },
+        select: { id: true },
+      });
+      businessIds.push(empresa.id);
+    }
   });
 
   describe('Requirement 1: findUnique returns null when record belongs to another company', () => {
     it('findUnique without empresaId in select returns null for another company', async () => {
-      const companyA = 'empresa-test-001';
-      const companyB = 'empresa-test-002';
+      const companyA = businessIds[0];
+      const companyB = businessIds[1];
       const dbA = factory.forCompany(companyA);
       const dbB = factory.forCompany(companyB);
 
@@ -54,8 +70,8 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   describe('Requirement 2: findUniqueOrThrow throws P2025 for another company', () => {
     it('findUniqueOrThrow throws when record belongs to another company', async () => {
-      const companyA = 'empresa-test-001';
-      const companyB = 'empresa-test-002';
+      const companyA = businessIds[0];
+      const companyB = businessIds[1];
       const dbA = factory.forCompany(companyA);
       const dbB = factory.forCompany(companyB);
 
@@ -79,8 +95,8 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   describe('Requirement 3: Query without select still protected', () => {
     it('findUnique without select returns null for another company', async () => {
-      const companyA = 'empresa-test-001';
-      const companyB = 'empresa-test-002';
+      const companyA = businessIds[0];
+      const companyB = businessIds[1];
       const dbA = factory.forCompany(companyA);
       const dbB = factory.forCompany(companyB);
 
@@ -104,7 +120,7 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   describe('Requirement 4: Projection is preserved exactly', () => {
     it('Query result includes only requested fields, no empresaId if not selected', async () => {
-      const companyA = 'empresa-test-001';
+      const companyA = businessIds[0];
       const dbA = factory.forCompany(companyA);
 
       const user = await dbA.usuario.create({
@@ -134,7 +150,7 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   describe('Requirement 5: Injected empresaId in where overrides client values', () => {
     it('where clause injected empresaId is enforced by database', async () => {
-      const companyA = 'empresa-test-001';
+      const companyA = businessIds[0];
       const dbA = factory.forCompany(companyA);
 
       const user = await dbA.usuario.create({
@@ -159,7 +175,7 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   describe('Requirement 6: Legitimate queries of own company work normally', () => {
     it('User can query their own company records', async () => {
-      const companyA = 'empresa-test-001';
+      const companyA = businessIds[0];
       const dbA = factory.forCompany(companyA);
 
       const user = await dbA.usuario.create({
@@ -183,6 +199,10 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
   });
 
   afterAll(async () => {
+    if (businessIds.length) {
+      await prisma.usuario.deleteMany({ where: { empresaId: { in: businessIds } } });
+      await prisma.empresa.deleteMany({ where: { id: { in: businessIds } } });
+    }
     await prisma.$disconnect();
   });
 });
