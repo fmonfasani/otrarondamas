@@ -44,7 +44,7 @@ jobs:
       # are type-checked by nothing today and carry ~190 known errors; they
       # are tracked separately and must not block the deploy gate.
       - name: TypeScript type check
-        run: npx tsc -p tsconfig.build.json --noEmit
+        run: ../../node_modules/.bin/tsc -p tsconfig.build.json --noEmit
         working-directory: apps/api
 
   # Stage 2: Build
