@@ -124,17 +124,9 @@ export class PaymentController {
    * Signature header: stripe-signature
    */
   @Post('webhooks/stripe')
-  async handleStripeWebhook(
-    @Headers('stripe-signature') signature: string,
-    @Body() payload: any,
-    @Query('empresaId') empresaId: string,
-  ) {
+  async handleStripeWebhook(@Headers('stripe-signature') signature: string, @Body() payload: any) {
     if (!signature) {
       throw new BadRequestException('Missing stripe-signature header');
-    }
-
-    if (!empresaId) {
-      throw new BadRequestException('Missing empresaId query parameter');
     }
 
     const verification = await this.stripeProvider.verifyWebhookSignature(signature, payload);
@@ -143,7 +135,7 @@ export class PaymentController {
     }
 
     const tipo = payload.type || 'payment.success';
-    return this.paymentService.handleWebhook(empresaId, tipo, verification.payload);
+    return this.dispatchWebhook(tipo, verification.payload);
   }
 
   /**
@@ -151,17 +143,9 @@ export class PaymentController {
    * Signature header: x-signature
    */
   @Post('webhooks/mercadopago')
-  async handleMercadoPagoWebhook(
-    @Headers('x-signature') signature: string,
-    @Body() payload: any,
-    @Query('empresaId') empresaId: string,
-  ) {
+  async handleMercadoPagoWebhook(@Headers('x-signature') signature: string, @Body() payload: any) {
     if (!signature) {
       throw new BadRequestException('Missing x-signature header');
-    }
-
-    if (!empresaId) {
-      throw new BadRequestException('Missing empresaId query parameter');
     }
 
     const verification = await this.mpProvider.verifyWebhookSignature(signature, payload);
@@ -170,7 +154,21 @@ export class PaymentController {
     }
 
     const tipo = payload.action || 'payment.success';
-    return this.paymentService.handleWebhook(empresaId, tipo, verification.payload);
+    return this.dispatchWebhook(tipo, verification.payload);
+  }
+
+  // The Business comes from the stored record the verified event refers to,
+  // never from the request (the former ?empresaId= was caller-controlled). An
+  // event about no known record is acknowledged and ignored.
+  // NOTE: these routes are still behind the global JwtAuthGuard. Providers send
+  // no JWT, so real deliveries are rejected until the providers move from the
+  // current mocks to the official SDKs with their real signature schemes.
+  private async dispatchWebhook(tipo: string, payload: any) {
+    const empresaId = await this.paymentService.resolveWebhookBusiness(tipo, payload);
+    if (!empresaId) {
+      return { success: true, ignored: true };
+    }
+    return this.paymentService.handleWebhook(empresaId, tipo, payload);
   }
 
   /**

@@ -396,6 +396,32 @@ export class PaymentService {
   /**
    * Handle webhook payload (route to appropriate handler)
    */
+  /**
+   * The Business a provider event belongs to, taken from the stored payment or
+   * refund the event refers to — never from the request. Null when no stored
+   * record matches, so an event about someone else's or an unknown record
+   * cannot be attributed to a Business chosen by the caller.
+   */
+  async resolveWebhookBusiness(tipo: string, payload: any): Promise<string | null> {
+    if (tipo === 'refund.completed') {
+      const refundId = payload?.refundId || payload?.id;
+      if (!refundId) return null;
+      const refund = await this.prisma.refund.findUnique({
+        where: { providerRefundId: refundId },
+        select: { empresaId: true },
+      });
+      return refund?.empresaId ?? null;
+    }
+
+    const paymentId = payload?.paymentId || payload?.id;
+    if (!paymentId) return null;
+    const payment = await this.prisma.payment.findUnique({
+      where: { providerPaymentId: paymentId },
+      select: { empresaId: true },
+    });
+    return payment?.empresaId ?? null;
+  }
+
   async handleWebhook(empresaId: string, tipo: string, payload: any) {
     const providerEventId = payload.id || payload.data?.id || `${Date.now()}`;
 

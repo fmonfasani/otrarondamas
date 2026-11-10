@@ -236,4 +236,41 @@ describe('P11-2: payment webhooks — Business scope and idempotency', () => {
       expect(await estadoOf(paymentOfA.id)).toBe('PENDING');
     });
   });
+  describe('Business resolution (the request no longer chooses it)', () => {
+    it('resolves a payment event to the Business that owns the payment', async () => {
+      const providerPaymentId = `pi_resolve_${tag}`;
+      await createPayment(businessB, providerPaymentId);
+
+      await expect(
+        service.resolveWebhookBusiness('payment.success', {
+          id: `evt_r_${tag}`,
+          paymentId: providerPaymentId,
+        }),
+      ).resolves.toBe(businessB.empresaId);
+    });
+
+    it('resolves a refund event to the Business that owns the refund', async () => {
+      const payment = await createPayment(businessA, `pi_resolve_refund_${tag}`, 'COMPLETED');
+      await prisma.refund.create({
+        data: {
+          empresaId: businessA.empresaId,
+          paymentId: payment.id,
+          monto: 10,
+          razon: 'OTHER',
+          providerRefundId: `re_resolve_${tag}`,
+        },
+      });
+
+      await expect(
+        service.resolveWebhookBusiness('refund.completed', { refundId: `re_resolve_${tag}` }),
+      ).resolves.toBe(businessA.empresaId);
+    });
+
+    it('returns null for an event about no stored record', async () => {
+      await expect(
+        service.resolveWebhookBusiness('payment.success', { paymentId: `pi_unknown_${tag}` }),
+      ).resolves.toBeNull();
+      await expect(service.resolveWebhookBusiness('refund.completed', {})).resolves.toBeNull();
+    });
+  });
 });
