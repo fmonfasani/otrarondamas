@@ -52,7 +52,26 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
     }
-    return order;
+    // Stable, frontend-facing fields (owner decision 2026-11-09), added next to
+    // the raw Prisma relations so existing consumers keep working. Amounts and
+    // quantities keep the API's Decimal-as-string convention, and `estado` is
+    // the real EstadoPedido: clients decide how to display it.
+    return {
+      ...order,
+      cliente: {
+        id: order.Cliente.id,
+        nombre: order.Cliente.nombre,
+        email: order.Cliente.email,
+        telefono: order.Cliente.telefono,
+      },
+      items: order.PedidoItem.map((item) => ({
+        productId: item.productoId,
+        productName: item.Producto.nombre,
+        quantity: item.cantidad,
+        price: item.precioUnitario,
+        discount: item.descuentoItem,
+      })),
+    };
   }
 
   async updateStatus(id: string, companyId: string, dto: UpdateOrderStatusDto, userId: string) {
