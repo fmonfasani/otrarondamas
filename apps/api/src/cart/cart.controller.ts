@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, HttpCode } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { Public } from '../auth/decorators/public.decorator';
-import { CartResponseDto } from './dto/cart.response.dto';
 
 /**
  * C5B: Cart API — Phase 2 of Online Store
@@ -20,7 +19,8 @@ export class CartController {
    * POST /cart — Create/get cart for a customer.
    *
    * Body: { customerId: string } or authenticated via @CurrentUser
-   * Response: { id, customerId, businessId, items: [...], ... }
+   * Response: the same cart shape as GET /cart/:id ({ id, customerId,
+   * businessId, CartItem: [...], ... }). Owner decision 2026-11-09.
    *
    * Anonymous customers can provide their ID directly in the body.
    * Authenticated customers use their context.
@@ -39,8 +39,10 @@ export class CartController {
     // Note: businessId defaults to TIENDA_EMPRESA_ID for anonymous;
     // in auth context, it comes from user's membership.
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
-    const cart = await this.cartService.getOrCreateCart(customerId, businessId);
-    return new CartResponseDto(cart);
+    // The former CartResponseDto read `items`/`producto`, the relation names
+    // before b277dbc, so it always answered `items: []` even for a cart with
+    // products. Answer the cart as loaded, exactly like GET /cart/:id.
+    return this.cartService.getOrCreateCart(customerId, businessId);
   }
 
   /**

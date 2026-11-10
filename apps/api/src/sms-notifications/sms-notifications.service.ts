@@ -6,7 +6,8 @@ import {
   Logger,
   Optional,
 } from '@nestjs/common';
-import { Twilio } from 'twilio';
+import twilio from 'twilio';
+import type { Twilio } from 'twilio';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -66,7 +67,7 @@ export class SMSNotificationsService {
    */
   initializeTwilio(accountSid: string, authToken: string, did: string): void {
     try {
-      this.twilioClient = new Twilio(accountSid, authToken);
+      this.twilioClient = twilio(accountSid, authToken);
       this.twilioDid = did;
       this.logger.log('Twilio client initialized');
     } catch (error) {

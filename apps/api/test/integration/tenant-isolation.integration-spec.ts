@@ -110,4 +110,58 @@ describe('Tenant isolation verification infrastructure', () => {
 
     expect(fromA).toBeNull();
   });
+
+  // The post-query check that used to guard findUnique only inspected
+  // `empresaId` when the caller selected it, so these lookups omit it.
+  describe('findUnique with a projection that omits empresaId', () => {
+    const createUser = (empresaId: string, tag: string) =>
+      prisma.usuario.create({
+        data: { empresaId, nombre: `B4 ${tag}`, email: `b4-${tag}-${Date.now()}@example.test` },
+        select: { id: true, email: true },
+      });
+
+    it('returns null for a record of another Business', async () => {
+      const userB = await createUser(companyB.id, 'proj-null');
+
+      const fromA = await scopedPrisma.forCompany(companyA.id).usuario.findUnique({
+        where: { id: userB.id },
+        select: { id: true, nombre: true, email: true },
+      });
+
+      expect(fromA).toBeNull();
+    });
+
+    it('findUniqueOrThrow raises P2025 for a record of another Business', async () => {
+      const userB = await createUser(companyB.id, 'proj-throw');
+
+      await expect(
+        scopedPrisma.forCompany(companyA.id).usuario.findUniqueOrThrow({
+          where: { id: userB.id },
+          select: { id: true, nombre: true },
+        }),
+      ).rejects.toMatchObject({ code: 'P2025' });
+    });
+
+    it('still returns the record to its own Business', async () => {
+      const userA = await createUser(companyA.id, 'proj-own');
+
+      const fromA = await scopedPrisma.forCompany(companyA.id).usuario.findUnique({
+        where: { id: userA.id },
+        select: { id: true, email: true },
+      });
+
+      expect(fromA).toEqual(userA);
+    });
+
+    it('ignores a caller-supplied empresaId pointing at another Business', async () => {
+      const userB = await createUser(companyB.id, 'proj-override');
+
+      const fromA = await scopedPrisma.forCompany(companyA.id).usuario.findUnique({
+        where: { id: userB.id, empresaId: companyB.id },
+        select: { id: true },
+      });
+
+      expect(fromA).toBeNull();
+    });
+  });
 });

@@ -10,24 +10,22 @@ interface OrderDetailProps {
   customer: string;
   email: string;
   phone: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  /** Real EstadoPedido from the API (e.g. RECIBIDO, EN_CAMINO, CANCELADO). */
+  estado: string;
   total: number;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
 }
 
-const statusSteps: Record<string, number> = {
-  pending: 0,
-  processing: 1,
-  shipped: 2,
-  delivered: 3,
-  cancelled: -1,
-};
+// The order lifecycle has no approved definition yet, so the UI shows the real
+// state as-is instead of mapping it onto invented steps.
+function estadoLabel(estado: string): string {
+  const text = estado.replace(/_/g, ' ').toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 export function OrderDetail(order: OrderDetailProps) {
-  const currentStep = statusSteps[order.status];
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
@@ -54,31 +52,15 @@ export function OrderDetail(order: OrderDetailProps) {
           </div>
         </div>
 
-        {/* Status timeline */}
         <div className="mb-6">
-          <div className="flex justify-between">
-            {['pending', 'processing', 'shipped', 'delivered'].map(
-              (step, index) => (
-                <div
-                  key={step}
-                  className={`flex-1 text-center ${
-                    currentStep >= index ? 'text-blue-600' : 'text-gray-400'
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                      currentStep >= index
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                  <p className="text-sm font-medium capitalize">{step}</p>
-                </div>
-              )
-            )}
-          </div>
+          <p className="text-gray-600 text-sm">Estado</p>
+          <span
+            className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-medium ${
+              order.estado === 'CANCELADO' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+            }`}
+          >
+            {estadoLabel(order.estado)}
+          </span>
         </div>
       </div>
 

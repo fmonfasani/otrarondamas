@@ -299,25 +299,32 @@ export class NotificationDigestService {
   }
 
   /**
-   * Mark digest as opened
-   *
-   * @param digestId - Digest ID
+   * Mark a digest as opened only for its owning user and business.
+   * The ownership predicates are part of the UPDATE itself (not a
+   * pre-read), so a caller cannot mutate another user's digest by ID.
    */
-  async markDigestAsOpened(digestId: string): Promise<NotificationDigestResponse> {
-    const digest = await this.prisma.notificationDigest.findUnique({
-      where: { id: digestId },
-    });
+  async markDigestAsOpened(
+    usuarioId: string,
+    empresaId: string,
+    digestId: string,
+  ): Promise<NotificationDigestResponse> {
+    try {
+      const updated = await this.prisma.notificationDigest.update({
+        where: { id: digestId, usuarioId, empresaId },
+        data: { openedAt: new Date() },
+      });
 
-    if (!digest) {
-      throw new NotFoundException('Digest not found');
+      return this.mapToResponse(updated);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Digest not found');
+      }
+
+      throw error;
     }
-
-    const updated = await this.prisma.notificationDigest.update({
-      where: { id: digestId },
-      data: { openedAt: new Date() },
-    });
-
-    return this.mapToResponse(updated);
   }
 
   /**

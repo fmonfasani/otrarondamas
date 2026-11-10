@@ -2,6 +2,13 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { IPaymentProvider } from '../interfaces/payment-provider.interface';
 import * as crypto from 'crypto';
 
+// Constant-time comparison of two hex digests; false on any length mismatch.
+function digestsMatch(expected: string, received: string): boolean {
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(received, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /**
  * Mock Stripe implementation for testing
  * In production, replace with official Stripe SDK
@@ -13,7 +20,8 @@ export class StripeProviderService implements IPaymentProvider {
 
   constructor() {
     this.secretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock';
-    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_mock';
+    // No default: without STRIPE_WEBHOOK_SECRET every webhook fails verification.
+    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
   }
 
   async createPaymentIntent(monto: number, moneda: string, metadata: any) {
@@ -76,6 +84,9 @@ export class StripeProviderService implements IPaymentProvider {
    * Verify Stripe webhook signature using HMAC-SHA256
    */
   async verifyWebhookSignature(signature: string, payload: any) {
+    if (!this.webhookSecret || !signature) {
+      return { valid: false };
+    }
     try {
       const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
       const computedSignature = crypto
@@ -83,7 +94,7 @@ export class StripeProviderService implements IPaymentProvider {
         .update(payloadString)
         .digest('hex');
 
-      const isValid = computedSignature === signature;
+      const isValid = digestsMatch(computedSignature, signature);
       return {
         valid: isValid,
         payload: isValid ? payload : null,

@@ -155,7 +155,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       expect(cart).toBeDefined();
       expect(cart.customerId).toBe(customerA.id);
       expect(cart.businessId).toBe(companyA.id);
-      expect(cart.items).toEqual([]);
+      expect(cart.CartItem).toEqual([]);
     });
 
     it('returns existing cart on second call (idempotent)', async () => {
@@ -280,7 +280,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       await cartService.removeItem(item.id, companyA.id);
 
       const updated = await cartService.getCart(cart.id, companyA.id);
-      expect(updated.items).toHaveLength(0);
+      expect(updated.CartItem).toHaveLength(0);
     });
 
     it('throws NotFoundException for non-existent item', async () => {
@@ -298,9 +298,9 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
 
       const retrieved = await cartService.getCart(cart.id, companyA.id);
 
-      expect(retrieved.items).toHaveLength(2);
-      expect(retrieved.items[0].producto.nombre).toBeDefined();
-      expect(retrieved.items[0].producto.precioMinorista).toBeDefined();
+      expect(retrieved.CartItem).toHaveLength(2);
+      expect(retrieved.CartItem[0].Producto.nombre).toBeDefined();
+      expect(retrieved.CartItem[0].Producto.precioMinorista).toBeDefined();
     });
 
     it('throws NotFoundException for non-existent cart', async () => {
@@ -319,7 +319,7 @@ describe('P6 — Cart Integration (real PostgreSQL)', () => {
       await cartService.clearCart(cart.id, companyA.id);
 
       const cleared = await cartService.getCart(cart.id, companyA.id);
-      expect(cleared.items).toHaveLength(0);
+      expect(cleared.CartItem).toHaveLength(0);
     });
 
     it('throws NotFoundException for non-existent cart', async () => {
