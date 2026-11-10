@@ -283,11 +283,15 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ rejects customer identity (requires staff)', async () => {
-      const context = mockContext('sales.create');
-      const user = mockAuthenticatedUser('cliente');
+      const context = mockContext('sales.create', 'cliente');
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
+      const membershipLookup = jest.spyOn(prismaService.membership, 'findUnique');
 
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Este permiso requiere una identidad de usuario interno'),
+      );
+      // Rejected on identity alone, before any Membership is consulted.
+      expect(membershipLookup).not.toHaveBeenCalled();
     });
 
     it('✗ rejects suspended membership', async () => {
@@ -326,9 +330,12 @@ describe('AuthorizationGuard', () => {
   });
 
   // Helper functions
-  function mockContext(capability?: string): Partial<ExecutionContext> {
+  function mockContext(
+    capability?: string,
+    identity: 'usuario' | 'cliente' = 'usuario',
+  ): Partial<ExecutionContext> {
     const request = {
-      user: mockAuthenticatedUser('usuario'),
+      user: mockAuthenticatedUser(identity),
     };
     return {
       getHandler: jest.fn(),
