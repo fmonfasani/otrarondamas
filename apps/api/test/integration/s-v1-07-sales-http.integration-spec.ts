@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -9,6 +9,7 @@ import {
   seedUsuarioPermissions,
   withRevokedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-07 — HTTP boundary of SALES and PAYMENTS against the REAL compiled
 // stack (dist/src/main.js, the same production binary):
@@ -195,7 +196,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
         total: options.total ?? 20,
         numero: 800000 + counter,
         estado: options.estado ?? 'CONFIRMADA',
-        ventaItems: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
+        VentaItem: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
       },
       select: { id: true },
     });
@@ -322,11 +323,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 
@@ -991,7 +988,12 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
           .set('Authorization', auth)
           .send({ medio: 'transferencia', monto: 1 })
           .expect(403);
-        await request(BASE).get('/ventas').set('Authorization', auth).expect(403);
+        const listResponse = await request(BASE).get('/ventas').set('Authorization', auth);
+        if (listResponse.status !== 403) {
+          throw new Error(
+            `GET /ventas expected 403 after permission revocation; received ${listResponse.status}: ${JSON.stringify(listResponse.body)}`,
+          );
+        }
         await request(BASE).get(`/ventas/${saleA.id}`).set('Authorization', auth).expect(403);
         await request(BASE)
           .get(`/ventas/${saleA.id}/comprobante`)
@@ -1075,7 +1077,7 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       .get(`/ventas/${sale.body.id}`)
       .set('Authorization', auth)
       .expect(200);
-    expect(detail.body.usuario.id).toBe(legacyCrossUser.id);
+    expect(detail.body.Usuario.id).toBe(legacyCrossUser.id);
   });
 
   // ------------------------------------------------------------- symmetry

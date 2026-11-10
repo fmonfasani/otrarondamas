@@ -257,7 +257,7 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
             estado: 'CONFIRMADA',
             canal: channel,
             total: 10,
-            ventaItems: {
+            VentaItem: {
               create: {
                 productoId: productB.id,
                 cantidad: 1,

@@ -232,35 +232,12 @@ export function companyScopeExtension(companyId: string) {
             }
 
             if (OPERATIONS_FIND_UNIQUE.has(operation)) {
-              /*
-               * IMPORTANT: never validate tenant ownership from the returned
-               * projection. A caller can select only { id, nombre }, omitting
-               * the tenant field; the previous post-query check then silently skipped
-               * the tenant comparison and leaked the foreign record.
-               *
-               * Read ownership through the unextended client before executing
-               * the requested query. This check is independent of the caller's
-               * select/include projection. If the row is absent, let Prisma
-               * execute the original operation so findUniqueOrThrow preserves
-               * its native P2025 behavior.
-               */
-              const belongsToCompany = await isUniqueReadOwnedByTenant(
-                client,
-                model,
-                a.where ?? {},
-                companyId,
-              );
-
-              if (!belongsToCompany) {
-                if (operation === 'findUniqueOrThrow') {
-                  throw new Prisma.PrismaClientKnownRequestError(`No ${model} found`, {
-                    code: 'P2025',
-                    clientVersion: Prisma.prismaVersion.client,
-                  });
-                }
-                return null;
-              }
-
+              // Prisma 5.22 supports non-unique scalar filters alongside a
+              // unique selector in WhereUniqueInput (ExtendedWhereUnique).
+              // Enforce tenant scope in SQL, before projection, so callers
+              // cannot bypass isolation by omitting the tenant field from
+              // select (#125). Works for empresaId and businessId models.
+              a.where = { ...(a.where ?? {}), [tenantField]: companyId };
               return query(a);
             }
 

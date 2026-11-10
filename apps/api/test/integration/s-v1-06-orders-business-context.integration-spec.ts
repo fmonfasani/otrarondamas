@@ -133,7 +133,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
         estado: status,
         canalOrigen: 'web',
         total: 10,
-        pedidoItems: {
+        PedidoItem: {
           create: items.map((i) => ({
             productoId: i.productId,
             cantidad: i.quantity,
@@ -306,8 +306,8 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
     expect(result.id).toBe(orderA.id);
     expect(result.empresaId).toBe(companyA.id);
-    expect(result.pedidoItems).toHaveLength(1);
-    expect(result.cliente.id).toBe(customerA.id);
+    expect(result.PedidoItem).toHaveLength(1);
+    expect(result.Cliente.id).toBe(customerA.id);
   });
 
   it('OBC-04: get of another tenant order fails closed, even with JWT claim of that tenant', async () => {
@@ -490,7 +490,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
     const proto = OrdersController.prototype;
     for (const handler of [proto.list, proto.get, proto.updateStatus]) {
-      findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
+      findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
       await expect(
         guard.canActivate(
           contextFor(
@@ -502,7 +502,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
       findUnique.mockResolvedValue({
         activo: true,
-        usuarioPermisos: [{ permiso: { nombre: 'pedidos.gestionar' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'pedidos.gestionar' } }],
       });
       await expect(
         guard.canActivate(

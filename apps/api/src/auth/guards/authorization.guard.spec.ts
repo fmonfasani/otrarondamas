@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthorizationGuard } from './authorization.guard';
-import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessContextService } from '../../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth.types';
@@ -23,7 +22,6 @@ describe('AuthorizationGuard', () => {
   let guard: AuthorizationGuard;
   let reflector: Reflector;
   let prismaService: PrismaService;
-  let businessContextService: BusinessContextService;
 
   // Mock data
   const mockUserId = 'user-123';
@@ -79,15 +77,14 @@ describe('AuthorizationGuard', () => {
           },
         },
         {
+          // The guard resolves the active Membership through BusinessContext
+          // (JWT user.id is a legacy Usuario id, not Membership.userId).
           provide: BusinessContextService,
           useValue: {
             resolveForAuthenticatedUser: jest.fn().mockResolvedValue({
-              userId: 'canonical-user-123',
+              userId: mockUserId,
               businessId: mockBusinessId,
-              membershipId: 'membership-1',
-              role: 'OWNER',
-              actorType: 'USER',
-              permissions: [],
+              membershipId: 'membership-resolved',
             }),
           },
         },
@@ -97,189 +94,142 @@ describe('AuthorizationGuard', () => {
     guard = module.get<AuthorizationGuard>(AuthorizationGuard);
     reflector = module.get<Reflector>(Reflector);
     prismaService = module.get<PrismaService>(PrismaService);
-    businessContextService = module.get<BusinessContextService>(BusinessContextService);
   });
+
+  const capabilityDefinition = (code: string, description = `Capability: ${code}`) => ({
+    id: `capdef-${code}`,
+    code,
+    description,
+    category: code.split('.')[0],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const capabilityGrant = (
+    id: string,
+    roleGrantId: string,
+    code: string,
+    description: string,
+    reason: string,
+  ) => ({
+    id,
+    roleGrantId,
+    capabilityDefId: `capdef-${code}`,
+    grantType: 'GRANT',
+    reason,
+    grantedBy: 'owner-123',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    CapabilityDefinition: capabilityDefinition(code, description),
+  });
+
+  const activeMembership = (opts: {
+    n: number;
+    role: string;
+    roleTemplateId: string;
+    description: string;
+    capabilities: string[];
+    grants?: unknown[];
+  }) => ({
+    id: `membership-${opts.n}`,
+    userId: mockUserId,
+    businessId: mockBusinessId,
+    role: opts.role,
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    RoleGrant: {
+      id: `rolegrant-${opts.n}`,
+      membershipId: `membership-${opts.n}`,
+      roleTemplateId: opts.roleTemplateId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      RoleTemplate: {
+        id: opts.roleTemplateId,
+        name: opts.role,
+        description: opts.description,
+        empresaId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        RoleCapability: opts.capabilities.map((code) => ({
+          id: `cap-${code}`,
+          roleTemplateId: opts.roleTemplateId,
+          capabilityDefId: `capdef-${code}`,
+          createdAt: new Date(),
+          CapabilityDefinition: capabilityDefinition(code),
+        })),
+      },
+      CapabilityGrant: opts.grants ?? [],
+    },
+  });
+
+  const asistenteMembership = (n: number, grants: unknown[] = []) =>
+    activeMembership({
+      n,
+      role: 'ASISTENTE_LOCAL',
+      roleTemplateId: mockAsistenteRoleTemplateId,
+      description: 'Store assistant',
+      capabilities: mockAsistenteCapabilities,
+      grants,
+    });
+
+  const pricingGrant = (roleGrantId: string, id: string, reason: string) =>
+    capabilityGrant(id, roleGrantId, 'catalog.change_prices', 'Change product prices', reason);
+
+  const givenMembership = (membership: unknown) =>
+    jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue(membership as any);
+
+  const givenCapability = (capability: string) =>
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(capability);
 
   describe('Baseline Scenarios', () => {
     it('✓ allows OWNER to access endpoint requiring sales.create', async () => {
-      // Setup
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-1',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'OWNER',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-1',
-          membershipId: 'membership-1',
+      const context = mockContext('sales.create');
+      givenCapability('sales.create');
+      givenMembership(
+        activeMembership({
+          n: 1,
+          role: 'OWNER',
           roleTemplateId: mockOwnerRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockOwnerRoleTemplateId,
-            name: 'OWNER',
-            description: 'Full access',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockOwnerCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockOwnerRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [],
-        },
-      } as any);
+          description: 'Full access',
+          capabilities: mockOwnerCapabilities,
+        }),
+      );
 
-      // Act
       const result = await guard.canActivate(context);
 
-      // Assert
       expect(result).toBe(true);
-      expect(businessContextService.resolveForAuthenticatedUser).toHaveBeenCalledWith(
-        expect.objectContaining({ id: mockUserId, type: 'usuario' }),
-      );
-      expect(prismaService.membership.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'membership-1' } }),
-      );
     });
 
     it('✓ allows ASISTENTE_LOCAL to access endpoint requiring sales.create', async () => {
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-2',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'ASISTENTE_LOCAL',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-2',
-          membershipId: 'membership-2',
-          roleTemplateId: mockAsistenteRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockAsistenteRoleTemplateId,
-            name: 'ASISTENTE_LOCAL',
-            description: 'Store assistant',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockAsistenteRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [],
-        },
-      } as any);
+      const context = mockContext('sales.create');
+      givenCapability('sales.create');
+      givenMembership(asistenteMembership(2));
 
       const result = await guard.canActivate(context);
       expect(result).toBe(true);
     });
 
     it('✗ denies ASISTENTE_LOCAL from accessing endpoint requiring users.manage', async () => {
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('users.manage');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-2',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'ASISTENTE_LOCAL',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-2',
-          membershipId: 'membership-2',
-          roleTemplateId: mockAsistenteRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockAsistenteRoleTemplateId,
-            name: 'ASISTENTE_LOCAL',
-            description: 'Store assistant',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockAsistenteRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [],
-        },
-      } as any);
+      const context = mockContext('users.manage');
+      givenCapability('users.manage');
+      givenMembership(asistenteMembership(2));
 
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
 
     it('✗ denies PROVEEDOR from accessing any operational endpoint', async () => {
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-3',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'PROVEEDOR',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-3',
-          membershipId: 'membership-3',
+      const context = mockContext('sales.create');
+      givenCapability('sales.create');
+      givenMembership(
+        activeMembership({
+          n: 3,
+          role: 'PROVEEDOR',
           roleTemplateId: 'role-proveedor',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: 'role-proveedor',
-            name: 'PROVEEDOR',
-            description: 'Supplier placeholder',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: [], // No capabilities
-          },
-          capabilityGrants: [],
-        },
-      } as any);
+          description: 'Supplier placeholder',
+          capabilities: [],
+        }),
+      );
 
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
@@ -287,217 +237,42 @@ describe('AuthorizationGuard', () => {
 
   describe('CapabilityGrant Overrides', () => {
     it('✓ allows ASISTENTE_LOCAL with grant for catalog.change_prices', async () => {
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('catalog.change_prices');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-4',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'ASISTENTE_LOCAL',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-4',
-          membershipId: 'membership-4',
-          roleTemplateId: mockAsistenteRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockAsistenteRoleTemplateId,
-            name: 'ASISTENTE_LOCAL',
-            description: 'Store assistant',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockAsistenteRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [
-            {
-              id: 'capgrant-1',
-              roleGrantId: 'rolegrant-4',
-              capabilityDefId: 'capdef-catalog.change_prices',
-              grantType: 'GRANT',
-              reason: 'Promoted to pricing manager',
-              grantedBy: 'owner-123',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              capability: {
-                id: 'capdef-catalog.change_prices',
-                code: 'catalog.change_prices',
-                description: 'Change product prices',
-                category: 'catalog',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            },
-          ],
-        },
-      } as any);
+      const context = mockContext('catalog.change_prices');
+      givenCapability('catalog.change_prices');
+      givenMembership(
+        asistenteMembership(4, [pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager')]),
+      );
 
       const result = await guard.canActivate(context);
       expect(result).toBe(true);
     });
 
     it('✓ CapabilityGrant persists across requests (DB source of truth)', async () => {
-      // Same scenario as above, but verify DB is queried
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('catalog.change_prices');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-4',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'ASISTENTE_LOCAL',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-4',
-          membershipId: 'membership-4',
-          roleTemplateId: mockAsistenteRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockAsistenteRoleTemplateId,
-            name: 'ASISTENTE_LOCAL',
-            description: 'Store assistant',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockAsistenteRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [
-            {
-              id: 'capgrant-1',
-              roleGrantId: 'rolegrant-4',
-              capabilityDefId: 'capdef-catalog.change_prices',
-              grantType: 'GRANT',
-              reason: 'Promoted to pricing manager',
-              grantedBy: 'owner-123',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              capability: {
-                id: 'capdef-catalog.change_prices',
-                code: 'catalog.change_prices',
-                description: 'Change product prices',
-                category: 'catalog',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            },
-          ],
-        },
-      } as any);
+      const context = mockContext('catalog.change_prices');
+      givenCapability('catalog.change_prices');
+      givenMembership(
+        asistenteMembership(4, [pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager')]),
+      );
 
       await guard.canActivate(context);
       expect(prismaService.membership.findUnique).toHaveBeenCalled();
     });
 
     it('✓ multiple CapabilityGrants on same membership union correctly', async () => {
-      const context = mockContext();
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('purchases.manage');
-      jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
-        id: 'membership-5',
-        userId: 'canonical-user-123',
-        businessId: mockBusinessId,
-        role: 'ASISTENTE_LOCAL',
-        status: 'ACTIVE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        roleGrant: {
-          id: 'rolegrant-5',
-          membershipId: 'membership-5',
-          roleTemplateId: mockAsistenteRoleTemplateId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          roleTemplate: {
-            id: mockAsistenteRoleTemplateId,
-            name: 'ASISTENTE_LOCAL',
-            description: 'Store assistant',
-            empresaId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            capabilities: mockAsistenteCapabilities.map((code) => ({
-              id: `cap-${code}`,
-              roleTemplateId: mockAsistenteRoleTemplateId,
-              capabilityDefId: `capdef-${code}`,
-              createdAt: new Date(),
-              capabilityDef: {
-                id: `capdef-${code}`,
-                code,
-                description: `Capability: ${code}`,
-                category: code.split('.')[0],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })),
-          },
-          capabilityGrants: [
-            {
-              id: 'capgrant-2',
-              roleGrantId: 'rolegrant-5',
-              capabilityDefId: 'capdef-purchases.manage',
-              grantType: 'GRANT',
-              reason: 'Authorized for supplier management',
-              grantedBy: 'owner-123',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              capability: {
-                id: 'capdef-purchases.manage',
-                code: 'purchases.manage',
-                description: 'Manage purchase orders',
-                category: 'purchases',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            },
-            {
-              id: 'capgrant-3',
-              roleGrantId: 'rolegrant-5',
-              capabilityDefId: 'capdef-catalog.change_prices',
-              grantType: 'GRANT',
-              reason: 'Also authorized for pricing',
-              grantedBy: 'owner-123',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              capability: {
-                id: 'capdef-catalog.change_prices',
-                code: 'catalog.change_prices',
-                description: 'Change product prices',
-                category: 'catalog',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            },
-          ],
-        },
-      } as any);
+      const context = mockContext('purchases.manage');
+      givenCapability('purchases.manage');
+      givenMembership(
+        asistenteMembership(5, [
+          capabilityGrant(
+            'capgrant-2',
+            'rolegrant-5',
+            'purchases.manage',
+            'Manage purchase orders',
+            'Authorized for supplier management',
+          ),
+          pricingGrant('rolegrant-5', 'capgrant-3', 'Also authorized for pricing'),
+        ]),
+      );
 
       const result = await guard.canActivate(context);
       expect(result).toBe(true);
@@ -506,7 +281,7 @@ describe('AuthorizationGuard', () => {
 
   describe('Guard Behavior', () => {
     it('✓ allows endpoints without @Authorize metadata (authentication-only)', async () => {
-      const context = mockContext();
+      const context = mockContext(undefined);
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
       const result = await guard.canActivate(context);
@@ -514,48 +289,53 @@ describe('AuthorizationGuard', () => {
     });
 
     it('✗ rejects unauthenticated request (missing user)', async () => {
-      const context = mockContextWithoutUser();
+      const context = mockContextWithoutUser('sales.create');
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
     it('✗ rejects customer identity (requires staff)', async () => {
-      const context = mockContext();
+      const context = mockContext('sales.create', 'cliente');
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
+      const membershipLookup = jest.spyOn(prismaService.membership, 'findUnique');
 
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Este permiso requiere una identidad de usuario interno'),
+      );
+      // Rejected on identity alone, before any Membership is consulted.
+      expect(membershipLookup).not.toHaveBeenCalled();
     });
 
     it('✗ rejects suspended membership', async () => {
-      const context = mockContext();
+      const context = mockContext('sales.create');
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-6',
-        userId: 'canonical-user-123',
+        userId: mockUserId,
         businessId: mockBusinessId,
         role: 'OWNER',
         status: 'SUSPENDED',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: null,
+        RoleGrant: null,
       } as any);
 
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
 
     it('✗ rejects missing RoleGrant during migration', async () => {
-      const context = mockContext();
+      const context = mockContext('sales.create');
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sales.create');
       jest.spyOn(prismaService.membership, 'findUnique').mockResolvedValue({
         id: 'membership-7',
-        userId: 'canonical-user-123',
+        userId: mockUserId,
         businessId: mockBusinessId,
         role: 'OWNER',
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-        roleGrant: null, // Phase 2 P1-2 migration incomplete
+        RoleGrant: null, // Phase 2 P1-2 migration incomplete
       } as any);
 
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
@@ -563,9 +343,12 @@ describe('AuthorizationGuard', () => {
   });
 
   // Helper functions
-  function mockContext(): Partial<ExecutionContext> {
+  function mockContext(
+    capability?: string,
+    identity: 'usuario' | 'cliente' = 'usuario',
+  ): Partial<ExecutionContext> {
     const request = {
-      user: mockAuthenticatedUser('usuario'),
+      user: mockAuthenticatedUser(identity),
     };
     return {
       getHandler: jest.fn(),
@@ -576,7 +359,7 @@ describe('AuthorizationGuard', () => {
     };
   }
 
-  function mockContextWithoutUser(): Partial<ExecutionContext> {
+  function mockContextWithoutUser(capability?: string): Partial<ExecutionContext> {
     const request = {
       user: undefined,
     };

@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
  * C5B Phase 2: Cart API Integration Tests
@@ -21,6 +22,7 @@ describe('C5B Phase 2: Cart API', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let testCompanyId: string;
+  let storeEmpresa: OwnStoreEmpresa;
   let testCustomerId: string;
   let testProductId1: string;
   let testProductId2: string;
@@ -35,8 +37,8 @@ describe('C5B Phase 2: Cart API', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Setup: use TIENDA_EMPRESA_ID for public store
-    testCompanyId = process.env.TIENDA_EMPRESA_ID || '22dc5550-be63-44bd-bad7-8b7da0b2c6ca';
+    storeEmpresa = await createOwnStoreEmpresa(prisma, 'c5b-cart');
+    testCompanyId = storeEmpresa.id;
 
     // Create test customer
     const customer = await prisma.cliente.create({
@@ -152,6 +154,7 @@ describe('C5B Phase 2: Cart API', () => {
     await prisma.subfamilia.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.familia.deleteMany({ where: { empresaId: testCompanyId } });
 
+    await storeEmpresa.release();
     await app.close();
     await prisma.$disconnect();
   });
@@ -166,7 +169,7 @@ describe('C5B Phase 2: Cart API', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.customerId).toBe(testCustomerId);
       expect(response.body.businessId).toBe(testCompanyId);
-      expect(response.body.items).toEqual([]);
+      expect(response.body.CartItem).toEqual([]);
     });
 
     it('should return existing cart for same customer', async () => {
@@ -223,8 +226,8 @@ describe('C5B Phase 2: Cart API', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.cartId).toBe(cartId);
       expect(response.body.productoId).toBe(testProductId1);
-      expect(response.body.cantidad).toBe(5);
-      expect(typeof response.body.cantidad).toBe('number');
+      expect(response.body.cantidad).toBe('5');
+      expect(typeof response.body.cantidad).toBe('string');
     });
 
     it('should sum quantities when adding duplicate product', async () => {
@@ -238,7 +241,7 @@ describe('C5B Phase 2: Cart API', () => {
         .send({ productoId: testProductId1, cantidad: 3 })
         .expect(201);
 
-      expect(response.body.cantidad).toBe(8);
+      expect(response.body.cantidad).toBe('8');
     });
 
     it('should reject adding 0 or negative quantity', async () => {
@@ -326,11 +329,28 @@ describe('C5B Phase 2: Cart API', () => {
       const response = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
       expect(response.body.id).toBe(cartId);
-      expect(response.body.items).toBeInstanceOf(Array);
-      expect(response.body.items.length).toBe(1);
-      expect(response.body.items[0].id).toBe(itemId1);
-      expect(response.body.items[0].productoId).toBe(testProductId1);
-      expect(response.body.items[0].cantidad).toBe(5);
+      expect(response.body.CartItem).toBeInstanceOf(Array);
+      expect(response.body.CartItem.length).toBe(1);
+      expect(response.body.CartItem[0].id).toBe(itemId1);
+      expect(response.body.CartItem[0].productoId).toBe(testProductId1);
+      expect(response.body.CartItem[0].cantidad).toBe('5');
+    });
+
+    // POST /cart on an existing cart used to answer `items: []` (a DTO that
+    // read pre-rename relation names) even when the cart had products.
+    it('POST /cart on an existing cart answers the same cart and items as GET', async () => {
+      const posted = await request(app.getHttpServer())
+        .post('/cart')
+        .send({ customerId })
+        .expect(201);
+      const fetched = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+
+      expect(posted.body.id).toBe(cartId);
+      expect(posted.body.CartItem).toHaveLength(1);
+      expect(posted.body.CartItem[0]).toEqual(
+        expect.objectContaining({ id: itemId1, productoId: testProductId1, cantidad: '5' }),
+      );
+      expect(posted.body.CartItem).toEqual(fetched.body.CartItem);
     });
 
     it('should update item quantity', async () => {
@@ -339,8 +359,8 @@ describe('C5B Phase 2: Cart API', () => {
         .send({ cantidad: 10 })
         .expect(200);
 
-      expect(response.body.cantidad).toBe(10);
-      expect(typeof response.body.cantidad).toBe('number');
+      expect(response.body.cantidad).toBe('10');
+      expect(typeof response.body.cantidad).toBe('string');
     });
 
     it('should reject quantity update to 0 or negative', async () => {
@@ -367,7 +387,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(0);
+      expect(cartResponse.body.CartItem.length).toBe(0);
     });
   });
 
@@ -411,12 +431,12 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(2);
-      const prod1Item = cartResponse.body.items.find((i) => i.productoId === testProductId1);
-      const prod2Item = cartResponse.body.items.find((i) => i.productoId === testProductId2);
+      expect(cartResponse.body.CartItem.length).toBe(2);
+      const prod1Item = cartResponse.body.CartItem.find((i) => i.productoId === testProductId1);
+      const prod2Item = cartResponse.body.CartItem.find((i) => i.productoId === testProductId2);
 
-      expect(prod1Item.cantidad).toBe(3);
-      expect(prod2Item.cantidad).toBe(2);
+      expect(prod1Item.cantidad).toBe('3');
+      expect(prod2Item.cantidad).toBe('2');
     });
   });
 
@@ -462,7 +482,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
 
-      expect(cartResponse.body.items.length).toBe(0);
+      expect(cartResponse.body.CartItem.length).toBe(0);
     });
   });
 });

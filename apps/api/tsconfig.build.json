@@ -1,9 +1,23 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./",
-    "ignoreDeprecations": "6.0"
+    "rootDir": "./"
   },
-  "include": ["src/**/*", "prisma/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
+  "include": [
+    "src/**/*",
+    "prisma/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.spec.ts",
+    "src/search/**",
+    "src/assets/**",
+    "src/seo/**",
+    "src/admin/**",
+    "src/analytics/**",
+    "src/i18n/**",
+    "src/payments/**mock*"
+  ]
 }

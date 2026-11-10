@@ -1,5 +1,4 @@
 import { Prisma } from '@prisma/client';
-import { GLOBAL_MODELS } from './company-scope.extension';
 import {
   RELATIONS_WITH_OWNERSHIP,
   modelHasRelationsWithOwnership,
@@ -23,37 +22,12 @@ describe('relation-ownership', () => {
       }
     });
 
-    it('registra relaciones directas con recursos que tienen tenant', () => {
+    it('registra únicamente modelos opt-in con relaciones de ownership', () => {
       expect(modelHasRelationsWithOwnership('VentaItem')).toBe(true);
-      expect(modelHasRelationsWithOwnership('PedidoItem')).toBe(true);
-      expect(modelHasRelationsWithOwnership('CompraItem')).toBe(true);
-      expect(modelHasRelationsWithOwnership('CartItem')).toBe(true);
-      expect(modelHasRelationsWithOwnership('Venta')).toBe(true);
-    });
-    it('registra todas las relaciones simples hacia modelos con tenant directo', () => {
-      const globalModels = new Set<string>(GLOBAL_MODELS);
-      const tenantModels = new Set(
-        Prisma.dmmf.datamodel.models
-          .filter(
-            (model) =>
-              !globalModels.has(model.name) &&
-              model.fields.some((field) => field.name === 'empresaId' || field.name === 'businessId'),
-          )
-          .map((model) => model.name),
-      );
-
-      for (const model of Prisma.dmmf.datamodel.models) {
-        for (const field of model.fields) {
-          if (
-            field.kind === 'object' &&
-            field.relationFromFields?.length === 1 &&
-            field.relationToFields?.length === 1 &&
-            tenantModels.has(field.type)
-          ) {
-            expect(RELATIONS_WITH_OWNERSHIP[model.name] ?? []).toContain(field.name);
-          }
-        }
-      }
+      expect(modelHasRelationsWithOwnership('Venta')).toBe(false);
+      expect(modelHasRelationsWithOwnership('Pedido')).toBe(false);
+      expect(modelHasRelationsWithOwnership('Producto')).toBe(true);
+      expect(modelHasRelationsWithOwnership('Lote')).toBe(true);
     });
   });
 

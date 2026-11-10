@@ -7,6 +7,8 @@
  * - D-003: Concurrency (concurrent additions preserved)
  */
 
+import { StoreService } from './store.service';
+
 describe('C3: Idempotency, Consistency, Concurrency', () => {
   // Mock Prisma transaction client
   const createMockTx = () => {
@@ -151,8 +153,7 @@ describe('C3: Idempotency, Consistency, Concurrency', () => {
   describe('D-002: Consistency — Atomic transaction and best-effort recovery', () => {
     it('transaction includes Pedido, PedidoItems, and ClienteCreateOrUpdate', () => {
       // Verify createOrder wraps all three operations in $transaction
-      const createOrderCode = // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./store.service').StoreService.prototype.createOrder.toString();
+      const createOrderCode = StoreService.prototype.createOrder.toString();
       expect(createOrderCode).toContain('$transaction');
       console.log('[CONSISTENCY] StoreService.createOrder uses $transaction');
     });

@@ -58,7 +58,9 @@ export class CartService {
       });
     }
 
-    return cart;
+    // Answer exactly what GET /cart/:id answers (owner decision 2026-11-09),
+    // so the two endpoints cannot drift apart.
+    return this.getCart(cart.id, businessId);
   }
 
   async addItem(cartId: string, productoId: string, cantidad: number, businessId: string) {

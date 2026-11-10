@@ -7,7 +7,6 @@ import {
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { readFileSync } from 'fs';
-import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { BusinessContextService } from '../../src/business-context/business-context.service';
 import { CustomersService } from '../../src/customers/customers.service';
@@ -163,7 +162,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
         total,
         numero: 900000 + counter,
         estado: options.estado ?? 'CONFIRMADA',
-        ventaItems: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
+        VentaItem: { create: [{ productoId: productId, cantidad: 2, precioUnitario: 10 }] },
       },
       select: { id: true },
     });
@@ -813,7 +812,7 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
     const session = (permisos: string[]) => sessionOf(usuarioA.id, companyA.id, { permisos });
     const dbAssignments = (...names: string[]) => ({
       activo: true,
-      usuarioPermisos: names.map((nombre) => ({ permiso: { nombre } })),
+      UsuarioPermiso: names.map((nombre) => ({ Permiso: { nombre } })),
     });
 
     const sp = SalesController.prototype;
@@ -867,9 +866,9 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
   });
 
   it('SBC-21 (ventas.ver, characterization): the permission is required by the code but absent from the seed catalog', () => {
-    const seed = readFileSync(join(__dirname, '../../prisma/seed.ts'), 'utf8');
+    const seed = readFileSync(new URL('../../prisma/seed.ts', import.meta.url), 'utf8');
     const controllerSource = readFileSync(
-      join(__dirname, '../../src/sales/sales.controller.ts'),
+      new URL('../../src/sales/sales.controller.ts', import.meta.url),
       'utf8',
     );
 

@@ -1,8 +1,9 @@
 import { createHmac, randomUUID } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-STORE-01 — AS-IS CHARACTERIZATION of the public Store + Customer Auth.
 //
@@ -231,21 +232,13 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
     // "Not available" is modeled as an EMPTY value, not as a deleted key:
     // @prisma/client loads apps/api/.env into process.env at import time, so
     // on a developer machine an absent key would be silently re-injected from
     // .env (observed). An empty value is not overridden, and both cases take
     // the same `!companyId` branch in StoreService/AuthCustomerController.
-    serverNoEnv = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT: PORT_NOENV, TIENDA_EMPRESA_ID: '' },
-      stdio: 'ignore',
-    });
+    serverNoEnv = spawnApi({ PORT: PORT_NOENV, TIENDA_EMPRESA_ID: '' });
     await Promise.all([waitPort(Number(PORT)), waitPort(Number(PORT_NOENV))]);
   }, 120000);
 
@@ -404,8 +397,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       usuarioId: null,
     });
     expect(Number(res.body.total)).toBe(330); // 2×90.00 + 3×50.00
-    expect(res.body.pedidoItems).toHaveLength(2);
-    const itemA1 = res.body.pedidoItems.find(
+    expect(res.body.PedidoItem).toHaveLength(2);
+    const itemA1 = res.body.PedidoItem.find(
       (i: { productoId: string }) => i.productoId === productA1.id,
     );
     expect(Number(itemA1.precioUnitario)).toBe(90);
@@ -512,12 +505,12 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         )
         .expect(201);
 
-      expect(res.body.pedidoItems).toHaveLength(2);
-      for (const item of res.body.pedidoItems) {
+      expect(res.body.PedidoItem).toHaveLength(2);
+      for (const item of res.body.PedidoItem) {
         expect(Number(item.descuentoFidelizacionPorcentaje)).toBe(10);
         expect(item.reglaFidelizacionId).toBe(ruleA.id);
       }
-      const itemA1 = res.body.pedidoItems.find(
+      const itemA1 = res.body.PedidoItem.find(
         (i: { productoId: string }) => i.productoId === productA1.id,
       );
       expect(Number(itemA1.precioUnitario)).toBe(90); // frozen price excludes loyalty %
@@ -576,7 +569,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .send(orderBody(email('xt-b'), [{ productoId: productB1.id, cantidad: 1 }]));
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       statusCode: 400,
       message: `Producto ${productB1.id} no disponible`,
       error: 'Bad Request',
@@ -637,13 +630,17 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     const missing = await request(BASE).get(`/tienda/pedidos/${randomUUID()}`);
 
     expect(cross.status).toBe(400); // AS-IS: BadRequestException, not 404 — not an approved contract
-    expect(cross.body).toEqual({
+    expect(cross.body).toMatchObject({
       statusCode: 400,
       message: 'Pedido no encontrado',
       error: 'Bad Request',
     });
     expect(missing.status).toBe(cross.status);
-    expect(missing.body).toEqual(cross.body);
+    expect(missing.body).toMatchObject({
+      statusCode: cross.body.statusCode,
+      message: cross.body.message,
+      error: cross.body.error,
+    });
   });
 
   it('STORE-05b: tracking de un pedido propio de A sin token → 200 con la forma mínima AS-IS', async () => {
@@ -683,7 +680,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
 
     for (const res of [catalog, hierarchy, order, tracking]) {
       expect(res.status).toBe(500);
-      expect(res.body).toEqual(expected);
+      expect(res.body).toMatchObject(expected);
     }
     expect(await counts()).toEqual(before);
   });
@@ -746,7 +743,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       .post('/auth/cliente/registro')
       .send({ nombre: 'Dup 2', email: dupEmail, password: 'password123' });
     expect(dup.status).toBe(400);
-    expect(dup.body).toEqual({
+    expect(dup.body).toMatchObject({
       statusCode: 400,
       message: `Ya existe una cuenta con el email ${dupEmail}`,
       error: 'Bad Request',
@@ -872,7 +869,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     for (const attempt of attempts) {
       const res = await request(BASE).post('/auth/cliente/login').send(attempt);
       expect(res.status).toBe(401);
-      expect(res.body).toEqual({
+      expect(res.body).toMatchObject({
         statusCode: 401,
         message: 'Credenciales inválidas',
         error: 'Unauthorized',

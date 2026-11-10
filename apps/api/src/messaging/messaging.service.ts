@@ -379,7 +379,7 @@ export class MessagingService {
         deletedAt: null,
         ...(!isOwner
           ? {
-              participants: {
+              ConversationParticipant: {
                 some: {
                   businessId: context.businessId,
                   leftAt: null,

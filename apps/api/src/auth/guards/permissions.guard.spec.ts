@@ -42,7 +42,7 @@ describe('PermissionsGuard current database authorization', () => {
   it('allows a permission granted in the database even when the JWT claim is stale and empty', async () => {
     findUnique.mockResolvedValue({
       activo: true,
-      usuarioPermisos: [{ permiso: { nombre: 'ventas.crear' } }],
+      UsuarioPermiso: [{ Permiso: { nombre: 'ventas.crear' } }],
     });
 
     await expect(guard.canActivate(executionContext(user({ permisos: [] })))).resolves.toBe(true);
@@ -50,13 +50,13 @@ describe('PermissionsGuard current database authorization', () => {
       where: { id: 'usuario-1' },
       select: {
         activo: true,
-        usuarioPermisos: { select: { permiso: { select: { nombre: true } } } },
+        UsuarioPermiso: { select: { Permiso: { select: { nombre: true } } } },
       },
     });
   });
 
   it('denies a permission revoked in the database even when the JWT still claims it', async () => {
-    findUnique.mockResolvedValue({ activo: true, usuarioPermisos: [] });
+    findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
 
     await expect(
       guard.canActivate(executionContext(user({ permisos: ['ventas.crear'] }))),
@@ -64,7 +64,7 @@ describe('PermissionsGuard current database authorization', () => {
   });
 
   it('rejects a disabled or missing current Usuario', async () => {
-    findUnique.mockResolvedValue({ activo: false, usuarioPermisos: [] });
+    findUnique.mockResolvedValue({ activo: false, UsuarioPermiso: [] });
 
     await expect(guard.canActivate(executionContext(user()))).rejects.toBeInstanceOf(
       UnauthorizedException,

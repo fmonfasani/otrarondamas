@@ -1,14 +1,18 @@
-jest.mock('../auth/auth-jwt.module', () => ({
+import { randomBytes } from 'node:crypto';
+
+process.env.JWT_SECRET ??= randomBytes(32).toString('hex');
+
+await jest.unstable_mockModule('../auth/auth-jwt.module', () => ({
   AuthJwtModule: class AuthJwtModuleMock {},
 }));
 
-jest.mock('./messaging.gateway', () => ({
+await jest.unstable_mockModule('./messaging.gateway', () => ({
   MessagingGateway: class MessagingGatewayMock {},
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BusinessContextModule } from '../business-context/business-context.module';
-import { MessagingModule } from './messaging.module';
+const { BusinessContextModule } = await import('../business-context/business-context.module');
+const { MessagingModule } = await import('./messaging.module');
 
 describe('MessagingModule', () => {
   it('declares the canonical BusinessContextModule dependency', () => {

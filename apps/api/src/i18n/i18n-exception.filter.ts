@@ -36,10 +36,21 @@ export class I18nExceptionFilter implements ExceptionFilter {
       translatedMessage = this.i18nService.translate(message, locale);
     }
 
-    // Build localized response
+    // Preserve NestJS's standard error label (e.g. "Bad Request") so clients
+    // receive the canonical HttpException response contract. Validation
+    // messages may be arrays and must remain arrays.
+    const error =
+      typeof exceptionResponse === 'object' &&
+      exceptionResponse !== null &&
+      typeof (exceptionResponse as Record<string, unknown>).error === 'string'
+        ? (exceptionResponse as Record<string, string>).error
+        : undefined;
+
+    // Build localized response without dropping standard exception fields.
     const localizedResponse = {
       statusCode: status,
       message: translatedMessage,
+      ...(error ? { error } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     };

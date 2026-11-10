@@ -4,13 +4,17 @@ on:
   pull_request:
     types: [closed]
   workflow_dispatch:
+  # Nightly full regression on main, quarantined suites included, so drift
+  # outside the B4 gate is caught within a day. 06:00 UTC = 03:00 ART.
+  schedule:
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read
 
 jobs:
   post-merge-verification:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     services:
       postgres:
