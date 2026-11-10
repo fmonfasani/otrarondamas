@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
@@ -368,35 +369,54 @@ export class PaymentService {
    * Handle webhook payload (route to appropriate handler)
    */
   async handleWebhook(empresaId: string, tipo: string, payload: any) {
-    // Create webhook record for audit trail
-    const webhook = await this.prisma.paymentWebhook.create({
-      data: {
-        empresaId,
-        tipo,
-        providerEventId: payload.id || payload.data?.id || `${Date.now()}`,
-        payload,
-        processed: false,
-      },
+    const providerEventId = payload.id || payload.data?.id || `${Date.now()}`;
+
+    // Providers retry deliveries, so the same event can arrive more than once.
+    // providerEventId is unique: an event already processed is acknowledged
+    // and ignored; one recorded but not processed (a previous attempt failed)
+    // is processed again, but only for the Business that recorded it.
+    const existing = await this.prisma.paymentWebhook.findUnique({
+      where: { providerEventId },
+      select: { id: true, empresaId: true, processed: true },
     });
+    if (existing && (existing.processed || existing.empresaId !== empresaId)) {
+      return { success: true, duplicate: true };
+    }
+
+    let webhookId = existing?.id;
+    if (!webhookId) {
+      try {
+        const webhook = await this.prisma.paymentWebhook.create({
+          data: { empresaId, tipo, providerEventId, payload, processed: false },
+          select: { id: true },
+        });
+        webhookId = webhook.id;
+      } catch (error) {
+        // A concurrent delivery of the same event recorded it first.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          return { success: true, duplicate: true };
+        }
+        throw error;
+      }
+    }
 
     try {
       switch (tipo) {
         case 'payment.success':
-          await this.handlePaymentSuccess(payload);
+          await this.handlePaymentSuccess(empresaId, payload);
           break;
         case 'payment.failed':
-          await this.handlePaymentFailed(payload);
+          await this.handlePaymentFailed(empresaId, payload);
           break;
         case 'refund.completed':
-          await this.handleRefundCompleted(payload);
+          await this.handleRefundCompleted(empresaId, payload);
           break;
         default:
           console.warn(`Unknown webhook type: ${tipo}`);
       }
 
-      // Mark as processed
       await this.prisma.paymentWebhook.update({
-        where: { id: webhook.id },
+        where: { id: webhookId },
         data: {
           processed: true,
           processedAt: new Date(),
@@ -410,15 +430,19 @@ export class PaymentService {
     }
   }
 
+  // The provider ids are unique, but a webhook only acts on records of the
+  // Business it was delivered for: a provider id that belongs to another
+  // Business updates nothing.
+
   /**
    * Handle payment success webhook
    */
-  private async handlePaymentSuccess(payload: any) {
+  private async handlePaymentSuccess(empresaId: string, payload: any) {
     const paymentId = payload.paymentId || payload.id;
     if (!paymentId) return;
 
     await this.prisma.payment.updateMany({
-      where: { providerPaymentId: paymentId },
+      where: { providerPaymentId: paymentId, empresaId },
       data: {
         estado: 'COMPLETED',
         updatedAt: new Date(),
@@ -429,12 +453,12 @@ export class PaymentService {
   /**
    * Handle payment failed webhook
    */
-  private async handlePaymentFailed(payload: any) {
+  private async handlePaymentFailed(empresaId: string, payload: any) {
     const paymentId = payload.paymentId || payload.id;
     if (!paymentId) return;
 
     await this.prisma.payment.updateMany({
-      where: { providerPaymentId: paymentId },
+      where: { providerPaymentId: paymentId, empresaId },
       data: {
         estado: 'FAILED',
         updatedAt: new Date(),
@@ -445,12 +469,12 @@ export class PaymentService {
   /**
    * Handle refund completed webhook
    */
-  private async handleRefundCompleted(payload: any) {
+  private async handleRefundCompleted(empresaId: string, payload: any) {
     const refundId = payload.refundId || payload.id;
     if (!refundId) return;
 
     await this.prisma.refund.updateMany({
-      where: { providerRefundId: refundId },
+      where: { providerRefundId: refundId, empresaId },
       data: {
         estado: 'COMPLETED',
         updatedAt: new Date(),
