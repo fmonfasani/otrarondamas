@@ -68,31 +68,47 @@ jobs:
           mkdir -p apps/api/test-results
           npm run test:ci --workspace=@otrarondamas/api -- --runInBand --json --outputFile=test-results/unit.json
 
-      # Keep the tenant, S-V1, FS-1a and messaging HTTP suites in one Jest
-      # process to avoid repeated Jest/ts-jest startup and shared-DB races.
+      # Every integration suite runs here except the explicit quarantine below,
+      # so a new suite is gated by default. One Jest process (--runInBand)
+      # avoids repeated ts-jest startup and shared-DB races.
+      #
+      # QUARANTINE: suites still red on main, each waiting on an owner decision.
+      # Remove an entry only together with the change that makes it green;
+      # never add one to get a PR through.
+      #   c5b-cart-api              POST cart response has no CartItem
+      #   p11-1-payment             refund.completed fixture / test ordering
+      #   p2-3-order-cancellation   ENTREGA_FALLIDA and repeated cancel -> 409
       - name: Run API integration verification suites
         shell: bash
         run: |
           cd apps/api
 
-          mapfile -t discovered_test_files < <(
-            find test/integration -maxdepth 1 -type f \( -name 's-v1-*.integration-spec.ts' -o -name 'fs-1a-*.integration-spec.ts' -o -name 'messaging-http*.integration-spec.ts' \) -print | sort
+          quarantine=(
+            test/integration/c5b-cart-api.integration-spec.ts
+            test/integration/p11-1-payment.integration-spec.ts
+            test/integration/p2-3-order-cancellation.integration-spec.ts
           )
 
-          if [ "${#discovered_test_files[@]}" -eq 0 ]; then
-            echo "No S-V1, FS-1a, or messaging HTTP integration tests found."
-            exit 1
-          fi
-          if [ ! -f test/integration/tenant-isolation.integration-spec.ts ]; then
-            echo "Required tenant isolation regression test is missing."
-            exit 1
-          fi
+          for required in tenant-isolation b3-tenant-isolation; do
+            if [ ! -f "test/integration/${required}.integration-spec.ts" ]; then
+              echo "Required ${required} regression test is missing."
+              exit 1
+            fi
+          done
 
           mapfile -t test_files < <(
-            printf '%s\n' test/integration/tenant-isolation.integration-spec.ts "${discovered_test_files[@]}" | sort -u
+            find test/integration -maxdepth 1 -type f -name '*.integration-spec.ts' -print \
+              | sort \
+              | grep -vxF -f <(printf '%s\n' "${quarantine[@]}")
           )
 
-          printf 'Running %d API integration test files in one Jest process:\n' "${#test_files[@]}"
+          if [ "${#test_files[@]}" -eq 0 ]; then
+            echo "No integration tests found."
+            exit 1
+          fi
+
+          printf 'Running %d API integration test files in one Jest process (%d quarantined):\n' \
+            "${#test_files[@]}" "${#quarantine[@]}"
           printf '  %s\n' "${test_files[@]}"
           npm run test:integration:ci -- --runInBand --json --outputFile=test-results/integration.json "${test_files[@]}"
 
