@@ -718,3 +718,42 @@ This closure supersedes incompatible P1-2 authorization design choices for the M
 **Implementation boundary:** architectural direction and documentary propagation are approved. Code, schema, migrations, seeds, data changes, destructive legacy retirement, deployment and production cutover remain **NOT AUTHORIZED**.
 
 The 2026-10-24 T-01…T-10 closure remains binding; this decision refines authorization architecture without weakening server-side validation, tenant isolation, explicit route classification or auditability.
+
+
+---
+
+## 12. OR-B4 — General SPEC approval — 2026-11-10
+
+**Status:** APPROVED — OWNER RULING
+**Authority:** Explicit Owner acceptance on 2026-11-10 ("Acepto todas las recomendaciones , quiero que tomes ese spec para seguir con el proyecto"), plus two explicit answers resolving conflicts with R8-ORD-002 and R8-ID-002.
+**Canonical ruling:** [54-OR-B4-SPEC-GENERAL-APPROVAL-2026-11-10.md](54-OR-B4-SPEC-GENERAL-APPROVAL-2026-11-10.md)
+
+| ID | Approved direction |
+|---|---|
+| OR-B4-001 | General SPEC approved; existing implementation accepted as AS-IS; gaps become backlog; incremental implementation authorised through gated, tested PRs (destructive migrations and legacy cut-overs still need an explicit Owner decision). |
+| OR-B4-002 | §15 items that are not MVP-core stay `OPEN` for specialized specs; none blocks approval. |
+| OR-B4-003 | v0.4 review decisions formalised with citable IDs (existing R8 IDs reused; OR-B4-021…023 new). |
+| OR-B4-004 | Single canonical file `00-WAPSELL-SPEC-GENERAL.md`; the `-v0.4` file is `HISTORICAL`. |
+| OR-B4-005 | Specialized specs subordinate and pending reconciliation; the General SPEC prevails. |
+| OR-B4-006 | MVP roles OWNER / ADMIN / VENDEDOR / GESTOR_DE_STOCK; transitional `ASISTENTE_LOCAL → VENDEDOR`; PROVEEDOR and REPARTIDOR are not Membership Roles. |
+| OR-B4-007 | Permission catalogue and Role→Permission matrix in a separate Authorization spec (non-blocking). |
+| OR-B4-008 | Membership states ACTIVE / SUSPENDED / INACTIVE (extends R8-ID-002). |
+| OR-B4-009 | MFA mandatory for Owner/Admin before onboarding a second Business; enabled now for the Otra Ronda Más Owner. |
+| OR-B4-010 | Coexistence cut-over by criteria, not by date. |
+| OR-B4-011 | Product/BusinessProduct in stages (current Producto acts as BusinessProduct). |
+| OR-B4-012 | Stock reservation at Order confirmation implemented in the MVP (R8-INV-002). |
+| OR-B4-013 | Order states: R8-ORD-002 prevails (AS-IS vocabulary as starting lifecycle). |
+| OR-B4-014 | "Consumidor Final" first, then anonymous Cart, both in the MVP. |
+| OR-B4-015 | One MAIN Location per Business now (R8-INV-003). |
+| OR-B4-016 | Real Mercado Pago in the MVP; Stripe later. |
+| OR-B4-017 | Purchases code kept, outside MVP scope. |
+| OR-B4-018 | Messaging approved as is; G001–G105 reconciled later. |
+| OR-B4-019 | REST for the MVP; GraphQL and Kubernetes `OPEN`; Modular Monolith confirmed. |
+| OR-B4-020 | Platform admin kept for internal Owner use; permissions in the Authorization spec. |
+| OR-B4-021 | Accounts Receivable / Cuentas Corrientes in the MVP (formalises the v0.4 review). |
+| OR-B4-022 | Generic Customer "Consumidor Final" (formalises the v0.4 review). |
+| OR-B4-023 | Cash sensitive operations governed by specific Permissions (formalises the v0.4 review). |
+
+**Supersedes for the MVP:** the `IMPLEMENTATION = NOT AUTHORIZED` boundary stated by earlier rulings (OR-B2, OR-B3, R8, AUTH-01…12), within the scope of OR-B4-001. Those rulings remain in force otherwise.
+
+**Documentation defect noted:** §11 (AUTH-ARCH-OWNER-APPROVAL) appears twice above with the same content; the duplicate is not normative.

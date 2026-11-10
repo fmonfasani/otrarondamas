@@ -1,6 +1,6 @@
 # Wapsell — General Specification
 
-**Version:** 0.4 | **Status:** DRAFT — FOR OWNER REVIEW | **Date:** 2026-10-03
+**Version:** 0.5 | **Status:** APPROVED — OWNER RULING OR-B4 | **Date:** 2026-11-10
 
 
 
@@ -10,9 +10,11 @@
 
 > ```text
 
-> TECHNICAL SPECIFICATION = NOT APPROVED
+> SPEC STATUS = APPROVED (OR-B4, 2026-11-10)
 
-> IMPLEMENTATION = NOT AUTHORIZED
+> TECHNICAL SPECIFICATION = NOT APPROVED (por dominio, en specs especializadas)
+
+> IMPLEMENTATION = AUTHORIZED INCREMENTALLY (OR-B4-001)
 
 > ```
 
@@ -34,19 +36,19 @@
 
 | **Propósito** | Consolidar en un único documento canónico, trazable y revisable por el Owner, qué debe ser y qué debe hacer Wapsell, a partir de las decisiones del Owner (DEC-001, D-001…D-018, OR-001, OR-002, OR-B2-001…026), los Requirements reconciliados y los TO-BE. |
 
-| **Estado** | `DRAFT — FOR OWNER REVIEW`. No está aprobado. Ninguna sección de este documento se declara aprobada. |
+| **Estado** | `APPROVED` por Owner Ruling **OR-B4** (2026-11-10, `03-DECISIONS/54-OR-B4-SPEC-GENERAL-APPROVAL-2026-11-10.md`), con el alcance de OR-B4-001: la implementación existente se reconoce como AS-IS aceptado, las brechas son backlog (§21) y la implementación está autorizada de forma incremental. Los ítems `OPEN` siguen `OPEN`. |
 
-| **Versión** | **0.3** — Propuesta de versión por la consolidación post OR-B2. Reemplaza al v0.2 (`DRAFT — NOT APPROVED`, 2026-09-28); el v0.2 no se reutiliza en silencio: se conserva en el historial de git y el §18 registra qué se retiró de él. |
+| **Versión** | **0.5** — Integra OR-B3, las decisiones R8 (2026-10-03/04), AUTH-01…12 (2026-11-04) y OR-B4 (2026-11-10). Versión anterior: 0.4 (`DRAFT — FOR OWNER REVIEW`, 2026-10-03). Historia: 0.3 — consolidación post OR-B2. Reemplaza al v0.2 (`DRAFT — NOT APPROVED`, 2026-09-28); el v0.2 no se reutiliza en silencio: se conserva en el historial de git y el §18 registra qué se retiró de él. |
 
-| **Fecha** | 2026-10-03 |
+| **Fecha** | 2026-11-10 (v0.4: 2026-10-03) |
 
 | **Autoridad** | Nivel 3 de ISS-08 (SPEC canónica), aprobada su regla de precedencia por OR-B2-023. Esta SPEC **no** tiene autoridad sobre un Owner Ruling ni sobre el Decision Register. Mientras sea `DRAFT`, cada regla vale **solo** por la autoridad que cita (§3); el documento no agrega autoridad propia. |
 
-| **Fuentes consolidadas** | `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md` (verbatim OR-B2); `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`; `03-DECISIONS/00-DECISION-REGISTER.md` (§4 D-001…D-018, §8 OR-001/OR-002, §9 OR-B2); `05-REQUIREMENTS/00-WAPSELL-REQUIREMENTS-RECONCILED-001-490.md`; `06-SPECIFICATIONS/CANONICAL/01-IDENTITY-AND-TENANCY-SPEC.md` y `02-COMMERCE-SPEC.md`; `08-TOBE/*` (Overview, Identity & Tenancy, Commerce, Inventory, Cash, Messaging); `00-GOVERNANCE/01-SOURCE-OF-TRUTH.md`; `12-DOMAIN-WORK/MESSAGING/00-FUNCTIONAL-OWNER-DECISION-REGISTER-G001-G105.md` y `…/01-FUNCTIONAL-SPEC/WAPSELL-MESSAGING-MVP-SPEC-v0.1.md`. |
+| **Fuentes consolidadas** | `03-DECISIONS/20-OR-B2-OWNER-DECISIONS-2026-10-03.md` (verbatim OR-B2); `03-DECISIONS/21-OR-B2-OWNER-DECISION-CLOSURE-2026-10-03.md`; `03-DECISIONS/00-DECISION-REGISTER.md` (§4 D-001…D-018, §8 OR-001/OR-002, §9 OR-B2); `05-REQUIREMENTS/00-WAPSELL-REQUIREMENTS-RECONCILED-001-490.md`; `06-SPECIFICATIONS/CANONICAL/01-IDENTITY-AND-TENANCY-SPEC.md` y `02-COMMERCE-SPEC.md`; `08-TOBE/*` (Overview, Identity & Tenancy, Commerce, Inventory, Cash, Messaging); `00-GOVERNANCE/01-SOURCE-OF-TRUTH.md`; `12-DOMAIN-WORK/MESSAGING/00-FUNCTIONAL-OWNER-DECISION-REGISTER-G001-G105.md` y `…/01-FUNCTIONAL-SPEC/WAPSELL-MESSAGING-MVP-SPEC-v0.1.md`; decisiones R8 (`03-DECISIONS/32…43-R8-*`); `53-AUTH-ARCHITECTURE-OWNER-APPROVAL-2026-11-04.md` (AUTH-01…12); `54-OR-B4-SPEC-GENERAL-APPROVAL-2026-11-10.md` (OR-B4-001…023). |
 
 | **Dependencia de Owner Decisions** | Cada regla depende de la decisión que cita. Las áreas sin decisión del Owner figuran en §15 con el formato `OPEN / Reason / Affected Domain / Blocking \| Non-blocking / Owner required?`. El Owner debe revisar §15 antes de cualquier aprobación de esta SPEC. |
 
-| **No autoriza** | Implementación, especificación técnica, contratos, esquema, migraciones, endpoints, eventos, plan ni tareas (ver §17). |
+| **Autoriza / no autoriza** | Autoriza la implementación incremental contra esta SPEC mediante PRs con CI y tests (OR-B4-001). **No** autoriza sin decisión explícita del Owner: migraciones destructivas, borrado de datos, cut-overs que retiren identidad o permisos legacy, cambios que contradigan un Owner Ruling ni alcance fuera del MVP (ver §17). |
 
 
 
@@ -292,6 +294,10 @@ La Authorization es una capa transversal, no un dominio de negocio ni un ítem d
 
 \- La transformación `Empresa → Business` y `Usuario → User/Membership` es **incremental**, con coexistencia **temporal y acotada**. La coexistencia física, el mecanismo de migración, el cutover y el rollback quedan para la especificación técnica posterior. `[OR-B2-006]` (reafirma `OR-002-B`, `OR-001`). Para esa transformación rige `ESPECIFICACIÓN → APROBACIÓN → IMPLEMENTACIÓN`. `[OR-001 P5-B, OR-002-F]`
 
+\- `Empresa` se conserva como representación física de `Business` durante la transición; `Usuario→Empresa` deja de ser progresivamente la relación de autorización canónica. `[R8-ID-002, R8-ID-003]`
+
+\- La convivencia termina por **criterios**, no por fecha: ninguna ruta autoriza por `Usuario`/`Usuario.empresaId`; paridad probada del mapeo `Usuario.id → User.id`; permisos legacy mapeados. `[OR-B4-010, AUTH-07, AUTH-11]`
+
 
 
 ### 5.3 Membership
@@ -302,7 +308,7 @@ La Authorization es una capa transversal, no un dominio de negocio ni un ítem d
 
 \- Cada Membership tiene un Role. Los roles y permisos pertenecen a la Membership, no al `User` global. `[D-002, DEC-001]`
 
-\- Una Membership tiene un lifecycle conceptual **`ACTIVE` / `INACTIVE`**. Una Membership `INACTIVE` **no permite operar** sobre el Business. `[OR-B2-003]`
+\- Una Membership tiene un lifecycle conceptual de tres estados: **`ACTIVE`**; **`SUSPENDED`** (temporal, lo decide un administrador autorizado, reversible); **`INACTIVE`** (baja definitiva). **Solo `ACTIVE` permite operar** sobre el Business. `[OR-B2-003, R8-ID-002, OR-B4-008]`
 
 \- Transiciones, quién activa o desactiva, reactivación y efecto sobre sesiones: `OPEN IMPLEMENTATION DETAIL`.
 
@@ -340,7 +346,17 @@ El modelo de autorización del MVP es **`Membership → Role → Permission`**. 
 
 
 
-`Profile → Role → Capability → Overrides` **no** se adopta para el MVP: no hay Profile, Capability ni overrides individuales. No se descarta como posible evolución futura. El catálogo de Permissions y su precedencia: `OPEN IMPLEMENTATION DETAIL`.
+`Profile → Role → Capability → Overrides` **no** se adopta para el MVP: no hay Profile, Capability ni overrides individuales. No se descarta como posible evolución futura.
+
+\- La `Membership` es la única autoridad del rol efectivo. `[AUTH-02]`
+
+\- Existe **un único catálogo canónico de Permissions**; "Capability" no es un vocabulario paralelo. `[AUTH-03, R8-AUTH-001]`
+
+\- La asignación es una **matriz fija `Role → Permission`**; sin grants ni denials por Membership en el MVP. `[AUTH-04]`
+
+\- Un único motor de autorización; las políticas desconocidas **fallan cerrado**. `[AUTH-08, AUTH-10]`
+
+\- El catálogo atómico y las filas de la matriz se definen en la Authorization SPEC especializada; permisos clave ya nombrados: `ORDER_CONFIRM`, `CASH_OPEN`, `CASH_CLOSE`, `CASH_ADJUST`, `CASH_WITHDRAW`. `[OR-B4-007]`
 
 
 
@@ -374,7 +390,7 @@ Authenticated User → Target Business → Valid Membership → Role → Permiss
 
 
 
-Los controles son conceptuales. Tipos de token, guards, middleware, errores y enforcement: `OPEN IMPLEMENTATION DETAIL`. La autenticación establece la identidad global del User; el proveedor de identidad y los mecanismos técnicos siguen `OPEN`. **MFA/2FA es obligatorio para Owner y Admin**; enrollment, método, recovery y enforcement técnico permanecen `OPEN IMPLEMENTATION DETAIL`. `[OR-B3-014]` Que el AS-IS soporte determinados mecanismos es evidencia, no decisión.
+Los controles son conceptuales. Tipos de token, guards, middleware, errores y enforcement: `OPEN IMPLEMENTATION DETAIL`. La autenticación establece la identidad global del User; el proveedor de identidad y los mecanismos técnicos siguen `OPEN`. **MFA/2FA es obligatorio para Owner y Admin**; enrollment, método, recovery y enforcement técnico permanecen `OPEN IMPLEMENTATION DETAIL`. `[OR-B3-014]` Debe estar activo **antes de incorporar un segundo Business**, y ya para la cuenta Owner de Otra Ronda Más. `[OR-B4-009]` Que el AS-IS soporte determinados mecanismos es evidencia, no decisión.
 
 
 
@@ -426,9 +442,11 @@ Reglas:
 
 \- **Gestor de Stock** es el nombre normativo. Las denominaciones anteriores no son normativas.
 
-\- Permisos concretos de Owner, de Admin y de cada rol: `OPEN IMPLEMENTATION DETAIL`.
+\- Permisos concretos de Owner, de Admin y de cada rol: Authorization SPEC especializada (`OR-B4-007`).
 
-\- **SaaS Admin / rol de plataforma:** la formulación histórica `OPEN OWNER DECISION` (C-11) queda superada en su alcance conceptual por `OR-B3-003`: existe conceptualmente a nivel plataforma y está fuera del MVP operativo. Su implementación y modelo de permisos no están aprobados. No figura entre los Membership Roles del MVP.
+\- Transición con fecha límite: `ASISTENTE_LOCAL → VENDEDOR`; `PROVEEDOR` y `REPARTIDOR` dejan de ser Membership Roles. `[AUTH-01, OR-B4-006]`
+
+\- **SaaS Admin / rol de plataforma:** la formulación histórica `OPEN OWNER DECISION` (C-11) queda superada en su alcance conceptual por `OR-B3-003`: existe conceptualmente a nivel plataforma y está fuera del MVP operativo. Su implementación y modelo de permisos no están aprobados. No figura entre los Membership Roles del MVP. El `PlatformAdminModule` existente se conserva **solo para uso interno del Owner**, no expuesto como producto; sus permisos se definen en la Authorization SPEC. `[OR-B4-020]`
 
 
 
@@ -493,19 +511,24 @@ Flujo conceptual: `Customer → Cart → Order → confirmación comercial → S
 - **SKU, precio, visibilidad comercial y configuración comercial del Business** son gobernados por `BusinessProduct`.
 - Un Business puede desactivar su `BusinessProduct` sin eliminar el `Product` global.
 - `BusinessProduct` puede definir un nombre/display comercial propio sin alterar la identidad canónica global.
-- Modelo físico: `OPEN IMPLEMENTATION DETAIL`.
+- Modelo físico: `OPEN IMPLEMENTATION DETAIL`. Dirección física aprobada: `Product (identidad global) → BusinessProduct (configuración comercial)` sin migración destructiva inmediata. `[R8-COM-003]`
+- **Por etapas:** el `Producto` actual opera como `BusinessProduct`; el `Product` global se introduce cuando un segundo Business o un catálogo compartido lo requiera. `[OR-B4-011]`
 
 ### 10.2 Cart
 - El `Cart` pertenece al `Customer` cuando éste existe, con vínculo opcional al `User`. `[OR-B2-011]`
 - Un `Cart` **puede existir sin Customer**; el mecanismo técnico de titularidad/contexto queda para Architecture.
 - Un `Customer` puede existir sin `User`.
-- Para una operación comercial confirmada debe existir una identidad comercial; el MVP soportará el Customer genérico **Consumidor Final** para ventas sin identificación nominal.
+- Para una operación comercial confirmada debe existir una identidad comercial; el MVP soportará el Customer genérico **Consumidor Final** para ventas sin identificación nominal. `[OR-B4-022]`
+- El Cart anónimo es un estado de interacción previo al Order; se requiere Customer antes de crear el Order. `[R8-COM-004]`
+- Orden de implementación en el MVP: primero **Consumidor Final**, después el **Cart anónimo**. `[OR-B4-014]`
 
 ### 10.3 Order
 - `Order` = intención / proceso comercial. **`Order ≠ Sale`**. `[OR-B2-012]`
 - Un `Order` puede ser confirmado por cualquier Membership cuyo conjunto de Permissions incluya la capacidad de **confirmar órdenes**. No se acopla esta capacidad rígidamente a un Role.
 - La confirmación comercial del `Order` genera la `Sale`. `[OR-B2-013]`
-- Estados conceptuales: `DRAFT → PENDING_CONFIRMATION → CONFIRMED`; también puede pasar a `CANCELLED` según las reglas de lifecycle. Los contratos técnicos completos pertenecen a la Commerce/Orders SPEC.
+- Estados: el vocabulario AS-IS de Order es el lifecycle de partida, con reconciliación semántica: `RECIBIDO`, `CONFIRMADO`, `EN_PREPARACION`, `LISTO`, `ASIGNADO`, `EN_CAMINO`, `ENTREGADO`, `PARCIALMENTE_ENTREGADO`, `ENTREGA_FALLIDA`, `CANCELADO`. `[R8-ORD-002 A1/E1, OR-B4-013]` Los estados conceptuales `DRAFT → PENDING_CONFIRMATION → CONFIRMED / CANCELLED` son una **agrupación** de ese vocabulario, no un reemplazo. Order y Sale tienen ciclos de vida separados; el Payment no determina el estado de la Sale. `[R8-ORD-002 I1/J1]` Los contratos técnicos completos pertenecen a la Commerce/Orders SPEC.
+- La confirmación es una operación autorizada del Business gobernada por `ORDER_CONFIRM`. `[R8-COM-004]`
+- Cancelar antes de la salida física libera la reserva aplicable sin inventar una salida de stock. `[R8-ORD-002 D1]`
 - Fulfillment pertenece al dominio de Orders y no constituye un módulo principal independiente.
 
 ### 10.4 Sale
@@ -518,7 +541,8 @@ Flujo conceptual: `Customer → Cart → Order → confirmación comercial → S
 ### 10.5 Payments
 - `Payment` es una entidad/dominio separado de `Sale`; una `Sale` puede tener uno o varios Payments.
 - Estados conceptuales mínimos: `PENDING`, `COMPLETED`, `FAILED`, `CANCELLED`.
-- Integraciones externas, conciliación, webhooks, idempotencia y estados adicionales pertenecen a la Payment SPEC.
+- Integraciones externas, conciliación, webhooks, idempotencia y estados adicionales pertenecen a la Payment SPEC. El vocabulario AS-IS de Payment es el punto de partida; `Payment ≠ aplicación a AR`; un Payment aprobado puede producir un efecto en Cash según el medio. `[R8-PAY-002, R8-PAY-003]`
+- MVP: integración real con **Mercado Pago**; Stripe solo cuando haya Businesses fuera de LatAm. `[OR-B4-016]`
 
 ### 10.6 Commerce extensions
 | Capacidad | Alcance | Regla pendiente |
@@ -531,7 +555,7 @@ Flujo conceptual: `Customer → Cart → Order → confirmación comercial → S
 Una Refund no modifica retroactivamente una `Sale` confirmada; registra una operación compensatoria trazable.
 
 ### 10.7 Accounts Receivable
-- **Accounts Receivable / Cuentas Corrientes forma parte del MVP.**
+- **Accounts Receivable / Cuentas Corrientes forma parte del MVP.** `[OR-B4-021]`
 - AR pertenece al Business y se asocia al `Customer`, no al `User`.
 - Modelo conceptual: `Customer → CustomerAccount → Receivable → Payment → Settlement`.
 - Una `Sale` puede generar una `Receivable`; un Payment puede aplicarse total o parcialmente a una cuenta por cobrar.
@@ -539,14 +563,14 @@ Una Refund no modifica retroactivamente una `Sale` confirmada; registra una oper
 - Estados financieros, límites de crédito, aplicación de cobros y conciliación pertenecen a la Finance/AR SPEC.
 
 ### 10.8 Purchases / Accounts Payable
-- **Purchases / Accounts Payable quedan fuera del MVP funcional inicial.**
+- **Purchases / Accounts Payable quedan fuera del MVP funcional inicial.** El código existente se conserva fuera del alcance del MVP, sin compromiso de soporte ni evolución. `[D-015, OR-B4-017]`
 - Permanecen dentro del TO-BE de Commerce/ERP para una etapa posterior.
 - `Supplier` continúa siendo una entidad comercial y no un Membership Role.
 
 ### 10.9 Cash
 - `Cash` pertenece al Business.
 - Ciclo conceptual: `APERTURA → MOVIMIENTOS → ARQUEO → CIERRE`.
-- Las operaciones sensibles requieren Permissions específicos; no se autorizan por inferencia de Role.
+- Las operaciones sensibles requieren Permissions específicos; no se autorizan por inferencia de Role. `[OR-B4-023]`
 - Ejemplos conceptuales: `CASH_OPEN`, `CASH_CLOSE`, `CASH_ADJUST`, `CASH_WITHDRAW`. El catálogo definitivo pertenece a la especificación de Authorization/Cash.
 
 ### 10.10 Returns / stock
@@ -557,9 +581,9 @@ Una Refund no modifica retroactivamente una `Sale` confirmada; registra una oper
 ## 11. Inventory
 
 - El inventario pertenece **exclusivamente a cada Business**. No existe stock global compartido.
-- El MVP soporta **una o más Locations**, con al menos una ubicación principal `MAIN` por Business. La cantidad exacta y el modelo físico quedan para Inventory/Architecture.
+- El MVP soporta **una o más Locations**, con al menos una ubicación principal `MAIN` por Business. `Location` es un concepto genérico que pertenece a un único Business; `MAIN` es un rol de la Location, no un tipo de entidad. `[R8-INV-003]` Se implementa ya una `MAIN` por Business con los lotes asociados. `[OR-B4-015]` La asociación física Location↔Inventory queda para Inventory SPEC.
 - Las transferencias inter-Business no forman parte del modelo actual y solo podrán existir mediante una operación explícitamente especificada y autorizada en el futuro.
-- Al confirmar un `Order`, el stock requerido queda **reservado**. `[OR-B2-014]`
+- Al confirmar un `Order`, el stock requerido queda **reservado**; `disponible = existente − reservado`, y se rechaza la confirmación si no se puede reservar. `[OR-B2-014, R8-INV-002]` Se implementa en el MVP. `[OR-B4-012]`
 - El **decremento físico** ocurre cuando el producto sale efectivamente de la custodia del Business mediante fulfillment/entrega/retiro; reserva y salida física son operaciones distintas.
 - No se permite stock negativo. `[OR-B2-018]`
 - Con vencimiento se aplica **FEFO**; sin vencimiento, **FIFO**. `[OR-B2-016]`
@@ -578,13 +602,14 @@ Una Refund no modifica retroactivamente una `Sale` confirmada; registra una oper
 - Wapsell Messaging **no depende de WhatsApp** en el MVP.
 - Los asistentes de IA son parte de la dirección de producto, pero permanecen **inactivos durante el MVP inicial**.
 - G001–G105 es **fuente funcional secundaria**, subordinada a ISS-08; no sustituye Owner Rulings, Decision Register ni Canonical SPEC.
+- Messaging se aprueba tal como está definido aquí; la reconciliación completa de G001–G105 queda para después. `[OR-B4-018]`
 
 
 ## 13. Architecture
 
 - La dirección arquitectónica aprobada es **Modular Monolith**. `[OR-B2-024]`
 - La elección concreta de framework, base de datos, contenedores, infraestructura, API style, GraphQL/REST, Kubernetes y deployment **no queda aprobada por esta SPEC**.
-- REST, GraphQL o una combinación se decidirán en Architecture.
+- **REST** para el MVP (AS-IS). GraphQL o una combinación quedan `OPEN` para Architecture. `[OR-B4-019]`
 - Kubernetes permanece `OPEN` y no constituye requisito de implementación.
 - Los límites de dominio deben permitir evolución futura, pero esta SPEC no autoriza microservicios ni una infraestructura específica.
 
@@ -599,7 +624,7 @@ Una Refund no modifica retroactivamente una `Sale` confirmada; registra una oper
 
 ## 15. Open Areas
 
-Las decisiones funcionales principales de la revisión posterior a v0.3 fueron incorporadas. Permanecen abiertos los asuntos que requieren definición técnica, recuperación de fuentes documentales o una nueva Owner Decision.
+Las decisiones funcionales principales de la revisión posterior a v0.3 fueron incorporadas. Permanecen abiertos los asuntos que requieren definición técnica, recuperación de fuentes documentales o una nueva Owner Decision. **Ninguno bloquea la aprobación** de esta SPEC: se resuelven en sus specs especializadas. `[OR-B4-002]`
 
 ### 15.1 Owner / documentary items still open
 
@@ -761,9 +786,9 @@ REQUIREMENTS → CANONICAL SPEC → ARCHITECTURE → CONTRACTS → INVARIANTS �
 
 
 
-\- `TECHNICAL SPECIFICATION = NOT APPROVED`.
+\- `TECHNICAL SPECIFICATION = NOT APPROVED` como documento único: cada dominio la cierra en su spec especializada.
 
-\- `IMPLEMENTATION = NOT AUTHORIZED`.
+\- `IMPLEMENTATION = AUTHORIZED INCREMENTALLY` (OR-B4-001): mediante PRs que pasen los checks obligatorios (Lint and Type Check, B3, B4, Jest), mantengan el aislamiento por Business e incluyan tests del comportamiento que cambian. Siguen requiriendo decisión explícita del Owner las migraciones destructivas, el borrado de datos, los cut-overs de identidad o permisos legacy (OR-B4-010), los cambios que contradigan un Owner Ruling y el alcance fuera del MVP. Los deploys a producción mantienen la aprobación manual del environment `production`.
 
 
 
@@ -836,6 +861,7 @@ Los conflictos resueltos por la Owner Review posterior a v0.3 se conservan como 
 | v0.2 | 2026-09-28 | Reconciliación previa contra DEC-001 y D-001…D-018. |
 | v0.3 | 2026-10-03 | Consolidación post OR-B2; incorporación de OR-B2-001…026; delimitación de autoridad y OPEN areas. |
 | **v0.4** | **2026-10-03** | **Incorporación de las decisiones funcionales aceptadas en la Owner Review posterior a v0.3. Se cierra Commerce básico, AR dentro del MVP, Purchases fuera del MVP, Inventory reservation/decrement semantics, Product/BusinessProduct governance, Messaging boundary, Cash permissions, MFA por rol y límites Architecture/Technical. Se preservan como OPEN los asuntos que requieren fuente o especificación especializada. No se autoriza implementación.** |
+| **v0.5** | **2026-11-10** | **APPROVED (OR-B4).** Integra OR-B3, las decisiones R8 (ID-002/003, COM-003/004, AUTH-001, INV-002/003, ORD-002, PAY-002/003), AUTH-01…12 y OR-B4-001…023. Estados de Order según R8-ORD-002; Membership con tres estados; autorización con catálogo único y matriz fija; reserva de stock y Location MAIN en el MVP; Consumidor Final y Cart anónimo; Mercado Pago; REST. Se agrega §21 (brechas AS-IS → SPEC como backlog). |
 
 ### Cambios principales de v0.4
 
@@ -862,9 +888,9 @@ Los conflictos resueltos por la Owner Review posterior a v0.3 se conservan como 
 ### Estado
 
 ```text
-SPEC STATUS = DRAFT — FOR OWNER REVIEW
-TECHNICAL SPECIFICATION = NOT APPROVED
-IMPLEMENTATION = NOT AUTHORIZED
+SPEC STATUS = APPROVED (OR-B4, 2026-11-10)
+TECHNICAL SPECIFICATION = NOT APPROVED (por dominio)
+IMPLEMENTATION = AUTHORIZED INCREMENTALLY (OR-B4-001)
 ```
 
 ## POST-OR-B3 — OWNER RULINGS PROPAGATED
@@ -885,4 +911,33 @@ Las decisiones OR-B3-001…OR-B3-014 quedan incorporadas como rulings posteriore
 - MFA/2FA: obligatorio para Owner/Admin; mecanismo técnico pendiente.
 - Kubernetes/GraphQL: permanecen OPEN como decisiones técnicas; no están prohibidos ni aprobados.
 
-Estos rulings no convierten la SPEC en Technical Specification aprobada ni autorizan implementación.
+Estos rulings no convierten la SPEC en Technical Specification aprobada. La autorización de implementar la da OR-B4-001 (v0.5).
+
+---
+
+## 21. Brechas AS-IS → SPEC (backlog)
+
+Con la aprobación (OR-B4-001), la implementación existente es el AS-IS aceptado y cada diferencia con esta SPEC es trabajo
+pendiente rastreado. Evidencia: código de `main` al 2026-11-10 (`VERIFICADO POR CÓDIGO`); los tests citados corren en B4.
+
+| Área | SPEC | AS-IS | Decisión | Backlog |
+|---|---|---|---|---|
+| Roles | OWNER / ADMIN / VENDEDOR / GESTOR_DE_STOCK | OWNER, ASISTENTE_LOCAL, PROVEEDOR, REPARTIDOR | AUTH-01, OR-B4-006 | #160 |
+| Autorización | Catálogo único, matriz fija, motor único | UsuarioPermiso + RoleTemplate/Capability/Grant | AUTH-02…10, OR-B4-007 | #161 |
+| Membership | ACTIVE / SUSPENDED / INACTIVE | ACTIVE / SUSPENDED | R8-ID-002, OR-B4-008 | #162 |
+| MFA | Obligatorio Owner/Admin | No existe | OR-B3-014, OR-B4-009 | #163 |
+| Convivencia legacy | Cut-over por criterios | Usuario/Empresa conviven con User/Membership | R8-ID-003, OR-B4-010 | #164 |
+| Stock | Reserva al confirmar, decremento en la salida | Descuenta al confirmar | R8-INV-002, OR-B4-012 | #165 |
+| Locations | MAIN por Business | No existe | R8-INV-003, OR-B4-015 | #166 |
+| Cart / Customer | Consumidor Final; Cart anónimo | Cart exige Customer | R8-COM-004, OR-B4-014 | #167 |
+| Order | 10 estados reconciliados; `ORDER_CONFIRM` | Solo RECIBIDO→CONFIRMADO/CANCELADO; `pedidos.gestionar` | R8-ORD-002, OR-B4-013 | #168 |
+| Catálogo | Product global + BusinessProduct (por etapas) | Producto por Empresa | R8-COM-003, OR-B4-011 | #169 |
+| Pagos | Mercado Pago real | Proveedores simulados | OR-B4-016 | #158 |
+| POS / Tienda (Remix) | Sobre la API, sin acceso directo a la base | Diseño de #100 no portable | OR-B4-001 | #157 |
+| Dashboard (Remix) | Páginas sobre la API con `requireAuth` | Diseño de #100 no portable | OR-B4-001 | #159 |
+| Specs especializadas | Subordinadas y reconciliadas | Identity/Commerce previas a OR-B2/R8 | OR-B4-005 | #170 |
+| Estado del proyecto | Documento actualizado | Fechado 2026-10-03 | — | #171 |
+
+Ya alineado con la SPEC (evidencia `VERIFICADO POR TEST` en B4): aislamiento por Business (§6.3), `Customer ≠ User` (§8),
+Messaging por Business con Customer sin User (§12), Sale `CONFIRMADA/ANULADA` (§10.4), ciclo de Cash (§10.9), stock nunca
+negativo (§11), Modular Monolith con REST (§13).
