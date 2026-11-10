@@ -3,6 +3,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -54,15 +55,29 @@ export class PaymentService {
       const existingIntent = await this.prisma.paymentIntent.findFirst({
         where: { paymentId: existingPayment.id, empresaId },
         orderBy: { createdAt: 'desc' },
-        select: { clientSecret: true },
+        select: { clientSecret: true, expiresAt: true },
       });
-      return {
-        paymentId: existingPayment.id,
-        clientSecret: existingIntent?.clientSecret,
-        monto: existingPayment.monto,
-        moneda: existingPayment.moneda,
-        proveedor: existingPayment.proveedor,
-      };
+      if (existingIntent && existingIntent.expiresAt >= new Date()) {
+        return {
+          paymentId: existingPayment.id,
+          clientSecret: existingIntent.clientSecret,
+          monto: existingPayment.monto,
+          moneda: existingPayment.moneda,
+          proveedor: existingPayment.proveedor,
+        };
+      }
+
+      // Its intent expired (or was never stored), so confirm would reject it
+      // and the sale would stay PENDING forever. Close that payment and issue
+      // a new one below. Owner decision 2026-11-09: FAILED + new payment. The
+      // update is conditional so two concurrent retries cannot both open one.
+      const closed = await this.prisma.payment.updateMany({
+        where: { id: existingPayment.id, empresaId, estado: 'PENDING' },
+        data: { estado: 'FAILED', updatedAt: new Date() },
+      });
+      if (closed.count === 0) {
+        throw new ConflictException('El pago cambió de estado mientras se reintentaba');
+      }
     }
 
     let provider: IPaymentProvider = this.stripeProvider;
