@@ -50,7 +50,7 @@ export const action: ActionFunction = async ({ request, params }) => {
         'Set-Cookie': await commitSession(session),
       },
     });
-  } catch (error) {
+  } catch {
     return json(
       { error: 'Invalid credentials' },
       { status: 400 }
