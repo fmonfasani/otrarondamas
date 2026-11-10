@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { PrismaService } from './prisma.service';
-import { CompanyScopedPrismaService } from './company-scoped-prisma.service';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 
 /**
  * SECURITY TEST: Multi-tenant isolation in findUnique/findUniqueOrThrow (B3-FINDUNIQUE)
