@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, HttpCode } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  HttpCode,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -34,7 +44,7 @@ export class CartController {
     // This is a simplified approach for Phase 2 (guest checkout not yet fully implemented).
     const customerId = body.customerId;
     if (!customerId) {
-      throw new Error('customerId is required');
+      throw new BadRequestException('customerId es obligatorio');
     }
     // Note: businessId defaults to TIENDA_EMPRESA_ID for anonymous;
     // in auth context, it comes from user's membership.
@@ -98,7 +108,7 @@ export class CartController {
     @Body() body: { cantidad: number },
   ) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
-    const item = await this.cartService.updateItemQuantity(itemId, body.cantidad, businessId);
+    const item = await this.cartService.updateItemQuantity(cartId, itemId, body.cantidad, businessId);
     return item;
   }
 
@@ -112,7 +122,7 @@ export class CartController {
   @HttpCode(204)
   async removeItem(@Param('id') cartId: string, @Param('itemId') itemId: string) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
-    await this.cartService.removeItem(itemId, businessId);
+    await this.cartService.removeItem(cartId, itemId, businessId);
   }
 
   /**

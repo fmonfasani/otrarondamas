@@ -1,23 +1,22 @@
 import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { AuthorizationGuard } from '../auth/guards/authorization.guard';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuditReportingService } from './audit-reporting.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentCapabilities } from '../auth/decorators/current-capabilities.decorator';
+import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
 import { Authorize } from '../auth/decorators/authorize.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { AuditLogDto, AuditLogListResponseDto } from './dto/audit-log.dto';
 import { AuditSummaryDto } from './dto/summary.dto';
-import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('audit')
 @ApiBearerAuth()
 @Controller('audit-logs')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), AuthorizationGuard)
 export class AuditController {
-  constructor(
-    private readonly auditReportingService: AuditReportingService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly auditReportingService: AuditReportingService) {}
 
   /**
    * GET /audit-logs
@@ -38,6 +37,8 @@ export class AuditController {
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
   async listAuditLogs(
     @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
+    @CurrentCapabilities() capabilities: string[],
     @Query('accion') accion?: string,
     @Query('entidad') entidad?: string,
     @Query('userId') filterUserId?: string,
@@ -46,8 +47,6 @@ export class AuditController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ): Promise<AuditLogListResponseDto> {
-    // Get user's business context and capabilities
-    const { businessId, capabilities } = await this.getUserContext(user.id);
     const hasAuditLeerOtros = capabilities.includes('audit.leer_otros');
 
     return this.auditReportingService.listAuditLogs(businessId, user.id, hasAuditLeerOtros, {
@@ -73,9 +72,10 @@ export class AuditController {
   @Authorize('audit.leer')
   async getAuditLogDetail(
     @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
+    @CurrentCapabilities() capabilities: string[],
     @Param('id') id: string,
   ): Promise<AuditLogDto> {
-    const { businessId, capabilities } = await this.getUserContext(user.id);
     const hasAuditLeerOtros = capabilities.includes('audit.leer_otros');
 
     return this.auditReportingService.getAuditLogDetail(id, businessId, user.id, hasAuditLeerOtros);
@@ -109,7 +109,7 @@ export class AuditController {
     example: 'accion',
   })
   async getAuditSummary(
-    @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
     @Query('fecha_desde') fecha_desde: string,
     @Query('fecha_hasta') fecha_hasta: string,
     @Query('group_by') group_by?: 'dia' | 'accion' | 'usuario',
@@ -117,8 +117,6 @@ export class AuditController {
     if (!fecha_desde || !fecha_hasta) {
       throw new NotFoundException('fecha_desde and fecha_hasta are required');
     }
-
-    const { businessId } = await this.getUserContext(user.id);
 
     return this.auditReportingService.getAuditSummary(businessId, {
       fecha_desde,
@@ -143,13 +141,14 @@ export class AuditController {
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
   async getUserActivityTrail(
     @CurrentUser() user: AuthenticatedUser,
+    @ExtractBusinessContext() businessId: string,
+    @CurrentCapabilities() capabilities: string[],
     @Param('userId') targetUserId: string,
     @Query('fecha_desde') fecha_desde?: string,
     @Query('fecha_hasta') fecha_hasta?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ): Promise<AuditLogListResponseDto> {
-    const { businessId, capabilities } = await this.getUserContext(user.id);
     const hasAuditLeerOtros = capabilities.includes('audit.leer_otros');
 
     return this.auditReportingService.getUserActivityTrail(
@@ -164,32 +163,5 @@ export class AuditController {
         offset: offset ? parseInt(offset, 10) : 0,
       },
     );
-  }
-
-  /**
-   * Helper: Get user's business context and capabilities
-   * Returns businessId and list of granted capabilities
-   */
-  private async getUserContext(userId: string): Promise<{
-    businessId: string;
-    capabilities: string[];
-  }> {
-    const user = await this.prisma.usuario.findUnique({
-      where: { id: userId },
-      include: {
-        UsuarioPermiso: {
-          include: { Permiso: { select: { nombre: true } } },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return {
-      businessId: user.empresaId,
-      capabilities: user.UsuarioPermiso.map((assignment) => assignment.Permiso.nombre),
-    };
   }
 }

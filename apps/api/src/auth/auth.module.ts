@@ -8,6 +8,7 @@ import { AuthCustomerService } from './auth.customer.service';
 import { AuthJwtModule } from './auth-jwt.module';
 import { GoogleStrategy } from './google.strategy';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { AuthorizationGuard } from './guards/authorization.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MembershipModule } from '../membership/membership.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
@@ -21,9 +22,10 @@ import { BusinessContextModule } from '../business-context/business-context.modu
     AuthCustomerService,
     GoogleStrategy,
     PermissionsGuard,
+    AuthorizationGuard,
   ],
   // AuthService exported: AuthorizationsService (D-06) injects it to
   // reuse verifyCredentials() without duplicating the bcrypt logic.
-  exports: [AuthJwtModule, PermissionsGuard, AuthService, AuthCustomerService],
+  exports: [AuthJwtModule, PermissionsGuard, AuthorizationGuard, AuthService, AuthCustomerService],
 })
 export class AuthModule {}

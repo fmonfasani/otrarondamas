@@ -144,9 +144,9 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
 
   afterAll(async () => {
     // Cleanup: limpiar datos de test
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: testCompanyId } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: testCompanyId } } });
     await prisma.pedido.deleteMany({ where: { empresaId: testCompanyId } });
-    await prisma.cartItem.deleteMany({ where: { cart: { businessId: testCompanyId } } });
+    await prisma.cartItem.deleteMany({ where: { Cart: { businessId: testCompanyId } } });
     await prisma.cart.deleteMany({ where: { businessId: testCompanyId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: testCompanyId } });
     await prisma.lote.deleteMany({ where: { empresaId: testCompanyId } });

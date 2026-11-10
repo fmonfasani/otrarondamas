@@ -4,9 +4,10 @@ import { DashboardController } from './controllers/dashboard.controller';
 import { AuditAdminController } from './controllers/audit-admin.controller';
 import { AnalyticsDashboardService } from './services/analytics-dashboard.service';
 import { AuditModule } from '../audit/audit.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, AuditModule],
+  imports: [PrismaModule, AuthModule, AuditModule],
   controllers: [DashboardController, AuditAdminController],
   providers: [AnalyticsDashboardService],
   exports: [AnalyticsDashboardService],
