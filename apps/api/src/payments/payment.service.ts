@@ -48,7 +48,20 @@ export class PaymentService {
     // Check if payment already exists
     const existingPayment = venta.Payment.find((p) => p.estado === 'PENDING');
     if (existingPayment) {
-      return this.getPaymentDetail(empresaId, existingPayment.id);
+      // Idempotent retry: answer with the same shape as a new intent, so the
+      // caller can confirm with the clientSecret of the intent already issued.
+      const existingIntent = await this.prisma.paymentIntent.findFirst({
+        where: { paymentId: existingPayment.id, empresaId },
+        orderBy: { createdAt: 'desc' },
+        select: { clientSecret: true },
+      });
+      return {
+        paymentId: existingPayment.id,
+        clientSecret: existingIntent?.clientSecret,
+        monto: existingPayment.monto,
+        moneda: existingPayment.moneda,
+        proveedor: existingPayment.proveedor,
+      };
     }
 
     let provider: IPaymentProvider = this.stripeProvider;
