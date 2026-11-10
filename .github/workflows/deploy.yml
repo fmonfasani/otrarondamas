@@ -155,20 +155,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Secrets reach the shell through env, never expanded into the script.
       - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s
+' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.HETZNER_SSH_PORT }}" -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       # Production runs on Docker Compose (/opt/wapsell). The script rebuilds
       # the API image for this commit, syncs the schema without data loss,
       # boot-tests the image in isolation and only then swaps the container,
       # rolling back automatically if it does not become healthy.
       - name: Deploy API image
+        env:
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
+          SSH_USER: ${{ secrets.HETZNER_USER }}
+          DEPLOY_SHA: ${{ github.sha }}
         run: |
-          ssh -i ~/.ssh/deploy_key -p "${{ secrets.HETZNER_SSH_PORT }}"             "${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}"             "bash -s -- ${{ github.sha }}" < scripts/deploy-docker.sh
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST"             "bash -s -- $DEPLOY_SHA" < scripts/deploy-docker.sh
 
       - name: Slack notification (success)
         if: success() && env.SLACK_WEBHOOK_URL != ''
