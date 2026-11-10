@@ -68,11 +68,9 @@ services:
   # apps hablan con la misma API, pero cada una necesita su propio build
   # arg — Vite incrusta el valor en el bundle al compilar).
   pos-admin:
-    build:
-      context: .
-      dockerfile: apps/pos-admin/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL_ADMIN:-https://api.otrarondamas.wapsell.com/businesses/otrarondamas/api}
+    # Source removed from the repository (Remix replaces it); this service
+    # runs the image built before the removal, as production does.
+    image: wapsell-pos-admin:latest
     restart: always
     depends_on:
       - api
@@ -83,11 +81,9 @@ services:
   # el corte de dominios. Puerto propio (3040), nunca comparte el 3030
   # de pos-admin.
   tienda-online:
-    build:
-      context: .
-      dockerfile: apps/tienda-online/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL_TIENDA:-https://api.otrarondamas.wapsell.com/businesses/otrarondamas/api}
+    # Source removed from the repository (Remix replaces it); this service
+    # runs the image built before the removal, as production does.
+    image: wapsell-tienda-online:latest
     restart: always
     depends_on:
       - api
