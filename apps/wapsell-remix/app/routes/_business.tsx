@@ -1,6 +1,7 @@
-import { Outlet } from '@remix-run/react';
+import { Outlet, useLoaderData } from '@remix-run/react';
 import { LoaderFunction, json } from '@remix-run/node';
-import { requireAuth } from '~/services/auth.server';
+import { Header } from '~/components/Header';
+import { requireAuth, getCurrentUser } from '~/services/auth.server';
 
 /**
  * Business Operations Layout
@@ -18,41 +19,28 @@ import { requireAuth } from '~/services/auth.server';
  */
 
 export const loader: LoaderFunction = async ({ request }) => {
-  // Require staff authentication
   const token = await requireAuth(request);
 
-  // Validate that API URL is configured
-  const apiUrl = process.env.VITE_API_URL;
-  if (!apiUrl) {
-    throw new Response('Service configuration error', { status: 503 });
-  }
-
-  // Verify user is a staff member by checking /auth/me
   try {
-    const userResponse = await fetch(`${apiUrl}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!userResponse.ok) {
+    const user = await getCurrentUser(token);
+    if (!user) {
       throw new Response('Session invalid or expired', { status: 401 });
     }
-
-    const user = await userResponse.json();
-
-    // TODO: Verify user is staff (not customer-only identity)
-    // This requires coordination with NestJS on staff identity marker
-    // For now, any valid JWT is accepted; NestJS enforces permission
 
     return json({ user });
   } catch (error) {
     console.error('Error verifying staff session:', error);
-    throw new Response('Could not verify your session', { status: 401 });
+    if (error instanceof Response) throw error;
+    throw new Response('Could not verify your session.', { status: 503 });
   }
 };
 
 export default function BusinessLayout() {
+  const { user } = useLoaderData<typeof loader>();
+
   return (
     <div data-area="business-operations">
+      <Header area="business" userName={user?.name || user?.email} />
       <Outlet />
     </div>
   );

@@ -1,4 +1,5 @@
 import { Form, useActionData, useNavigation } from '@remix-run/react';
+import { Link } from '@remix-run/react';
 
 interface ActionData {
   error?: string;
@@ -10,47 +11,37 @@ export function LoginForm() {
   const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <Form method="post" className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+    <Form method="post" className="auth-form">
+      <div className="auth-field">
+        <label htmlFor="email" className="auth-label">
           Email
         </label>
         <input
+          id="email"
           type="email"
           name="email"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="user@example.com"
+          className="auth-input"
+          placeholder="usuario@ejemplo.com"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Password
+      <div className="auth-field">
+        <label htmlFor="password" className="auth-label">
+          Contraseña
         </label>
         <input
+          id="password"
           type="password"
           name="password"
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="auth-input"
           placeholder="••••••••"
         />
       </div>
 
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          name="rememberMe"
-          id="rememberMe"
-          className="h-4 w-4 text-blue-600"
-        />
-        <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-600">
-          Remember me
-        </label>
-      </div>
-
       {actionData?.error && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="form-error" role="alert">
           {actionData.error}
         </div>
       )}
@@ -58,15 +49,13 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+        className="auth-submit"
       >
-        {isSubmitting ? 'Loading...' : 'Sign In'}
+        {isSubmitting ? 'Ingresando...' : 'Ingresar'}
       </button>
 
-      <p className="text-center text-sm text-gray-600">
-        <a href="#forgot" className="text-blue-600 hover:underline">
-          Forgot password?
-        </a>
+      <p className="auth-footer">
+        ¿No tenés cuenta? <Link to="/es/auth/register">Crear una</Link>
       </p>
     </Form>
   );
