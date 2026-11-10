@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TipoEmail } from '@prisma/client';
-import * as Handlebars from 'handlebars';
+import Handlebars from 'handlebars';
 
 /**
  * P8-2: Email Template Service

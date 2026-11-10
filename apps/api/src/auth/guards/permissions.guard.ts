@@ -64,7 +64,7 @@ export class PermissionsGuard implements CanActivate {
       throw new UnauthorizedException('La cuenta ya no está activa');
     }
 
-    const currentPermissions = currentUser.UsuarioPermiso.map(
+    const currentPermissions = (currentUser.UsuarioPermiso ?? []).map(
       (assignment) => assignment.Permiso.nombre,
     );
     if (!currentPermissions.includes(requiredPermission)) {

@@ -161,11 +161,11 @@ describe('S-V1-01 — User + Membership foundation', () => {
   it('SV-B-02: el backfill preserva el legacy (empresaId, rol, permisos intactos)', async () => {
     const u = await prisma.usuario.findUniqueOrThrow({
       where: { id: legacyUserA.id },
-      include: { usuarioPermisos: true },
+      include: { UsuarioPermiso: true },
     });
     expect(u.empresaId).toBe(companyA.id);
     expect(u.rol).toBe('OWNER');
-    expect(u.usuarioPermisos).toEqual([]);
+    expect(u.UsuarioPermiso).toEqual([]);
   });
 
   it('SV-B-03: colisión de identidad se reporta y no fusiona personas', async () => {
@@ -193,7 +193,7 @@ describe('S-V1-01 — User + Membership foundation', () => {
       expect(mine!.email).toBe(emailC);
       // C got no User or membership of their own: nothing was invented.
       expect(await prisma.user.findUnique({ where: { usuarioId: legacyUserC.id } })).toBeNull();
-      expect(await prisma.membership.count({ where: { user: { email: emailC } } })).toBe(0);
+      expect(await prisma.membership.count({ where: { User: { email: emailC } } })).toBe(0);
     } finally {
       await prisma.user.delete({ where: { id: intruder.id } });
       await prisma.usuario.delete({ where: { id: legacyUserC.id } });

@@ -3,11 +3,35 @@ import { useLoaderData } from '@remix-run/react';
 import { fetchAuthenticatedData } from '~/services/tenant.server';
 import { OrderDetail } from '~/components/orders/OrderDetail';
 
-interface OrderItem { productId: string; productName: string; quantity: number; price: number; }
-interface Order {
-  id: string; customer: string; email: string; phone: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  total: number; items: OrderItem[]; createdAt: string; updatedAt: string;
+// GET /pedidos/:id (owner decision 2026-11-09): the real EstadoPedido, the
+// customer and the items; amounts arrive as Decimal strings.
+interface ApiOrder {
+  id: string;
+  estado: string;
+  total: string;
+  createdAt: string;
+  updatedAt: string;
+  cliente: { nombre: string; email: string | null; telefono: string | null };
+  items: { productId: string; productName: string; quantity: string; price: string }[];
+}
+
+function toOrderDetail(order: ApiOrder) {
+  return {
+    id: order.id,
+    customer: order.cliente.nombre,
+    email: order.cliente.email ?? '',
+    phone: order.cliente.telefono ?? '',
+    estado: order.estado,
+    total: Number(order.total),
+    items: order.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: Number(item.quantity),
+      price: Number(item.price),
+    })),
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+  };
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -17,7 +41,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     request,
   );
   if (!response.ok) throw new Response('Could not fetch order.', { status: response.status });
-  return json({ order: (await response.json()) as Order });
+  return json({ order: toOrderDetail((await response.json()) as ApiOrder) });
 }
 
 export default function OrderDetailPage() {

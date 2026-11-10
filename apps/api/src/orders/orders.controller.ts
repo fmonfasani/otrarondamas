@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -73,6 +84,7 @@ export class OrdersController {
    */
   @RequirePermission('pedidos.gestionar')
   @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
   async cancel(
     @Param('id') id: string,
     @Body() dto: CancelOrderDto,

@@ -1,20 +1,20 @@
 import type { AuthenticatedUser } from './auth.types';
-import { AuthController } from './auth.controller';
 import type { AuthService } from './auth.service';
 import type { AuthGoogleService } from './auth.google.service';
 import type { MembershipService } from '../membership/membership.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
-// Keep the controller unit tests independent of auth implementation dependencies.
-jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
-
-jest.mock('./auth.service', () => ({ AuthService: class AuthService {} }));
-jest.mock('./auth.google.service', () => ({
+// Register ESM mocks before loading the controller under test.
+await jest.unstable_mockModule('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
+await jest.unstable_mockModule('./auth.service', () => ({ AuthService: class AuthService {} }));
+await jest.unstable_mockModule('./auth.google.service', () => ({
   AuthGoogleService: class AuthGoogleService {},
 }));
-jest.mock('../membership/membership.service', () => ({
+await jest.unstable_mockModule('../membership/membership.service', () => ({
   MembershipService: class MembershipService {},
 }));
+
+const { AuthController } = await import('./auth.controller');
 
 describe('AuthController GET /auth/me', () => {
   it('returns current database permissions instead of stale JWT claims', async () => {
@@ -23,10 +23,10 @@ describe('AuthController GET /auth/me', () => {
       email: 'owner@example.com',
       nombre: 'Owner',
       empresaId: 'empresa-1',
-      empresa: { nombre: 'Negocio Uno' },
-      usuarioPermisos: [
-        { permiso: { nombre: 'ventas.crear' } },
-        { permiso: { nombre: 'productos.gestionar' } },
+      Empresa: { nombre: 'Negocio Uno' },
+      UsuarioPermiso: [
+        { Permiso: { nombre: 'ventas.crear' } },
+        { Permiso: { nombre: 'productos.gestionar' } },
       ],
       fotoUrl: null,
       googleId: null,
@@ -59,9 +59,9 @@ describe('AuthController GET /auth/me', () => {
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: 'usuario-1' },
       include: {
-        empresa: true,
-        usuarioPermisos: {
-          include: { permiso: { select: { nombre: true } } },
+        Empresa: true,
+        UsuarioPermiso: {
+          include: { Permiso: { select: { nombre: true } } },
         },
       },
     });
@@ -73,8 +73,8 @@ describe('AuthController GET /auth/me', () => {
       email: 'owner@example.com',
       nombre: 'Owner',
       empresaId: 'empresa-1',
-      empresa: { nombre: 'Negocio Uno' },
-      usuarioPermisos: [],
+      Empresa: { nombre: 'Negocio Uno' },
+      UsuarioPermiso: [],
       fotoUrl: null,
       googleId: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
