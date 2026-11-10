@@ -254,11 +254,9 @@ services:
       - /tmp
 
   tienda-online:
-    build:
-      context: .
-      dockerfile: apps/tienda-online/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL_TIENDA:?VITE_API_URL_TIENDA required}
+    # Source removed from the repository (Remix replaces it); this service
+    # runs the image built before the removal, as production does.
+    image: wapsell-tienda-online:latest
     container_name: wapsell-tienda-online
     hostname: tienda-online
     depends_on:
@@ -295,11 +293,9 @@ services:
       - /var/cache/nginx
 
   pos-admin:
-    build:
-      context: .
-      dockerfile: apps/pos-admin/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL_ADMIN:?VITE_API_URL_ADMIN required}
+    # Source removed from the repository (Remix replaces it); this service
+    # runs the image built before the removal, as production does.
+    image: wapsell-pos-admin:latest
     container_name: wapsell-pos-admin
     hostname: pos-admin
     depends_on:
