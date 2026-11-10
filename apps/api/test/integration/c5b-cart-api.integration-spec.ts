@@ -336,6 +336,23 @@ describe('C5B Phase 2: Cart API', () => {
       expect(response.body.CartItem[0].cantidad).toBe('5');
     });
 
+    // POST /cart on an existing cart used to answer `items: []` (a DTO that
+    // read pre-rename relation names) even when the cart had products.
+    it('POST /cart on an existing cart answers the same cart and items as GET', async () => {
+      const posted = await request(app.getHttpServer())
+        .post('/cart')
+        .send({ customerId })
+        .expect(201);
+      const fetched = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+
+      expect(posted.body.id).toBe(cartId);
+      expect(posted.body.CartItem).toHaveLength(1);
+      expect(posted.body.CartItem[0]).toEqual(
+        expect.objectContaining({ id: itemId1, productoId: testProductId1, cantidad: '5' }),
+      );
+      expect(posted.body.CartItem).toEqual(fetched.body.CartItem);
+    });
+
     it('should update item quantity', async () => {
       const response = await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId1}`)
