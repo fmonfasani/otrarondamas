@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth.types';
+import { shadowCompare } from '../../authorization/authorization-engine';
 
 /**
  * Granular permission authorization (RF-02 / section 3.2 of the SDD).
@@ -54,6 +55,7 @@ export class PermissionsGuard implements CanActivate {
       where: { id: user.id },
       select: {
         activo: true,
+        rol: true,
         UsuarioPermiso: {
           select: { Permiso: { select: { nombre: true } } },
         },
@@ -67,7 +69,19 @@ export class PermissionsGuard implements CanActivate {
     const currentPermissions = (currentUser.UsuarioPermiso ?? []).map(
       (assignment) => assignment.Permiso.nombre,
     );
-    if (!currentPermissions.includes(requiredPermission)) {
+    const allowed = currentPermissions.includes(requiredPermission);
+
+    // #161 stage 2: canonical engine in shadow mode — logs divergences, never decides.
+    shadowCompare({
+      source: 'RequirePermission',
+      code: requiredPermission,
+      principalId: user.id,
+      legacyRole: currentUser.rol,
+      active: true,
+      legacyAllowed: allowed,
+    });
+
+    if (!allowed) {
       throw new ForbiddenException(`Requiere el permiso '${requiredPermission}'`);
     }
 

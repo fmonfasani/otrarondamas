@@ -220,6 +220,20 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 5. Retire `CapabilityGrant` overrides from MVP authorisation and the legacy source of truth — **requires an explicit
    Owner decision** (`OR-B4-001`, legacy cut-over).
 
+### 5.4 Implementation status
+
+| Stage | Status | Evidence |
+|---|---|---|
+| 1 | Done — catalogue, matrix and legacy mapping as typed data (no schema change, no seed) | `apps/api/src/authorization/canonical-permissions.ts`, PR #174 |
+| 2 | Shadow mode — `authorization-engine.ts` evaluates every `@RequirePermission` / `@Authorize` request and logs `authz.shadow.divergence` when it disagrees with the legacy decision; **the legacy guards still decide** | `authorization-engine.spec.ts`, `permissions.guard.spec.ts` |
+| 3–5 | Pending | — |
+
+The legacy source of truth is per-user (`UsuarioPermiso`), the matrix is per role, so for current users the two
+decisions differ (for example, an Owner without a `UsuarioPermiso` row is denied today and allowed by the matrix).
+Making the engine authoritative therefore changes allow/deny for real users: it is a legacy permission cut-over and
+**requires an explicit Owner decision** (`OR-B4-001`, `OR-B4-010`). The divergence log is the parity evidence for that
+decision.
+
 ---
 
 ## 6. Open
@@ -227,7 +241,8 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 | Item | Owner |
 |---|---|
 | Who holds platform permissions and how support access is audited (§3) | Security spec |
-| Physical representation of roles, catalogue and matrix | Technical design (stage 1 PR) |
+| Physical representation of roles, catalogue and matrix | Resolved in stage 1: typed constants in code, pinned by tests (#174) |
+| Making the canonical engine authoritative (end of shadow mode) | **Owner** (`OR-B4-001`, `OR-B4-010`) |
 | Session/token effect of a role change or suspension | Technical design (ties to #162) |
 
 ## 7. Change history
