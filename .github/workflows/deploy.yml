@@ -148,40 +148,42 @@ jobs:
     environment:
       name: production
       url: https://wapsell.com
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+      SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-build
-          path: apps/api/dist/
-
+      # Secrets reach the shell through env, never expanded into the script.
       - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      - name: Deploy to Hetzner
+      # Production runs on Docker Compose (/opt/wapsell). The script rebuilds
+      # the API image for this commit, syncs the schema without data loss,
+      # boot-tests the image in isolation and only then swaps the container,
+      # rolling back automatically if it does not become healthy.
+      - name: Deploy API image
+        env:
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
+          SSH_USER: ${{ secrets.HETZNER_USER }}
+          DEPLOY_SHA: ${{ github.sha }}
         run: |
-          bash ./scripts/github-deploy.sh \
-            ${{ secrets.HETZNER_HOST }} \
-            ${{ secrets.HETZNER_USER }} \
-            ~/.ssh/deploy_key \
-            ${{ secrets.HETZNER_SSH_PORT }}
-
-      - name: Run health checks
-        run: |
-          bash ./scripts/health-check.sh ${{ secrets.HETZNER_HOST }} ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST"             "bash -s -- $DEPLOY_SHA" < scripts/deploy-docker.sh
 
       - name: Slack notification (success)
-        if: success()
+        if: success() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |
             {
               "text": "✅ Deployment successful",
@@ -197,10 +199,9 @@ jobs:
             }
 
       - name: Slack notification (failure)
-        if: failure()
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |
             {
               "text": "❌ Deployment failed",
@@ -214,28 +215,3 @@ jobs:
                 }
               ]
             }
-
-  # Stage 6: Verify Deployment
-  verify:
-    name: Verify Deployment
-    needs: deploy
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: success()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Verify deployment
-        run: |
-          bash ./scripts/verify-deployment.sh \
-            ${{ secrets.HETZNER_HOST }} \
-            ${{ secrets.HETZNER_USER }} \
-            ~/.ssh/deploy_key
