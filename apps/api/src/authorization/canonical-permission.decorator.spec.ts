@@ -139,8 +139,9 @@ describe('@CanonicalPermission (#161 stage 3, #168)', () => {
     });
   });
 
-  // Every endpoint with a legacy decorator must declare its canonical permission on the
-  // next line, so stage 3 covers the whole legacy surface and new endpoints cannot skip it.
+  // Every endpoint with a legacy decorator must declare its canonical permission on an
+  // adjacent line, so stage 3 covers the whole legacy surface and new endpoints cannot skip
+  // it. (In the Cash controller it goes above: CH-02 pins `@RequirePermission` + `@Post`.)
   it('is declared right after every legacy @RequirePermission / @Authorize', () => {
     const root = path.join(process.cwd(), 'src');
     const legacy = /^\s*@(RequirePermission|Authorize)\('[^']+'\)\s*$/;
@@ -155,7 +156,8 @@ describe('@CanonicalPermission (#161 stage 3, #168)', () => {
           lines.forEach((line, i) => {
             if (!legacy.test(line)) return;
             seen += 1;
-            if (!/^\s*@CanonicalPermission\(/.test(lines[i + 1] ?? '')) {
+            const canonical = /^\s*@CanonicalPermission\(/;
+            if (!canonical.test(lines[i + 1] ?? '') && !canonical.test(lines[i - 1] ?? '')) {
               missing.push(`${path.relative(root, full)}:${i + 1}`);
             }
           });

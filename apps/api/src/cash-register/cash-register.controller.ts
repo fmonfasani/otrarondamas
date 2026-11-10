@@ -75,8 +75,8 @@ export class CashRegisterController {
   // (Ingreso/Egreso/Gasto/Retiro), not only expenses: the seed has no more
   // granular permission per type, and creating a new one without a decision
   // on which role holds it would be an unauthorized business rule.
-  @RequirePermission('caja.gastos')
   @CanonicalPermission(CASH_MANUAL_MOVEMENT)
+  @RequirePermission('caja.gastos')
   @Post('movimientos')
   async registerMovement(@Body() dto: RegisterMovementDto, @CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.registerMovement(
@@ -119,8 +119,8 @@ export class CashRegisterController {
 
   // Closes the shift irreversibly (no reopen endpoint) — same permission as
   // expenses/withdrawals, see the controller comment.
-  @RequirePermission('caja.gastos')
   @CanonicalPermission('CASH_CLOSE')
+  @RequirePermission('caja.gastos')
   @Post('cierre')
   async close(@CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.close(await this.resolveCompanyIdFromContext(user), user.id);
