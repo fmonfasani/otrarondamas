@@ -163,8 +163,7 @@ jobs:
           SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s
-' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
