@@ -1,9 +1,10 @@
 ﻿import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { io, Socket } from 'socket.io-client';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // Messaging participation and delivery against the compiled stack and a real
 // PostgreSQL database. It reproduces the field report where a business Owner
@@ -219,11 +220,7 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    server = spawnApi({ PORT }, ['ignore', 'pipe', 'pipe']);
     server.stdout?.on('data', (chunk: Buffer) => {
       serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
     });

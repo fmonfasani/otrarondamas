@@ -84,7 +84,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       id: 'conversation-a',
       businessId: 'business-a',
       deletedAt: null,
-      participants: [],
+      ConversationParticipant: [],
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue({
       id: 'participant-a',
@@ -130,7 +130,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     expect(args.where).toEqual({
       businessId: 'business-a',
       deletedAt: null,
-      participants: {
+      ConversationParticipant: {
         some: {
           businessId: 'business-a',
           leftAt: null,
@@ -146,12 +146,12 @@ describe('MessagingService — M2/M3 messaging', () => {
       {
         id: 'conversation-mine',
         businessId: 'business-a',
-        participants: [{ userId: 'user-a', customerId: null }],
+        ConversationParticipant: [{ userId: 'user-a', customerId: null }],
       },
       {
         id: 'conversation-observed',
         businessId: 'business-a',
-        participants: [
+        ConversationParticipant: [
           { userId: 'user-z', customerId: null },
           { userId: null, customerId: 'customer-a' },
         ],
@@ -171,7 +171,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       id: 'conversation-observed',
       businessId: 'business-a',
       deletedAt: null,
-      participants: [{ userId: 'user-z', customerId: null }],
+      ConversationParticipant: [{ userId: 'user-z', customerId: null }],
     });
 
     const result = await service.getConversation(auth, 'conversation-observed');
@@ -208,7 +208,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       id: 'conversation-a',
       businessId: 'business-a',
       deletedAt: null,
-      participants: [],
+      ConversationParticipant: [],
     });
 
     const result = await service.createConversation(auth, {
@@ -258,7 +258,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       id: 'conversation-a',
       businessId: 'business-a',
       deletedAt: null,
-      participants: [],
+      ConversationParticipant: [],
     });
     prisma.conversationParticipant.findFirst.mockResolvedValue(null);
 

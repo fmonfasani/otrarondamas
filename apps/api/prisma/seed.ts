@@ -2,8 +2,10 @@ import { PrismaClient, UnidadBase } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'node:url';
 
 const prisma = new PrismaClient();
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 interface RetailRow {
   codigoInterno: string;
@@ -307,8 +309,8 @@ async function main() {
   //   by the owner, not a real stock level.
   // ---------------------------------------------------------------------
 
-  const retailPath = path.join(__dirname, 'seed-data-minorista.json');
-  const hierarchyPath = path.join(__dirname, 'seed-data-jerarquia-catalogo.json');
+  const retailPath = path.join(currentDir, 'seed-data-minorista.json');
+  const hierarchyPath = path.join(currentDir, 'seed-data-jerarquia-catalogo.json');
   if (fs.existsSync(retailPath)) {
     const retailData: RetailRow[] = JSON.parse(fs.readFileSync(retailPath, 'utf-8'));
     const hierarchyData: { familias: FamilyHierarchy[]; subfamilias: SubfamilyHierarchy[] } =

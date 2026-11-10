@@ -4,7 +4,7 @@ import { ResendProvider } from './providers/resend.provider';
 import { SendGridProvider } from './providers/sendgrid.provider';
 import { AwsSesProvider } from './providers/aws-ses.provider';
 import { IEmailProvider, SendEmailOptions } from './providers/email-provider.interface';
-import * as Handlebars from 'handlebars';
+import Handlebars from 'handlebars';
 
 /**
  * P8-2: Enhanced Email Service with Multi-Provider Support
@@ -174,22 +174,40 @@ export class EmailService {
    * - Frequency setting (NUNCA)
    * - Bounced/complained email
    */
+  // Owner decision 2026-11-09:
+  // - TRANSACCIONAL mail (password resets, order confirmations, invitations)
+  //   is always sent: unsubscribing stops marketing, not account mail.
+  // - Any other type honours the stored preference of that recipient in that
+  //   Business: unsubscribed, frequency NUNCA, or the category set to false.
+  // - No stored preference means the recipient never opted out.
+  // - If the preference cannot be read, a non-transactional email is NOT sent.
   private async canReceiveEmail(
     empresaId: string,
     email: string,
     tipoEmail: string,
   ): Promise<boolean> {
+    if (tipoEmail === 'TRANSACCIONAL') {
+      return true;
+    }
+
     try {
       const pref = await this.prisma.emailPreference.findUnique({
-        where: { unsubscribeToken: '' }, // Placeholder; actual lookup by email + empresaId
+        where: { empresaId_email: { empresaId, email } },
+        select: { suscrito: true, frecuencia: true, categoriasOptIn: true },
       });
 
-      // For now, always return true (preference table exists but is not yet enforced)
-      // TODO: Implement full preference checks once EmailPreference is populated
-      return true;
+      if (!pref) {
+        return true;
+      }
+      if (!pref.suscrito || pref.frecuencia === 'NUNCA') {
+        return false;
+      }
+
+      const categories = (pref.categoriasOptIn ?? {}) as Record<string, unknown>;
+      return categories[tipoEmail.toLowerCase()] !== false;
     } catch (err) {
-      this.logger.error('canReceiveEmail check failed', err);
-      return true; // Default: send (fail open)
+      this.logger.error('canReceiveEmail check failed; not sending', err);
+      return false;
     }
   }
 

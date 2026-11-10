@@ -17,7 +17,7 @@ describe('AuditController', () => {
     nombre: 'Test User',
     permisos: [],
     rol: 'ASISTENTE_LOCAL',
-    estadoLegajo: 'ACTIVO',
+    estadoLegajo: 'APROBADO',
     type: 'usuario',
   };
 
@@ -101,9 +101,9 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [
+        UsuarioPermiso: [
           {
-            permiso: { nombre: 'audit.leer' },
+            Permiso: { nombre: 'audit.leer' },
           },
         ],
       } as any);
@@ -130,7 +130,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer_otros' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
       } as any);
 
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
@@ -184,7 +184,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
@@ -219,7 +219,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest.spyOn(service, 'listAuditLogs').mockResolvedValueOnce({
@@ -268,7 +268,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest.spyOn(service, 'getAuditLogDetail').mockResolvedValueOnce(mockDetail);
@@ -283,7 +283,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest
@@ -306,7 +306,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest
@@ -333,7 +333,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer_otros' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
       } as any);
 
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
@@ -354,7 +354,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest.spyOn(service, 'getAuditSummary').mockRejectedValueOnce(new Error('Unauthorized'));
@@ -377,7 +377,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer_otros' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
       } as any);
 
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
@@ -410,7 +410,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer_otros' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
       } as any);
 
       jest.spyOn(service, 'getAuditSummary').mockResolvedValueOnce(mockSummary);
@@ -455,7 +455,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer_otros' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer_otros' } }],
       } as any);
 
       jest.spyOn(service, 'getUserActivityTrail').mockResolvedValueOnce(mockTrail);
@@ -478,7 +478,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest
@@ -501,7 +501,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest
@@ -526,7 +526,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest
@@ -553,7 +553,7 @@ describe('AuditController', () => {
       jest.spyOn(prisma.usuario, 'findUnique').mockResolvedValueOnce({
         id: 'user-1',
         empresaId: 'business-1',
-        usuarioPermisos: [{ permiso: { nombre: 'audit.leer' } }],
+        UsuarioPermiso: [{ Permiso: { nombre: 'audit.leer' } }],
       } as any);
 
       jest

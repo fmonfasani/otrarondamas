@@ -18,15 +18,15 @@ import { Prisma } from '@prisma/client';
  * derived from the schema via DMMF).
  */
 export const RELATIONS_WITH_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
-  VentaItem: ['producto', 'reglaFidelizacion'],
-  PedidoItem: ['producto', 'reglaFidelizacion'],
-  CompraItem: ['producto'],
-  DevolucionProveedorItem: ['producto', 'lote'],
-  Producto: ['familia', 'subfamilia', 'tipo', 'subtipo'],
-  ProductoProveedor: ['producto', 'proveedor'],
-  Lote: ['producto'],
-  MovimientoStock: ['producto'],
-  ReglaFidelizacion: ['subtipo', 'familia', 'subfamilia'],
+  VentaItem: ['Producto', 'ReglaFidelizacion'],
+  PedidoItem: ['Producto', 'ReglaFidelizacion'],
+  CompraItem: ['Producto'],
+  DevolucionProveedorItem: ['Producto', 'Lote'],
+  Producto: ['Familia', 'Subfamilia', 'Tipo', 'Subtipo'],
+  ProductoProveedor: ['Producto', 'Proveedor'],
+  Lote: ['Producto'],
+  MovimientoStock: ['Producto'],
+  ReglaFidelizacion: ['Subtipo', 'Familia', 'Subfamilia'],
 };
 
 type Data = Record<string, unknown>;

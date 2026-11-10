@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -8,6 +8,7 @@ import {
   seedUsuarioPermissions,
   withRevokedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-06 — HTTP boundary of ORDERS against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -179,7 +180,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
         estado: status,
         canalOrigen: 'web',
         total: 10,
-        pedidoItems: {
+        PedidoItem: {
           create: items.map((i) => ({
             productoId: i.productId,
             cantidad: i.quantity,
@@ -284,18 +285,14 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
@@ -338,12 +335,12 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     const orderId = placed.body.id as string;
     const storedBefore = await prisma.pedido.findUniqueOrThrow({
       where: { id: orderId },
-      include: { pedidoItems: true },
+      include: { PedidoItem: true },
     });
     expect(storedBefore.empresaId).toBe(companyA.id);
-    expect(storedBefore.pedidoItems).toHaveLength(1);
-    expect(storedBefore.pedidoItems[0].productoId).toBe(product.id);
-    expect(Number(storedBefore.pedidoItems[0].cantidad)).toBe(2);
+    expect(storedBefore.PedidoItem).toHaveLength(1);
+    expect(storedBefore.PedidoItem[0].productoId).toBe(product.id);
+    expect(Number(storedBefore.PedidoItem[0].cantidad)).toBe(2);
     expect(await batchQuantity(batch.id)).toBe(startingQuantity);
 
     // Seller takes the order through the authenticated operational endpoint.
@@ -453,7 +450,21 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     expect(res.body.id).toBe(orderA.id);
     expect(res.body.empresaId).toBe(companyA.id);
-    expect(res.body.pedidoItems).toHaveLength(1);
+    expect(res.body.PedidoItem).toHaveLength(1);
+    // Frontend-facing contract (owner decision 2026-11-09): real estado,
+    // customer and items, amounts as Decimal strings.
+    expect(res.body.estado).toBe('RECIBIDO');
+    expect(res.body.cliente).toEqual(
+      expect.objectContaining({ id: customerA.id, nombre: expect.any(String) }),
+    );
+    expect(res.body.items).toEqual([
+      expect.objectContaining({
+        productId: productA.id,
+        productName: expect.any(String),
+        quantity: '2',
+        price: expect.any(String),
+      }),
+    ]);
   });
 
   it('SV6-H-05: GET /pedidos/:id de otro tenant → 404 (también con claim de ese tenant)', async () => {
@@ -623,7 +634,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
     const persisted = await prisma.pedido.findUniqueOrThrow({
       where: { id: order.id },
-      include: { pedidoItems: true },
+      include: { PedidoItem: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
     expect(await batchQuantity(batch.id)).toBe(8);

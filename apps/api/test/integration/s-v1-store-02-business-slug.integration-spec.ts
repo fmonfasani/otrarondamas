@@ -1,7 +1,8 @@
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 describe('STORE-V1-02 — public Business slug resolution', () => {
   const PORT = '3392';
@@ -119,16 +120,8 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createCatalog(companyA.id, 'A');
     productB = await createCatalog(companyB.id, 'B');
-    server = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: '' },
-      stdio: 'ignore',
-    });
-    legacyServer = spawn('node', ['dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    legacyServer = spawnApi({ PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id });
     await Promise.all([waitPort(Number(PORT)), waitPort(Number(LEGACY_PORT))]);
   }, 120000);
 
@@ -136,7 +129,7 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     if (server && !server.killed) server.kill();
     if (legacyServer && !legacyServer.killed) legacyServer.kill();
     const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { pedido: { empresaId: { in: companies } } } });
+    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });

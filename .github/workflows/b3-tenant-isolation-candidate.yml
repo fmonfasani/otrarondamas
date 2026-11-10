@@ -1,13 +1,12 @@
 name: B3 Tenant Isolation Candidate
 
 on:
-  # The push and pull_request path lists MUST stay identical. When they
-  # diverge, a change can trigger the workflow on push but skip it on the
-  # pull request (or the reverse) — and a skipped workflow is visually
-  # indistinguishable from a passing one, so the candidate suites can
-  # silently disappear from a PR. `apps/api/test/integration/**` covers
-  # every current and future integration spec, so adding a suite cannot
-  # leave it unmatched here.
+  # B3 is a required status check on main, so every pull request to main must
+  # run it: a path-filtered required check never starts on a PR outside its
+  # paths and blocks the merge forever (and a skipped workflow is visually
+  # indistinguishable from a passing one). pull_request therefore has no path
+  # filter; push keeps the filter to save runner minutes on unrelated pushes.
+  # `apps/api/test/integration/**` covers every current and future spec.
   push:
     branches: [main, "b3/**", "chore/**"]
     paths:
@@ -22,16 +21,6 @@ on:
       - ".github/workflows/b3-tenant-isolation-candidate.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "apps/api/src/**"
-      - "apps/api/test/integration/**"
-      - "apps/api/prisma/**"
-      - "apps/api/package.json"
-      - "apps/api/tsconfig.json"
-      - "apps/api/tsconfig.build.json"
-      - "package-lock.json"
-      - ".github/workflows/b4-verification.yml"
-      - ".github/workflows/b3-tenant-isolation-candidate.yml"
 
 jobs:
   b3-tenant-isolation:
@@ -59,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: '**/package-lock.json'
 

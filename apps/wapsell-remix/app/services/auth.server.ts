@@ -24,6 +24,11 @@ export const sessionStorage = createCookieSessionStorage({
 
 export const { getSession, commitSession, destroySession } = sessionStorage;
 
+/**
+ * Validate the session against the existing authenticated profile endpoint.
+ * NestJS does not expose POST /auth/validate; GET /auth/me is the canonical
+ * authenticated-user endpoint and applies the API's identity guards.
+ */
 export async function validateJWT(token: string): Promise<boolean> {
   if (!token) return false;
 
