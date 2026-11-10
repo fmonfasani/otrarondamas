@@ -12,6 +12,7 @@ import { BusinessContextService } from '../../business-context/business-context.
 import type { BusinessContext } from '../../business-context/business-context.types';
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import type { AuthenticatedUser } from '../auth.types';
+import { shadowCompare } from '../../authorization/authorization-engine';
 
 /**
  * Hierarchical capability authorization (Phase 2 P1-2).
@@ -107,7 +108,19 @@ export class AuthorizationGuard implements CanActivate {
       throw new UnauthorizedException('La membresía no está activa');
     }
 
+    // #161 stage 2: canonical engine in shadow mode — logs divergences, never decides.
+    const shadow = (legacyAllowed: boolean) =>
+      shadowCompare({
+        source: 'Authorize',
+        code: requiredCapability,
+        principalId: membership.id,
+        legacyRole: membership.role,
+        active: true,
+        legacyAllowed,
+      });
+
     if (!membership.RoleGrant) {
+      shadow(false);
       // Phase 2 P1-2: RoleGrant may be null during migration.
       // After backfill is complete, this should be treated as an error.
       this.logger.warn(
@@ -143,6 +156,7 @@ export class AuthorizationGuard implements CanActivate {
     request.capabilities = Array.from(capabilities);
 
     // Check if user has the required capability
+    shadow(capabilities.has(requiredCapability));
     if (!capabilities.has(requiredCapability)) {
       throw new ForbiddenException(
         `Requiere la capacidad '${requiredCapability}'. Capacidades disponibles: ${Array.from(capabilities).join(', ')}`,
