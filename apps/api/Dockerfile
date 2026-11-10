@@ -35,7 +35,8 @@ RUN npm run build --workspace=@otrarondamas/api
 FROM node:22-bookworm-slim AS runner
 WORKDIR /repo
 ENV NODE_ENV=production
-RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+# curl: the production compose healthcheck runs `curl -f /health`.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl curl && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
@@ -54,4 +55,6 @@ COPY --from=builder /repo/packages/shared-types packages/shared-types
 RUN cp apps/api/prisma/seed-data-minorista.json apps/api/dist/prisma/seed-data-minorista.json
 
 EXPOSE 3000
-CMD ["node", "--loader", "apps/api/esm-loader.mjs", "apps/api/dist/src/main.js"]
+# The loader must be a relative path: a bare "apps/..." is resolved as an npm
+# package named "apps" and the API exits with ERR_MODULE_NOT_FOUND.
+CMD ["node", "--loader", "./apps/api/esm-loader.mjs", "apps/api/dist/src/main.js"]
