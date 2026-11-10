@@ -1,6 +1,6 @@
 # Wapsell — Authorization Specification
 
-**Version:** 0.1 | **Status:** DRAFT — FOR OWNER REVIEW (matrix rows require Owner approval) | **Date:** 2026-11-10
+**Version:** 0.2 | **Status:** APPROVED — Owner Ruling OR-B4-024 (2026-11-10) | **Date:** 2026-11-10
 
 > Specialized spec required by the General SPEC v0.5 §6.1 (`OR-B4-007`). It defines the canonical Permission
 > catalogue, the Role → Permission matrix and the transition from the two AS-IS mechanisms. Backlog: #161.
@@ -23,7 +23,8 @@
 | `OR-B4-001` | Incremental implementation authorised through gated, tested PRs. |
 
 **Already decided (not open here):** the domains, the roles, the fixed-matrix strategy, fail-closed and the single
-engine. **To decide (Owner):** the matrix rows in §4, marked `PROPOSED`.
+engine. **Approved by the Owner on 2026-11-10 (`OR-B4-024`):** the catalogue (§2), the platform scope (§3), the
+matrix (§4) and the transition (§5).
 
 ---
 
@@ -114,7 +115,7 @@ Who holds them and how they are granted: `OPEN` (Security spec); until then only
 
 ---
 
-## 4. Role → Permission matrix — `PROPOSED`, requires Owner approval
+## 4. Role → Permission matrix — `APPROVED` (OR-B4-024)
 
 `●` granted, `—` not granted. Principles: Owner has everything in the Business; Admin is delegated administration;
 Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
@@ -161,15 +162,15 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 ¹ An Admin cannot change, suspend or deactivate an Owner Membership, nor grant `OWNER` (Owner ≠ Admin, `OR-B2-009`).
 ² Fulfillment states only (preparation, ready, stock exit); not commercial confirmation or cancellation.
 
-Decisions for the Owner in this matrix (the rest follows the principles above):
+Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the principles above):
 
-1. **Can a Vendedor confirm orders (`ORDER_CONFIRM`)?** Proposed: yes — in conversational commerce the person in the
-   conversation closes the sale. Alternative: only Owner/Admin.
-2. **Can a Vendedor register expenses (`CASH_EXPENSE`)?** Proposed: yes, small counter expenses; adjust and withdraw
+1. **Can a Vendedor confirm orders (`ORDER_CONFIRM`)?** **Yes** — in conversational commerce the person in the
+   conversation closes the sale. Cancelling stays with Owner/Admin.
+2. **Can a Vendedor register expenses (`CASH_EXPENSE`)?** **Yes**, small counter expenses; adjust and withdraw
    stay with Owner/Admin.
-3. **Does a Gestor de Stock manage the catalogue (`CATALOG_MANAGE`)?** Proposed: yes, without prices (`PRICING_CHANGE`
+3. **Does a Gestor de Stock manage the catalogue (`CATALOG_MANAGE`)?** **Yes, without prices** (`PRICING_CHANGE`
    stays with Owner/Admin).
-4. **Does an Admin configure the Brand (`BRAND_MANAGE`)?** Proposed: no, Owner only.
+4. **Does an Admin configure the Brand (`BRAND_MANAGE`)?** **No, Owner only.**
 
 ---
 
@@ -225,7 +226,6 @@ Decisions for the Owner in this matrix (the rest follows the principles above):
 
 | Item | Owner |
 |---|---|
-| Matrix rows (§4) | Owner — approval of this spec |
 | Who holds platform permissions and how support access is audited (§3) | Security spec |
 | Physical representation of roles, catalogue and matrix | Technical design (stage 1 PR) |
 | Session/token effect of a role change or suspension | Technical design (ties to #162) |
@@ -235,3 +235,4 @@ Decisions for the Owner in this matrix (the rest follows the principles above):
 | Version | Date | Summary |
 |---|---|---|
 | 0.1 | 2026-11-10 | First draft: AS-IS inventory and defects, canonical catalogue, platform scope, proposed matrix, legacy mapping, stages. |
+| **0.2** | **2026-11-10** | **APPROVED (OR-B4-024):** the Owner accepted the four matrix decisions as proposed. |

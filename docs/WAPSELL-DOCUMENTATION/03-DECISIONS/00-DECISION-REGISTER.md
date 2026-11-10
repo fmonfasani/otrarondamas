@@ -757,3 +757,22 @@ The 2026-10-24 T-01…T-10 closure remains binding; this decision refines author
 **Supersedes for the MVP:** the `IMPLEMENTATION = NOT AUTHORIZED` boundary stated by earlier rulings (OR-B2, OR-B3, R8, AUTH-01…12), within the scope of OR-B4-001. Those rulings remain in force otherwise.
 
 **Documentation defect noted:** §11 (AUTH-ARCH-OWNER-APPROVAL) appears twice above with the same content; the duplicate is not normative.
+
+### OR-B4-024 — Authorization spec approval — 2026-11-10
+
+**Status:** APPROVED — OWNER RULING
+**Spec:** `06-SPECIFICATIONS/SPECIALIZED/05-AUTHORIZATION-SPEC.md` v0.2 (backlog #161)
+
+The Owner approved the canonical Permission catalogue, the platform scope, the Role → Permission matrix and the
+transition stages, answering the four open matrix questions (verbatim answers):
+
+| Question | Owner answer |
+|---|---|
+| Can a Vendedor confirm orders (`ORDER_CONFIRM`)? | "Sí (Recomendado)" |
+| Can a Vendedor register cash expenses (`CASH_EXPENSE`)? | "Sí, gastos chicos (Recomendado)" |
+| Does a Gestor de Stock manage the catalogue (`CATALOG_MANAGE`)? | "Sí, sin precios (Recomendado)" |
+| Does an Admin configure the Brand (`BRAND_MANAGE`)? | "Solo el Owner (Recomendado)" |
+
+Implementation follows the stages of §5.3 under OR-B4-001; stage 5 (retiring the legacy source of truth and
+`CapabilityGrant` overrides) still requires an explicit Owner decision.
+
