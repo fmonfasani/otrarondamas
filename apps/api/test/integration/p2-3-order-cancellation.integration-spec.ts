@@ -686,7 +686,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   });
 
   describe('Concurrency Tests', () => {
-    it('P2-3-016: Simultaneous cancellation (one succeeds, other 409)', async () => {
+    it('P2-3-016: Simultaneous cancellation (both answer 200, stock reversed once)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch = await mkBatch(companyA.id, product.id, 100);
       const startQuantity = await batchQuantity(batch.id);
@@ -716,9 +716,10 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
           .send({ motivo: 'Concurrent 2' }),
       ]);
 
-      // One succeeds with 201, one succeeds with 201 (idempotent)
+      // Both answer 200: the loser gets the idempotent result (owner decision
+      // 2026-11-09; the endpoint answers 200 since #135).
       const statuses = [res1.status, res2.status];
-      expect(statuses.sort()).toEqual([201, 201]); // Both succeed due to idempotency
+      expect(statuses.sort()).toEqual([200, 200]);
 
       // Stock is reversed exactly once
       expect(await batchQuantity(batch.id)).toBe(startQuantity);
