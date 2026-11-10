@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as net from 'net';
@@ -10,6 +10,7 @@ import {
   replaceUsuarioPermissions,
   seedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-13 — Cash (/caja) + /autorizaciones: tenant boundary over real HTTP.
 //
@@ -330,11 +331,7 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

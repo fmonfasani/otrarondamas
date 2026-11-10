@@ -1,8 +1,9 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // P1 — exercise the Messaging HTTP path against the compiled application and
 // real PostgreSQL: list → create → history → send → persisted reread.
@@ -162,11 +163,7 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       select: { id: true },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    server = spawnApi({ PORT }, ['ignore', 'pipe', 'pipe']);
     server.stdout?.on('data', (chunk: Buffer) => {
       serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
     });

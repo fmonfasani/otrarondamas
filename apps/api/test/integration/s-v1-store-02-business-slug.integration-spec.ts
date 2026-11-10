@@ -1,7 +1,8 @@
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 describe('STORE-V1-02 — public Business slug resolution', () => {
   const PORT = '3392';
@@ -119,16 +120,8 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createCatalog(companyA.id, 'A');
     productB = await createCatalog(companyB.id, 'B');
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT, TIENDA_EMPRESA_ID: '' },
-      stdio: 'ignore',
-    });
-    legacyServer = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    legacyServer = spawnApi({ PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id });
     await Promise.all([waitPort(Number(PORT)), waitPort(Number(LEGACY_PORT))]);
   }, 120000);
 

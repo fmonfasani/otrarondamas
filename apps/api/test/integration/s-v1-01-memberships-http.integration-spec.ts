@@ -1,8 +1,9 @@
 import { createHmac } from 'crypto';
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { spawnApi } from './helpers/api-server.fixture';
 
 // S-V1-01 — Minimal HTTP coverage of GET /auth/memberships against the
 // REAL production stack: dist/src/main.js (compiled by `nest build`) is
@@ -103,11 +104,7 @@ describe('S-V1-01 — GET /auth/memberships (HTTP, stack real)', () => {
       data: { userId: user.id, businessId: companyA.id, role: 'OWNER', status: 'ACTIVE' },
     });
 
-    server = spawn(process.execPath, ['--loader', './esm-loader.mjs', 'dist/src/main.js'], {
-      cwd: process.cwd(),
-      env: { ...process.env, PORT },
-      stdio: 'ignore',
-    });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 
