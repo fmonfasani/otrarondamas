@@ -66,8 +66,12 @@ export class PaymentController {
    * GET /pagos/:id - Get payment details
    */
   @Get(':id')
-  async getPaymentDetail(@Param('id') paymentId: string) {
-    return this.paymentService.getPaymentDetail(paymentId);
+  async getPaymentDetail(
+    @Param('id') paymentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const empresaId = await this.resolveEmpresaId(user);
+    return this.paymentService.getPaymentDetail(empresaId, paymentId);
   }
 
   /**
@@ -227,7 +231,7 @@ export class PaymentController {
   @Post(':id/retry')
   async retryPayment(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
-    const payment = await this.paymentService.getPaymentDetail(paymentId);
+    const payment = await this.paymentService.getPaymentDetail(empresaId, paymentId);
 
     if (payment.empresaId !== empresaId) {
       throw new BadRequestException('Cannot retry this payment');
@@ -248,7 +252,7 @@ export class PaymentController {
   @Post(':id/cancel')
   async cancelPayment(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
-    const payment = await this.paymentService.getPaymentDetail(paymentId);
+    const payment = await this.paymentService.getPaymentDetail(empresaId, paymentId);
 
     if (payment.empresaId !== empresaId) {
       throw new BadRequestException('Cannot cancel this payment');
