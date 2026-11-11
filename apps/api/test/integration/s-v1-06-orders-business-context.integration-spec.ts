@@ -474,41 +474,52 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
   });
 
   it('OBC-12: pedidos.gestionar is loaded from current DB assignments on the three handlers', async () => {
-    const findUnique = jest.fn();
-    const guard = new PermissionsGuard(new Reflector(), {
-      usuario: { findUnique },
-    } as unknown as PrismaService);
-    const contextFor = (
-      handler: (...args: never[]) => unknown,
-      user: AuthenticatedUser,
-    ): ExecutionContext =>
-      ({
-        getHandler: () => handler,
-        getClass: () => OrdersController,
-        switchToHttp: () => ({ getRequest: () => ({ user }) }),
-      }) as unknown as ExecutionContext;
+    // Verifies the legacy rule (per-user assignments), which decides in shadow mode, the
+    // default. The enforce-mode decision is covered by permissions.guard.spec.ts. Pinned
+    // here because the guard runs in this process and B4 also runs with
+    // AUTHZ_ENGINE_MODE=enforce (OR-B4-026).
+    const ambientAuthzMode = process.env.AUTHZ_ENGINE_MODE;
+    process.env.AUTHZ_ENGINE_MODE = 'shadow';
+    try {
+      const findUnique = jest.fn();
+      const guard = new PermissionsGuard(new Reflector(), {
+        usuario: { findUnique },
+      } as unknown as PrismaService);
+      const contextFor = (
+        handler: (...args: never[]) => unknown,
+        user: AuthenticatedUser,
+      ): ExecutionContext =>
+        ({
+          getHandler: () => handler,
+          getClass: () => OrdersController,
+          switchToHttp: () => ({ getRequest: () => ({ user }) }),
+        }) as unknown as ExecutionContext;
 
-    const proto = OrdersController.prototype;
-    for (const handler of [proto.list, proto.get, proto.updateStatus]) {
-      findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
-      await expect(
-        guard.canActivate(
-          contextFor(
-            handler,
-            sessionOf(usuarioA.id, companyA.id, { permisos: ['pedidos.gestionar'] }),
+      const proto = OrdersController.prototype;
+      for (const handler of [proto.list, proto.get, proto.updateStatus]) {
+        findUnique.mockResolvedValue({ activo: true, UsuarioPermiso: [] });
+        await expect(
+          guard.canActivate(
+            contextFor(
+              handler,
+              sessionOf(usuarioA.id, companyA.id, { permisos: ['pedidos.gestionar'] }),
+            ),
           ),
-        ),
-      ).rejects.toThrow(ForbiddenException);
+        ).rejects.toThrow(ForbiddenException);
 
-      findUnique.mockResolvedValue({
-        activo: true,
-        UsuarioPermiso: [{ Permiso: { nombre: 'pedidos.gestionar' } }],
-      });
-      await expect(
-        guard.canActivate(
-          contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] })),
-        ),
-      ).resolves.toBe(true);
+        findUnique.mockResolvedValue({
+          activo: true,
+          UsuarioPermiso: [{ Permiso: { nombre: 'pedidos.gestionar' } }],
+        });
+        await expect(
+          guard.canActivate(
+            contextFor(handler, sessionOf(usuarioA.id, companyA.id, { permisos: [] })),
+          ),
+        ).resolves.toBe(true);
+      }
+    } finally {
+      if (ambientAuthzMode === undefined) delete process.env.AUTHZ_ENGINE_MODE;
+      else process.env.AUTHZ_ENGINE_MODE = ambientAuthzMode;
     }
   });
 

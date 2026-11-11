@@ -9,6 +9,9 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import {
   replaceUsuarioPermissions,
   seedUsuarioPermissions,
+  AUTHZ_ENFORCE,
+  NO_STAFF_ROLE,
+  withUsuarioRole,
 } from './helpers/usuario-permissions.fixture';
 import { spawnApi } from './helpers/api-server.fixture';
 
@@ -462,12 +465,20 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     await replaceUsuarioPermissions(prisma, legacyUserA.id, []);
     const auth = bearer(legacyUserA.id, companyB.id, []);
     const before = await snapshotCash(companyA.id);
-    await call('post', '/caja/movimientos', auth, { tipo: 'Gasto', monto: 10 }).expect(403);
-    await call('post', '/caja/cierre', auth).expect(403);
-    expect(await snapshotCash(companyA.id)).toBe(before);
+    const assertions = async () => {
+      await call('post', '/caja/movimientos', auth, { tipo: 'Gasto', monto: 10 }).expect(403);
+      await call('post', '/caja/cierre', auth).expect(403);
+      expect(await snapshotCash(companyA.id)).toBe(before);
 
-    await call('get', '/caja/estado', auth).expect(200);
-    await call('get', '/caja/movimientos', auth).expect(200);
+      // Shadow mode: no legacy permission on these, Membership is enough. Enforce mode: they
+      // declare CASH_VIEW (AUTH-10), which a role without staff permissions does not hold.
+      const openStatus = AUTHZ_ENFORCE ? 403 : 200;
+      await call('get', '/caja/estado', auth).expect(openStatus);
+      await call('get', '/caja/movimientos', auth).expect(openStatus);
+    };
+    // Enforce mode (OR-B4-026): access comes from the role, not from the assignments.
+    if (AUTHZ_ENFORCE) await withUsuarioRole(prisma, legacyUserA.id, NO_STAFF_ROLE, assertions);
+    else await assertions();
     await replaceUsuarioPermissions(prisma, legacyUserA.id, [PERM]);
   });
 

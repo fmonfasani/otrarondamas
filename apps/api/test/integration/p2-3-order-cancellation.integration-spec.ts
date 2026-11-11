@@ -6,6 +6,9 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import {
   deleteUsuarioPermissionsForCompanies,
   seedUsuarioPermissions,
+  AUTHZ_ENFORCE,
+  NO_STAFF_ROLE,
+  withUsuarioRole,
 } from './helpers/usuario-permissions.fixture';
 import { spawnApi } from './helpers/api-server.fixture';
 
@@ -433,11 +436,18 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 1 },
       ]);
 
-      await request(BASE)
-        .post(`/pedidos/${order.id}/cancel`)
-        .set('Authorization', `Bearer ${tokenFor(legacyUserNoPerms.id, companyA.id, [])}`)
-        .send({ motivo: 'Testing forbidden' })
-        .expect(403);
+      const attempt = () =>
+        request(BASE)
+          .post(`/pedidos/${order.id}/cancel`)
+          .set('Authorization', `Bearer ${tokenFor(legacyUserNoPerms.id, companyA.id, [])}`)
+          .send({ motivo: 'Testing forbidden' })
+          .expect(403);
+      // Enforce mode (OR-B4-026): the role decides — one without staff permissions.
+      if (AUTHZ_ENFORCE) {
+        await withUsuarioRole(prisma, legacyUserNoPerms.id, NO_STAFF_ROLE, attempt);
+      } else {
+        await attempt();
+      }
     });
 
     it('P2-3-006: 409 Conflict (EN_PREPARACION state)', async () => {

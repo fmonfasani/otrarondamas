@@ -7,6 +7,8 @@ import {
   deleteUsuarioPermissionsForCompanies,
   replaceUsuarioPermissions,
   seedUsuarioPermissions,
+  AUTHZ_ENFORCE,
+  withUsuarioRole,
 } from './helpers/usuario-permissions.fixture';
 import { spawnApi } from './helpers/api-server.fixture';
 
@@ -610,6 +612,20 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
 
   it('LH-14: sin fidelizacion.gestionar en la base de datos → 403 aunque el JWT declare otros permisos', async () => {
     await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear', 'clientes.gestionar']);
+    // Enforce mode (OR-B4-026): the database role decides. ASISTENTE_LOCAL maps to VENDEDOR,
+    // which holds SALES_CREATE / CUSTOMERS_MANAGE but not PRICING_CHANGE (loyalty rules).
+    if (AUTHZ_ENFORCE) {
+      await withUsuarioRole(prisma, legacyUserA.id, 'ASISTENTE_LOCAL', assertLoyaltyForbidden);
+    } else {
+      await assertLoyaltyForbidden();
+    }
+    expect(
+      await prisma.reglaFidelizacion.count({ where: { nombre: `S-V1-10 sin permiso ${suffix}` } }),
+    ).toBe(0);
+    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['fidelizacion.gestionar']);
+  });
+
+  async function assertLoyaltyForbidden(): Promise<void> {
     for (const permissions of [[], ['ventas.crear', 'clientes.gestionar']]) {
       const auth = bearer(legacyUserA.id, companyA.id, permissions);
       await request(BASE).get('/reglas-fidelizacion').set('Authorization', auth).expect(403);
@@ -628,11 +644,7 @@ describe('S-V1-10 — Loyalty (HTTP, stack real)', () => {
         .send({ nombre: 'HACK' })
         .expect(403);
     }
-    expect(
-      await prisma.reglaFidelizacion.count({ where: { nombre: `S-V1-10 sin permiso ${suffix}` } }),
-    ).toBe(0);
-    await replaceUsuarioPermissions(prisma, legacyUserA.id, ['fidelizacion.gestionar']);
-  });
+  }
 
   it('LH-15: ApprovedDossierGuard preservado — estadoLegajo PENDIENTE → 403 aun con permiso y Membership', async () => {
     const auth = bearer(legacyUserA.id, companyA.id, [PERM], 'usuario', 'PENDIENTE');
