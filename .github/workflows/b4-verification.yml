@@ -14,6 +14,15 @@ concurrency:
 
 jobs:
   api-verification:
+    # Authorization cut-over (OR-B4-026, step 2): the whole suite runs with the legacy
+    # guards deciding (shadow, the required "api-verification" check) and with the
+    # canonical role matrix deciding (enforce). The shadow job keeps the exact name the
+    # branch protection requires.
+    name: ${{ matrix.authz_mode == 'shadow' && 'api-verification' || format('api-verification ({0})', matrix.authz_mode) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        authz_mode: [shadow, enforce]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -37,6 +46,7 @@ jobs:
       GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
       GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
       GOOGLE_CALLBACK_URL: http://127.0.0.1:3399/auth/google/callback
+      AUTHZ_ENGINE_MODE: ${{ matrix.authz_mode }}
 
     steps:
       - uses: actions/checkout@v5
@@ -112,7 +122,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: b4-test-reports
+          name: b4-test-reports-${{ matrix.authz_mode }}
           path: apps/api/test-results/*.json
           if-no-files-found: ignore
           retention-days: 7
