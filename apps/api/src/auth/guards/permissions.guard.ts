@@ -10,8 +10,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import type { AuthenticatedUser } from '../auth.types';
-import { shadowCompare } from '../../authorization/authorization-engine';
-import { readCanonicalRequirement } from '../../authorization/canonical-permission.decorator';
+import { authzEngineMode, decide, shadowCompare } from '../../authorization/authorization-engine';
+import {
+  isPolicyMarker,
+  readCanonicalRequirement,
+} from '../../authorization/canonical-permission.decorator';
 
 /**
  * Granular permission authorization (RF-02 / section 3.2 of the SDD).
@@ -66,6 +69,51 @@ export class PermissionsGuard implements CanActivate {
     }
   }
 
+  /**
+   * Cut-over (`enforce`): an endpoint without a legacy permission is decided by its
+   * canonical declaration. Public routes, customers, non-HTTP contexts, `@Authorize`
+   * endpoints and non-permission policies keep their current guards. Otherwise the role
+   * and the active flag are read from the database, not from the JWT.
+   */
+  private async enforceAuthenticatedOnly(context: ExecutionContext): Promise<boolean> {
+    if (context.getType() !== 'http') return true;
+    const capability = this.reflector.getAllAndOverride<string | undefined>(CAPABILITY_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (capability) return true;
+    const request = context.switchToHttp().getRequest();
+    const user = request?.user as AuthenticatedUser | undefined;
+    if (!user || user.type !== 'usuario') return true;
+    const declared = readCanonicalRequirement(context);
+    if (isPolicyMarker(declared)) return true;
+
+    const currentUser = await this.prisma.usuario.findUnique({
+      where: { id: user.id },
+      select: { activo: true, rol: true },
+    });
+    if (!currentUser || !currentUser.activo) {
+      throw new UnauthorizedException('La cuenta ya no está activa');
+    }
+    const { allowed, evaluation } = decide({
+      source: 'Authenticated',
+      code: '',
+      principalId: user.id,
+      legacyRole: currentUser.rol,
+      active: true,
+      legacyAllowed: true,
+      declared,
+      request,
+    });
+    if (!allowed) {
+      const required = evaluation?.required.length
+        ? evaluation.required.join(', ')
+        : 'una política declarada';
+      throw new ForbiddenException(`Requiere ${required}`);
+    }
+    return true;
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(
       PERMISSION_KEY,
@@ -73,6 +121,7 @@ export class PermissionsGuard implements CanActivate {
     );
 
     if (!requiredPermission) {
+      if (authzEngineMode() === 'enforce') return this.enforceAuthenticatedOnly(context);
       this.shadowAuthenticatedOnly(context);
       return true; // Endpoint without @RequirePermission: only requires authentication.
     }
@@ -105,16 +154,15 @@ export class PermissionsGuard implements CanActivate {
     const currentPermissions = (currentUser.UsuarioPermiso ?? []).map(
       (assignment) => assignment.Permiso.nombre,
     );
-    const allowed = currentPermissions.includes(requiredPermission);
-
-    // #161 stage 2: canonical engine in shadow mode — logs divergences, never decides.
-    shadowCompare({
+    // #161: in `shadow` mode the legacy assignment decides and the engine logs; in
+    // `enforce` mode (cut-over, OR-B4-026) the role matrix decides.
+    const { allowed } = decide({
       source: 'RequirePermission',
       code: requiredPermission,
       principalId: user.id,
       legacyRole: currentUser.rol,
       active: true,
-      legacyAllowed: allowed,
+      legacyAllowed: currentPermissions.includes(requiredPermission),
       declared: readCanonicalRequirement(context),
       request,
     });

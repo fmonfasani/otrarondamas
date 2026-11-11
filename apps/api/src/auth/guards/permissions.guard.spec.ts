@@ -215,4 +215,120 @@ describe('PermissionsGuard current database authorization', () => {
     await expect(guard.canActivate(executionContext(user()))).resolves.toBe(true);
     expect(findUnique).not.toHaveBeenCalled();
   });
+
+  // #161 cut-over (OR-B4-026): with AUTHZ_ENGINE_MODE=enforce the role matrix decides.
+  describe('enforce mode (AUTHZ_ENGINE_MODE=enforce)', () => {
+    const previous = process.env.AUTHZ_ENGINE_MODE;
+    beforeEach(() => {
+      process.env.AUTHZ_ENGINE_MODE = 'enforce';
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+      if (previous === undefined) delete process.env.AUTHZ_ENGINE_MODE;
+      else process.env.AUTHZ_ENGINE_MODE = previous;
+    });
+
+    const declaredContext = (
+      requirement: Parameters<typeof CanonicalPermission>[0] | undefined,
+      authenticatedUser: AuthenticatedUser | undefined,
+      body: unknown = {},
+    ) => {
+      const handler = () => undefined;
+      if (requirement !== undefined) {
+        CanonicalPermission(requirement)(handler, 'h', { value: handler });
+      }
+      return {
+        getType: () => 'http',
+        getHandler: () => handler,
+        getClass: () => class {},
+        switchToHttp: () => ({ getRequest: () => ({ user: authenticatedUser, body }) }),
+      } as unknown as ExecutionContext;
+    };
+
+    it('allows an Owner without the legacy assignment', async () => {
+      findUnique.mockResolvedValue({ activo: true, rol: 'OWNER', UsuarioPermiso: [] });
+      await expect(guard.canActivate(executionContext(user()))).resolves.toBe(true);
+    });
+
+    it('denies a legacy assignment outside the role (Vendedor cannot change prices)', async () => {
+      getAllAndOverride.mockReturnValue('precios.cambiar');
+      findUnique.mockResolvedValue({
+        activo: true,
+        rol: 'ASISTENTE_LOCAL',
+        UsuarioPermiso: [{ Permiso: { nombre: 'precios.cambiar' } }],
+      });
+      await expect(guard.canActivate(executionContext(user()))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('denies the Vendedor cancelling an order but allows confirming it (#168)', async () => {
+      getAllAndOverride.mockImplementation((key: string) =>
+        key === 'permisoRequerido' ? 'pedidos.gestionar' : undefined,
+      );
+      findUnique.mockResolvedValue({ activo: true, rol: 'ASISTENTE_LOCAL', UsuarioPermiso: [] });
+      const vendedor = user({ rol: 'ASISTENTE_LOCAL' });
+
+      await expect(
+        guard.canActivate(declaredContext(ORDER_STATUS_CHANGE, vendedor, { estado: 'CONFIRMADO' })),
+      ).resolves.toBe(true);
+      await expect(
+        guard.canActivate(declaredContext(ORDER_STATUS_CHANGE, vendedor, { estado: 'CANCELADO' })),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    describe('endpoints without a legacy permission', () => {
+      beforeEach(() => getAllAndOverride.mockReturnValue(undefined));
+
+      it('decide by role, reading the role from the database (not the JWT)', async () => {
+        // JWT claims OWNER, database says ASISTENTE_LOCAL: the database wins.
+        findUnique.mockResolvedValue({ activo: true, rol: 'ASISTENTE_LOCAL' });
+        await expect(
+          guard.canActivate(declaredContext('PURCHASES_VIEW', user({ rol: 'OWNER' }))),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+        expect(findUnique).toHaveBeenCalledWith({
+          where: { id: 'usuario-1' },
+          select: { activo: true, rol: true },
+        });
+
+        findUnique.mockResolvedValue({ activo: true, rol: 'ASISTENTE_LOCAL' });
+        await expect(guard.canActivate(declaredContext('RETURNS_VIEW', user()))).resolves.toBe(
+          true,
+        );
+      });
+
+      it('reject an undeclared endpoint (AUTH-10) and an inactive account', async () => {
+        findUnique.mockResolvedValue({ activo: true, rol: 'OWNER' });
+        await expect(guard.canActivate(declaredContext(undefined, user()))).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+
+        findUnique.mockResolvedValue({ activo: false, rol: 'OWNER' });
+        await expect(
+          guard.canActivate(declaredContext('CATALOG_VIEW', user())),
+        ).rejects.toBeInstanceOf(UnauthorizedException);
+      });
+
+      it('leave policy markers, public routes and customers to their own guards, without a query', async () => {
+        await expect(
+          guard.canActivate(declaredContext('AUTHENTICATED', user({ rol: 'PROVEEDOR' }))),
+        ).resolves.toBe(true);
+        await expect(guard.canActivate(declaredContext('USERS_VIEW', undefined))).resolves.toBe(
+          true,
+        );
+        await expect(
+          guard.canActivate(declaredContext('CATALOG_VIEW', user({ type: 'cliente' }))),
+        ).resolves.toBe(true);
+        expect(findUnique).not.toHaveBeenCalled();
+      });
+
+      it('deny PROVEEDOR / REPARTIDOR on staff endpoints (OR-B4-006)', async () => {
+        findUnique.mockResolvedValue({ activo: true, rol: 'PROVEEDOR' });
+        await expect(
+          guard.canActivate(declaredContext('CATALOG_VIEW', user({ rol: 'PROVEEDOR' }))),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+      });
+    });
+  });
 });
