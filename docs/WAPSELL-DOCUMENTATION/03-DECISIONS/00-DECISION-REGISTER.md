@@ -800,3 +800,15 @@ Effects:
   initial "apruebo los requerimientos").
 - Cut-over: authorised **subject to a prior plan** (production divergence report and activation with immediate
   rollback) that the Owner approves before activation. Until then the engine stays in shadow mode.
+
+### OR-B4-026 — Authorization cut-over plan approval — 2026-11-11
+
+**Status:** APPROVED — OWNER RULING
+**Plan:** `06-SPECIFICATIONS/SPECIALIZED/05a-AUTHORIZATION-CUTOVER-PLAN.md` v0.2 (backlog #161)
+
+Asked to approve the plan required by OR-B4-025 — activate now while the production database is empty, `PROVEEDOR`
+and `REPARTIDOR` lose staff access (OR-B4-006), steps 1–4 (`AUTHZ_ENGINE_MODE` shadow/enforce, B4 in enforce mode,
+activation, observation) and rollback to the previous image — the Owner answered (verbatim): "Si".
+
+The legacy tables (`UsuarioPermiso`, `Permiso`, `RoleTemplate`, `CapabilityGrant`) are kept; retiring them is stage 5
+and still requires a separate Owner decision.
