@@ -20,6 +20,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
+import {
+  CanonicalPermission,
+  CUSTOMER_POLICY,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-17 (docs/spec-login-roles.md): self-service dossier for the wholesale
@@ -55,12 +59,14 @@ export class CustomerDossierController {
     }
   }
 
+  @CanonicalPermission(CUSTOMER_POLICY)
   @Get('mi-legajo')
   myDossier(@CurrentUser() user: AuthenticatedUser) {
     this.requireWholesale(user);
     return this.dossierService.getOrCreateForCustomer(user.id);
   }
 
+  @CanonicalPermission(CUSTOMER_POLICY)
   @Patch('mi-legajo')
   updateMyDossier(@Body() dto: UpdateDossierDto, @CurrentUser() user: AuthenticatedUser) {
     this.requireWholesale(user);
@@ -71,6 +77,7 @@ export class CustomerDossierController {
   // fiscal fields — see the dossier-by-role table in spec-login-roles.md).
   // This endpoint is left prepared for future extension without impact on
   // the verifyCustomerComplete() flow (which requires no documents).
+  @CanonicalPermission(CUSTOMER_POLICY)
   @Post('mi-legajo/documentos')
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async uploadDocument(
@@ -83,6 +90,7 @@ export class CustomerDossierController {
     return this.dossierService.uploadDocument(dossier.id, dto, file);
   }
 
+  @CanonicalPermission(CUSTOMER_POLICY)
   @Get('mi-legajo/estado')
   async myStatus(@CurrentUser() user: AuthenticatedUser) {
     this.requireWholesale(user);
@@ -94,6 +102,7 @@ export class CustomerDossierController {
    * Inbox of wholesale customers with a pending dossier — for the owner.
    * It is called by a USUARIO (token type='usuario'), not by a customer.
    */
+  @CanonicalPermission('CUSTOMERS_MANAGE')
   @Get('pendientes')
   async listPending(@CurrentUser() user: AuthenticatedUser) {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);
@@ -119,6 +128,7 @@ export class CustomerDossierController {
    * Verifies that the dossier is complete (cuit, razonSocial, condicionIva)
    * before approving.
    */
+  @CanonicalPermission('CUSTOMERS_MANAGE')
   @Patch(':clienteId/aprobar')
   async approve(@Param('clienteId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);

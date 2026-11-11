@@ -21,7 +21,10 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { StripeProviderService } from './providers/stripe-provider.service';
 import { MercadoPagoProviderService } from './providers/mercadopago-provider.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import {
+  CanonicalPermission,
+  PROVIDER_WEBHOOK,
+} from '../authorization/canonical-permission.decorator';
 
 @ApiTags('pagos')
 @ApiBearerAuth()
@@ -68,6 +71,7 @@ export class PaymentController {
   /**
    * GET /pagos/:id - Get payment details
    */
+  @CanonicalPermission('PAYMENTS_VIEW')
   @Get(':id')
   async getPaymentDetail(
     @Param('id') paymentId: string,
@@ -80,6 +84,7 @@ export class PaymentController {
   /**
    * GET /pagos - List payments (paginated)
    */
+  @CanonicalPermission('PAYMENTS_VIEW')
   @Get()
   async listPayments(
     @Query('skip') skip?: string,
@@ -117,6 +122,7 @@ export class PaymentController {
   /**
    * GET /pagos/:id/refund - Get refund status
    */
+  @CanonicalPermission('PAYMENTS_VIEW')
   @Get(':id/refund')
   async getRefundStatus(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
@@ -127,6 +133,7 @@ export class PaymentController {
    * POST /pagos/webhooks/stripe - Stripe webhook endpoint
    * Signature header: stripe-signature
    */
+  @CanonicalPermission(PROVIDER_WEBHOOK)
   @Post('webhooks/stripe')
   async handleStripeWebhook(@Headers('stripe-signature') signature: string, @Body() payload: any) {
     if (!signature) {
@@ -146,6 +153,7 @@ export class PaymentController {
    * POST /pagos/webhooks/mercadopago - MercadoPago webhook endpoint
    * Signature header: x-signature
    */
+  @CanonicalPermission(PROVIDER_WEBHOOK)
   @Post('webhooks/mercadopago')
   async handleMercadoPagoWebhook(@Headers('x-signature') signature: string, @Body() payload: any) {
     if (!signature) {
@@ -178,6 +186,7 @@ export class PaymentController {
   /**
    * GET /pagos/analytics/daily - Daily revenue analytics
    */
+  @CanonicalPermission('REPORTS_VIEW')
   @Get('analytics/daily')
   async getDailyRevenue(@CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
@@ -199,6 +208,7 @@ export class PaymentController {
   /**
    * GET /pagos/analytics/by-method - Payments by method
    */
+  @CanonicalPermission('REPORTS_VIEW')
   @Get('analytics/by-method')
   async getPaymentsByMethod(@CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);

@@ -14,6 +14,7 @@ import {
 } from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
 import { toMessageWire } from './message-serializer';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 // The public message representation lives in `message-serializer.ts` so HTTP
 // and Socket.IO emit the same shape from one definition. Serializing here with
@@ -49,31 +50,37 @@ export class MessagingController {
     }
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.messagingService.listConversations(user);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.getConversation(user, id);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id/associations')
   listAssociations(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociations(user, id);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id/associations/history')
   listAssociationHistory(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.listConversationAssociationHistory(user, id);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post(':id/associations')
   createAssociation(
     @CurrentUser() user: AuthenticatedUser,
@@ -89,6 +96,7 @@ export class MessagingController {
     );
   }
 
+  @CanonicalPermission(['MESSAGING_USE', 'ORDERS_MANAGE'])
   @Post(':id/orders')
   createOrder(
     @CurrentUser() user: AuthenticatedUser,
@@ -100,6 +108,7 @@ export class MessagingController {
     return this.messagingService.createOrderFromConversation(user, id);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Delete(':id/associations/:associationId')
   deactivateAssociation(
     @CurrentUser() user: AuthenticatedUser,
@@ -115,6 +124,7 @@ export class MessagingController {
     );
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post(':id/messages')
   createMessage(
     @CurrentUser() user: AuthenticatedUser,
@@ -143,6 +153,7 @@ export class MessagingController {
       });
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id/messages')
   getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService
@@ -150,6 +161,7 @@ export class MessagingController {
       .then((messages) => messages.map(serializeMessageSequence));
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post(':id/messages/:messageId/read')
   async markMessageRead(
     @CurrentUser() user: AuthenticatedUser,
@@ -170,6 +182,7 @@ export class MessagingController {
     return result;
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id/messages/:messageId/read-receipts')
   getMessageReadReceipts(
     @CurrentUser() user: AuthenticatedUser,
@@ -179,11 +192,13 @@ export class MessagingController {
     return this.messagingService.getMessageReadReceipts(user, id, messageId);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Get('read-receipts/preferences')
   getReadReceiptPreference(@CurrentUser() user: AuthenticatedUser) {
     return this.messagingService.getReadReceiptPreference(user);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Patch('read-receipts/preferences')
   setReadReceiptPreference(
     @CurrentUser() user: AuthenticatedUser,
@@ -192,6 +207,7 @@ export class MessagingController {
     return this.messagingService.setReadReceiptPreference(user, dto.enabled);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Patch(':id/messages/:messageId')
   async editMessage(
     @CurrentUser() user: AuthenticatedUser,
@@ -211,6 +227,7 @@ export class MessagingController {
     return serializeMessageSequence(message);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Delete(':id/messages/:messageId')
   async deleteMessage(
     @CurrentUser() user: AuthenticatedUser,
@@ -228,11 +245,13 @@ export class MessagingController {
     return serializeMessageSequence(message);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Delete(':id')
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.deleteConversation(user, id);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post(':id/participants')
   addParticipant(
     @CurrentUser() user: AuthenticatedUser,
@@ -242,6 +261,7 @@ export class MessagingController {
     return this.messagingService.addParticipant(user, id, dto.userId, dto.customerId);
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Delete(':id/participants/:participantId')
   removeParticipant(
     @CurrentUser() user: AuthenticatedUser,
@@ -263,6 +283,7 @@ export class MessagingController {
     });
   }
 
+  @CanonicalPermission('MESSAGING_USE')
   @Post(':id/admin/:participantId')
   transferAdmin(
     @CurrentUser() user: AuthenticatedUser,

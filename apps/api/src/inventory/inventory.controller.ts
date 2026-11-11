@@ -48,6 +48,7 @@ export class InventoryController {
   // search/pagination contract as GET /catalogo/productos (see
   // catalog.controller.ts) so as not to introduce a second filtering
   // criterion in the same frontend.
+  @CanonicalPermission('INVENTORY_VIEW')
   @Get('stock')
   async stock(
     @CurrentUser() user: AuthenticatedUser,
@@ -63,6 +64,7 @@ export class InventoryController {
 
   // INV-CONS-02: batch detail of a product — where the total shown by
   // GET /inventario/stock comes from.
+  @CanonicalPermission('INVENTORY_VIEW')
   @Get('productos/:id/lotes')
   async batchesForProduct(@Param('id') productId: string, @CurrentUser() user: AuthenticatedUser) {
     const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
@@ -79,6 +81,7 @@ export class InventoryController {
   // INV-CONS-03: MovimientoStock history of a product — they are already
   // generated from SalesService.deductStock() on every sale, this endpoint
   // only exposes them, it does not create any new one.
+  @CanonicalPermission('INVENTORY_VIEW')
   @Get('productos/:id/movimientos')
   async movementsForProduct(
     @Param('id') productId: string,
@@ -118,6 +121,7 @@ export class InventoryController {
   // single endpoint (both feed the same alerts badge in the frontend).
   // Read-only, no additional permission — same criterion as
   // GET /inventario/stock.
+  @CanonicalPermission('INVENTORY_VIEW')
   @Get('alertas')
   async alerts(@CurrentUser() user: AuthenticatedUser) {
     return this.inventoryService.alerts(await this.resolveCompanyIdFromContext(user));

@@ -6,6 +6,10 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuthorizationsService } from './authorizations.service';
 import { RequestAuthorizationDto } from './dto/request-authorization.dto';
+import {
+  CanonicalPermission,
+  AUTHENTICATED,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * D-06. No @RequirePermission here: any authenticated user can REQUEST an
@@ -31,6 +35,7 @@ export class AuthorizationsController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission(AUTHENTICATED)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async authorize(@Body() dto: RequestAuthorizationDto, @CurrentUser() user: AuthenticatedUser) {

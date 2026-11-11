@@ -23,6 +23,10 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser, UserProfile } from './auth.types';
 import { GoogleProfile } from './google.strategy';
+import {
+  CanonicalPermission,
+  AUTHENTICATED,
+} from '../authorization/canonical-permission.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,6 +47,7 @@ export class AuthController {
 
   // Validate JWT without fetching full user data
   @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
   @Post('validate')
   @HttpCode(HttpStatus.OK)
   validate(@CurrentUser() user: AuthenticatedUser) {
@@ -54,6 +59,7 @@ export class AuthController {
   // can change without a re-login (photo, company name) and that makes
   // no sense to embed in the signed token.
   @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser): Promise<UserProfile> {
     const userRecord = await this.prisma.usuario.findUnique({
@@ -97,6 +103,7 @@ export class AuthController {
   // empty list (account not yet migrated). Does not touch login, JWT,
   // /auth/me or permissions.
   @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
   @Get('memberships')
   async memberships(@CurrentUser() user: AuthenticatedUser) {
     const canonical = await this.membershipService.findUserByLegacyUserId(user.id);
@@ -106,6 +113,7 @@ export class AuthController {
 
   // Multi-business: switch to a different empresa
   @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
   @Post('switch-empresa/:empresaId')
   @HttpCode(HttpStatus.OK)
   async switchEmpresa(

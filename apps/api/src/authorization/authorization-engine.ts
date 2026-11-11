@@ -9,6 +9,8 @@ import {
   type Role,
 } from './canonical-permissions';
 import {
+  AUTHENTICATED,
+  PROVIDER_WEBHOOK,
   resolveRequirement,
   type CanonicalRequest,
   type CanonicalRequirement,
@@ -42,11 +44,18 @@ export interface CanonicalEvaluation {
     | 'UNKNOWN_ROLE'
     | 'INACTIVE'
     | 'UNKNOWN_CODE'
-    | 'CUSTOMER_POLICY';
+    | 'UNDECLARED'
+    | 'SELF_SERVICE'
+    | 'CUSTOMER_POLICY'
+    | 'PROVIDER_WEBHOOK'
+    | 'PLATFORM_POLICY';
 }
 
 export interface EvaluationInput {
-  /** Legacy `@RequirePermission` / `@Authorize` code, or a canonical permission. */
+  /**
+   * Legacy `@RequirePermission` / `@Authorize` code, or a canonical permission; `''` when
+   * the endpoint has no legacy decorator.
+   */
   code: string;
   /** AS-IS `RolUsuario` of the principal (Usuario.rol or Membership.role). */
   legacyRole: string | null | undefined;
@@ -79,10 +88,29 @@ export function evaluate(input: EvaluationInput): CanonicalEvaluation {
     input.declared === undefined
       ? undefined
       : resolveRequirement(input.declared, input.request ?? {});
-  const translated = declared ?? translateCode(input.code);
   const mappedRole = input.legacyRole ? canonicalRoleFor(input.legacyRole) : undefined;
   const canonicalRole = mappedRole ?? null;
+  const none = { required: [] as readonly Permission[], canonicalRole, ambiguous: false };
 
+  // Policy markers (non-permission policies).
+  if (typeof declared === 'string' && declared !== CUSTOMER_POLICY) {
+    if (declared === AUTHENTICATED) {
+      return input.active
+        ? { ...none, decision: 'ALLOW', reason: 'SELF_SERVICE' }
+        : { ...none, decision: 'DENY', reason: 'INACTIVE' };
+    }
+    return {
+      ...none,
+      decision: 'NOT_APPLICABLE',
+      reason: declared === PROVIDER_WEBHOOK ? 'PROVIDER_WEBHOOK' : 'PLATFORM_POLICY',
+    };
+  }
+  // AUTH-10: an endpoint with neither a legacy code nor a declaration fails closed.
+  if (declared === undefined && input.code === '') {
+    return { ...none, decision: 'DENY', reason: 'UNDECLARED' };
+  }
+
+  const translated = declared ?? translateCode(input.code);
   if (translated === CUSTOMER_POLICY) {
     return {
       decision: 'NOT_APPLICABLE',
@@ -122,7 +150,7 @@ export interface ShadowInput extends EvaluationInput {
   /** Decision the legacy guard is about to enforce. */
   legacyAllowed: boolean;
   /** Which legacy mechanism decided (for the parity report). */
-  source: 'RequirePermission' | 'Authorize';
+  source: 'RequirePermission' | 'Authorize' | 'Authenticated';
   principalId: string;
 }
 

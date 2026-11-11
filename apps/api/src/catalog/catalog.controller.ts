@@ -73,6 +73,7 @@ export class CatalogController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission('CATALOG_VIEW')
   @Get()
   async listProducts(
     @CurrentUser() user: AuthenticatedUser,
@@ -108,6 +109,7 @@ export class CatalogController {
     });
   }
 
+  @CanonicalPermission('CATALOG_VIEW')
   @Get(':id')
   async getProduct(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     // The client is already filtered by the company resolved from the context

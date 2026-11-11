@@ -43,6 +43,7 @@ export class SalesController {
 
   // Inc-1: product search for the New sale screen (RF-VTA-02). Route before
   // ':id' so that Express does not interpret 'productos' as an ID.
+  @CanonicalPermission('CATALOG_VIEW')
   @Get('productos')
   async searchProducts(@Query('search') search: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.searchProducts(

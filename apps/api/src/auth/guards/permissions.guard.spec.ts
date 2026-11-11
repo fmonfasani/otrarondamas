@@ -136,6 +136,43 @@ describe('PermissionsGuard current database authorization', () => {
       ]);
     });
 
+    it('shadows authenticated-only endpoints without querying the database (AUTH-10)', async () => {
+      getAllAndOverride.mockReturnValue(undefined);
+      const contextFor = (handler: () => unknown, rol: AuthenticatedUser['rol']) =>
+        ({
+          getType: () => 'http',
+          getHandler: () => handler,
+          getClass: () => class {},
+          switchToHttp: () => ({ getRequest: () => ({ user: user({ rol }), body: {} }) }),
+        }) as unknown as ExecutionContext;
+      const undeclared = () => undefined;
+      const purchases = () => undefined;
+      CanonicalPermission('PURCHASES_MANAGE')(purchases, 'list', { value: purchases });
+
+      // Undeclared: still allowed, logged as UNDECLARED.
+      await expect(guard.canActivate(contextFor(undeclared, 'OWNER'))).resolves.toBe(true);
+      // Vendedor reading purchases: still allowed, the matrix would deny.
+      await expect(guard.canActivate(contextFor(purchases, 'ASISTENTE_LOCAL'))).resolves.toBe(true);
+      // Owner reading purchases: agreement, nothing logged.
+      await expect(guard.canActivate(contextFor(purchases, 'OWNER'))).resolves.toBe(true);
+
+      expect(findUnique).not.toHaveBeenCalled();
+      expect(divergences()).toEqual([
+        expect.objectContaining({
+          source: 'Authenticated',
+          canonical: 'DENY',
+          reason: 'UNDECLARED',
+        }),
+        expect.objectContaining({
+          source: 'Authenticated',
+          legacy: 'ALLOW',
+          canonical: 'DENY',
+          canonicalRole: 'VENDEDOR',
+          required: ['PURCHASES_MANAGE'],
+        }),
+      ]);
+    });
+
     it('logs nothing when legacy and canonical agree', async () => {
       findUnique.mockResolvedValue({
         activo: true,

@@ -49,6 +49,7 @@ export class PurchasesController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Get('proveedores')
   async listSuppliers(@CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.listSuppliers(await this.resolveCompanyIdFromContext(user));
@@ -76,11 +77,13 @@ export class PurchasesController {
     );
   }
 
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Get('compras')
   async listPurchases(@CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.listPurchases(await this.resolveCompanyIdFromContext(user));
   }
 
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Get('compras/:id')
   async getPurchase(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.getPurchase(await this.resolveCompanyIdFromContext(user), id);
@@ -122,6 +125,7 @@ export class PurchasesController {
     );
   }
 
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Get('compras/:id/pagos')
   async listPayments(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.listPayments(await this.resolveCompanyIdFromContext(user), id);
@@ -144,6 +148,7 @@ export class PurchasesController {
     );
   }
 
+  @CanonicalPermission('PURCHASES_MANAGE')
   @Get('compras/:id/devoluciones')
   async listReturns(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.purchasesService.listReturns(await this.resolveCompanyIdFromContext(user), id);

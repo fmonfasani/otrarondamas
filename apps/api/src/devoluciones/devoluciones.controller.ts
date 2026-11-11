@@ -65,6 +65,7 @@ export class DevolucionClienteController {
     return this.devolucionesService.createDevolucione(businessId, user.id, dto);
   }
 
+  @CanonicalPermission('ORDERS_VIEW')
   @Get()
   @ApiOperation({ summary: 'List returns' })
   @ApiResponse({ status: 200, type: [DevolucionDto] })
@@ -83,6 +84,7 @@ export class DevolucionClienteController {
     });
   }
 
+  @CanonicalPermission('ORDERS_VIEW')
   @Get(':id')
   @ApiOperation({ summary: 'Get return details' })
   @ApiResponse({ status: 200, type: DevolucionDto })

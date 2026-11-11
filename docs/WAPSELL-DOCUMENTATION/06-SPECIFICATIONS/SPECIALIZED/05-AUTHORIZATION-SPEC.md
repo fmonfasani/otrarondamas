@@ -226,7 +226,7 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 |---|---|---|
 | 1 | Done — catalogue, matrix and legacy mapping as typed data (no schema change, no seed) | `apps/api/src/authorization/canonical-permissions.ts`, PR #174 |
 | 2 | Shadow mode — `authorization-engine.ts` evaluates every `@RequirePermission` / `@Authorize` request and logs `authz.shadow.divergence` when it disagrees with the legacy decision; **the legacy guards still decide** | `authorization-engine.spec.ts`, `permissions.guard.spec.ts` |
-| 3 | Shadow mode, legacy surface — the 65 endpoints with `@RequirePermission` / `@Authorize` declare `@CanonicalPermission` (all listed permissions required); the engine uses the declaration instead of the §5.1 translation. Endpoints with no legacy decorator are not declared yet, so fail-closed on undeclared policy (`AUTH-10`) is still pending | `canonical-permission.decorator.spec.ts` (coverage test), PR for #161 stage 3 / #168 |
+| 3 | Shadow mode, **every routed endpoint** — the 65 endpoints with `@RequirePermission` / `@Authorize` (#176) and the other 84 non-public routes declare `@CanonicalPermission` (all listed permissions required). The engine evaluates authenticated-only endpoints too (role from the JWT, no extra query) and an endpoint with no declaration is `DENY / UNDECLARED` (`AUTH-10`) | `endpoint-policy-coverage.spec.ts` walks `AppModule` and fails on any non-`@Public` route without a policy; `canonical-permission.decorator.spec.ts`, `permissions.guard.spec.ts` |
 | 4–5 | Pending | — |
 
 **Stage 3 declarations that differ from the coarse §5.1 translation** (shadow only; they become effective only when
@@ -252,6 +252,36 @@ the engine is made authoritative):
 2. `POST /pagos/:id/cancel` cancels a *pending payment*, not a Sale, but the §5.1 mapping of `ventas.eliminar` gives
    `SALES_CANCEL`, which the Vendedor does not hold. Kept as `SALES_CANCEL`; `PAYMENTS_REGISTER` may fit better.
 3. Manual cash `Ingreso` / `Egreso` movements have no specific permission and are declared `CASH_EXPENSE`.
+
+**Policies that are not Business permissions** (technical classification, needed so that every endpoint has a policy):
+`AUTHENTICATED` (self-service on the caller's own data), `CUSTOMER_POLICY`, `PROVIDER_WEBHOOK` (authenticated by the
+provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
+
+**Declarations for endpoints that had no legacy permission** (today any authenticated staff user can call them):
+
+| Endpoints | Declared | Effect against the matrix |
+|---|---|---|
+| `/auth/me`, `/auth/memberships`, `/auth/switch-empresa`, `/auth/validate`, `/tenants/my-empresas`, `/legajo/mi-legajo*`, `/emails/preferences`, `/i18n/*` | `AUTHENTICATED` | — |
+| `POST /autorizaciones`, `PATCH /caja/arqueo/:id/autorizar` (D-06: the authorizer's credentials are in the body) | `AUTHENTICATED` | — |
+| `GET /caja/estado`, `GET /caja/movimientos` · `POST /caja/apertura` · `POST /caja/arqueo` | `CASH_VIEW` · `CASH_OPEN` · `CASH_CLOSE` | Gestor de Stock denied |
+| catalogue reads, `GET /ventas/productos` | `CATALOG_VIEW` | — |
+| `GET /clientes*` | `CUSTOMERS_VIEW` | Gestor de Stock denied |
+| `GET /devoluciones*` | `ORDERS_VIEW` | — |
+| `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
+| `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
+| `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |
+| `GET /inventario/*` | `INVENTORY_VIEW` | — |
+| `PATCH /memberships/:id/suspend` and `/reactivate` (service: Owner only) | `USERS_MANAGE` | — |
+| `/messaging/conversations*` | `MESSAGING_USE`; `POST …/:id/orders` adds `ORDERS_MANAGE` | — |
+| `GET /pagos*`, `GET /ventas/:id/pagos` · `GET /pagos/analytics/*` | `PAYMENTS_VIEW` · `REPORTS_VIEW` | Gestor denied · Vendedor and Gestor denied |
+| `POST /pagos/webhooks/*` | `PROVIDER_WEBHOOK` | — (these routes are not `@Public`; known open item) |
+| `GET /proveedores`, `GET /compras*` | `PURCHASES_MANAGE` (no `PURCHASES_VIEW` in the catalogue) | Vendedor denied |
+| `GET /usuarios` | `USERS_VIEW` | Vendedor and Gestor denied |
+| `GET /platform-admin/overview` | `PLATFORM_BUSINESSES_VIEW` | not a Membership permission |
+
+4. Reading returns (`GET /devoluciones*`) is declared `ORDERS_VIEW`, and reading purchases `PURCHASES_MANAGE`: the
+   catalogue has no `RETURNS_VIEW` / `PURCHASES_VIEW`. Confirm, or add them to the catalogue.
+5. `POST /caja/arqueo` (cash count) is declared `CASH_CLOSE`, as part of the closing procedure.
 
 The legacy source of truth is per-user (`UsuarioPermiso`), the matrix is per role, so for current users the two
 decisions differ (for example, an Owner without a `UsuarioPermiso` row is denied today and allowed by the matrix).

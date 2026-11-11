@@ -25,6 +25,10 @@ import { AllowCustomer } from './decorators/allow-customer.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser } from './auth.types';
 import { GoogleProfile } from './google.strategy';
+import {
+  CanonicalPermission,
+  CUSTOMER_POLICY,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-17 (docs/spec-login-roles.md): Customer-side authentication
@@ -111,6 +115,7 @@ export class AuthCustomerController {
    * BusinessContextService, then the profile query is company-scoped.
    */
   @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser) {
     if (user.type !== 'cliente') {

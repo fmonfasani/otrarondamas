@@ -4,6 +4,7 @@ import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.serv
 import { BusinessContextService } from '../business-context/business-context.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * Read-only access to the 4 catalog hierarchy tables (Family → Subfamily →
@@ -44,6 +45,7 @@ export class CatalogHierarchyController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission('CATALOG_VIEW')
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
     const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
