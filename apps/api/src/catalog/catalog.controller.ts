@@ -125,7 +125,7 @@ export class CatalogController {
   }
 
   @RequirePermission('productos.gestionar')
-  @CanonicalPermission('CATALOG_MANAGE')
+  @CanonicalPermission(['CATALOG_MANAGE', 'PRICING_CHANGE'])
   @Post()
   async createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: AuthenticatedUser) {
     const companyId = await this.resolveCompanyIdFromContext(user);
