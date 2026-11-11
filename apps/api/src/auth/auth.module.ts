@@ -12,12 +12,22 @@ import { AuthorizationGuard } from './guards/authorization.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MembershipModule } from '../membership/membership.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
+import { EmailModule } from '../email/email.module';
+import { PasswordResetService } from './password-reset.service';
 
 @Module({
-  imports: [PrismaModule, MembershipModule, BusinessContextModule, PassportModule, AuthJwtModule],
+  imports: [
+    PrismaModule,
+    MembershipModule,
+    BusinessContextModule,
+    PassportModule,
+    AuthJwtModule,
+    EmailModule,
+  ],
   controllers: [AuthController, AuthCustomerController],
   providers: [
     AuthService,
+    PasswordResetService,
     AuthGoogleService,
     AuthCustomerService,
     GoogleStrategy,

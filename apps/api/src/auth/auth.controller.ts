@@ -19,6 +19,8 @@ import { AuthGoogleService } from './auth.google.service';
 import { MembershipService } from '../membership/membership.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
+import { PasswordResetService } from './password-reset.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser, UserProfile } from './auth.types';
@@ -36,6 +38,7 @@ export class AuthController {
     private readonly authGoogleService: AuthGoogleService,
     private readonly membershipService: MembershipService,
     private readonly prisma: PrismaService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   @Public()
@@ -43,6 +46,27 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
+  }
+
+  /**
+   * Figma "Recuperar contraseña": sends a single-use link by email. Always answers the
+   * same, so it does not reveal whether an account exists.
+   */
+  @Public()
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.passwordReset.requestReset(dto.email);
+    return { ok: true };
+  }
+
+  /** Figma "Nueva contraseña": consumes the link and sets the new password. */
+  @Public()
+  @Post('password/reset')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.passwordReset.resetPassword(dto.token, dto.password);
+    return { ok: true };
   }
 
   // Validate JWT without fetching full user data

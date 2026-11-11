@@ -1211,6 +1211,7 @@ model Usuario {
   Empresa                                          Empresa               @relation(fields: [empresaId], references: [id])
   UserEmpresa                                      UserEmpresa[]
   UsuarioPermiso                                   UsuarioPermiso[]
+  PasswordResetToken                               PasswordResetToken[]
   Venta                                            Venta[]
   PhoneNumber                                      PhoneNumber[]
   SMSAlert                                         SMSAlert[]
@@ -1292,6 +1293,20 @@ model UserEmpresa {
   @@unique([usuarioId, empresaId])
   @@index([usuarioId])
   @@index([empresaId])
+}
+
+/// Single-use password recovery link for a staff Usuario (Figma "Recuperar contraseña").
+/// Only the SHA-256 of the token is stored; the raw token travels in the email link.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  usuarioId String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  Usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, createdAt])
 }
 
 model UsuarioPermiso {
