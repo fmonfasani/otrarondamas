@@ -1,6 +1,6 @@
 # Wapsell — Plan de cut-over de autorización
 
-**Versión:** 0.1 | **Estado:** PROPUESTO — pendiente de aprobación del Owner | **Fecha:** 2026-11-11
+**Versión:** 0.2 | **Estado:** APROBADO — Owner Ruling OR-B4-026 (2026-11-11) | **Fecha:** 2026-11-11
 
 > Requisito de `OR-B4-025`: el Owner autorizó que el motor canónico (matriz por rol) reemplace a los permisos por
 > usuario **sujeto a un plan previo** que apruebe antes de activar. Spec: `05-AUTHORIZATION-SPEC.md` v0.3 (#161).
@@ -67,3 +67,9 @@ Efectos a tener en cuenta:
 1. Activar ahora, con la base vacía, en lugar de esperar a cargar usuarios.
 2. Que `PROVEEDOR` y `REPARTIDOR` pierdan acceso de staff (§2.1).
 3. Los pasos 1–4 y el rollback de §5.
+
+## 7. Aprobación
+
+`OR-B4-026` (2026-11-11): el Owner aprobó el plan completo, que incluye activar ahora, la pérdida de acceso de staff
+de `PROVEEDOR` y `REPARTIDOR`, los pasos 1–4 y el rollback. Respuesta textual a "¿Aprobás el plan (activar ahora,
+PROVEEDOR/REPARTIDOR sin acceso de staff, pasos 1–4 y rollback)?": "Si".
