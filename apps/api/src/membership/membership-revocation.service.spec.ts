@@ -165,4 +165,54 @@ describe('MembershipRevocationService', () => {
     await service.suspendMembership(ownerAuth, 'membership-target');
     expect(prisma).not.toHaveProperty('usuario');
   });
+
+  // OR-B4-027 (#160): USERS_MANAGE per the matrix; only the Owner acts on an Owner Membership.
+  describe('canonical roles', () => {
+    const asRole = (role: string) =>
+      businessContext.resolveForAuthenticatedUser.mockResolvedValue({
+        ...ownerContext,
+        membershipId: `membership-${role}`,
+        role,
+      });
+
+    it('lets an Admin suspend a staff Membership', async () => {
+      asRole('ADMIN');
+      prisma.membership.findFirst.mockResolvedValue({
+        id: 'membership-target',
+        userId: 'user-target',
+        businessId: 'business-a',
+        status: 'ACTIVE',
+        role: 'VENDEDOR',
+      });
+      prisma.membership.updateMany.mockResolvedValue({ count: 1 });
+      await expect(service.suspendMembership(ownerAuth, 'membership-target')).resolves.toEqual(
+        expect.objectContaining({ status: 'SUSPENDED' }),
+      );
+    });
+
+    it('does not let an Admin act on the Owner Membership', async () => {
+      asRole('ADMIN');
+      prisma.membership.findFirst.mockResolvedValue({
+        id: 'membership-owner',
+        userId: 'user-owner',
+        businessId: 'business-a',
+        status: 'ACTIVE',
+        role: 'OWNER',
+      });
+      await expect(service.suspendMembership(ownerAuth, 'membership-owner')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.membership.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('denies roles without USERS_MANAGE', async () => {
+      for (const role of ['VENDEDOR', 'GESTOR_DE_STOCK', 'PROVEEDOR', 'REPARTIDOR']) {
+        asRole(role);
+        await expect(
+          service.suspendMembership(ownerAuth, 'membership-target'),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+      }
+      expect(prisma.membership.findFirst).not.toHaveBeenCalled();
+    });
+  });
 });

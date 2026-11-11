@@ -11,6 +11,7 @@ import {
   ROLE_PERMISSIONS,
   ROLES,
   canonicalRoleFor,
+  hasCanonicalPermission,
   isPermission,
   permissionsForRole,
   roleHasPermission,
@@ -133,6 +134,17 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
   });
 
   describe('legacy roles (OR-B4-006)', () => {
+    it('answers service-level permission checks by legacy role (OR-B4-027)', () => {
+      expect(hasCanonicalPermission('OWNER', 'MESSAGING_MANAGE')).toBe(true);
+      expect(hasCanonicalPermission('ADMIN', 'MESSAGING_MANAGE')).toBe(true);
+      expect(hasCanonicalPermission('ADMIN', 'BRAND_MANAGE')).toBe(false);
+      expect(hasCanonicalPermission('VENDEDOR', 'USERS_MANAGE')).toBe(false);
+      expect(hasCanonicalPermission('ASISTENTE_LOCAL', 'SALES_CREATE')).toBe(true);
+      expect(hasCanonicalPermission('PROVEEDOR', 'CATALOG_VIEW')).toBe(false);
+      expect(hasCanonicalPermission(null, 'CATALOG_VIEW')).toBe(false);
+      expect(hasCanonicalPermission('SUPERUSER', 'CATALOG_VIEW')).toBe(false);
+    });
+
     it('maps the canonical roles to themselves (OR-B4-027)', () => {
       for (const role of ROLES) expect(canonicalRoleFor(role)).toBe(role);
       expect(ASISTENTE_LOCAL_ALIAS_DEADLINE).toBe('2026-12-31');

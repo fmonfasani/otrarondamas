@@ -19,6 +19,16 @@ import type { BusinessContext } from '../business-context/business-context.types
 import { StoreService } from '../store/store.service';
 import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
+import { hasCanonicalPermission } from '../authorization/canonical-permissions';
+
+/**
+ * Read-only access to every conversation of the Business without being a participant
+ * (OWNER_READ_ONLY mode below): staff whose role holds MESSAGING_MANAGE in the approved
+ * matrix — Owner and Admin (OR-B4-027) — and that have a canonical User.
+ */
+function canReadAllConversations(context: BusinessContext): boolean {
+  return hasCanonicalPermission(context.role, 'MESSAGING_MANAGE') && context.userId !== null;
+}
 
 const MAX_GROUP_PARTICIPANTS = 50;
 
@@ -42,12 +52,14 @@ const MAX_GROUP_PARTICIPANTS = 50;
  * - **Technical note:** Participant list + leftAt/removedAt timestamps define lifecycle.
  *
  * ### Mode 2: OWNER_READ_ONLY (non-participant but Business Owner)
- * - **Who:** User with OWNER role in the Business, NOT in the conversation's participants
+ * - **Who:** User whose role holds MESSAGING_MANAGE (Owner or Admin, OR-B4-027), NOT in the
+ *   conversation's participants
  * - **List conversations:** ✓ Can list all conversations of the Business (no filter)
  * - **Read conversation:** ✓ Can read details and participants
  * - **Read messages:** ✓ Can read all messages from conversation start (no join timestamp limit)
  * - **Write messages:** ✗ **FORBIDDEN** — assertActiveParticipant throws 403
- * - **Technical note:** Implemented via `isOwner = context.role === 'OWNER' && context.userId !== null`
+ * - **Technical note:** Implemented via `canReadAllConversations(context)` — staff holding
+ *   MESSAGING_MANAGE in the matrix (Owner and Admin, OR-B4-027) with a canonical User —
  *   check in listConversations, getMessages, withViewerAccess. This allows administrative
  *   audit without granting implicit write permission.
  *
@@ -70,11 +82,11 @@ const MAX_GROUP_PARTICIPANTS = 50;
  *
  * ## Operation-Level Enforcement
  *
- * - **list/get (read-only):** isOwner → no assertActiveParticipant
+ * - **list/get (read-only):** canReadAll (MESSAGING_MANAGE) → no assertActiveParticipant
  *   (OWNER_READ_ONLY allowed; other modes blocked by absent participant record)
  * - **send/edit/delete:** assertActiveParticipant → FORBIDDEN if not participant
  *   (OWNER_READ_ONLY and below all fail; PARTICIPANT required)
- * - **manage (admin ops):** assertConversationAdmin → isAdmin: true AND OWNER role
+ * - **manage (admin ops):** assertConversationAdmin → isAdmin: true AND MESSAGING_MANAGE
  *   (strictest check; combined with participant + admin flag)
  *
  * ## Customer Identity
@@ -297,14 +309,14 @@ export class MessagingService {
 
   async getMessages(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
-    const isOwner = context.role === 'OWNER' && context.userId !== null;
+    const canReadAll = canReadAllConversations(context);
     const conversation = await this.prisma.conversation.findFirst({
       where: { id: conversationId, businessId: context.businessId, deletedAt: null },
     });
     if (!conversation) throw new NotFoundException('Conversación no encontrada');
 
     let joinedAt: Date | undefined;
-    if (!isOwner) {
+    if (!canReadAll) {
       const participant = await this.assertActiveParticipant(this.prisma, conversationId, context);
       joinedAt = participant.joinedAt;
     }
@@ -371,13 +383,13 @@ export class MessagingService {
 
   async listConversations(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
-    const isOwner = context.role === 'OWNER' && context.userId !== null;
+    const canReadAll = canReadAllConversations(context);
 
     const conversations = await this.prisma.conversation.findMany({
       where: {
         businessId: context.businessId,
         deletedAt: null,
-        ...(!isOwner
+        ...(!canReadAll
           ? {
               ConversationParticipant: {
                 some: {
@@ -1030,7 +1042,7 @@ export class MessagingService {
 
   async getMessageReadReceipts(auth: AuthenticatedUser, conversationId: string, messageId: string) {
     const context = await this.resolveContext(auth);
-    const isOwner = context.role === 'OWNER' && context.userId !== null;
+    const canReadAll = canReadAllConversations(context);
 
     const conversation = await this.prisma.conversation.findFirst({
       where: {
@@ -1041,7 +1053,7 @@ export class MessagingService {
     });
     if (!conversation) throw new NotFoundException('Conversación no encontrada');
 
-    if (!isOwner) {
+    if (!canReadAll) {
       await this.assertActiveParticipant(this.prisma, conversationId, context);
     }
 
@@ -1333,8 +1345,11 @@ export class MessagingService {
     conversationId: string,
     context: BusinessContext,
   ) {
-    if (context.role !== 'OWNER') {
-      throw new ForbiddenException('Solo Owner puede administrar la conversación en esta fase');
+    // OR-B4-027: MESSAGING_MANAGE (Owner and Admin), plus the conversation admin flag below.
+    if (!hasCanonicalPermission(context.role, 'MESSAGING_MANAGE')) {
+      throw new ForbiddenException(
+        'Requiere el permiso MESSAGING_MANAGE para administrar la conversación',
+      );
     }
 
     const participant = await tx.conversationParticipant.findFirst({
@@ -1378,8 +1393,8 @@ export class MessagingService {
       throw new NotFoundException('Conversación no encontrada');
     }
 
-    const isOwner = context.role === 'OWNER' && context.userId !== null;
-    if (!isOwner) {
+    const canReadAll = canReadAllConversations(context);
+    if (!canReadAll) {
       await this.assertActiveParticipant(tx, conversationId, context);
     }
 

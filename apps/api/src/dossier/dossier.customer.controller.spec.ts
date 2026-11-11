@@ -81,13 +81,26 @@ describe('CustomerDossierController Owner authorization and tenant context', () 
     });
   });
 
-  it('rejects non-Owner Memberships from approving a wholesale dossier', async () => {
-    resolveForAuthenticatedUser.mockResolvedValue(context('ADMIN'));
-
-    await expect(controller.approve('customer-1', user)).rejects.toBeInstanceOf(ForbiddenException);
+  // OR-B4-027: Owner and Admin (it used to be Owner-only); not the Vendedor, even though the
+  // matrix gives it CUSTOMERS_MANAGE.
+  it('rejects non Owner/Admin Memberships from approving a wholesale dossier', async () => {
+    for (const role of ['VENDEDOR', 'GESTOR_DE_STOCK', 'PROVEEDOR']) {
+      resolveForAuthenticatedUser.mockResolvedValue(context(role));
+      await expect(controller.approve('customer-1', user)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    }
 
     expect(findFirst).not.toHaveBeenCalled();
     expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('lets an Admin see and approve wholesale dossiers', async () => {
+    resolveForAuthenticatedUser.mockResolvedValue(context('ADMIN'));
+
+    await expect(controller.listPending(user)).resolves.toEqual([]);
+    await controller.approve('customer-1', user);
+    expect(updateMany).toHaveBeenCalled();
   });
 
   it('scopes approval to the current Business and atomically transitions only a pending wholesale customer', async () => {

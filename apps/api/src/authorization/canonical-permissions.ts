@@ -222,6 +222,28 @@ export function roleHasPermission(role: Role, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
+/**
+ * Whether an AS-IS `RolUsuario` (Usuario.rol / Membership.role) holds a canonical permission
+ * through the approved matrix. Unknown and non-Membership roles hold nothing. Used by
+ * service-level rules that used to check `role === 'OWNER'` (OR-B4-027).
+ */
+export function hasCanonicalPermission(
+  legacyRole: string | null | undefined,
+  permission: Permission,
+): boolean {
+  const role = legacyRole ? canonicalRoleFor(legacyRole) : undefined;
+  return role !== undefined && role !== null && roleHasPermission(role, permission);
+}
+
+/** Whether an AS-IS `RolUsuario` maps to one of the given canonical roles. */
+export function hasCanonicalRole(
+  legacyRole: string | null | undefined,
+  roles: readonly Role[],
+): boolean {
+  const role = legacyRole ? canonicalRoleFor(legacyRole) : undefined;
+  return role !== undefined && role !== null && roles.includes(role);
+}
+
 /** Canonical role for an AS-IS `RolUsuario`; undefined when the value is unknown. */
 export function canonicalRoleFor(legacyRole: string): Role | null | undefined {
   return Object.prototype.hasOwnProperty.call(LEGACY_ROLE_MAP, legacyRole)

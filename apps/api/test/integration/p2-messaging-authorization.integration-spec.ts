@@ -38,7 +38,7 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
     legacyId: string;
     userId: string;
     businessId: string;
-    role: 'OWNER' | 'ASISTENTE_LOCAL';
+    role: 'OWNER' | 'ASISTENTE_LOCAL' | 'ADMIN';
   };
 
   let owner: Actor; // creator, admin and participant
@@ -46,6 +46,7 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
   let removed: Actor; // participant removed by the admin (removedAt)
   let suspended: Actor; // active participant whose Membership is later suspended
   let outsider: Actor; // internal non-Owner, never a participant
+  let admin: Actor; // ADMIN (MESSAGING_MANAGE, OR-B4-027), never a participant
   let foreignOwner: Actor; // Owner of another Business
   let businessId: string;
   let foreignBusinessId: string;
@@ -90,7 +91,7 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
   const makeActor = async (
     business: string,
     label: string,
-    role: 'OWNER' | 'ASISTENTE_LOCAL',
+    role: 'OWNER' | 'ASISTENTE_LOCAL' | 'ADMIN',
   ): Promise<Actor> => {
     const legacy = await prisma.usuario.create({
       data: {
@@ -188,6 +189,7 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
     removed = await makeActor(businessId, 'removed', 'OWNER');
     suspended = await makeActor(businessId, 'suspended', 'OWNER');
     outsider = await makeActor(businessId, 'outsider', 'ASISTENTE_LOCAL');
+    admin = await makeActor(businessId, 'admin', 'ADMIN');
     foreignOwner = await makeActor(foreignBusinessId, 'foreign', 'OWNER');
     customer = await prisma.cliente.create({
       data: { empresaId: businessId, nombre: `P2 customer ${suffix}` },
@@ -229,7 +231,9 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
     if (prisma) {
       const businessIds = [businessId, foreignBusinessId].filter(Boolean);
       if (businessIds.length) {
-        const actors = [owner, leaver, removed, suspended, outsider, foreignOwner].filter(Boolean);
+        const actors = [owner, leaver, removed, suspended, outsider, admin, foreignOwner].filter(
+          Boolean,
+        );
         await prisma.messageReadReceipt.deleteMany({ where: { businessId: { in: businessIds } } });
         await prisma.messagingReadPreference.deleteMany({
           where: { businessId: { in: businessIds } },
@@ -630,6 +634,39 @@ describe('P2 -- Messaging authorization (compiled stack + real PostgreSQL)', () 
       expect(
         await prisma.message.count({ where: { conversationId: customerConversationId } }),
       ).toBe(before);
+    });
+  });
+
+  // OR-B4-027 (#160): the read-only mode follows MESSAGING_MANAGE, so an Admin who is not a
+  // participant reads like the Owner and still cannot write.
+  describe('Admin who is not a participant (MESSAGING_MANAGE)', () => {
+    it('lists and reads every conversation of the Business but cannot write', async () => {
+      const list = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(userToken(admin)))
+        .expect(200);
+      const ids = (list.body as { id: string }[]).map((conversation) => conversation.id);
+      expect(ids).toEqual(expect.arrayContaining([groupId, customerConversationId]));
+
+      await request(BASE)
+        .get(`/messaging/conversations/${groupId}/messages`)
+        .set('Authorization', bearer(userToken(admin)))
+        .expect(200);
+
+      const before = await prisma.message.count({ where: { conversationId: groupId } });
+      const response = await send(userToken(admin), groupId, `admin-ro-${suffix}`, 'Admin');
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe(NOT_PARTICIPANT);
+      expect(await prisma.message.count({ where: { conversationId: groupId } })).toBe(before);
+    });
+
+    it('keeps the outsider Vendedor out of conversations it does not join', async () => {
+      const list = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(userToken(outsider)))
+        .expect(200);
+      const ids = (list.body as { id: string }[]).map((conversation) => conversation.id);
+      expect(ids).not.toContain(groupId);
     });
   });
 
