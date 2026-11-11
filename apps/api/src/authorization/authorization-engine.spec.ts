@@ -156,12 +156,12 @@ describe('canonical authorization engine (#161 stage 2)', () => {
 
     const base = { source: 'RequirePermission' as const, principalId: 'u-1', active: true };
 
-    it('defaults to shadow and accepts only shadow / enforce', () => {
-      expect(DEFAULT_AUTHZ_ENGINE_MODE).toBe('shadow');
-      expect(authzEngineMode({})).toBe('shadow');
-      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: ' Enforce ' })).toBe('enforce');
-      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'shadow' })).toBe('shadow');
-      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'on' })).toBe('shadow');
+    it('defaults to enforce since the cut-over (OR-B4-026) and accepts only shadow / enforce', () => {
+      expect(DEFAULT_AUTHZ_ENGINE_MODE).toBe('enforce');
+      expect(authzEngineMode({})).toBe('enforce');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: ' Shadow ' })).toBe('shadow');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'enforce' })).toBe('enforce');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'off' })).toBe('enforce');
     });
 
     it('returns the legacy outcome in shadow mode and the canonical one in enforce mode', () => {

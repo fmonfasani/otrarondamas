@@ -21,12 +21,10 @@ import {
  * Single canonical authorization engine — stage 2 of the Authorization spec v0.2
  * (§5.3, OR-B4-024; backlog #161).
  *
- * It resolves `role → matrix` and decides a request in canonical terms. In this stage it
- * runs in SHADOW MODE: the legacy guards keep deciding, and the engine's decision is only
- * compared and logged. Making the engine authoritative changes allow/deny for current
- * users (the legacy source of truth is per-user `UsuarioPermiso`, the matrix is per role),
- * which is a legacy permission cut-over and requires an explicit Owner decision
- * (OR-B4-001, OR-B4-010).
+ * It resolves `role → matrix` and decides a request in canonical terms. Since the cut-over
+ * (OR-B4-026) it is AUTHORITATIVE by default (`enforce`): the legacy decision (per-user
+ * `UsuarioPermiso`, RoleTemplate/CapabilityGrant) is only compared and logged. Setting
+ * AUTHZ_ENGINE_MODE=shadow restores the legacy guards as the deciders.
  */
 
 export type CanonicalDecision = 'ALLOW' | 'DENY' | 'NOT_APPLICABLE';
@@ -162,7 +160,8 @@ export interface ShadowInput extends EvaluationInput {
  * Unknown values fall back to the code default.
  */
 export type AuthzEngineMode = 'shadow' | 'enforce';
-export const DEFAULT_AUTHZ_ENGINE_MODE: AuthzEngineMode = 'shadow';
+/** Cut-over activated by OR-B4-026 (plan step 3). */
+export const DEFAULT_AUTHZ_ENGINE_MODE: AuthzEngineMode = 'enforce';
 
 export function authzEngineMode(env: NodeJS.ProcessEnv = process.env): AuthzEngineMode {
   const value = env.AUTHZ_ENGINE_MODE?.trim().toLowerCase();

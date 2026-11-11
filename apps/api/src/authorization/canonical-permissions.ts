@@ -3,8 +3,8 @@
  * (docs/WAPSELL-DOCUMENTATION/06-SPECIFICATIONS/SPECIALIZED/05-AUTHORIZATION-SPEC.md v0.2,
  * Owner Ruling OR-B4-024; backlog #161).
  *
- * Stage 1 = the approved catalogue, Role → Permission matrix and legacy mapping as typed
- * data, with NO behaviour change: nothing in the request path reads this module yet.
+ * The approved catalogue, Role → Permission matrix and legacy mapping as typed data. Since
+ * the cut-over (OR-B4-026) the authorization engine decides with this matrix.
  * Stage 2 wires a single engine (AUTH-08) that resolves Membership.role → this matrix and
  * turns @RequirePermission / @Authorize into adapters through LEGACY_PERMISSION_MAP.
  */
