@@ -60,11 +60,13 @@ export class CustomersController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission('CUSTOMERS_VIEW')
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
     return this.customersService.list(await this.contextCompanyId(user), search);
   }
 
+  @CanonicalPermission('CUSTOMERS_VIEW')
   @Get(':id')
   async get(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.customersService.get(await this.contextCompanyId(user), id);

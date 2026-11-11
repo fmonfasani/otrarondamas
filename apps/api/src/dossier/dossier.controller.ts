@@ -24,7 +24,10 @@ import { BusinessContextGuard } from '../business-context/business-context.guard
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
-import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import {
+  CanonicalPermission,
+  AUTHENTICATED,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * RF-17 (docs/spec-login-roles.md): own dossier (self-service, without
@@ -46,11 +49,13 @@ export class DossierController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @CanonicalPermission(AUTHENTICATED)
   @Get('mi-legajo')
   myDossier(@CurrentUser() user: AuthenticatedUser) {
     return this.dossierService.getOrCreateForUser(user.id);
   }
 
+  @CanonicalPermission(AUTHENTICATED)
   @Patch('mi-legajo')
   updateMyDossier(@Body() dto: UpdateDossierDto, @CurrentUser() user: AuthenticatedUser) {
     return this.dossierService.updateForUser(user.id, dto);
@@ -62,6 +67,7 @@ export class DossierController {
   // decides where and how to persist the file on disk, never Multer
   // directly (we need the generated name + the path outside the webroot, see
   // storageDir()).
+  @CanonicalPermission(AUTHENTICATED)
   @Post('mi-legajo/documentos')
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 10 * 1024 * 1024 } })) // 10MB
   async uploadDocument(
@@ -73,6 +79,7 @@ export class DossierController {
     return this.dossierService.uploadDocument(dossier.id, dto, file);
   }
 
+  @CanonicalPermission(AUTHENTICATED)
   @Get('mi-legajo/estado')
   async myStatus(@CurrentUser() user: AuthenticatedUser) {
     const verification = await this.dossierService.verifyRoleComplete(user.id, user.rol);

@@ -127,6 +127,30 @@ describe('@CanonicalPermission (#161 stage 3, #168)', () => {
       ).toBe('DENY');
     });
 
+    it('handles policy markers and fails closed when nothing is declared (AUTH-10)', () => {
+      const base = { code: '', legacyRole: 'ASISTENTE_LOCAL', active };
+      expect(evaluate({ ...base, declared: 'AUTHENTICATED' })).toMatchObject({
+        decision: 'ALLOW',
+        reason: 'SELF_SERVICE',
+      });
+      expect(evaluate({ ...base, active: false, declared: 'AUTHENTICATED' }).decision).toBe('DENY');
+      expect(evaluate({ ...base, declared: 'PROVIDER_WEBHOOK' })).toMatchObject({
+        decision: 'NOT_APPLICABLE',
+        reason: 'PROVIDER_WEBHOOK',
+      });
+      expect(evaluate({ ...base, declared: 'PLATFORM_BUSINESSES_VIEW' })).toMatchObject({
+        decision: 'NOT_APPLICABLE',
+        reason: 'PLATFORM_POLICY',
+      });
+      expect(evaluate({ ...base, declared: 'CUSTOMER_POLICY' }).decision).toBe('NOT_APPLICABLE');
+      expect(evaluate(base)).toMatchObject({ decision: 'DENY', reason: 'UNDECLARED' });
+      // A catalogue permission on an endpoint without legacy code is evaluated by role.
+      expect(evaluate({ ...base, declared: 'CUSTOMERS_VIEW' }).decision).toBe('ALLOW');
+      expect(evaluate({ ...base, legacyRole: 'OWNER', declared: 'USERS_VIEW' }).decision).toBe(
+        'ALLOW',
+      );
+    });
+
     it('fails closed on a declaration that is not a catalogue permission', () => {
       expect(
         evaluate({

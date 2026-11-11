@@ -1,5 +1,10 @@
 import { SetMetadata } from '@nestjs/common';
-import { CUSTOMER_POLICY, type Permission } from './canonical-permissions';
+import {
+  CUSTOMER_POLICY,
+  PLATFORM_PERMISSIONS,
+  type Permission,
+  type PlatformPermission,
+} from './canonical-permissions';
 
 /**
  * Stage 3 of the Authorization spec (§5.3, #161 / #168): every endpoint protected by a
@@ -14,10 +19,33 @@ export interface CanonicalRequest {
   body?: unknown;
 }
 
+/**
+ * Policies that are not a Business permission (AUTH-10: every routed endpoint declares one):
+ *  - AUTHENTICATED: self-service on the caller's own data (profile, own dossier, own
+ *    preferences); any active principal may call it.
+ *  - PROVIDER_WEBHOOK: called by a payment provider and authenticated by its signature.
+ *  - CUSTOMER_POLICY: customer-facing; customers have no staff permissions.
+ *  - PLATFORM_*: platform scope (spec §3), enforced by the platform guard, never by a role.
+ */
+export { CUSTOMER_POLICY };
+export const AUTHENTICATED = 'AUTHENTICATED' as const;
+export const PROVIDER_WEBHOOK = 'PROVIDER_WEBHOOK' as const;
+export type PolicyMarker =
+  typeof AUTHENTICATED | typeof PROVIDER_WEBHOOK | typeof CUSTOMER_POLICY | PlatformPermission;
+
+export function isPolicyMarker(value: unknown): value is PolicyMarker {
+  return (
+    value === AUTHENTICATED ||
+    value === PROVIDER_WEBHOOK ||
+    value === CUSTOMER_POLICY ||
+    (PLATFORM_PERMISSIONS as readonly unknown[]).includes(value)
+  );
+}
+
 /** All listed permissions are required. */
 export type CanonicalRequirement =
   | Permission
-  | typeof CUSTOMER_POLICY
+  | PolicyMarker
   | readonly Permission[]
   | ((request: CanonicalRequest) => readonly Permission[]);
 
@@ -49,8 +77,8 @@ export function readCanonicalRequirement(context: {
 export function resolveRequirement(
   requirement: CanonicalRequirement,
   request: CanonicalRequest,
-): readonly Permission[] | typeof CUSTOMER_POLICY {
-  if (requirement === CUSTOMER_POLICY) return CUSTOMER_POLICY;
+): readonly Permission[] | PolicyMarker {
+  if (isPolicyMarker(requirement)) return requirement;
   if (typeof requirement === 'function') return requirement(request);
   return typeof requirement === 'string' ? [requirement] : requirement;
 }

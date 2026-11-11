@@ -21,6 +21,10 @@ import { EmailPreferenceService } from './preferences/email-preference.service';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 import { UpdateEmailTemplateDto } from './dto/update-email-template.dto';
 import { UpdateEmailPreferenceDto } from './dto/update-email-preference.dto';
+import {
+  CanonicalPermission,
+  AUTHENTICATED,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * P8-2: Email API Controller
@@ -58,6 +62,7 @@ export class EmailController {
    * POST /emails/templates
    * Create new email template (admin only)
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Post('templates')
   @HttpCode(201)
   async createTemplate(
@@ -78,6 +83,7 @@ export class EmailController {
    * GET /emails/templates
    * List all templates for business
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Get('templates')
   async listTemplates(@ExtractBusinessContext() empresaId: string) {
     return await this.templateService.list(empresaId);
@@ -87,6 +93,7 @@ export class EmailController {
    * GET /emails/templates/:id
    * Get template by ID
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Get('templates/:id')
   async getTemplate(@Param('id') id: string, @ExtractBusinessContext() empresaId: string) {
     return await this.templateService.getById(empresaId, id);
@@ -96,6 +103,7 @@ export class EmailController {
    * PUT /emails/templates/:id
    * Update template
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Put('templates/:id')
   async updateTemplate(
     @Param('id') id: string,
@@ -109,6 +117,7 @@ export class EmailController {
    * DELETE /emails/templates/:id
    * Soft-delete template
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Delete('templates/:id')
   @HttpCode(204)
   async deleteTemplate(@Param('id') id: string, @ExtractBusinessContext() empresaId: string) {
@@ -125,6 +134,7 @@ export class EmailController {
    *
    * TODO: Implement pagination, filtering by status/email/date
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Get('logs')
   async listLogs(@ExtractBusinessContext() empresaId: string) {
     this.logger.debug(`Listing email logs for empresa ${empresaId}`);
@@ -140,6 +150,7 @@ export class EmailController {
    * GET /emails/preferences
    * Get current user's email preferences
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Get('preferences')
   async getPreferences(@RequestUser() user: any, @ExtractBusinessContext() empresaId: string) {
     return await this.preferenceService.getByEmail(empresaId, user.email);
@@ -149,6 +160,7 @@ export class EmailController {
    * PUT /emails/preferences
    * Update current user's email preferences
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Put('preferences')
   async updatePreferences(
     @RequestUser() user: any,
@@ -206,6 +218,7 @@ export class EmailController {
    *
    * Sends template to user's own email address.
    */
+  @CanonicalPermission('MESSAGING_MANAGE')
   @Post('send-test')
   async sendTest(
     @Body('templateId') templateId: string,

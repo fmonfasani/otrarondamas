@@ -1,5 +1,9 @@
 import { Controller, Get, Query, Req, BadRequestException } from '@nestjs/common';
 import { I18nService, LocaleInfo } from './i18n.service';
+import {
+  CanonicalPermission,
+  AUTHENTICATED,
+} from '../authorization/canonical-permission.decorator';
 
 /**
  * I18n REST API Controller
@@ -13,6 +17,7 @@ export class I18nController {
    * GET /i18n/locales
    * Returns list of supported locales with metadata
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Get('locales')
   getSupportedLocales(): LocaleInfo[] {
     return this.i18nService.getSupportedLocales();
@@ -23,6 +28,7 @@ export class I18nController {
    * Returns all translations for a specific locale
    * @param locale - Locale code (es, en, pt-br)
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Get('translations')
   getTranslations(@Query('locale') locale?: string): Record<string, any> {
     if (!locale) {
@@ -46,6 +52,7 @@ export class I18nController {
    * Detects user's preferred locale based on request headers/query params
    * Returns the detected locale code and metadata
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Get('detect')
   detectLocale(@Req() req: any): { locale: string; info: LocaleInfo } {
     const locale = this.i18nService.getLocale(req);
@@ -63,6 +70,7 @@ export class I18nController {
    * @param key - Translation key (dot notation, e.g., 'auth.login_success')
    * @param locale - Locale code (optional, defaults to detected locale)
    */
+  @CanonicalPermission(AUTHENTICATED)
   @Get('translate')
   translate(
     @Req() req: any,

@@ -12,6 +12,7 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import type { AuthenticatedUser } from '../auth/auth.types';
 import {
   CanonicalPermission,
+  AUTHENTICATED,
   CASH_MANUAL_MOVEMENT,
 } from '../authorization/canonical-permission.decorator';
 
@@ -55,11 +56,13 @@ export class CashRegisterController {
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
+  @CanonicalPermission('CASH_VIEW')
   @Get('estado')
   async status(@CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.status(await this.resolveCompanyIdFromContext(user));
   }
 
+  @CanonicalPermission('CASH_OPEN')
   @Post('apertura')
   async open(@Body() dto: OpenCashRegisterDto, @CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.open(
@@ -86,11 +89,13 @@ export class CashRegisterController {
     );
   }
 
+  @CanonicalPermission('CASH_VIEW')
   @Get('movimientos')
   async listMovements(@CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.listMovements(await this.resolveCompanyIdFromContext(user));
   }
 
+  @CanonicalPermission('CASH_CLOSE')
   @Post('arqueo')
   async countCash(@Body() dto: RegisterCashCountDto, @CurrentUser() user: AuthenticatedUser) {
     return this.cashRegisterService.countCash(
@@ -103,6 +108,7 @@ export class CashRegisterController {
   // D-06: no @RequirePermission of its own — the real restriction is in the
   // credentials of the body (who authorizes), not in who requests. See
   // authorizations.service.ts.
+  @CanonicalPermission(AUTHENTICATED)
   @Patch('arqueo/:id/autorizar')
   async authorizeCashCount(
     @Param('id') id: string,

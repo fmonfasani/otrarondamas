@@ -4,6 +4,7 @@ import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.serv
 import { ExtractBusinessContext } from '../business-context/extract-business-context.decorator';
 import { BusinessContextGuard } from '../business-context/business-context.guard';
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
  * Minimal, read-only listing, not a user management module (no
@@ -21,6 +22,7 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 export class UsersController {
   constructor(private readonly prismaFactory: CompanyScopedPrismaService) {}
 
+  @CanonicalPermission('USERS_VIEW')
   @Get()
   async findAll(@ExtractBusinessContext() businessId: string) {
     const db = this.prismaFactory.forCompany(businessId);

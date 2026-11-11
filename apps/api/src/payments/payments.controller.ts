@@ -40,6 +40,7 @@ export class PaymentsController {
     );
   }
 
+  @CanonicalPermission('PAYMENTS_VIEW')
   @Get()
   async findAll(@Param('ventaId') saleId: string, @CurrentUser() user: AuthenticatedUser) {
     return this.salesService.findPaymentsBySale(
