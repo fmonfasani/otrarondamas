@@ -19,6 +19,17 @@ import type { AuthenticatedUser } from '../auth.types';
  * Total scenarios: 15+ as per design spec
  */
 describe('AuthorizationGuard', () => {
+  // These tests describe the default (shadow) mode; the "enforce mode" block sets its own.
+  // Pinned so that a CI job running with AUTHZ_ENGINE_MODE=enforce does not change them.
+  const ambientAuthzMode = process.env.AUTHZ_ENGINE_MODE;
+  beforeEach(() => {
+    process.env.AUTHZ_ENGINE_MODE = 'shadow';
+  });
+  afterEach(() => {
+    if (ambientAuthzMode === undefined) delete process.env.AUTHZ_ENGINE_MODE;
+    else process.env.AUTHZ_ENGINE_MODE = ambientAuthzMode;
+  });
+
   let guard: AuthorizationGuard;
   let reflector: Reflector;
   let prismaService: PrismaService;
