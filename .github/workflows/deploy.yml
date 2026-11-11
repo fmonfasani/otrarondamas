@@ -180,6 +180,18 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST"             "bash -s -- $DEPLOY_SHA" < scripts/deploy-docker.sh
 
+      # Web app (Remix) at https://app.wapsell.com: same build → isolated boot test →
+      # swap with rollback, after the API it talks to is up.
+      - name: Deploy web image
+        env:
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
+          SSH_USER: ${{ secrets.HETZNER_USER }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "bash -s -- $DEPLOY_SHA" < scripts/deploy-web.sh
+
       - name: Slack notification (success)
         if: success() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1
