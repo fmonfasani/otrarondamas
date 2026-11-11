@@ -1,6 +1,6 @@
 # Wapsell — Authorization Specification
 
-**Version:** 0.2 | **Status:** APPROVED — Owner Ruling OR-B4-024 (2026-11-10) | **Date:** 2026-11-10
+**Version:** 0.3 | **Status:** APPROVED — Owner Rulings OR-B4-024, OR-B4-025 (2026-11-10) | **Date:** 2026-11-10
 
 > Specialized spec required by the General SPEC v0.5 §6.1 (`OR-B4-007`). It defines the canonical Permission
 > catalogue, the Role → Permission matrix and the transition from the two AS-IS mechanisms. Backlog: #161.
@@ -73,6 +73,7 @@ Naming: `DOMAIN_ACTION`, upper snake case, English, matching the identifiers alr
 | sales | `SALES_CREATE` | Register a counter sale |
 | sales | `SALES_CANCEL` ★ | Cancel or revert a sale |
 | sales | `REFUNDS_MANAGE` ★ | Authorise, process and refund returns |
+| sales | `RETURNS_VIEW` | See returns (`OR-B4-025`) |
 | inventory | `INVENTORY_VIEW` | See stock and lots |
 | inventory | `INVENTORY_MOVE` | Receive stock and register stock-outs |
 | inventory | `INVENTORY_ADJUST` ★ | Manual stock adjustments |
@@ -87,6 +88,7 @@ Naming: `DOMAIN_ACTION`, upper snake case, English, matching the identifiers alr
 | payments | `PAYMENTS_REFUND` ★ | Refund a payment |
 | receivables | `RECEIVABLES_VIEW` | See customer accounts |
 | receivables | `RECEIVABLES_MANAGE` | Apply payments and manage customer accounts |
+| purchases | `PURCHASES_VIEW` | See purchases and suppliers (`OR-B4-025`) |
 | purchases | `PURCHASES_MANAGE` | Purchases and suppliers (code kept outside MVP scope, `OR-B4-017`) |
 | messaging | `MESSAGING_USE` | Participate in Business conversations |
 | messaging | `MESSAGING_MANAGE` | Manage participants and associations |
@@ -115,7 +117,7 @@ Who holds them and how they are granted: `OPEN` (Security spec); until then only
 
 ---
 
-## 4. Role → Permission matrix — `APPROVED` (OR-B4-024)
+## 4. Role → Permission matrix — `APPROVED` (OR-B4-024, OR-B4-025)
 
 `●` granted, `—` not granted. Principles: Owner has everything in the Business; Admin is delegated administration;
 Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
@@ -137,6 +139,7 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 | `SALES_CREATE` | ● | ● | ● | — |
 | `SALES_CANCEL` | ● | ● | — | — |
 | `REFUNDS_MANAGE` | ● | ● | — | — |
+| `RETURNS_VIEW` | ● | ● | ● | ● |
 | `INVENTORY_VIEW` | ● | ● | ● | ● |
 | `INVENTORY_MOVE` | ● | ● | — | ● |
 | `INVENTORY_ADJUST` | ● | ● | — | ● |
@@ -151,6 +154,7 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 | `PAYMENTS_REFUND` | ● | ● | — | — |
 | `RECEIVABLES_VIEW` | ● | ● | ● | — |
 | `RECEIVABLES_MANAGE` | ● | ● | — | — |
+| `PURCHASES_VIEW` | ● | ● | — | ● |
 | `PURCHASES_MANAGE` | ● | ● | — | ● |
 | `MESSAGING_USE` | ● | ● | ● | ● |
 | `MESSAGING_MANAGE` | ● | ● | — | — |
@@ -243,15 +247,15 @@ the engine is made authoritative):
 | `GET /admin/audit/logs`, `/logs/export` (`audit.view`) | `AUDIT_VIEW_ALL` | lists every user's logs: Vendedor and Gestor denied |
 | `POST /pagos/intents`, `POST /ventas/:id/pagos` (`ventas.crear`) | `PAYMENTS_REGISTER` | same roles as `SALES_CREATE` |
 | `PUT /devoluciones/:id/process-refund` | `PAYMENTS_REFUND` | — |
+| `POST /catalogo/productos` | `CATALOG_MANAGE` + `PRICING_CHANGE` (`OR-B4-025`) | Gestor de Stock cannot create products |
+| `POST /pagos/:id/cancel` (pending payment) | `PAYMENTS_REGISTER` (`OR-B4-025`) | Vendedor allowed |
 
-**Questions for the Owner raised by stage 3** (not decided here):
+**Questions raised by stage 3 — resolved by `OR-B4-025`** (2026-11-10):
 
-1. `POST /catalogo/productos` always sets a price (`precioMinorista` is required). It is declared `CATALOG_MANAGE`
-   only, so the Gestor de Stock could create a product with its first price. Should creating a product also require
-   `PRICING_CHANGE`, or is the initial price part of cataloguing?
-2. `POST /pagos/:id/cancel` cancels a *pending payment*, not a Sale, but the §5.1 mapping of `ventas.eliminar` gives
-   `SALES_CANCEL`, which the Vendedor does not hold. Kept as `SALES_CANCEL`; `PAYMENTS_REGISTER` may fit better.
-3. Manual cash `Ingreso` / `Egreso` movements have no specific permission and are declared `CASH_EXPENSE`.
+1. Creating a product requires `PRICING_CHANGE` as well as `CATALOG_MANAGE`: the first price is a price change, so the
+   Gestor de Stock does not create products.
+2. Cancelling a pending payment (`POST /pagos/:id/cancel`) is `PAYMENTS_REGISTER`, not `SALES_CANCEL`.
+3. Manual cash `Ingreso` / `Egreso` movements are `CASH_EXPENSE` (accepted as declared).
 
 **Policies that are not Business permissions** (technical classification, needed so that every endpoint has a policy):
 `AUTHENTICATED` (self-service on the caller's own data), `CUSTOMER_POLICY`, `PROVIDER_WEBHOOK` (authenticated by the
@@ -266,7 +270,7 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `GET /caja/estado`, `GET /caja/movimientos` · `POST /caja/apertura` · `POST /caja/arqueo` | `CASH_VIEW` · `CASH_OPEN` · `CASH_CLOSE` | Gestor de Stock denied |
 | catalogue reads, `GET /ventas/productos` | `CATALOG_VIEW` | — |
 | `GET /clientes*` | `CUSTOMERS_VIEW` | Gestor de Stock denied |
-| `GET /devoluciones*` | `ORDERS_VIEW` | — |
+| `GET /devoluciones*` | `RETURNS_VIEW` (`OR-B4-025`) | — |
 | `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
 | `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
 | `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |
@@ -275,19 +279,19 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `/messaging/conversations*` | `MESSAGING_USE`; `POST …/:id/orders` adds `ORDERS_MANAGE` | — |
 | `GET /pagos*`, `GET /ventas/:id/pagos` · `GET /pagos/analytics/*` | `PAYMENTS_VIEW` · `REPORTS_VIEW` | Gestor denied · Vendedor and Gestor denied |
 | `POST /pagos/webhooks/*` | `PROVIDER_WEBHOOK` | — (these routes are not `@Public`; known open item) |
-| `GET /proveedores`, `GET /compras*` | `PURCHASES_MANAGE` (no `PURCHASES_VIEW` in the catalogue) | Vendedor denied |
+| `GET /proveedores`, `GET /compras*` | `PURCHASES_VIEW` (`OR-B4-025`) | Vendedor denied |
 | `GET /usuarios` | `USERS_VIEW` | Vendedor and Gestor denied |
 | `GET /platform-admin/overview` | `PLATFORM_BUSINESSES_VIEW` | not a Membership permission |
 
-4. Reading returns (`GET /devoluciones*`) is declared `ORDERS_VIEW`, and reading purchases `PURCHASES_MANAGE`: the
-   catalogue has no `RETURNS_VIEW` / `PURCHASES_VIEW`. Confirm, or add them to the catalogue.
-5. `POST /caja/arqueo` (cash count) is declared `CASH_CLOSE`, as part of the closing procedure.
+4. `RETURNS_VIEW` and `PURCHASES_VIEW` are added to the catalogue (38 permissions); see §4 (`OR-B4-025`).
+5. `POST /caja/arqueo` (cash count) is `CASH_CLOSE`, part of the closing procedure (accepted as declared).
 
 The legacy source of truth is per-user (`UsuarioPermiso`), the matrix is per role, so for current users the two
 decisions differ (for example, an Owner without a `UsuarioPermiso` row is denied today and allowed by the matrix).
 Making the engine authoritative therefore changes allow/deny for real users: it is a legacy permission cut-over and
 **requires an explicit Owner decision** (`OR-B4-001`, `OR-B4-010`). The divergence log is the parity evidence for that
-decision.
+decision. **`OR-B4-025`:** the Owner authorised the cut-over *subject to a prior plan* — a report of the production
+divergences and an activation with immediate rollback — which the Owner approves before activation.
 
 ---
 
@@ -297,7 +301,7 @@ decision.
 |---|---|
 | Who holds platform permissions and how support access is audited (§3) | Security spec |
 | Physical representation of roles, catalogue and matrix | Resolved in stage 1: typed constants in code, pinned by tests (#174) |
-| Making the canonical engine authoritative (end of shadow mode) | **Owner** (`OR-B4-001`, `OR-B4-010`) |
+| Making the canonical engine authoritative (end of shadow mode) | Authorised by `OR-B4-025` subject to the Owner approving the cut-over plan |
 | Session/token effect of a role change or suspension | Technical design (ties to #162) |
 
 ## 7. Change history
@@ -305,4 +309,5 @@ decision.
 | Version | Date | Summary |
 |---|---|---|
 | 0.1 | 2026-11-10 | First draft: AS-IS inventory and defects, canonical catalogue, platform scope, proposed matrix, legacy mapping, stages. |
-| **0.2** | **2026-11-10** | **APPROVED (OR-B4-024):** the Owner accepted the four matrix decisions as proposed. |
+| 0.2 | 2026-11-10 | APPROVED (OR-B4-024): the Owner accepted the four matrix decisions as proposed. |
+| **0.3** | **2026-11-10** | **OR-B4-025:** `RETURNS_VIEW` and `PURCHASES_VIEW` added (38 permissions); product creation needs `PRICING_CHANGE`; pending-payment cancel is `PAYMENTS_REGISTER`; cash `Ingreso`/`Egreso` and `arqueo` accepted as declared; cut-over authorised subject to a prior plan. Stage status in §5.4. |

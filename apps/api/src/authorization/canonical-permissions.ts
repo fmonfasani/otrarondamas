@@ -26,6 +26,7 @@ export const PERMISSIONS = [
   'SALES_CREATE',
   'SALES_CANCEL',
   'REFUNDS_MANAGE',
+  'RETURNS_VIEW', // OR-B4-025
   'INVENTORY_VIEW',
   'INVENTORY_MOVE',
   'INVENTORY_ADJUST',
@@ -40,6 +41,7 @@ export const PERMISSIONS = [
   'PAYMENTS_REFUND',
   'RECEIVABLES_VIEW',
   'RECEIVABLES_MANAGE',
+  'PURCHASES_VIEW', // OR-B4-025
   'PURCHASES_MANAGE',
   'MESSAGING_USE',
   'MESSAGING_MANAGE',
@@ -84,7 +86,8 @@ export type Role = (typeof ROLES)[number];
 const ALL: readonly Permission[] = PERMISSIONS;
 
 /**
- * Fixed Role → Permission matrix (spec §4, approved by OR-B4-024). No per-Membership
+ * Fixed Role → Permission matrix (spec §4, approved by OR-B4-024; RETURNS_VIEW and
+ * PURCHASES_VIEW added by OR-B4-025). No per-Membership
  * grants or denials in the MVP (AUTH-04).
  *
  * Constraints that the matrix alone cannot express (enforced by the engine in stage 2):
@@ -111,6 +114,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'PAYMENTS_VIEW',
     'PAYMENTS_REGISTER',
     'RECEIVABLES_VIEW',
+    'RETURNS_VIEW',
     'MESSAGING_USE',
     'AUDIT_VIEW_OWN',
   ],
@@ -122,7 +126,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'INVENTORY_VIEW',
     'INVENTORY_MOVE',
     'INVENTORY_ADJUST',
+    'PURCHASES_VIEW',
     'PURCHASES_MANAGE',
+    'RETURNS_VIEW',
     'MESSAGING_USE',
     'AUDIT_VIEW_OWN',
   ],

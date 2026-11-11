@@ -776,3 +776,27 @@ transition stages, answering the four open matrix questions (verbatim answers):
 Implementation follows the stages of §5.3 under OR-B4-001; stage 5 (retiring the legacy source of truth and
 `CapabilityGrant` overrides) still requires an explicit Owner decision.
 
+
+### OR-B4-025 — Authorization stage 3 decisions and cut-over authorisation — 2026-11-10
+
+**Status:** APPROVED — OWNER RULING
+**Spec:** `06-SPECIFICATIONS/SPECIALIZED/05-AUTHORIZATION-SPEC.md` v0.3 §2, §4, §5.4 (backlog #161)
+
+The Owner first answered "Si apruebo los requerimientos"; the scope was then confirmed question by question
+(verbatim answers):
+
+| Question | Owner answer |
+|---|---|
+| Authorise the cut-over: the canonical engine (role matrix) decides instead of per-user permissions (`OR-B4-010`)? | "Sí, con plan previo (Recomendado)" |
+| Does creating a product also require `PRICING_CHANGE`? | "Sí, requiere PRICING_CHANGE (Recomendado)" |
+| Which permission cancels a pending payment (`POST /pagos/:id/cancel`)? | "PAYMENTS_REGISTER (Recomendado)" |
+| Add read permissions for returns and purchases? | "Sí, RETURNS_VIEW y PURCHASES_VIEW (Recomendado)" |
+
+Effects:
+
+- Catalogue: `RETURNS_VIEW` and `PURCHASES_VIEW` added (38 permissions). Matrix: Owner and Admin both; Vendedor
+  `RETURNS_VIEW`; Gestor de Stock both.
+- Cash `Ingreso` / `Egreso` as `CASH_EXPENSE` and `arqueo` as `CASH_CLOSE` are accepted as declared (covered by the
+  initial "apruebo los requerimientos").
+- Cut-over: authorised **subject to a prior plan** (production divergence report and activation with immediate
+  rollback) that the Owner approves before activation. Until then the engine stays in shadow mode.

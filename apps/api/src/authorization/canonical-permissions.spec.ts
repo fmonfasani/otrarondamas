@@ -21,8 +21,8 @@ import {
 describe('canonical authorization model (Authorization spec v0.2)', () => {
   const sorted = (xs: Iterable<string>) => [...xs].sort();
 
-  it('has 36 unique canonical permissions', () => {
-    expect(PERMISSIONS).toHaveLength(36);
+  it('has 38 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025)', () => {
+    expect(PERMISSIONS).toHaveLength(38);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
   });
 
@@ -83,8 +83,17 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
     });
 
     it('pins the exact rows of the two delegated roles', () => {
-      expect(ROLE_PERMISSIONS.VENDEDOR).toHaveLength(18);
-      expect(ROLE_PERMISSIONS.GESTOR_DE_STOCK).toHaveLength(10);
+      expect(ROLE_PERMISSIONS.VENDEDOR).toHaveLength(19);
+      expect(ROLE_PERMISSIONS.GESTOR_DE_STOCK).toHaveLength(12);
+    });
+
+    it('applies OR-B4-025: read access to returns and purchases', () => {
+      expect(roleHasPermission('VENDEDOR', 'RETURNS_VIEW')).toBe(true);
+      expect(roleHasPermission('VENDEDOR', 'PURCHASES_VIEW')).toBe(false);
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'RETURNS_VIEW')).toBe(true);
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'PURCHASES_VIEW')).toBe(true);
+      expect(roleHasPermission('ADMIN', 'RETURNS_VIEW')).toBe(true);
+      expect(roleHasPermission('ADMIN', 'PURCHASES_VIEW')).toBe(true);
     });
 
     it('only grants catalogue permissions and never a platform permission', () => {
@@ -94,6 +103,31 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
           expect((PLATFORM_PERMISSIONS as readonly string[]).includes(p)).toBe(false);
         }
       }
+    });
+  });
+
+  // OR-B4-025: endpoint declarations decided by the Owner.
+  describe('Owner-decided endpoint policies (OR-B4-025)', () => {
+    const read = (file: string) => fs.readFileSync(path.join(process.cwd(), 'src', file), 'utf8');
+
+    it('creating a product requires PRICING_CHANGE: the Gestor de Stock cannot set the first price', () => {
+      expect(read('catalog/catalog.controller.ts')).toMatch(
+        /@CanonicalPermission\(\['CATALOG_MANAGE', 'PRICING_CHANGE'\]\)\s*@Post\(\)/,
+      );
+    });
+
+    it('cancelling a pending payment is PAYMENTS_REGISTER', () => {
+      expect(read('payments/payment.controller.ts')).toMatch(
+        /@CanonicalPermission\('PAYMENTS_REGISTER'\)\s*@Post\(':id\/cancel'\)/,
+      );
+    });
+
+    it('reading returns and purchases uses the new view permissions', () => {
+      const returns = read('devoluciones/devoluciones.controller.ts');
+      const purchases = read('purchases/purchases.controller.ts');
+      expect(returns.match(/@CanonicalPermission\('RETURNS_VIEW'\)\s*@Get\(/g)).toHaveLength(2);
+      expect(purchases.match(/@CanonicalPermission\('PURCHASES_VIEW'\)\s*@Get\(/g)).toHaveLength(5);
+      expect(purchases).not.toMatch(/@CanonicalPermission\('PURCHASES_MANAGE'\)\s*@Get\(/);
     });
   });
 

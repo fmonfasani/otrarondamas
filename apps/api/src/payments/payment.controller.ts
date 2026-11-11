@@ -262,7 +262,7 @@ export class PaymentController {
    * DELETE /pagos/:id/cancel - Cancel pending payment
    */
   @RequirePermission('ventas.eliminar')
-  @CanonicalPermission('SALES_CANCEL')
+  @CanonicalPermission('PAYMENTS_REGISTER')
   @Post(':id/cancel')
   async cancelPayment(@Param('id') paymentId: string, @CurrentUser() user: AuthenticatedUser) {
     const empresaId = await this.resolveEmpresaId(user);
