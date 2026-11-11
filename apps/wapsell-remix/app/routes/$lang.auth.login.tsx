@@ -1,52 +1,67 @@
-import { redirect, json, type ActionFunction, type LoaderFunction } from '@remix-run/node';
-import { Link } from '@remix-run/react';
+import {
+  json,
+  redirect,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+} from '@remix-run/node';
+import { AuthShell } from '~/components/auth/AuthShell';
 import { LoginForm } from '~/components/auth/LoginForm';
-import { loginWithNestJS, getSession, commitSession } from '~/services/auth.server';
+import { commitSession, getSession, loginWithNestJS } from '~/services/auth.server';
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
+
+/** "Recordarme": a persistent cookie; unchecked, the session ends with the browser. */
+export const REMEMBER_ME_MAX_AGE = 60 * 60 * 24 * 30;
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
   const session = await getSession(request.headers.get('Cookie'));
-  if (session.get('jwt')) return redirect('/es/dashboard');
+  if (session.get('jwt')) return redirect(`/${params.lang ?? 'es'}/dashboard`);
   return json({});
-};
+}
 
-export const action: ActionFunction = async ({ request, params }) => {
-  if (request.method !== 'POST') return null;
+export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const email = formData.get('email');
   const password = formData.get('password');
+  const remember = formData.get('remember') === '1';
 
-  if (typeof email !== 'string' || typeof password !== 'string') {
-    return json({ error: 'Formulario inválido' }, { status: 400 });
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+    return json(
+      { error: 'Completa tu correo y tu contraseña.', email: typeof email === 'string' ? email : '' },
+      { status: 400 },
+    );
   }
 
   try {
-    const { token, user, empresas } = await loginWithNestJS(email, password);
+    const { token, user, empresas, empresaId } = await loginWithNestJS(email, password);
     const session = await getSession();
     session.set('jwt', token);
-    session.set('userId', user.id);
+    session.set('userId', user?.id);
     session.set('empresas', empresas);
-    session.set('empresaId', empresas[0]?.id);
-    const locale = params.lang || 'es';
-    return redirect(`/${locale}/dashboard`, {
-      headers: { 'Set-Cookie': await commitSession(session) },
+    session.set('empresaId', empresaId ?? empresas[0]?.id);
+    return redirect(`/${params.lang ?? 'es'}/dashboard`, {
+      headers: {
+        'Set-Cookie': await commitSession(session, {
+          maxAge: remember ? REMEMBER_ME_MAX_AGE : undefined,
+        }),
+      },
     });
   } catch (error) {
-    if (error instanceof Response) throw error;
-    return json({ error: 'Email o contraseña incorrectos' }, { status: 400 });
+    if (error instanceof Response) {
+      return json(
+        { error: 'No pudimos conectarnos. Intenta de nuevo en unos minutos.', email },
+        { status: 503 },
+      );
+    }
+    return json({ error: 'El correo o la contraseña no son correctos.', email }, { status: 400 });
   }
-};
+}
 
 export default function LoginPage() {
   return (
-    <div className="auth-wrapper">
-      <div className="auth-card">
-        <Link to="/" className="app-brand">
-          <span className="brand-mark">W</span>
-          <span>WAPSELL</span>
-        </Link>
-        <h1>Ingresar</h1>
-        <LoginForm />
-      </div>
-    </div>
+    <AuthShell>
+      <LoginForm />
+    </AuthShell>
   );
 }
