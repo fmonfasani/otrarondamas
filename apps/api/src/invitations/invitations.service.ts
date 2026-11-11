@@ -130,7 +130,8 @@ export class InvitationsService {
           nombre: dto.nombre,
           email: invitation.email,
           passwordHash,
-          rol: invitation.rol,
+          // OR-B4-027: a pending invitation created before the change activates as VENDEDOR.
+          rol: invitation.rol === 'ASISTENTE_LOCAL' ? 'VENDEDOR' : invitation.rol,
           activo: true,
           // Explicit, NOT the schema default (APROBADO — correct for OWNER and for
           // migrating accounts that already existed before this increment, but an
@@ -151,7 +152,7 @@ export class InvitationsService {
 
   /**
    * Creates an invitation for a wholesale Cliente (B2B). Uses the same
-   * `Invitacion` model but with `rol: 'ASISTENTE_LOCAL'` as a placeholder
+   * `Invitacion` model but with `rol: 'PROVEEDOR'` as a placeholder
    * (the only role field the schema accepts; the real account type is
    * determined by the activation endpoint used, not by this field). The
    * token can be used ONLY at the wholesale activation endpoint, not at the
@@ -268,9 +269,9 @@ export class InvitationsService {
 
   private roleName(role: CreateInvitationDto['rol']): string {
     const names: Record<CreateInvitationDto['rol'], string> = {
-      ASISTENTE_LOCAL: 'Asistente de local',
-      PROVEEDOR: 'Proveedor',
-      REPARTIDOR: 'Repartidor',
+      ADMIN: 'Administrador',
+      VENDEDOR: 'Vendedor',
+      GESTOR_DE_STOCK: 'Gestor de stock',
     };
     return names[role];
   }

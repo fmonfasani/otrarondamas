@@ -80,10 +80,12 @@ describe('Invitation activation (real PostgreSQL)', () => {
 
     const usuario = await prisma.usuario.findFirstOrThrow({
       where: { empresaId, email },
-      select: { passwordHash: true, estadoLegajo: true },
+      select: { passwordHash: true, estadoLegajo: true, rol: true },
     });
     expect(await bcrypt.compare('secreto-123', usuario.passwordHash as string)).toBe(true);
     expect(usuario.estadoLegajo).toBe('PENDIENTE');
+    // OR-B4-027: a pending ASISTENTE_LOCAL invitation activates as VENDEDOR.
+    expect(usuario.rol).toBe('VENDEDOR');
     const used = await prisma.invitacion.findUniqueOrThrow({
       where: { id: invitation.id },
       select: { usadaEn: true },

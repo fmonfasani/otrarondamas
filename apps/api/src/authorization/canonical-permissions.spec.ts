@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
+  ASISTENTE_LOCAL_ALIAS_DEADLINE,
   CUSTOMER_POLICY,
   HIGH_SENSITIVITY,
   LEGACY_PERMISSION_MAP,
@@ -132,6 +133,11 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
   });
 
   describe('legacy roles (OR-B4-006)', () => {
+    it('maps the canonical roles to themselves (OR-B4-027)', () => {
+      for (const role of ROLES) expect(canonicalRoleFor(role)).toBe(role);
+      expect(ASISTENTE_LOCAL_ALIAS_DEADLINE).toBe('2026-12-31');
+    });
+
     it('maps ASISTENTE_LOCAL to VENDEDOR and drops PROVEEDOR and REPARTIDOR as Membership Roles', () => {
       expect(canonicalRoleFor('OWNER')).toBe('OWNER');
       expect(canonicalRoleFor('ASISTENTE_LOCAL')).toBe('VENDEDOR');

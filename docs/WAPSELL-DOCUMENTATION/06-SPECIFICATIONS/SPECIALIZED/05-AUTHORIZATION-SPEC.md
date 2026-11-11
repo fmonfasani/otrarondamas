@@ -212,7 +212,8 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 | `PROVEEDOR` | none — becomes a Supplier entity, not a Membership |
 | `REPARTIDOR` | none — `FUTURE / OPEN` (Fulfillment) |
 
-`ADMIN` and `GESTOR_DE_STOCK` have no AS-IS equivalent; they are new.
+`ADMIN` and `GESTOR_DE_STOCK` have no AS-IS equivalent; they are new. Since OR-B4-027 the four canonical roles exist in `RolUsuario`; `ASISTENTE_LOCAL` remains a
+VENDEDOR alias until 2026-12-31.
 
 ### 5.3 Stages (each one a gated, tested PR; none destructive)
 
@@ -232,7 +233,8 @@ Owner decisions on this matrix (`OR-B4-024`, 2026-11-10; the rest follows the pr
 | 2 | Shadow mode — `authorization-engine.ts` evaluates every `@RequirePermission` / `@Authorize` request and logs `authz.shadow.divergence` when it disagrees with the legacy decision; **the legacy guards still decide** | `authorization-engine.spec.ts`, `permissions.guard.spec.ts` |
 | 3 | Shadow mode, **every routed endpoint** — the 65 endpoints with `@RequirePermission` / `@Authorize` (#176) and the other 84 non-public routes declare `@CanonicalPermission` (all listed permissions required). The engine evaluates authenticated-only endpoints too (role from the JWT, no extra query) and an endpoint with no declaration is `DENY / UNDECLARED` (`AUTH-10`) | `endpoint-policy-coverage.spec.ts` walks `AppModule` and fails on any non-`@Public` route without a policy; `canonical-permission.decorator.spec.ts`, `permissions.guard.spec.ts` |
 | Cut-over | **Done (2026-11-11, OR-B4-026)**: the engine decides by default (`enforce`); `AUTHZ_ENGINE_MODE=shadow` restores the legacy guards. Plan and evidence: `05a-AUTHORIZATION-CUTOVER-PLAN.md` | B4 runs `api-verification` (shadow) and `api-verification (enforce)` |
-| 4–5 | Pending (roles #160; retiring the legacy tables needs a separate Owner decision) | — |
+| 4 | **In progress (OR-B4-027, #160)**: `RolUsuario` gains `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK` (additive); `ASISTENTE_LOCAL` is an alias of `VENDEDOR` until 2026-12-31 with a reversible conversion (`role-conversion.ts`, `prisma/convert-asistente-local.ts`); staff invitations offer the three staff roles; Owner-only service checks → canonical permissions pending | `canonical-permissions.spec.ts`, `role-conversion.integration-spec.ts`, `create-invitation.dto.spec.ts`, `p0-invitations-activation.integration-spec.ts` |
+| 5 | Pending — retiring the legacy tables needs a separate Owner decision | — |
 
 **Stage 3 declarations that differ from the coarse §5.1 translation** (shadow only; they become effective only when
 the engine is made authoritative):

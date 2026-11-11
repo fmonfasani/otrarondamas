@@ -1,9 +1,11 @@
 import { IsEmail, IsIn } from 'class-validator';
 
-// UserRole, without OWNER — the owner does not invite themselves, and it
+// Staff Membership Roles, without OWNER — the owner does not invite themselves, and it
 // makes no sense to invite a second Owner through this flow (creating a
 // second owner, if it is ever needed, is a separate decision).
-const INVITABLE_ROLES = ['ASISTENTE_LOCAL', 'PROVEEDOR', 'REPARTIDOR'] as const;
+// OR-B4-027: ASISTENTE_LOCAL is replaced by VENDEDOR; PROVEEDOR and REPARTIDOR are not
+// Membership Roles (OR-B4-006) and are no longer offered.
+export const INVITABLE_ROLES = ['ADMIN', 'VENDEDOR', 'GESTOR_DE_STOCK'] as const;
 
 /* eslint-disable indent -- known false positive of the base `indent` rule
    with decorators on class properties, see the rest of the project DTOs
