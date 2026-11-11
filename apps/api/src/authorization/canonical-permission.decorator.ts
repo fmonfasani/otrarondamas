@@ -9,7 +9,7 @@ import {
 /**
  * Stage 3 of the Authorization spec (§5.3, #161 / #168): every endpoint protected by a
  * legacy `@RequirePermission` / `@Authorize` also declares the exact canonical permission
- * it needs. The canonical engine (shadow mode) uses this declaration instead of the
+ * it needs. The canonical engine (authoritative since OR-B4-026) uses this declaration instead of the
  * coarse legacy translation. The legacy decorators still decide.
  */
 export const CANONICAL_PERMISSION_KEY = 'canonicalPermission';
