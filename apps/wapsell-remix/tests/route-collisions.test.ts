@@ -10,7 +10,10 @@ const routesDir = fileURLToPath(new URL('../app/routes', import.meta.url));
 function urlOf(file: string): string | null {
   const name = file.replace(/\.(tsx|ts)$/, '');
   const segments = name.split('.');
-  const pathSegments = segments.filter((segment) => !segment.startsWith('_'));
+  // A trailing "_" ("pedidos_.$id") only opts out of layout nesting; the URL segment is "pedidos".
+  const pathSegments = segments
+    .filter((segment) => !segment.startsWith('_'))
+    .map((segment) => segment.replace(/_$/, ''));
   const isIndex = segments[segments.length - 1] === '_index';
   return `/${pathSegments.join('/')}${isIndex ? '' : ''}`.replace(/\/$/, '') || '/';
 }
