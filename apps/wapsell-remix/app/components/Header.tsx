@@ -37,7 +37,7 @@ export function Header({ area = 'customer', userName }: HeaderProps) {
       <nav className="app-nav" aria-label="Navegación principal">
         {area === 'customer' && (
           <>
-            <a href="/_customer">Tienda</a>
+            <a href="/tienda">Tienda</a>
             <Link to="/es/auth/login">Ingresar</Link>
           </>
         )}

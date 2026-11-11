@@ -133,7 +133,7 @@ export default function Index() {
   return (
     <main className="store-shell">
       <header className="store-header">
-        <a className="brand" href="/" aria-label="Otra Ronda Más, inicio">
+        <a className="brand" href="/tienda" aria-label="Otra Ronda Más, inicio">
           <span className="brand-mark">OR</span>
           <span>OTRA RONDA <strong>MÁS</strong></span>
         </a>
@@ -201,7 +201,7 @@ export default function Index() {
         )}
       </section>
 
-      <footer className="store-footer"><a className="brand brand-footer" href="/"><span className="brand-mark">OR</span><span>OTRA RONDA <strong>MÁS</strong></span></a><span>Una forma más simple de comprar.</span></footer>
+      <footer className="store-footer"><a className="brand brand-footer" href="/tienda"><span className="brand-mark">OR</span><span>OTRA RONDA <strong>MÁS</strong></span></a><span>Una forma más simple de comprar.</span></footer>
 
       {cartOpen ? (
         <div className="cart-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
