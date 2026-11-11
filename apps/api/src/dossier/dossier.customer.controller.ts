@@ -24,6 +24,10 @@ import {
   CanonicalPermission,
   CUSTOMER_POLICY,
 } from '../authorization/canonical-permission.decorator';
+import { hasCanonicalRole, type Role } from '../authorization/canonical-permissions';
+
+/** OR-B4-027: who sees and approves wholesale customer dossiers. */
+const WHOLESALE_DOSSIER_APPROVERS: readonly Role[] = ['OWNER', 'ADMIN'];
 
 /**
  * RF-17 (docs/spec-login-roles.md): self-service dossier for the wholesale
@@ -106,8 +110,10 @@ export class CustomerDossierController {
   @Get('pendientes')
   async listPending(@CurrentUser() user: AuthenticatedUser) {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);
-    if (context.role !== 'OWNER') {
-      throw new ForbiddenException('Solo el Owner puede ver los legajos pendientes');
+    // OR-B4-027: Owner and Admin. Not CUSTOMERS_MANAGE: the matrix also gives it to the
+    // Vendedor, and the Owner approved Owner + Admin for wholesale dossiers.
+    if (!hasCanonicalRole(context.role, WHOLESALE_DOSSIER_APPROVERS)) {
+      throw new ForbiddenException('Solo el Owner o un Admin pueden ver los legajos pendientes');
     }
     const empresaId = await this.businessContext.resolveCompanyId(context.businessId);
     const customers = await this.prisma.cliente.findMany({
@@ -132,8 +138,8 @@ export class CustomerDossierController {
   @Patch(':clienteId/aprobar')
   async approve(@Param('clienteId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);
-    if (context.role !== 'OWNER') {
-      throw new ForbiddenException('Solo el Owner puede aprobar legajos');
+    if (!hasCanonicalRole(context.role, WHOLESALE_DOSSIER_APPROVERS)) {
+      throw new ForbiddenException('Solo el Owner o un Admin pueden aprobar legajos');
     }
     const empresaId = await this.businessContext.resolveCompanyId(context.businessId);
 

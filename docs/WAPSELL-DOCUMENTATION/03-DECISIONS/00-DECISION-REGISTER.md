@@ -838,5 +838,9 @@ Effects:
   offered (OR-B4-006). The wholesale invitation keeps its internal placeholder.
 - `VENDEDOR`, `ADMIN` and `GESTOR_DE_STOCK` require the same dossier as `ASISTENTE_LOCAL` (personal data and documents,
   Owner approval).
-- The Owner-only service checks become canonical permission checks (`MESSAGING_MANAGE`, `USERS_MANAGE` without acting on
-  the Owner's Membership, `CUSTOMERS_MANAGE`) — implemented in a follow-up PR.
+- The Owner-only service checks follow the matrix: reading every conversation and administering conversations need
+  `MESSAGING_MANAGE`; suspending/reactivating Memberships needs `USERS_MANAGE`, and only an Owner acts on an Owner
+  Membership. Both permissions belong to Owner and Admin only.
+- Wholesale dossier approval: **Owner and Admin**, as approved. It is checked by canonical role, not by
+  `CUSTOMERS_MANAGE`, because the matrix also grants `CUSTOMERS_MANAGE` to the Vendedor (the question as asked described
+  it as Owner/Admin). A dedicated permission is an open item.

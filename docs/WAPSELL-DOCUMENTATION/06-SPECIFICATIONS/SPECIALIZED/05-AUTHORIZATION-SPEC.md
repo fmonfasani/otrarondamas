@@ -233,7 +233,7 @@ VENDEDOR alias until 2026-12-31.
 | 2 | Shadow mode — `authorization-engine.ts` evaluates every `@RequirePermission` / `@Authorize` request and logs `authz.shadow.divergence` when it disagrees with the legacy decision; **the legacy guards still decide** | `authorization-engine.spec.ts`, `permissions.guard.spec.ts` |
 | 3 | Shadow mode, **every routed endpoint** — the 65 endpoints with `@RequirePermission` / `@Authorize` (#176) and the other 84 non-public routes declare `@CanonicalPermission` (all listed permissions required). The engine evaluates authenticated-only endpoints too (role from the JWT, no extra query) and an endpoint with no declaration is `DENY / UNDECLARED` (`AUTH-10`) | `endpoint-policy-coverage.spec.ts` walks `AppModule` and fails on any non-`@Public` route without a policy; `canonical-permission.decorator.spec.ts`, `permissions.guard.spec.ts` |
 | Cut-over | **Done (2026-11-11, OR-B4-026)**: the engine decides by default (`enforce`); `AUTHZ_ENGINE_MODE=shadow` restores the legacy guards. Plan and evidence: `05a-AUTHORIZATION-CUTOVER-PLAN.md` | B4 runs `api-verification` (shadow) and `api-verification (enforce)` |
-| 4 | **In progress (OR-B4-027, #160)**: `RolUsuario` gains `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK` (additive); `ASISTENTE_LOCAL` is an alias of `VENDEDOR` until 2026-12-31 with a reversible conversion (`role-conversion.ts`, `prisma/convert-asistente-local.ts`); staff invitations offer the three staff roles; Owner-only service checks → canonical permissions pending | `canonical-permissions.spec.ts`, `role-conversion.integration-spec.ts`, `create-invitation.dto.spec.ts`, `p0-invitations-activation.integration-spec.ts` |
+| 4 | **Done (OR-B4-027, #160)**: `RolUsuario` gains `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK` (additive); `ASISTENTE_LOCAL` is an alias of `VENDEDOR` until 2026-12-31 with a reversible conversion (`role-conversion.ts`, `prisma/convert-asistente-local.ts`); staff invitations offer the three staff roles; Owner-only service checks follow the matrix (`MESSAGING_MANAGE`, `USERS_MANAGE`; wholesale dossier approval Owner + Admin by role) | `canonical-permissions.spec.ts`, `role-conversion.integration-spec.ts`, `create-invitation.dto.spec.ts`, `p0-invitations-activation.integration-spec.ts` |
 | 5 | Pending — retiring the legacy tables needs a separate Owner decision | — |
 
 **Stage 3 declarations that differ from the coarse §5.1 translation** (shadow only; they become effective only when
@@ -305,6 +305,8 @@ divergences and an activation with immediate rollback — which the Owner approv
 | Who holds platform permissions and how support access is audited (§3) | Security spec |
 | Physical representation of roles, catalogue and matrix | Resolved in stage 1: typed constants in code, pinned by tests (#174) |
 | Making the canonical engine authoritative (end of shadow mode) | Done: plan approved by `OR-B4-026`, activated 2026-11-11 |
+| Dedicated permission for approving wholesale dossiers (today Owner + Admin by role; `CUSTOMERS_MANAGE` also includes the Vendedor) | **Owner** |
+| Removing `ASISTENTE_LOCAL` from `RolUsuario` after 2026-12-31 | **Owner** (`OR-B4-001`) |
 | Session/token effect of a role change or suspension | Technical design (ties to #162) |
 
 ## 7. Change history

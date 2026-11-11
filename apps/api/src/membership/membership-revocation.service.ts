@@ -8,6 +8,7 @@ import { Subject } from 'rxjs';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 
 export type MembershipStatusChangedEvent = {
   membershipId: string;
@@ -48,13 +49,14 @@ export class MembershipRevocationService {
   ) {
     const context = await this.businessContext.resolveForAuthenticatedUser(auth);
 
-    if (context.role !== 'OWNER') {
-      throw new ForbiddenException('Solo el Owner puede gestionar Memberships');
+    // OR-B4-027: USERS_MANAGE (Owner and Admin); only the Owner acts on an Owner Membership.
+    if (!hasCanonicalPermission(context.role, 'USERS_MANAGE')) {
+      throw new ForbiddenException('Requiere el permiso USERS_MANAGE para gestionar Memberships');
     }
 
     const target = await this.prisma.membership.findFirst({
       where: { id: membershipId, businessId: context.businessId },
-      select: { id: true, userId: true, businessId: true, status: true },
+      select: { id: true, userId: true, businessId: true, status: true, role: true },
     });
 
     if (!target) {
@@ -62,7 +64,11 @@ export class MembershipRevocationService {
     }
 
     if (target.id === context.membershipId) {
-      throw new ConflictException('El Owner no puede suspender su propia Membership');
+      throw new ConflictException('No podés cambiar el estado de tu propia Membership');
+    }
+
+    if (target.role === 'OWNER' && context.role !== 'OWNER') {
+      throw new ForbiddenException('Solo el Owner puede gestionar la Membership de un Owner');
     }
 
     if (target.status !== expectedStatus) {
