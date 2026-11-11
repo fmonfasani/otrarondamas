@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import {
   CUSTOMER_POLICY,
   LEGACY_PERMISSION_MAP,
+  ROLE_PERMISSIONS,
   canonicalRoleFor,
   isPermission,
   roleHasPermission,
@@ -155,11 +156,60 @@ export interface ShadowInput extends EvaluationInput {
 }
 
 /**
- * Compares the canonical decision with the legacy one and logs divergences. It never
- * throws and never changes the legacy outcome: any internal error is swallowed.
- * Logs carry only the principal id, codes and roles — no tokens or personal data.
+ * Cut-over switch (OR-B4-025/026, plan `05a-AUTHORIZATION-CUTOVER-PLAN.md`):
+ *  - `shadow`: the legacy guards decide; the engine only logs divergences.
+ *  - `enforce`: the engine decides; the legacy decision is logged as the divergence.
+ * Unknown values fall back to the code default.
  */
-export function shadowCompare(input: ShadowInput): CanonicalEvaluation | undefined {
+export type AuthzEngineMode = 'shadow' | 'enforce';
+export const DEFAULT_AUTHZ_ENGINE_MODE: AuthzEngineMode = 'shadow';
+
+export function authzEngineMode(env: NodeJS.ProcessEnv = process.env): AuthzEngineMode {
+  const value = env.AUTHZ_ENGINE_MODE?.trim().toLowerCase();
+  return value === 'shadow' || value === 'enforce' ? value : DEFAULT_AUTHZ_ENGINE_MODE;
+}
+
+/**
+ * The guards' single decision point. In `shadow` mode it returns the legacy outcome; in
+ * `enforce` mode the canonical one — except for NOT_APPLICABLE policies (customer,
+ * provider webhook, platform), which other guards decide, so the legacy outcome stands.
+ * In `enforce` mode an internal error fails closed.
+ */
+export function decide(
+  input: ShadowInput,
+  mode: AuthzEngineMode = authzEngineMode(),
+): { allowed: boolean; evaluation?: CanonicalEvaluation } {
+  if (mode === 'shadow') {
+    return { allowed: input.legacyAllowed, evaluation: shadowCompare(input, mode) };
+  }
+  const evaluation = shadowCompare(input, mode);
+  if (!evaluation) return { allowed: false };
+  if (evaluation.decision === 'NOT_APPLICABLE') return { allowed: input.legacyAllowed, evaluation };
+  return { allowed: evaluation.decision === 'ALLOW', evaluation };
+}
+
+/**
+ * Codes a role satisfies, for handlers that read `request.capabilities` (audit visibility):
+ * the canonical permissions plus every legacy code whose translation the role holds.
+ */
+export function capabilitiesForRole(legacyRole: string | null | undefined): string[] {
+  const role = legacyRole ? canonicalRoleFor(legacyRole) : undefined;
+  if (!role) return [];
+  const legacy = Object.keys(LEGACY_PERMISSION_MAP).filter(
+    (code) => evaluate({ code, legacyRole, active: true }).decision === 'ALLOW',
+  );
+  return [...ROLE_PERMISSIONS[role], ...legacy];
+}
+
+/**
+ * Evaluates and logs when the canonical and legacy decisions differ. It never throws:
+ * an internal error returns `undefined`. Logs carry only the principal id, codes and
+ * roles — no tokens or personal data.
+ */
+export function shadowCompare(
+  input: ShadowInput,
+  mode: AuthzEngineMode = 'shadow',
+): CanonicalEvaluation | undefined {
   try {
     const result = evaluate(input);
     if (result.decision === 'NOT_APPLICABLE') return result;
@@ -167,7 +217,7 @@ export function shadowCompare(input: ShadowInput): CanonicalEvaluation | undefin
     if (canonicalAllowed !== input.legacyAllowed) {
       shadowLogger.warn(
         JSON.stringify({
-          event: 'authz.shadow.divergence',
+          event: mode === 'shadow' ? 'authz.shadow.divergence' : 'authz.enforce.divergence',
           source: input.source,
           code: input.code,
           principalId: input.principalId,

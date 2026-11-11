@@ -240,7 +240,9 @@ describe('AuthorizationGuard', () => {
       const context = mockContext('catalog.change_prices');
       givenCapability('catalog.change_prices');
       givenMembership(
-        asistenteMembership(4, [pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager')]),
+        asistenteMembership(4, [
+          pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager'),
+        ]),
       );
 
       const result = await guard.canActivate(context);
@@ -251,7 +253,9 @@ describe('AuthorizationGuard', () => {
       const context = mockContext('catalog.change_prices');
       givenCapability('catalog.change_prices');
       givenMembership(
-        asistenteMembership(4, [pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager')]),
+        asistenteMembership(4, [
+          pricingGrant('rolegrant-4', 'capgrant-1', 'Promoted to pricing manager'),
+        ]),
       );
 
       await guard.canActivate(context);
@@ -343,6 +347,68 @@ describe('AuthorizationGuard', () => {
   });
 
   // Helper functions
+  // #161 cut-over (OR-B4-026): with AUTHZ_ENGINE_MODE=enforce the role matrix decides.
+  describe('enforce mode (AUTHZ_ENGINE_MODE=enforce)', () => {
+    const previous = process.env.AUTHZ_ENGINE_MODE;
+    beforeEach(() => {
+      process.env.AUTHZ_ENGINE_MODE = 'enforce';
+    });
+    afterEach(() => {
+      if (previous === undefined) delete process.env.AUTHZ_ENGINE_MODE;
+      else process.env.AUTHZ_ENGINE_MODE = previous;
+    });
+
+    it('allows an Owner without RoleGrant (the matrix does not need it)', async () => {
+      const context = mockContext('audit.leer_otros');
+      givenCapability('audit.leer_otros');
+      givenMembership({
+        id: 'membership-e1',
+        userId: mockUserId,
+        businessId: mockBusinessId,
+        role: 'OWNER',
+        status: 'ACTIVE',
+        RoleGrant: null,
+      });
+
+      await expect(guard.canActivate(context as ExecutionContext)).resolves.toBe(true);
+      const request = (context.switchToHttp as jest.Mock)().getRequest();
+      expect(request.capabilities).toEqual(
+        expect.arrayContaining(['AUDIT_VIEW_ALL', 'audit.leer_otros', 'audit.leer']),
+      );
+    });
+
+    it('ignores CapabilityGrant overrides: a granted capability outside the role is denied', async () => {
+      givenCapability('catalog.change_prices');
+      givenMembership(
+        asistenteMembership(2, [pricingGrant('rolegrant-2', 'grant-e2', 'override')]),
+      );
+
+      await expect(
+        guard.canActivate(mockContext('catalog.change_prices') as ExecutionContext),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('limits the Vendedor to own audit logs', async () => {
+      const context = mockContext('audit.leer');
+      givenCapability('audit.leer');
+      givenMembership(asistenteMembership(3));
+
+      await expect(guard.canActivate(context as ExecutionContext)).resolves.toBe(true);
+      const request = (context.switchToHttp as jest.Mock)().getRequest();
+      expect(request.capabilities).toContain('audit.leer');
+      expect(request.capabilities).not.toContain('audit.leer_otros');
+    });
+
+    it('still rejects a suspended Membership', async () => {
+      givenCapability('audit.leer');
+      givenMembership({ ...asistenteMembership(4), status: 'SUSPENDED' });
+
+      await expect(
+        guard.canActivate(mockContext('audit.leer') as ExecutionContext),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
   function mockContext(
     capability?: string,
     identity: 'usuario' | 'cliente' = 'usuario',

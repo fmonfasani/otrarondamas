@@ -1,6 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { LEGACY_PERMISSION_MAP } from './canonical-permissions';
-import { evaluate, shadowCompare, translateCode } from './authorization-engine';
+import {
+  DEFAULT_AUTHZ_ENGINE_MODE,
+  authzEngineMode,
+  capabilitiesForRole,
+  decide,
+  evaluate,
+  shadowCompare,
+  translateCode,
+} from './authorization-engine';
 
 describe('canonical authorization engine (#161 stage 2)', () => {
   describe('translateCode', () => {
@@ -135,6 +143,92 @@ describe('canonical authorization engine (#161 stage 2)', () => {
       expect(() =>
         shadowCompare({ ...base, code: 'ventas.crear', legacyRole: 'OWNER', legacyAllowed: false }),
       ).not.toThrow();
+    });
+  });
+
+  // Cut-over switch (OR-B4-026).
+  describe('authzEngineMode / decide', () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+      warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    });
+    afterEach(() => warn.mockRestore());
+
+    const base = { source: 'RequirePermission' as const, principalId: 'u-1', active: true };
+
+    it('defaults to shadow and accepts only shadow / enforce', () => {
+      expect(DEFAULT_AUTHZ_ENGINE_MODE).toBe('shadow');
+      expect(authzEngineMode({})).toBe('shadow');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: ' Enforce ' })).toBe('enforce');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'shadow' })).toBe('shadow');
+      expect(authzEngineMode({ AUTHZ_ENGINE_MODE: 'on' })).toBe('shadow');
+    });
+
+    it('returns the legacy outcome in shadow mode and the canonical one in enforce mode', () => {
+      const ownerWithoutAssignment = {
+        ...base,
+        code: 'ventas.crear',
+        legacyRole: 'OWNER',
+        legacyAllowed: false,
+      };
+      expect(decide(ownerWithoutAssignment, 'shadow').allowed).toBe(false);
+      expect(decide(ownerWithoutAssignment, 'enforce').allowed).toBe(true);
+
+      const vendedorWithPricing = {
+        ...base,
+        code: 'precios.cambiar',
+        legacyRole: 'ASISTENTE_LOCAL',
+        legacyAllowed: true,
+      };
+      expect(decide(vendedorWithPricing, 'shadow').allowed).toBe(true);
+      expect(decide(vendedorWithPricing, 'enforce').allowed).toBe(false);
+    });
+
+    it('logs the enforce divergence under its own event', () => {
+      decide(
+        { ...base, code: 'ventas.crear', legacyRole: 'OWNER', legacyAllowed: false },
+        'enforce',
+      );
+      expect(JSON.parse(String(warn.mock.calls[0][0]))).toMatchObject({
+        event: 'authz.enforce.divergence',
+        legacy: 'DENY',
+        canonical: 'ALLOW',
+      });
+    });
+
+    it('keeps the legacy outcome for policies other guards decide', () => {
+      const customer = { ...base, code: 'customers.request_return', legacyRole: null };
+      expect(decide({ ...customer, legacyAllowed: true }, 'enforce').allowed).toBe(true);
+      expect(decide({ ...customer, legacyAllowed: false }, 'enforce').allowed).toBe(false);
+    });
+
+    it('fails closed in enforce mode when the evaluation breaks', () => {
+      const broken = {
+        ...base,
+        code: '',
+        legacyRole: 'OWNER',
+        legacyAllowed: true,
+        declared: () => {
+          throw new Error('boom');
+        },
+      };
+      expect(decide(broken, 'enforce').allowed).toBe(false);
+      expect(decide(broken, 'shadow').allowed).toBe(true);
+    });
+  });
+
+  describe('capabilitiesForRole', () => {
+    it('lists canonical permissions and the legacy codes the role satisfies', () => {
+      const owner = capabilitiesForRole('OWNER');
+      expect(owner).toEqual(expect.arrayContaining(['AUDIT_VIEW_ALL', 'audit.leer_otros']));
+      const vendedor = capabilitiesForRole('ASISTENTE_LOCAL');
+      expect(vendedor).toEqual(
+        expect.arrayContaining(['AUDIT_VIEW_OWN', 'audit.leer', 'ventas.crear']),
+      );
+      expect(vendedor).not.toContain('audit.leer_otros');
+      expect(vendedor).not.toContain('precios.cambiar');
+      expect(capabilitiesForRole('PROVEEDOR')).toEqual([]);
+      expect(capabilitiesForRole(undefined)).toEqual([]);
     });
   });
 });

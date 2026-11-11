@@ -73,3 +73,10 @@ Efectos a tener en cuenta:
 `OR-B4-026` (2026-11-11): el Owner aprobó el plan completo, que incluye activar ahora, la pérdida de acceso de staff
 de `PROVEEDOR` y `REPARTIDOR`, los pasos 1–4 y el rollback. Respuesta textual a "¿Aprobás el plan (activar ahora,
 PROVEEDOR/REPARTIDOR sin acceso de staff, pasos 1–4 y rollback)?": "Si".
+
+## 8. Estado de los pasos
+
+| Paso | Estado | Evidencia |
+|---|---|---|
+| 1 | Hecho: `AUTHZ_ENGINE_MODE` (`shadow` por defecto) en `authorization-engine.ts` (`authzEngineMode`, `decide`, `capabilitiesForRole`); los dos guards deciden con el motor en `enforce`. En `enforce` el `AuthorizationGuard` no exige `RoleGrant` y expone en `request.capabilities` los códigos que satisface el rol | `authorization-engine.spec.ts`, `permissions.guard.spec.ts`, `authorization.guard.spec.ts` (bloques "enforce mode") |
+| 2–4 | Pendientes | — |

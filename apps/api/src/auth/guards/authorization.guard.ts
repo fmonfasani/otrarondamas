@@ -12,7 +12,11 @@ import { BusinessContextService } from '../../business-context/business-context.
 import type { BusinessContext } from '../../business-context/business-context.types';
 import { CAPABILITY_KEY } from '../decorators/authorize.decorator';
 import type { AuthenticatedUser } from '../auth.types';
-import { shadowCompare } from '../../authorization/authorization-engine';
+import {
+  authzEngineMode,
+  capabilitiesForRole,
+  decide,
+} from '../../authorization/authorization-engine';
 import { readCanonicalRequirement } from '../../authorization/canonical-permission.decorator';
 
 /**
@@ -110,20 +114,35 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     // #161 stage 2: canonical engine in shadow mode — logs divergences, never decides.
-    const shadow = (legacyAllowed: boolean) =>
-      shadowCompare({
-        source: 'Authorize',
-        code: requiredCapability,
-        principalId: membership.id,
-        legacyRole: membership.role,
-        active: true,
-        legacyAllowed,
-        declared: readCanonicalRequirement(context),
-        request,
-      });
+    // #161: `shadow` = RoleTemplate/CapabilityGrant decide and the engine logs;
+    // `enforce` (cut-over, OR-B4-026) = the role matrix decides, overrides are ignored (AUTH-04).
+    const mode = authzEngineMode();
+    const judge = (legacyAllowed: boolean) =>
+      decide(
+        {
+          source: 'Authorize',
+          code: requiredCapability,
+          principalId: membership.id,
+          legacyRole: membership.role,
+          active: true,
+          legacyAllowed,
+          declared: readCanonicalRequirement(context),
+          request,
+        },
+        mode,
+      ).allowed;
+
+    if (mode === 'enforce') {
+      const legacyAllowed = this.legacyCapabilities(membership).has(requiredCapability);
+      request.capabilities = capabilitiesForRole(membership.role);
+      if (!judge(legacyAllowed)) {
+        throw new ForbiddenException(`Requiere la capacidad '${requiredCapability}'`);
+      }
+      return true;
+    }
 
     if (!membership.RoleGrant) {
-      shadow(false);
+      judge(false);
       // Phase 2 P1-2: RoleGrant may be null during migration.
       // After backfill is complete, this should be treated as an error.
       this.logger.warn(
@@ -132,34 +151,14 @@ export class AuthorizationGuard implements CanActivate {
       throw new ForbiddenException('RoleGrant no encontrado (migración incompleta)');
     }
 
-    // Flatten capabilities: role defaults + grants - denials
-    const capabilities = new Set<string>();
-
-    // Step 1: Add role defaults (capabilities from RoleTemplate)
-    if (membership.RoleGrant.RoleTemplate.RoleCapability) {
-      membership.RoleGrant.RoleTemplate.RoleCapability.forEach((roleCapability) => {
-        capabilities.add(roleCapability.CapabilityDefinition.code);
-      });
-    }
-
-    // Step 2: Apply grants/denials (CapabilityGrant overrides)
-    if (membership.RoleGrant.CapabilityGrant) {
-      membership.RoleGrant.CapabilityGrant.forEach((grant) => {
-        if (grant.grantType === 'GRANT') {
-          capabilities.add(grant.CapabilityDefinition.code);
-        } else if (grant.grantType === 'DENY') {
-          // Phase 3+: explicit denials
-          capabilities.delete(grant.CapabilityDefinition.code);
-        }
-      });
-    }
+    const capabilities = this.legacyCapabilities(membership);
 
     // Expose the resolved capability set to handlers that need dynamic
     // visibility rules (for example, own audit logs vs. all business logs).
     request.capabilities = Array.from(capabilities);
 
     // Check if user has the required capability
-    shadow(capabilities.has(requiredCapability));
+    judge(capabilities.has(requiredCapability));
     if (!capabilities.has(requiredCapability)) {
       throw new ForbiddenException(
         `Requiere la capacidad '${requiredCapability}'. Capacidades disponibles: ${Array.from(capabilities).join(', ')}`,
@@ -167,5 +166,32 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /** Legacy P1-2 capability set: role defaults + grants - denials (empty without RoleGrant). */
+  private legacyCapabilities(membership: {
+    RoleGrant: {
+      RoleTemplate: { RoleCapability: { CapabilityDefinition: { code: string } }[] };
+      CapabilityGrant: { grantType: string; CapabilityDefinition: { code: string } }[];
+    } | null;
+  }): Set<string> {
+    const capabilities = new Set<string>();
+    if (!membership.RoleGrant) return capabilities;
+
+    // Step 1: Add role defaults (capabilities from RoleTemplate)
+    membership.RoleGrant.RoleTemplate.RoleCapability?.forEach((roleCapability) => {
+      capabilities.add(roleCapability.CapabilityDefinition.code);
+    });
+
+    // Step 2: Apply grants/denials (CapabilityGrant overrides)
+    membership.RoleGrant.CapabilityGrant?.forEach((grant) => {
+      if (grant.grantType === 'GRANT') {
+        capabilities.add(grant.CapabilityDefinition.code);
+      } else if (grant.grantType === 'DENY') {
+        // Phase 3+: explicit denials
+        capabilities.delete(grant.CapabilityDefinition.code);
+      }
+    });
+    return capabilities;
   }
 }
