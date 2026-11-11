@@ -1447,11 +1447,17 @@ enum NivelFidelidad {
   VIP
 }
 
+// Canonical Membership Roles: OWNER, ADMIN, VENDEDOR, GESTOR_DE_STOCK (AUTH-01, OR-B4-027).
+// ASISTENTE_LOCAL is a transitional alias of VENDEDOR until 2026-12-31; PROVEEDOR and
+// REPARTIDOR are not Membership Roles (OR-B4-006). Removing values needs an Owner decision.
 enum RolUsuario {
   OWNER
   ASISTENTE_LOCAL
   PROVEEDOR
   REPARTIDOR
+  ADMIN
+  VENDEDOR
+  GESTOR_DE_STOCK
 }
 
 enum TipoDocumentoLegajo {

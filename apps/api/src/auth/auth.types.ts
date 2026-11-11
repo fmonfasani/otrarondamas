@@ -10,7 +10,14 @@
 // UserRole — repeated here instead of importing @prisma/client so as
 // not to tie auth.types.ts (also consumed outside the request context)
 // to the Prisma client generation.
-export type UserRole = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
+export type UserRole =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'VENDEDOR'
+  | 'GESTOR_DE_STOCK'
+  | 'ASISTENTE_LOCAL' // transitional alias of VENDEDOR until 2026-12-31 (OR-B4-027)
+  | 'PROVEEDOR'
+  | 'REPARTIDOR';
 export type DossierStatus = 'PENDIENTE' | 'APROBADO';
 
 export interface EmpresaInJwt {

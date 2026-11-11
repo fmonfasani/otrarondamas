@@ -1,5 +1,6 @@
 import type { RolUsuario } from '@prisma/client';
 import type { PrismaService } from '../../../src/prisma/prisma.service';
+import { authzEngineMode } from '../../../src/authorization/authorization-engine';
 
 /**
  * Integration fixtures must model effective permissions in the database.
@@ -76,7 +77,9 @@ export async function withRevokedUsuarioPermissions<T>(
  * (`shadow`) and with the canonical role matrix deciding (`enforce`). The spawned API
  * inherits AUTHZ_ENGINE_MODE from the test process.
  */
-export const AUTHZ_ENFORCE = process.env.AUTHZ_ENGINE_MODE?.trim().toLowerCase() === 'enforce';
+// Same resolution as the API (default `enforce` since the cut-over), so the fixtures match
+// the spawned server even when the variable is unset.
+export const AUTHZ_ENFORCE = authzEngineMode() === 'enforce';
 
 /** OR-B4-006: not a Membership role, so it holds no staff permission in the matrix. */
 export const NO_STAFF_ROLE: RolUsuario = 'PROVEEDOR';

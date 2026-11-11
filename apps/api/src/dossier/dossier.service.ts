@@ -5,8 +5,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateDossierDto } from './dto/update-dossier.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
-
-type UserRole = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
+import type { UserRole } from '../auth/auth.types';
 
 // Required fields by role (docs/spec-login-roles.md, section 3) — the only
 // place in the code that knows this table, so as not to duplicate it nor
@@ -17,13 +16,23 @@ type UserRole = 'OWNER' | 'ASISTENTE_LOCAL' | 'PROVEEDOR' | 'REPARTIDOR';
 const REQUIRED_FIELDS_BY_ROLE: Record<UserRole, (keyof UpdateDossierDto)[]> = {
   OWNER: ['cuit', 'razonSocial', 'condicionIva'],
   ASISTENTE_LOCAL: ['dni', 'telefono', 'direccion'],
+  // OR-B4-027: the staff roles ask for the same dossier as the Vendedor (ex ASISTENTE_LOCAL).
+  VENDEDOR: ['dni', 'telefono', 'direccion'],
+  ADMIN: ['dni', 'telefono', 'direccion'],
+  GESTOR_DE_STOCK: ['dni', 'telefono', 'direccion'],
   PROVEEDOR: ['cuit', 'razonSocial', 'tipoFactura'],
   REPARTIDOR: ['dni', 'telefono', 'direccion', 'vehiculoDatos', 'licenciaConducir'],
 };
 
-// Only these two roles upload sensitive documents (criminal record, CUIL
-// certificate) — Owner and Proveedor do not.
-const ROLES_WITH_DOCUMENTS: UserRole[] = ['ASISTENTE_LOCAL', 'REPARTIDOR'];
+// Only these roles upload sensitive documents (criminal record, CUIL
+// certificate) — Owner and Proveedor do not. Staff roles per OR-B4-027.
+const ROLES_WITH_DOCUMENTS: UserRole[] = [
+  'ASISTENTE_LOCAL',
+  'VENDEDOR',
+  'ADMIN',
+  'GESTOR_DE_STOCK',
+  'REPARTIDOR',
+];
 const REQUIRED_DOCUMENTS: UploadDocumentDto['tipo'][] = ['ANTECEDENTES_PENALES', 'CONSTANCIA_CUIL'];
 
 /**

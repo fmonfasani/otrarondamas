@@ -812,3 +812,31 @@ activation, observation) and rollback to the previous image — the Owner answer
 
 The legacy tables (`UsuarioPermiso`, `Permiso`, `RoleTemplate`, `CapabilityGrant`) are kept; retiring them is stage 5
 and still requires a separate Owner decision.
+
+### OR-B4-027 — Canonical Membership Roles and transition (#160) — 2026-11-11
+
+**Status:** APPROVED — OWNER RULING
+**Spec:** `06-SPECIFICATIONS/SPECIALIZED/05-AUTHORIZATION-SPEC.md` §5.2, §5.4 (stage 4)
+
+Owner answers (verbatim):
+
+| Question | Owner answer |
+|---|---|
+| Add ADMIN, VENDEDOR and GESTOR_DE_STOCK to `RolUsuario` in production (additive, `db push`)? | "Sí, agregar los 3 (Recomendado)" |
+| ASISTENTE_LOCAL → VENDEDOR transition? | "Convertir ya + alias hasta 2026-12-31 (Recomendado)" |
+| Turn the Owner-only service checks (all conversations, suspend/reactivate Memberships, approve wholesale dossiers) into canonical permissions per the matrix? | "Sí, según la matriz (Recomendado)" |
+| Which roles can be invited as staff? | "ADMIN, VENDEDOR, GESTOR_DE_STOCK (Recomendado)" |
+| Dossier for ADMIN and GESTOR_DE_STOCK? | "Lo mismo que el Vendedor (Recomendado)" |
+
+Effects:
+
+- `RolUsuario` gains `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK` (additive). No value is removed.
+- `ASISTENTE_LOCAL` is an alias of `VENDEDOR` until **2026-12-31**. New invitations create `VENDEDOR`; a pending
+  `ASISTENTE_LOCAL` invitation activates as `VENDEDOR`; existing rows are converted by a reversible script with a
+  manifest (AUTH-12). Removing the value from the enum after the deadline needs a separate Owner decision.
+- Staff invitations offer `ADMIN`, `VENDEDOR`, `GESTOR_DE_STOCK` only. `PROVEEDOR` / `REPARTIDOR` are no longer
+  offered (OR-B4-006). The wholesale invitation keeps its internal placeholder.
+- `VENDEDOR`, `ADMIN` and `GESTOR_DE_STOCK` require the same dossier as `ASISTENTE_LOCAL` (personal data and documents,
+  Owner approval).
+- The Owner-only service checks become canonical permission checks (`MESSAGING_MANAGE`, `USERS_MANAGE` without acting on
+  the Owner's Membership, `CUSTOMERS_MANAGE`) — implemented in a follow-up PR.

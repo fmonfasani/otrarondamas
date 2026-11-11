@@ -135,15 +135,26 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
 };
 
 /**
- * AS-IS role → canonical role (spec §5.2, OR-B4-006). `null` = not a Membership Role.
- * ASISTENTE_LOCAL → VENDEDOR is transitional and has a deadline (#160).
+ * `RolUsuario` → canonical role (spec §5.2, OR-B4-006, OR-B4-027). The four canonical roles
+ * map to themselves; `null` = not a Membership Role. ASISTENTE_LOCAL → VENDEDOR is
+ * transitional (#160).
  */
 export const LEGACY_ROLE_MAP: Readonly<Record<string, Role | null>> = {
   OWNER: 'OWNER',
-  ASISTENTE_LOCAL: 'VENDEDOR',
+  ADMIN: 'ADMIN',
+  VENDEDOR: 'VENDEDOR',
+  GESTOR_DE_STOCK: 'GESTOR_DE_STOCK',
+  ASISTENTE_LOCAL: 'VENDEDOR', // transitional alias until ASISTENTE_LOCAL_ALIAS_DEADLINE
   PROVEEDOR: null,
   REPARTIDOR: null,
 };
+
+/**
+ * OR-B4-027: ASISTENTE_LOCAL stays an alias of VENDEDOR until this date. New invitations
+ * create VENDEDOR; existing rows are converted by `prisma/convert-asistente-local.ts` (reversible).
+ * Removing the value from the enum after the deadline needs a separate Owner decision.
+ */
+export const ASISTENTE_LOCAL_ALIAS_DEADLINE = '2026-12-31';
 
 /**
  * Customer-facing policy marker: the code is not a staff permission and maps to no
