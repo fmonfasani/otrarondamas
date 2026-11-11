@@ -76,9 +76,12 @@ if [[ ! -s "$SECRET_FILE" ]]; then
   (umask 077 && openssl rand -hex 32 > "$SECRET_FILE")
 fi
 NETWORK="$(docker inspect "$API_CONTAINER" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | awk '{print $1}')"
+# Container-to-container call on the host's private Docker bridge network: it never
+# leaves the host, and TLS terminates at the host nginx for public traffic.
+INTERNAL_API_URL="http://${API_CONTAINER}:3000" # NOSONAR (S5332) private Docker network
 {
   printf 'NODE_ENV=production\nPORT=3000\n'
-  printf 'API_BASE_URL=http://%s:3000\nVITE_API_URL=http://%s:3000\n' "$API_CONTAINER" "$API_CONTAINER"
+  printf 'API_BASE_URL=%s\nVITE_API_URL=%s\n' "$INTERNAL_API_URL" "$INTERNAL_API_URL"
   printf 'SESSION_SECRET=%s\n' "$(cat "$SECRET_FILE")"
 } > "$ENV_FILE"
 
@@ -86,8 +89,10 @@ log "4/5 isolated boot test"
 docker rm -f "$CHECK" >/dev/null 2>&1 || true
 run_web "$CHECK" "wapsell-web:${SHA}"
 probe() { # <path>
+  local path="$1"
+  # Inside the check container itself (loopback). NOSONAR (S5332)
   docker exec "$CHECK" node -e \
-    "fetch('http://localhost:3000$1').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
+    "fetch('http://localhost:3000${path}').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" # NOSONAR
 }
 for _ in $(seq 1 24); do
   probe /api/health && break
