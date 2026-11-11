@@ -1,3 +1,4 @@
+import type { RolUsuario } from '@prisma/client';
 import type { PrismaService } from '../../../src/prisma/prisma.service';
 
 /**
@@ -60,8 +61,41 @@ export async function withRevokedUsuarioPermissions<T>(
 ): Promise<T> {
   await replaceUsuarioPermissions(prisma, usuarioId, []);
   try {
-    return await assertion();
+    // With the canonical engine deciding, access comes from the role, not from the
+    // assignments: "no access" also means a role without staff permissions.
+    return AUTHZ_ENFORCE
+      ? await withUsuarioRole(prisma, usuarioId, NO_STAFF_ROLE, assertion)
+      : await assertion();
   } finally {
     await replaceUsuarioPermissions(prisma, usuarioId, restorePermissionNames);
+  }
+}
+
+/**
+ * Authorization cut-over (OR-B4-026): B4 runs every suite with the legacy guards deciding
+ * (`shadow`) and with the canonical role matrix deciding (`enforce`). The spawned API
+ * inherits AUTHZ_ENGINE_MODE from the test process.
+ */
+export const AUTHZ_ENFORCE = process.env.AUTHZ_ENGINE_MODE?.trim().toLowerCase() === 'enforce';
+
+/** OR-B4-006: not a Membership role, so it holds no staff permission in the matrix. */
+export const NO_STAFF_ROLE: RolUsuario = 'PROVEEDOR';
+
+/** Temporarily set the legacy Usuario's role in the database; always restored. */
+export async function withUsuarioRole<T>(
+  prisma: PrismaService,
+  usuarioId: string,
+  rol: RolUsuario,
+  assertion: () => Promise<T>,
+): Promise<T> {
+  const original = await prisma.usuario.findUniqueOrThrow({
+    where: { id: usuarioId },
+    select: { rol: true },
+  });
+  await prisma.usuario.update({ where: { id: usuarioId }, data: { rol } });
+  try {
+    return await assertion();
+  } finally {
+    await prisma.usuario.update({ where: { id: usuarioId }, data: { rol: original.rol } });
   }
 }

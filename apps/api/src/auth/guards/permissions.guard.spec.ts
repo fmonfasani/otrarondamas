@@ -10,6 +10,17 @@ import {
 } from '../../authorization/canonical-permission.decorator';
 
 describe('PermissionsGuard current database authorization', () => {
+  // These tests describe the default (shadow) mode; the "enforce mode" block sets its own.
+  // Pinned so that a CI job running with AUTHZ_ENGINE_MODE=enforce does not change them.
+  const ambientAuthzMode = process.env.AUTHZ_ENGINE_MODE;
+  beforeEach(() => {
+    process.env.AUTHZ_ENGINE_MODE = 'shadow';
+  });
+  afterEach(() => {
+    if (ambientAuthzMode === undefined) delete process.env.AUTHZ_ENGINE_MODE;
+    else process.env.AUTHZ_ENGINE_MODE = ambientAuthzMode;
+  });
+
   let getAllAndOverride: jest.Mock;
   let findUnique: jest.Mock;
   let guard: PermissionsGuard;

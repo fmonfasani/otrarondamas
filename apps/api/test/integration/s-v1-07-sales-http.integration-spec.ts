@@ -8,6 +8,9 @@ import {
   replaceUsuarioPermissions,
   seedUsuarioPermissions,
   withRevokedUsuarioPermissions,
+  AUTHZ_ENFORCE,
+  NO_STAFF_ROLE,
+  withUsuarioRole,
 } from './helpers/usuario-permissions.fixture';
 import { spawnApi } from './helpers/api-server.fixture';
 
@@ -1002,17 +1005,46 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
         expect(await prisma.venta.count({ where: { idempotencyKey: key } })).toBe(0);
         expect(await prisma.pago.count({ where: { ventaId: saleA.id } })).toBe(0);
 
-        // No @RequirePermission on these two: Membership alone is enough.
+        // No @RequirePermission on these two: in shadow mode Membership alone is enough.
+        // In enforce mode they declare CATALOG_VIEW / PAYMENTS_VIEW (AUTH-10), which a role
+        // without staff permissions does not hold (OR-B4-006, OR-B4-026).
+        const openStatus = AUTHZ_ENFORCE ? 403 : 200;
         await request(BASE)
           .get('/ventas/productos?search=ab')
           .set('Authorization', auth)
-          .expect(200);
-        await request(BASE).get(`/ventas/${saleA.id}/pagos`).set('Authorization', auth).expect(200);
+          .expect(openStatus);
+        await request(BASE)
+          .get(`/ventas/${saleA.id}/pagos`)
+          .set('Authorization', auth)
+          .expect(openStatus);
       },
     );
   });
 
+  it('SV7-H-22 (enforce): el rol en la base de datos, no el JWT, determina acceso de lectura', async () => {
+    if (!AUTHZ_ENFORCE) return; // shadow mode: the legacy variant below
+    const productA = await mkProduct(companyA.id, hierA);
+    const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
+    // The JWT claims ventas.ver; the database role decides (OR-B4-026).
+    const auth = bearer(legacyUserA.id, companyA.id, ['ventas.ver']);
+    const reads = ['/ventas', `/ventas/${saleA.id}`, `/ventas/${saleA.id}/comprobante`];
+
+    await withUsuarioRole(prisma, legacyUserA.id, NO_STAFF_ROLE, async () => {
+      for (const path of reads) {
+        await request(BASE).get(path).set('Authorization', auth).expect(403);
+      }
+    });
+    // ASISTENTE_LOCAL maps to VENDEDOR, which holds SALES_VIEW.
+    await withUsuarioRole(prisma, legacyUserA.id, 'ASISTENTE_LOCAL', async () => {
+      for (const path of reads) {
+        await request(BASE).get(path).set('Authorization', auth).expect(200);
+      }
+    });
+  });
+
   it('SV7-H-22 (ventas.ver): la base de datos, no el JWT, determina acceso de lectura', async () => {
+    // Legacy rule (per-user assignments); in enforce mode the role decides (variant above).
+    if (AUTHZ_ENFORCE) return;
     await replaceUsuarioPermissions(prisma, legacyUserA.id, ['ventas.crear']);
     const productA = await mkProduct(companyA.id, hierA);
     const saleA = await mkSale(companyA.id, legacyUserA.id, productA.id);
