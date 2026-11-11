@@ -7,7 +7,12 @@ import {
 } from '@remix-run/node';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { LoginForm } from '~/components/auth/LoginForm';
-import { commitSession, getSession, loginWithNestJS } from '~/services/auth.server';
+import {
+  commitSession,
+  getSession,
+  loginWithNestJS,
+  safeRedirectPath,
+} from '~/services/auth.server';
 
 export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
 
@@ -16,7 +21,10 @@ export const REMEMBER_ME_MAX_AGE = 60 * 60 * 24 * 30;
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const session = await getSession(request.headers.get('Cookie'));
-  if (session.get('jwt')) return redirect(`/${params.lang ?? 'es'}/dashboard`);
+  if (session.get('jwt')) {
+    const redirectTo = new URL(request.url).searchParams.get('redirectTo');
+    return redirect(safeRedirectPath(redirectTo, `/${params.lang ?? 'es'}/dashboard`));
+  }
   return json({});
 }
 
@@ -40,7 +48,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     session.set('userId', user?.id);
     session.set('empresas', empresas);
     session.set('empresaId', empresaId ?? empresas[0]?.id);
-    return redirect(`/${params.lang ?? 'es'}/dashboard`, {
+    const redirectTo = new URL(request.url).searchParams.get('redirectTo');
+    return redirect(safeRedirectPath(redirectTo, `/${params.lang ?? 'es'}/dashboard`), {
       headers: {
         'Set-Cookie': await commitSession(session, {
           maxAge: remember ? REMEMBER_ME_MAX_AGE : undefined,

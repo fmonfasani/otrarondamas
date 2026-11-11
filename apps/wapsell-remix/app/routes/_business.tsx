@@ -1,47 +1,34 @@
-import { Outlet, useLoaderData } from '@remix-run/react';
-import { LoaderFunction, json } from '@remix-run/node';
-import { Header } from '~/components/Header';
+import { json, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/node';
+import { Outlet, useLoaderData, useParams } from '@remix-run/react';
+import panelStyles from '../styles/panel.css?url';
+import { AppShell, type ShellUser } from '~/components/panel/AppShell';
 import { requireAuth, getCurrentUser } from '~/services/auth.server';
 
+export const links: LinksFunction = () => [{ rel: 'stylesheet', href: panelStyles }];
+
 /**
- * Business Operations Layout
- *
- * This layout boundaries the Business Operations experience area:
- * - Staff authentication and Business Context
- * - Dashboard, sales, orders, inventory, customers
- * - Cash operations, messaging, reports
- *
- * SECURITY:
- * - Requires valid staff JWT through requireAuth
- * - NestJS enforces ACTIVE Membership and Permission
- * - Client cannot select Business Context; server validates it
- * - This layout is NOT a security boundary; NestJS guards access
+ * Business panel layout. Requires a staff session (anonymous visitors go to the login
+ * page and come back). This layout is NOT a security boundary: the API authorizes every
+ * call with the role matrix.
  */
-
-export const loader: LoaderFunction = async ({ request }) => {
+export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-
-  try {
-    const user = await getCurrentUser(token);
-    if (!user) {
-      throw new Response('Session invalid or expired', { status: 401 });
-    }
-
-    return json({ user });
-  } catch (error) {
-    console.error('Error verifying staff session:', error);
-    if (error instanceof Response) throw error;
-    throw new Response('Could not verify your session.', { status: 503 });
-  }
-};
+  const user = await getCurrentUser(token);
+  if (!user) throw new Response('No pudimos verificar tu sesión.', { status: 401 });
+  const shellUser: ShellUser = {
+    nombre: user.nombre ?? user.email,
+    empresaNombre: user.empresaNombre ?? '',
+    rol: user.rol ?? '',
+  };
+  return json({ user: shellUser });
+}
 
 export default function BusinessLayout() {
   const { user } = useLoaderData<typeof loader>();
-
+  const { lang = 'es' } = useParams();
   return (
-    <div data-area="business-operations">
-      <Header area="business" userName={user?.name || user?.email} />
+    <AppShell user={user} lang={lang}>
       <Outlet />
-    </div>
+    </AppShell>
   );
 }

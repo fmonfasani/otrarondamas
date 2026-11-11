@@ -1,4 +1,4 @@
-import { createCookieSessionStorage } from '@remix-run/node';
+import { createCookieSessionStorage, redirect } from '@remix-run/node';
 import { getApiBaseUrl } from './api.server';
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -97,17 +97,33 @@ export async function loginWithNestJS(email: string, password: string) {
   };
 }
 
+/** Only same-site relative paths are accepted as a post-login destination. */
+export function safeRedirectPath(value: unknown, fallback = '/es/dashboard'): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  return value;
+}
+
+/** Sends an anonymous or expired visitor to the login page, back to where they were going. */
+function loginRedirect(request: Request, clearSession: boolean, headers?: HeadersInit) {
+  const url = new URL(request.url);
+  const target = `${url.pathname}${url.search}`;
+  const lang = url.pathname.split('/')[1] === 'en' ? 'en' : 'es';
+  return redirect(`/${lang}/auth/login?redirectTo=${encodeURIComponent(target)}`, {
+    headers: clearSession ? headers : undefined,
+  });
+}
+
 export async function requireAuth(request: Request) {
   const session = await getSession(request.headers.get('Cookie'));
   const token = session.get('jwt');
 
   if (!token) {
-    throw new Response('Unauthorized', { status: 401 });
+    throw loginRedirect(request, false);
   }
 
   const isValid = await validateJWT(token);
   if (!isValid) {
-    throw new Response('Token expired or user no longer exists.', { status: 401 });
+    throw loginRedirect(request, true, { 'Set-Cookie': await destroySession(session) });
   }
 
   return token;
