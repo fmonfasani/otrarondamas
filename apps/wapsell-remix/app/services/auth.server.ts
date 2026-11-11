@@ -86,8 +86,15 @@ export async function loginWithNestJS(email: string, password: string) {
     throw new Response('Authentication service is unavailable.', { status: 503 });
   }
   if (!response.ok) throw new Error('Invalid credentials');
+  // API contract: AuthService.issueSession → { accessToken, usuario, empresas, empresaId }.
   const data = await response.json();
-  return { token: data.access_token, user: data.user, empresas: data.empresas };
+  if (!data?.accessToken) throw new Error('Invalid credentials');
+  return {
+    token: data.accessToken as string,
+    user: data.usuario,
+    empresas: Array.isArray(data.empresas) ? data.empresas : [],
+    empresaId: data.empresaId as string | undefined,
+  };
 }
 
 export async function requireAuth(request: Request) {

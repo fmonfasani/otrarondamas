@@ -1,0 +1,445 @@
+/*
+ * Wapsell design tokens and auth screens.
+ * Source of truth: Figma "Wapsell — TO-BE Frontend - PWA" (SJQ9kdB2bglgWweR68JB1T),
+ * frames "Wapsell · Fundamentos de marca y UI" (145:13522) and
+ * "Ingresar a Wapsell · Web / Móvil" (145:13208 / 145:13261).
+ * Token names mirror the Figma variables (action/primary → --action-primary, …).
+ */
+
+:root {
+  --action-primary: #d97757;
+  --action-secondary: #6a9bcc;
+  --text-primary: #141413;
+  --text-muted: #b0aea5;
+  --background-default: #faf9f5;
+  --surface-card: #fffefd;
+  --feedback-success: #a8db85;
+  --feedback-warning: #f5e07a;
+
+  --space-0: 0px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  --radius-small: 6px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-modal: 20px;
+  --radius-pill: 28px;
+  --radius-button: 999px;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ---------------------------------------------------------------- Logo */
+
+.ws-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: inherit;
+  text-decoration: none;
+}
+.ws-logo__mark {
+  position: relative;
+  flex-shrink: 0;
+  width: 39px;
+  height: 39px;
+  overflow: hidden;
+}
+.ws-logo__square {
+  position: absolute;
+  top: 0;
+  left: -3.48px;
+  width: 38.709px;
+  height: 38.709px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ws-logo__square > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 3px;
+  transform: rotate(17deg);
+}
+.ws-logo__square > span > b {
+  display: block;
+  transform: rotate(-17deg);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: normal;
+}
+.ws-logo__period {
+  position: absolute;
+  top: 24.8px;
+  left: 25.73px;
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+.ws-logo__word {
+  font-family: var(--font-sans);
+  font-size: 24.18px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: normal;
+  white-space: nowrap;
+}
+.ws-logo--light .ws-logo__square > span { background: var(--background-default); }
+.ws-logo--light .ws-logo__square b { color: var(--text-primary); }
+.ws-logo--light .ws-logo__word { color: var(--background-default); }
+.ws-logo--dark .ws-logo__square > span { background: var(--text-primary); }
+.ws-logo--dark .ws-logo__square b { color: var(--background-default); }
+.ws-logo--dark .ws-logo__word { color: var(--text-primary); }
+
+/* ------------------------------------------------------- Auth layout */
+
+.ws-auth {
+  display: flex;
+  min-height: 100vh;
+  background: var(--background-default);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+.ws-auth a { color: inherit; }
+
+.ws-auth__brand {
+  display: none;
+}
+
+.ws-auth__main {
+  flex: 1 0 0;
+  min-width: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: var(--space-32) var(--space-24) var(--space-24);
+}
+
+.ws-auth__mobile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-32);
+  width: 100%;
+}
+.ws-auth__back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  font-size: 12px;
+  text-decoration: none;
+}
+.ws-auth__back img { width: 16px; height: 16px; display: block; }
+
+.ws-auth__utility { display: none; }
+
+.ws-auth__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  width: 100%;
+}
+
+.ws-auth__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding-top: var(--space-16);
+  text-align: center;
+}
+.ws-auth__help {
+  font-size: 12px;
+  line-height: normal;
+  text-decoration: none;
+}
+.ws-auth__legal {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* Web (frame 1440 × 960): dark brand panel 616px + centered 400px form. */
+@media (min-width: 1024px) {
+  .ws-auth { align-items: stretch; }
+  .ws-auth__brand {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-shrink: 0;
+    width: min(616px, 43vw);
+    padding: 64px;
+    overflow: hidden;
+    background: var(--text-primary);
+    color: var(--background-default);
+  }
+  .ws-auth__main {
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+    padding: 40px 64px;
+  }
+  .ws-auth__mobile-header { display: none; }
+  .ws-auth__utility {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 12px;
+    line-height: normal;
+  }
+  .ws-auth__utility a { text-decoration: none; white-space: nowrap; }
+  .ws-auth__content { width: 400px; }
+  .ws-auth__footer { width: 400px; padding-top: 0; }
+  .ws-auth__footer .ws-auth__help { display: none; }
+  .ws-auth__legal { font-size: 11px; }
+}
+
+/* ---------------------------------------------------- Brand panel */
+
+.ws-brand-story {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+  width: 100%;
+}
+.ws-brand-story__eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+  line-height: normal;
+}
+.ws-brand-story__title {
+  margin: 0;
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -3px;
+  line-height: 1.04;
+}
+.ws-brand-story__lead {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.ws-brand-chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  width: 100%;
+}
+.ws-brand-chat__bubble {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 330px;
+  max-width: 100%;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.ws-brand-chat__bubble img { width: 20px; height: 20px; display: block; flex-shrink: 0; }
+.ws-brand-chat__bubble--customer { background: var(--background-default); line-height: normal; }
+.ws-brand-chat__bubble--team {
+  align-self: flex-end;
+  background: var(--action-primary);
+  line-height: 1.5;
+}
+.ws-brand-footer {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- Form parts */
+
+.ws-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  width: 100%;
+}
+.ws-intro__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: normal;
+}
+.ws-intro__title {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -1.8px;
+  line-height: 1.08;
+}
+.ws-intro__lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+@media (min-width: 1024px) {
+  .ws-intro__title { font-size: 42px; letter-spacing: -2px; }
+}
+
+.ws-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+.ws-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+}
+.ws-field__label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+}
+.ws-field__control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 48px;
+  padding: var(--space-12);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+}
+.ws-field__control:focus-within {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.25);
+}
+.ws-field__control input {
+  flex: 1 0 0;
+  min-width: 1px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: normal;
+}
+.ws-field__control input::placeholder { color: var(--text-muted); }
+.ws-field__toggle {
+  display: flex;
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+.ws-field__toggle img { width: 20px; height: 20px; display: block; }
+
+.ws-preferences {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 12px;
+  line-height: normal;
+}
+.ws-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  cursor: pointer;
+}
+.ws-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+.ws-checkbox__control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--text-primary);
+  border-radius: 4px;
+  background: var(--surface-card);
+}
+.ws-checkbox__control img { width: 12px; height: 12px; display: none; }
+.ws-checkbox input:checked + .ws-checkbox__control { background: var(--text-primary); }
+.ws-checkbox input:checked + .ws-checkbox__control img { display: block; }
+.ws-checkbox input:focus-visible + .ws-checkbox__control { box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.35); }
+.ws-link { text-decoration: underline; text-underline-position: from-font; white-space: nowrap; }
+
+.ws-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 48px;
+  padding: 14px var(--space-24);
+  border-radius: var(--radius-button);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: normal;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ws-button img { width: 16px; height: 16px; display: block; }
+.ws-button--primary {
+  border: 1px solid var(--action-primary);
+  background: var(--action-primary);
+  color: var(--text-primary);
+}
+.ws-button--primary:hover { filter: brightness(0.96); }
+.ws-button:disabled { cursor: progress; opacity: 0.7; }
+
+.ws-switch-account {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.ws-switch-account a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-skip-ink: none;
+  text-underline-position: from-font;
+}
+
+/* Not in Figma: server-side error message, styled with the brand tokens. */
+.ws-alert {
+  margin: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--action-primary);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ws-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

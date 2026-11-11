@@ -51,18 +51,26 @@ describe('Auth Service', () => {
     await expect(validateJWT('valid-token')).rejects.toMatchObject({ status: 503 });
   });
 
+  // Contract of the API: AuthService.issueSession → { accessToken, usuario, empresas, empresaId }.
   it('returns token and identity data after successful login', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
-      access_token: 'jwt-token',
-      user: { id: 'user-1', email: 'test@example.com' },
+      accessToken: 'jwt-token',
+      empresaId: 'business-1',
+      usuario: { id: 'user-1', email: 'test@example.com' },
       empresas: [{ id: 'business-1' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     await expect(loginWithNestJS('test@example.com', 'secret')).resolves.toEqual({
       token: 'jwt-token',
       user: { id: 'user-1', email: 'test@example.com' },
       empresas: [{ id: 'business-1' }],
+      empresaId: 'business-1',
     });
     expect(fetch).toHaveBeenCalledWith('http://api.test/auth/login', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('rejects a response without an access token', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ access_token: 'legacy' }), { status: 200 }));
+    await expect(loginWithNestJS('test@example.com', 'secret')).rejects.toThrow('Invalid credentials');
   });
 
   it('rejects invalid credentials', async () => {
