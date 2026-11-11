@@ -443,3 +443,109 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ------------------------------------------- Password recovery flow */
+/* Figma 145:13327 (Recuperar), 145:13404 (Revisa tu correo), 145:13477 (Éxito). */
+
+.ws-state-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-modal);
+}
+.ws-state-symbol img { width: 28px; height: 28px; display: block; }
+.ws-state-symbol--secondary { background: var(--action-secondary); }
+.ws-state-symbol--success { background: var(--feedback-success); }
+
+.ws-form--relaxed { gap: var(--space-24); }
+
+.ws-field__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ws-return {
+  display: block;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+
+.ws-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: 100%;
+  padding: 20px;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+}
+.ws-delivery__label { margin: 0; font-size: 11px; line-height: normal; }
+.ws-delivery__email {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: normal;
+  overflow-wrap: anywhere;
+}
+.ws-delivery__hint { margin: 0; font-size: 12px; line-height: 1.6; }
+
+.ws-button--secondary {
+  border: 1px solid var(--action-secondary);
+  background: var(--action-secondary);
+  color: var(--text-primary);
+}
+.ws-button--secondary:hover { filter: brightness(0.96); }
+
+.ws-change-email {
+  margin: 0;
+  width: 100%;
+  font-size: 13px;
+  line-height: normal;
+  text-align: center;
+}
+.ws-change-email a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-skip-ink: none;
+  text-underline-position: from-font;
+}
+
+.ws-success-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  padding: var(--space-16);
+  border-radius: var(--radius-card);
+  background: var(--feedback-success);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ws-success-note img { width: 20px; height: 20px; display: block; flex-shrink: 0; }
+
+.ws-security {
+  margin: 0;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Not in Figma: short confirmation shown after "Reenviar enlace". */
+.ws-notice {
+  margin: 0;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
