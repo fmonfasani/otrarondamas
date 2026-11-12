@@ -869,3 +869,24 @@ Effects:
 - Prefixes (`Char(3)`) are derived from the name (uppercase, no accents) and made unique within their scope.
 - `codigoInterno` becomes optional on create: when omitted, the API generates `<Familia prefix>-<4-digit sequence>`
   (e.g. `BEB-0001`), unique per Empresa. A code typed by the user is kept as is; a duplicate is rejected.
+
+### OR-B4-029 — Server-side Cart belongs to the authenticated Customer — 2026-11-12
+
+**Status:** APPROVED — OWNER RULING
+
+Context (AS-IS before this decision): every `/cart` endpoint was `@Public()`. `POST /cart` took `customerId` from the
+request body and the Business from the `TIENDA_EMPRESA_ID` environment variable, so anyone who knew a customer id could
+read and change that customer's cart, and the cart could only serve one Business. `Cart.customerId` is non-null, so a
+truly anonymous server cart needs a schema change.
+
+Owner answer (verbatim): "Logged-in customer only (Recommended)".
+
+Effects:
+
+- `/cart` requires a customer session (`CUSTOMER_POLICY`). The Customer and the Business come from the session through
+  `BusinessContextService.resolveForCustomer`, never from the request. A staff token is refused.
+- Every `/cart/:id…` operation first checks that the cart belongs to that Customer in that Business; otherwise 404.
+- A visitor without a session keeps the cart in the browser (as the storefront already does) and it is saved on the
+  server when they sign in or register. OR-B3-007 / OR-B4-014 (anonymous server cart) stay as the target; implementing
+  them needs a schema change and a separate decision.
+- No schema change.

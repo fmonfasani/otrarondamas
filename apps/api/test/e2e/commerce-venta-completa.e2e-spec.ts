@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { signCustomerToken } from '../integration/helpers/customer-token.fixture';
 
 /**
  * C5B: E2E Venta Completa
@@ -39,6 +40,8 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
   let prisma: PrismaService;
   let testCompanyId: string;
   let testCustomerId: string;
+  // OR-B4-029: the cart belongs to the signed-in customer.
+  const auth = () => `Bearer ${signCustomerToken(testCustomerId, testCompanyId)}`;
   let testProductId: string;
   let initialStockLevel: number;
 
@@ -193,7 +196,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     it('should create cart for customer', async () => {
       const response = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId: testCustomerId })
+        .set('Authorization', auth())
         .expect(201);
 
       expect(response.body).toHaveProperty('id');
@@ -204,6 +207,7 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     it('should add item to cart', async () => {
       const response = await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth())
         .send({
           productoId: testProductId,
           cantidad: 5,
@@ -216,7 +220,10 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should get cart with items', async () => {
-      const response = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth())
+        .expect(200);
 
       expect(response.body.id).toBe(cartId);
       expect(response.body.items).toBeInstanceOf(Array);
@@ -226,12 +233,16 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should update cart item quantity', async () => {
-      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const cartResponse = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth())
+        .expect(200);
 
       const itemId = cartResponse.body.items[0].id;
 
       const response = await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId}`)
+        .set('Authorization', auth())
         .send({ cantidad: 10 })
         .expect(200);
 
@@ -239,13 +250,22 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
     });
 
     it('should remove item from cart', async () => {
-      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const cartResponse = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth())
+        .expect(200);
 
       const itemId = cartResponse.body.items[0].id;
 
-      await request(app.getHttpServer()).delete(`/cart/${cartId}/items/${itemId}`).expect(204);
+      await request(app.getHttpServer())
+        .delete(`/cart/${cartId}/items/${itemId}`)
+        .set('Authorization', auth())
+        .expect(204);
 
-      const updatedCart = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const updatedCart = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth())
+        .expect(200);
 
       expect(updatedCart.body.items.length).toBe(0);
     });
