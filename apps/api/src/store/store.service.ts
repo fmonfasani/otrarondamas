@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -349,6 +354,53 @@ export class StoreService {
    * UUID, there is no public order listing) nor internal fields like
    * usuarioId.
    */
+  /**
+   * STORE-V1-03 — order placed by a signed-in store customer. Same rules as createOrder
+   * (catalog prices, stock check, loyalty); the contact data is the customer's own, so
+   * the order is filed under their account and nobody can order in their name.
+   */
+  async createCustomerOrder(customerId: string, items: CreateOrderDto['items'], companyId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const customer = await db.cliente.findFirst({
+      where: { id: customerId },
+      select: { nombre: true, email: true, telefono: true },
+    });
+    if (!customer) throw new NotFoundException('Cliente no encontrado');
+    if (!customer.email) {
+      throw new BadRequestException('Tu cuenta no tiene email; pedile al comercio que lo cargue.');
+    }
+    return this.createOrder(
+      {
+        nombre: customer.nombre,
+        email: customer.email,
+        telefono: customer.telefono ?? undefined,
+        items,
+      },
+      companyId,
+    );
+  }
+
+  /** STORE-V1-03 — the customer's latest orders in this Business, newest first. */
+  async customerOrders(customerId: string, companyId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const orders = await db.pedido.findMany({
+      where: { clienteId: customerId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: { PedidoItem: { include: { Producto: { select: { nombre: true } } } } },
+    });
+    return orders.map((order) => ({
+      id: order.id,
+      estado: order.estado,
+      total: order.total,
+      createdAt: order.createdAt,
+      items: order.PedidoItem.map((i) => ({
+        producto: i.Producto.nombre,
+        cantidad: Number(i.cantidad),
+      })),
+    }));
+  }
+
   async tracking(orderId: string, companyId?: string) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);

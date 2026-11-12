@@ -890,3 +890,31 @@ Effects:
   server when they sign in or register. OR-B3-007 / OR-B4-014 (anonymous server cart) stay as the target; implementing
   them needs a schema change and a separate decision.
 - No schema change.
+
+### OR-B4-030 — Store per Business and customer account per store — 2026-11-12
+
+**Status:** IMPLEMENTED — follows OR-B4-029; the checkout rule below is open to Owner revision
+
+Context (AS-IS before this change): the public store (`/tienda` in the web, `/tienda/*` in the API) and customer
+register/login (`/auth/cliente/registro|login`) served a single Business fixed by the `TIENDA_EMPRESA_ID` environment
+variable. The API already had slug-scoped catalog endpoints (`/:businessSlug/tienda/*`, STORE-V1-02) without a web
+page using them. `Cliente` is per Empresa (`@@unique([empresaId, email])`).
+
+Effects:
+
+- Web: each Business has its store at `/tienda/:slug` and its customer account at `/tienda/:slug/cuenta` (sign in,
+  create an account, my orders, sign out). The legacy `/tienda` page and API routes are unchanged.
+- API: `GET /:slug/tienda` (public store name), `POST /auth/cliente/negocio/:slug/registro|login`, and
+  `POST|GET /:slug/tienda/mis-pedidos` (signed-in customer, `CUSTOMER_POLICY`). The Business always comes from the slug
+  and the Customer from the session; a customer of another Business gets 403.
+- Accounts are per store: the same email can hold separate accounts in two Businesses, and an account never signs in
+  to another store.
+- The customer session is a separate httpOnly cookie on the web server (`__wapsell_customer`); the staff session is
+  untouched and the token never reaches the browser.
+- A visitor's cart lives in the browser; on sign-in it is merged into the account's server cart (OR-B4-029) and kept
+  in sync from then on.
+- In the new store an order is confirmed only by a signed-in customer, with the name/email/phone of their account
+  (consistent with the Owner's "Logged-in customer only" in OR-B4-029). The anonymous order endpoint stays for the
+  legacy page. Open for the Owner: anonymous `POST /:slug/tienda/pedidos` identifies the customer by email and
+  overwrites that customer's name and phone, so a third party can order in someone else's name.
+- No schema change.

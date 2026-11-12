@@ -7,6 +7,7 @@ import {
   HttpStatus,
   InternalServerErrorException,
   NotFoundException,
+  Param,
   Post,
   Req,
   Res,
@@ -57,13 +58,49 @@ export class AuthCustomerController {
   @Post('registro')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() dto: CustomerRegistrationDto) {
+    return this.registerIn(this.legacyStoreCompanyId(), dto);
+  }
+
+  /**
+   * STORE-V1-03 — self-registration in the store of one Business, resolved by its public
+   * slug (never by a client-supplied id). Same rules as /registro.
+   */
+  @Public()
+  @Post('negocio/:businessSlug/registro')
+  @HttpCode(HttpStatus.CREATED)
+  async registerInStore(
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: CustomerRegistrationDto,
+  ) {
+    const { businessId } = await this.businessContext.resolveForAnonymous(businessSlug);
+    return this.registerIn(businessId, dto);
+  }
+
+  /** STORE-V1-03 — login in the store of one Business (accounts are per Business). */
+  @Public()
+  @Post('negocio/:businessSlug/login')
+  @HttpCode(HttpStatus.OK)
+  async loginInStore(@Param('businessSlug') businessSlug: string, @Body() dto: LoginDto) {
+    const { businessId } = await this.businessContext.resolveForAnonymous(businessSlug);
+    return this.authCustomerService.login(businessId, dto);
+  }
+
+  private legacyStoreCompanyId(): string {
     const companyId = process.env.TIENDA_EMPRESA_ID;
     if (!companyId) {
       throw new Error('TIENDA_EMPRESA_ID no configurado');
     }
+    return companyId;
+  }
+
+  private async registerIn(companyId: string, dto: CustomerRegistrationDto) {
     try {
       return await this.authCustomerService.register(companyId, dto);
     } catch (error: unknown) {
+      // Re-throw BadRequestException (email already exists, etc.)
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       // Prisma constraint violations or FK failures → 400 BadRequest
       if (error instanceof Error) {
         const message = error.message || '';
@@ -77,10 +114,6 @@ export class AuthCustomerController {
             'No se puede completar el registro. Verifique que el email sea válido y que la configuración de la tienda sea correcta.',
           );
         }
-      }
-      // Re-throw BadRequestException (email already exists, etc.)
-      if (error instanceof BadRequestException) {
-        throw error;
       }
       // Unexpected error → 500
       throw new InternalServerErrorException(
@@ -98,11 +131,7 @@ export class AuthCustomerController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
-    const companyId = process.env.TIENDA_EMPRESA_ID;
-    if (!companyId) {
-      throw new Error('TIENDA_EMPRESA_ID no configurado');
-    }
-    return this.authCustomerService.login(companyId, dto);
+    return this.authCustomerService.login(this.legacyStoreCompanyId(), dto);
   }
 
   /**
