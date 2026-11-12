@@ -570,5 +570,3 @@
   .ws-catalog--two.has-editor { grid-template-columns: minmax(0, 1fr) 400px; }
   .ws-catalog--two.has-editor:has(.ws-catalog__editor--wide) { grid-template-columns: minmax(0, 1fr) 480px; }
 }
-
-output.ws-success-note { display: block; }
