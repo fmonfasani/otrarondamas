@@ -164,7 +164,7 @@ describe('STORE-V1-04 — customer chat in a Business store', () => {
       ['Sí, en el día.', false],
     ]);
     for (const message of res.body.messages) {
-      expect(Object.keys(message).sort()).toEqual([
+      expect(Object.keys(message).sort((a, b) => a.localeCompare(b))).toEqual([
         'clientMessageId',
         'content',
         'createdAt',

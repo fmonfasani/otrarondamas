@@ -241,7 +241,7 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 }
 
 /* Customer chat with the store (/tienda/:slug/chat) */
-.chat-fab { position: fixed; z-index: 5; right: 20px; bottom: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 13px 18px; border-radius: 999px; color: #fff; background: #f07848; box-shadow: 0 10px 24px #18181833; font-size: 13px; font-weight: 800; text-decoration: none; }
+.chat-fab { position: fixed; z-index: 5; right: 20px; bottom: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 13px 18px; border-radius: 999px; color: #191919; background: #f07848; box-shadow: 0 10px 24px #18181833; font-size: 13px; font-weight: 800; text-decoration: none; }
 .chat-section { display: flex; flex-direction: column; max-width: 760px; min-height: calc(100vh - 78px); margin: 0 auto; padding: 48px 28px 40px; }
 .store-chat { display: flex; flex: 1; flex-direction: column; gap: 10px; min-height: 280px; max-height: 58vh; overflow-y: auto; padding: 18px; border: 1px solid #eae7e1; border-radius: 10px 10px 0 0; background: #fff; }
 .store-chat__empty { margin: auto; max-width: 320px; color: #77736d; font-size: 13px; text-align: center; }
