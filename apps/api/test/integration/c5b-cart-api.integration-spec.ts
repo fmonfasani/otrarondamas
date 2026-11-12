@@ -4,6 +4,8 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
+import { signStaffToken } from './helpers/staff-token.fixture';
 
 /**
  * C5B Phase 2: Cart API Integration Tests
@@ -15,8 +17,8 @@ import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-emp
  * - PATCH /cart/:id/items/:itemId — update item quantity
  * - DELETE /cart/:id/items/:itemId — remove items
  *
- * No auth required (E2E uses anonymous checkout via customerId in body).
- * Uses TIENDA_EMPRESA_ID from env (single public store per deploy).
+ * OR-B4-029: the cart belongs to the signed-in customer. Customer and Business come from
+ * the customer token, never from the body; a cart of someone else is a 404.
  */
 describe('C5B Phase 2: Cart API', () => {
   let app: INestApplication;
@@ -26,6 +28,7 @@ describe('C5B Phase 2: Cart API', () => {
   let testCustomerId: string;
   let testProductId1: string;
   let testProductId2: string;
+  const auth = (customerId: string) => `Bearer ${signCustomerToken(customerId, testCompanyId)}`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -163,7 +166,7 @@ describe('C5B Phase 2: Cart API', () => {
     it('should create cart for customer', async () => {
       const response = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId: testCustomerId })
+        .set('Authorization', auth(testCustomerId))
         .expect(201);
 
       expect(response.body).toHaveProperty('id');
@@ -175,18 +178,101 @@ describe('C5B Phase 2: Cart API', () => {
     it('should return existing cart for same customer', async () => {
       const response1 = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId: testCustomerId })
+        .set('Authorization', auth(testCustomerId))
         .expect(201);
 
       const cartId1 = response1.body.id;
 
       const response2 = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId: testCustomerId })
+        .set('Authorization', auth(testCustomerId))
         .expect(201);
 
       expect(response2.body.id).toBe(cartId1);
       expect(response2.body.customerId).toBe(testCustomerId);
+    });
+  });
+
+  describe('OR-B4-029 — cart ownership', () => {
+    it('requires a customer session', async () => {
+      await request(app.getHttpServer())
+        .post('/cart')
+        .send({ customerId: testCustomerId })
+        .expect(401);
+    });
+
+    it('ignores a customerId in the body and uses the session customer', async () => {
+      const other = await prisma.cliente.create({
+        data: {
+          empresaId: testCompanyId,
+          nombre: 'Body Customer',
+          email: `cart-body-${Date.now()}@example.com`,
+        },
+      });
+      try {
+        const response = await request(app.getHttpServer())
+          .post('/cart')
+          .set('Authorization', auth(testCustomerId))
+          .send({ customerId: other.id })
+          .expect(201);
+        expect(response.body.customerId).toBe(testCustomerId);
+      } finally {
+        await prisma.cart.deleteMany({ where: { customerId: other.id } });
+        await prisma.cliente.delete({ where: { id: other.id } });
+      }
+    });
+
+    it("answers 404 for another customer's cart on every operation", async () => {
+      const intruder = await prisma.cliente.create({
+        data: {
+          empresaId: testCompanyId,
+          nombre: 'Intruder',
+          email: `cart-intruder-${Date.now()}@example.com`,
+        },
+      });
+      try {
+        const victimCart = await request(app.getHttpServer())
+          .post('/cart')
+          .set('Authorization', auth(testCustomerId))
+          .expect(201);
+        const cartId = victimCart.body.id;
+        const asIntruder = auth(intruder.id);
+        await request(app.getHttpServer())
+          .get(`/cart/${cartId}`)
+          .set('Authorization', asIntruder)
+          .expect(404);
+        await request(app.getHttpServer())
+          .post(`/cart/${cartId}/items`)
+          .set('Authorization', asIntruder)
+          .send({ productoId: testProductId1, cantidad: 1 })
+          .expect(404);
+        await request(app.getHttpServer())
+          .delete(`/cart/${cartId}`)
+          .set('Authorization', asIntruder)
+          .expect(404);
+        const untouched = await request(app.getHttpServer())
+          .get(`/cart/${cartId}`)
+          .set('Authorization', auth(testCustomerId))
+          .expect(200);
+        expect(untouched.body.CartItem).toEqual([]);
+      } finally {
+        await prisma.cart.deleteMany({ where: { customerId: intruder.id } });
+        await prisma.cliente.delete({ where: { id: intruder.id } });
+      }
+    });
+
+    it('refuses a staff token', async () => {
+      const staff = signStaffToken({
+        sub: testCustomerId,
+        email: 'staff@example.test',
+        nombre: 'Staff',
+        empresaId: testCompanyId,
+        permisos: [],
+      });
+      const response = await request(app.getHttpServer())
+        .post('/cart')
+        .set('Authorization', `Bearer ${staff}`);
+      expect([401, 403]).toContain(response.status);
     });
   });
 
@@ -206,7 +292,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const response = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId })
+        .set('Authorization', auth(customerId))
         .expect(201);
       cartId = response.body.id;
     });
@@ -220,6 +306,7 @@ describe('C5B Phase 2: Cart API', () => {
     it('should add item to cart', async () => {
       const response = await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 5 })
         .expect(201);
 
@@ -233,11 +320,13 @@ describe('C5B Phase 2: Cart API', () => {
     it('should sum quantities when adding duplicate product', async () => {
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 5 })
         .expect(201);
 
       const response = await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 3 })
         .expect(201);
 
@@ -247,11 +336,13 @@ describe('C5B Phase 2: Cart API', () => {
     it('should reject adding 0 or negative quantity', async () => {
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 0 })
         .expect(400);
 
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: -5 })
         .expect(400);
     });
@@ -259,6 +350,7 @@ describe('C5B Phase 2: Cart API', () => {
     it('should reject adding more than available stock', async () => {
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 100 })
         .expect(400);
     });
@@ -284,6 +376,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: inactiveProduct.id, cantidad: 1 })
         .expect(404);
 
@@ -308,12 +401,13 @@ describe('C5B Phase 2: Cart API', () => {
 
       const cartResponse = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId })
+        .set('Authorization', auth(customerId))
         .expect(201);
       cartId = cartResponse.body.id;
 
       const itemResponse = await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 5 })
         .expect(201);
       itemId1 = itemResponse.body.id;
@@ -326,7 +420,10 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     it('should get cart with items', async () => {
-      const response = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(200);
 
       expect(response.body.id).toBe(cartId);
       expect(response.body.CartItem).toBeInstanceOf(Array);
@@ -341,9 +438,12 @@ describe('C5B Phase 2: Cart API', () => {
     it('POST /cart on an existing cart answers the same cart and items as GET', async () => {
       const posted = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId })
+        .set('Authorization', auth(customerId))
         .expect(201);
-      const fetched = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const fetched = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(200);
 
       expect(posted.body.id).toBe(cartId);
       expect(posted.body.CartItem).toHaveLength(1);
@@ -356,6 +456,7 @@ describe('C5B Phase 2: Cart API', () => {
     it('should update item quantity', async () => {
       const response = await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId1}`)
+        .set('Authorization', auth(customerId))
         .send({ cantidad: 10 })
         .expect(200);
 
@@ -366,11 +467,13 @@ describe('C5B Phase 2: Cart API', () => {
     it('should reject quantity update to 0 or negative', async () => {
       await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId1}`)
+        .set('Authorization', auth(customerId))
         .send({ cantidad: 0 })
         .expect(400);
 
       await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId1}`)
+        .set('Authorization', auth(customerId))
         .send({ cantidad: -1 })
         .expect(400);
     });
@@ -378,14 +481,21 @@ describe('C5B Phase 2: Cart API', () => {
     it('should reject quantity update exceeding stock', async () => {
       await request(app.getHttpServer())
         .patch(`/cart/${cartId}/items/${itemId1}`)
+        .set('Authorization', auth(customerId))
         .send({ cantidad: 100 })
         .expect(400);
     });
 
     it('should remove item from cart', async () => {
-      await request(app.getHttpServer()).delete(`/cart/${cartId}/items/${itemId1}`).expect(204);
+      await request(app.getHttpServer())
+        .delete(`/cart/${cartId}/items/${itemId1}`)
+        .set('Authorization', auth(customerId))
+        .expect(204);
 
-      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const cartResponse = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(200);
 
       expect(cartResponse.body.CartItem.length).toBe(0);
     });
@@ -407,7 +517,7 @@ describe('C5B Phase 2: Cart API', () => {
 
       const response = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId })
+        .set('Authorization', auth(customerId))
         .expect(201);
       cartId = response.body.id;
     });
@@ -421,15 +531,20 @@ describe('C5B Phase 2: Cart API', () => {
     it('should manage multiple different products', async () => {
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 3 })
         .expect(201);
 
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId2, cantidad: 2 })
         .expect(201);
 
-      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const cartResponse = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(200);
 
       expect(cartResponse.body.CartItem.length).toBe(2);
       const prod1Item = cartResponse.body.CartItem.find((i) => i.productoId === testProductId1);
@@ -456,17 +571,19 @@ describe('C5B Phase 2: Cart API', () => {
 
       const response = await request(app.getHttpServer())
         .post('/cart')
-        .send({ customerId })
+        .set('Authorization', auth(customerId))
         .expect(201);
       cartId = response.body.id;
 
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId1, cantidad: 5 })
         .expect(201);
 
       await request(app.getHttpServer())
         .post(`/cart/${cartId}/items`)
+        .set('Authorization', auth(customerId))
         .send({ productoId: testProductId2, cantidad: 3 })
         .expect(201);
     });
@@ -478,9 +595,15 @@ describe('C5B Phase 2: Cart API', () => {
     });
 
     it('should clear all items from cart', async () => {
-      await request(app.getHttpServer()).delete(`/cart/${cartId}`).expect(204);
+      await request(app.getHttpServer())
+        .delete(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(204);
 
-      const cartResponse = await request(app.getHttpServer()).get(`/cart/${cartId}`).expect(200);
+      const cartResponse = await request(app.getHttpServer())
+        .get(`/cart/${cartId}`)
+        .set('Authorization', auth(customerId))
+        .expect(200);
 
       expect(cartResponse.body.CartItem.length).toBe(0);
     });

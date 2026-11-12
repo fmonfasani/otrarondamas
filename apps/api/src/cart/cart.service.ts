@@ -138,7 +138,12 @@ export class CartService {
     return item;
   }
 
-  async updateItemQuantity(cartId: string, cartItemId: string, cantidad: number, businessId: string) {
+  async updateItemQuantity(
+    cartId: string,
+    cartItemId: string,
+    cantidad: number,
+    businessId: string,
+  ) {
     if (cantidad <= 0) {
       throw new BadRequestException('Cantidad debe ser mayor a 0');
     }
@@ -192,6 +197,21 @@ export class CartService {
 
     if (deleted.count !== 1) {
       throw new NotFoundException('Item del carrito no encontrado');
+    }
+  }
+
+  /**
+   * OR-B4-029: the cart must belong to this Customer in this Business. A cart of someone
+   * else answers exactly like a missing one (404), so ids reveal nothing.
+   */
+  async assertOwnedCart(cartId: string, customerId: string, businessId: string) {
+    const db = this.prismaFactory.forCompany(businessId);
+    const cart = await db.cart.findFirst({
+      where: { id: cartId, customerId, businessId },
+      select: { id: true },
+    });
+    if (!cart) {
+      throw new NotFoundException('Carrito no encontrado');
     }
   }
 
