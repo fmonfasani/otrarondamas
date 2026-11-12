@@ -166,6 +166,10 @@ export default function Store() {
         <Catalog products={products} error={error} onAdd={(product) => { setCart((lines) => addToCart(lines, product)); setCartOpen(true); }} />
       </section>
 
+      <a className="chat-fab" href={`/tienda/${store.slug}/chat`}>
+        <span aria-hidden="true">💬</span> Escribinos
+      </a>
+
       <footer className="store-footer">
         <span>{store.nombre}</span>
         <span>Tienda online hecha con Wapsell.</span>

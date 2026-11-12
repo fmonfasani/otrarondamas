@@ -918,3 +918,27 @@ Effects:
   legacy page. Open for the Owner: anonymous `POST /:slug/tienda/pedidos` identifies the customer by email and
   overwrites that customer's name and phone, so a third party can order in someone else's name.
 - No schema change.
+
+### OR-B4-031 — A store customer's chat opens with the Business Owner — 2026-11-12
+
+**Status:** APPROVED — OWNER RULING (closes, for customer-initiated chats, the "asignación" item left open in D-003)
+
+Context (AS-IS before this decision): `MessagingService` already accepted a Customer as actor (participant, author,
+idempotent send), but every HTTP route required `MESSAGING_USE`, so a customer could not write. Who receives a
+conversation a customer starts was not decided (D-003: asignación `OPEN`).
+
+Question asked: "When a customer writes from the store for the first time, who on the team receives the
+conversation?" Owner answer (verbatim): "El Owner (Recommended)".
+
+Effects:
+
+- Web: `/tienda/:slug/chat` (signed-in customer; a visitor is sent to sign in and back), linked from the store header
+  and an "Escribinos" button. New answers appear every 5 s while the page is visible (same polling as the panel).
+- API: `GET /:slug/tienda/chat` and `POST /:slug/tienda/chat/mensajes` (`CUSTOMER_POLICY`). The Customer comes from the
+  session and must belong to the Business of the slug (403 otherwise); staff tokens are refused.
+- The customer's chat is their most recently active conversation in that Business (including one the team opened from
+  Clientes → "Escribirle"). If there is none, the first message opens a DIRECT conversation Customer ↔ the Business's
+  ACTIVE Owner (conversation admin), associated to the Customer. The Owner can add teammates from Mensajes.
+- A Business without an active Owner answers 409 ("todavía no puede recibir mensajes"); no conversation is created.
+- The customer sees only content, time and whether each message is theirs: no staff identities or internal fields.
+- No schema change.

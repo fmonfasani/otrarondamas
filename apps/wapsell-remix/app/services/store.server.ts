@@ -55,3 +55,15 @@ export type CustomerOrder = {
 
 export const fetchCustomerOrders = (jwt: string, slug: string) =>
   apiRequest<CustomerOrder[]>(jwt, storePath(slug, '/mis-pedidos'));
+
+export type ChatMessage = { id: string; clientMessageId: string; content: string | null; createdAt: string; mine: boolean };
+export type CustomerChat = { conversationId: string | null; messages: ChatMessage[] };
+
+/** The signed-in customer's conversation with the store (empty until they write). */
+export const fetchCustomerChat = (jwt: string, slug: string) => apiRequest<CustomerChat>(jwt, storePath(slug, '/chat'));
+
+export const sendCustomerMessage = (jwt: string, slug: string, clientMessageId: string, content: string) =>
+  apiRequest<{ conversationId: string; message: ChatMessage }>(jwt, storePath(slug, '/chat/mensajes'), {
+    method: 'POST',
+    body: JSON.stringify({ clientMessageId, content }),
+  });

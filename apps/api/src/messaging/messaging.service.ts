@@ -404,6 +404,115 @@ export class MessagingService {
     }));
   }
 
+  /**
+   * STORE-V1-04 — the store customer's chat with the Business: their most recently active
+   * conversation (one the team opened with them, or one they started). Only messages from
+   * when they joined, reduced to what a customer may see: no staff ids, no internal fields.
+   */
+  async getCustomerChat(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const conversationId = await this.findCustomerConversationId(this.prisma, context);
+    if (!conversationId) return { conversationId: null, messages: [] };
+    const messages = await this.getMessages(auth, conversationId);
+    return {
+      conversationId,
+      messages: messages.map((m) => ({
+        id: m.id,
+        clientMessageId: m.clientMessageId,
+        content: m.content,
+        createdAt: m.createdAt,
+        mine: m.authorCustomerId === context.customerId,
+      })),
+    };
+  }
+
+  /**
+   * STORE-V1-04 — a message from the store customer. Without a conversation yet, one is
+   * opened DIRECT with the Business Owner (Owner ruling OR-B4-031), who can add teammates;
+   * it is associated to the Customer like a conversation started from Clientes.
+   */
+  async sendCustomerMessage(auth: AuthenticatedUser, clientMessageId: string, content: string) {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const customerId = context.customerId;
+    const conversationId =
+      (await this.findCustomerConversationId(this.prisma, context)) ??
+      (await this.prisma.$transaction(
+        async (tx) => {
+          const existing = await this.findCustomerConversationId(tx, context);
+          if (existing) return existing;
+          const owner = await tx.membership.findFirst({
+            where: {
+              businessId: context.businessId,
+              role: 'OWNER',
+              status: MembershipStatus.ACTIVE,
+            },
+            orderBy: { createdAt: 'asc' },
+            select: { userId: true },
+          });
+          if (!owner) {
+            throw new ConflictException('El comercio todavía no puede recibir mensajes');
+          }
+          const conversation = await tx.conversation.create({
+            data: { businessId: context.businessId, type: MessagingConversationType.DIRECT },
+          });
+          await tx.conversationParticipant.createMany({
+            data: [
+              {
+                conversationId: conversation.id,
+                businessId: context.businessId,
+                userId: owner.userId,
+                membershipBusinessId: context.businessId,
+                isAdmin: true,
+              },
+              {
+                conversationId: conversation.id,
+                businessId: context.businessId,
+                customerId,
+                customerBusinessId: context.businessId,
+              },
+            ],
+          });
+          await tx.conversationAssociation.create({
+            data: {
+              conversationId: conversation.id,
+              businessId: context.businessId,
+              entityType: MessagingAssociationType.CUSTOMER,
+              entityId: customerId,
+              reason: 'El cliente escribió desde la tienda',
+            },
+          });
+          return conversation.id;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ));
+    return this.createTextMessage(auth, conversationId, clientMessageId, content);
+  }
+
+  private async findCustomerConversationId(
+    tx: Prisma.TransactionClient | PrismaService,
+    context: BusinessContext,
+  ): Promise<string | null> {
+    const conversation = await tx.conversation.findFirst({
+      where: {
+        businessId: context.businessId,
+        deletedAt: null,
+        ConversationParticipant: {
+          some: {
+            businessId: context.businessId,
+            customerId: context.customerId,
+            leftAt: null,
+            removedAt: null,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true },
+    });
+    return conversation?.id ?? null;
+  }
+
   async listConversations(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
     const canReadAll = canReadAllConversations(context);
