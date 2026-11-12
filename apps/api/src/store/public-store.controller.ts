@@ -1,8 +1,26 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessContextService } from '../business-context/business-context.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { AllowCustomer } from '../auth/decorators/allow-customer.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/auth.types';
+import {
+  CanonicalPermission,
+  CUSTOMER_POLICY,
+} from '../authorization/canonical-permission.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CustomerOrderDto } from './dto/customer-order.dto';
 import { StoreService } from './store.service';
 
 /**
@@ -10,6 +28,10 @@ import { StoreService } from './store.service';
  * The Business is resolved through the canonical BusinessContext. The
  * controller never accepts a raw tenant id and never creates StoreTenantContext.
  * Legacy /tienda/* routes remain available during TRANSITION.
+ *
+ * STORE-V1-03 — the signed-in customer of this store: their orders. The Customer comes
+ * from the session (resolveForCustomer), never from the body, and must belong to the
+ * Business of the slug; a customer of another Business is refused.
  */
 @ApiTags('tienda')
 @Controller(':businessSlug/tienda')
@@ -17,10 +39,34 @@ export class PublicStoreController {
   constructor(
     private readonly businessContext: BusinessContextService,
     private readonly storeService: StoreService,
+    private readonly prisma: PrismaService,
   ) {}
 
   private async companyId(businessSlug: string): Promise<string> {
     return (await this.businessContext.resolveForAnonymous(businessSlug)).businessId;
+  }
+
+  /** The signed-in customer, checked against the store's Business. */
+  private async customerOf(user: AuthenticatedUser, businessSlug: string) {
+    const businessId = await this.companyId(businessSlug);
+    const context = await this.businessContext.resolveForCustomer(user);
+    if (context.businessId !== businessId) {
+      throw new ForbiddenException('Tu cuenta es de otra tienda');
+    }
+    return { businessId, customerId: context.customerId as string };
+  }
+
+  /** GET /:slug/tienda — the store's public name, for its header. */
+  @Public()
+  @Get()
+  async info(@Param('businessSlug') businessSlug: string) {
+    const businessId = await this.companyId(businessSlug);
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: businessId },
+      select: { nombre: true, slug: true },
+    });
+    if (!business) throw new NotFoundException('Business no encontrado');
+    return business;
   }
 
   @Public()
@@ -55,5 +101,30 @@ export class PublicStoreController {
   @Get('pedidos/:id')
   async tracking(@Param('businessSlug') businessSlug: string, @Param('id') id: string) {
     return this.storeService.tracking(id, await this.companyId(businessSlug));
+  }
+
+  /** POST /:slug/tienda/mis-pedidos — order as the signed-in customer (name/email from the account). */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('mis-pedidos')
+  async placeCustomerOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: CustomerOrderDto,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.storeService.createCustomerOrder(customerId, dto.items, businessId);
+  }
+
+  /** GET /:slug/tienda/mis-pedidos — the signed-in customer's orders in this store. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Get('mis-pedidos')
+  async customerOrders(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.storeService.customerOrders(customerId, businessId);
   }
 }

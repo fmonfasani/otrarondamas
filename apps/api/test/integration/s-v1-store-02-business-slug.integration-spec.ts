@@ -1,8 +1,12 @@
 import type { ChildProcess } from 'child_process';
-import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
+import {
+  createStoreProduct,
+  deleteStoreCompanies,
+  waitPort,
+} from './helpers/store-catalog.fixture';
 
 describe('STORE-V1-02 — public Business slug resolution', () => {
   const PORT = '3392';
@@ -17,86 +21,6 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
   let companyB: { id: string; slug: string };
   let productA: { id: string; nombre: string };
   let productB: { id: string; nombre: string };
-
-  const waitPort = (port: number, attempts = 60) =>
-    new Promise<void>((resolve, reject) => {
-      const probe = (remaining: number) => {
-        const socket = net.connect(port, '127.0.0.1');
-        socket.on('connect', () => {
-          socket.end();
-          resolve();
-        });
-        socket.on('error', () => {
-          if (remaining <= 0) reject(new Error(`puerto ${port} sin respuesta`));
-          else setTimeout(() => probe(remaining - 1), 1000);
-        });
-      };
-      probe(attempts);
-    });
-
-  const createCatalog = async (companyId: string, tag: string) => {
-    const family = await prisma.familia.create({
-      data: {
-        empresaId: companyId,
-        nombre: `STORE-V1-02 Fam ${tag} ${suffix}`,
-        prefijo: `F${tag}`,
-      },
-      select: { id: true },
-    });
-    const subfamily = await prisma.subfamilia.create({
-      data: {
-        empresaId: companyId,
-        familiaId: family.id,
-        nombre: `STORE-V1-02 Sub ${tag} ${suffix}`,
-        prefijo: `S${tag}`,
-      },
-      select: { id: true },
-    });
-    const type = await prisma.tipo.create({
-      data: {
-        empresaId: companyId,
-        subfamiliaId: subfamily.id,
-        nombre: `STORE-V1-02 Tipo ${tag} ${suffix}`,
-        prefijo: `T${tag}`,
-      },
-      select: { id: true },
-    });
-    const subtype = await prisma.subtipo.create({
-      data: {
-        empresaId: companyId,
-        tipoId: type.id,
-        nombre: `STORE-V1-02 Subtipo ${tag} ${suffix}`,
-        prefijo: `U${tag}`,
-      },
-      select: { id: true },
-    });
-    const product = await prisma.producto.create({
-      data: {
-        empresaId: companyId,
-        nombre: `STORE-V1-02 Product ${tag} ${suffix}`,
-        codigoInterno: `SV102-${tag}-${suffix}`,
-        familiaId: family.id,
-        subfamiliaId: subfamily.id,
-        tipoId: type.id,
-        subtipoId: subtype.id,
-        unidadBase: 'UNIDAD',
-        costo: 1,
-        precioMinorista: 10,
-        activo: true,
-      },
-      select: { id: true, nombre: true },
-    });
-    await prisma.lote.create({
-      data: {
-        empresaId: companyId,
-        productoId: product.id,
-        numeroLote: `L-${tag}-${suffix}`,
-        vencimiento: new Date('2099-01-01'),
-        cantidad: 5,
-      },
-    });
-    return product;
-  };
 
   beforeAll(async () => {
     prisma = new PrismaService();
@@ -118,8 +42,8 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
       },
       select: { id: true, slug: true },
     });
-    productA = await createCatalog(companyA.id, 'A');
-    productB = await createCatalog(companyB.id, 'B');
+    productA = await createStoreProduct(prisma, companyA.id, 'STORE-V1-02', 'A', suffix);
+    productB = await createStoreProduct(prisma, companyB.id, 'STORE-V1-02', 'B', suffix);
     server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
     legacyServer = spawnApi({ PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id });
     await Promise.all([waitPort(Number(PORT)), waitPort(Number(LEGACY_PORT))]);
@@ -128,18 +52,7 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
   afterAll(async () => {
     if (server && !server.killed) server.kill();
     if (legacyServer && !legacyServer.killed) legacyServer.kill();
-    const companies = [companyA.id, companyB.id];
-    await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
-    await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.producto.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.subtipo.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.tipo.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.subfamilia.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.familia.deleteMany({ where: { empresaId: { in: companies } } });
-    await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
+    await deleteStoreCompanies(prisma, [companyA.id, companyB.id]);
     await prisma.$disconnect();
   });
 
