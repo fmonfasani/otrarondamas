@@ -104,57 +104,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function Store() {
   const { store, products, error, search, customer, savedCart } = useLoaderData<typeof loader>();
-  const sync = useFetcher<typeof action>();
   const order = useFetcher<typeof action>();
-  const [cart, setCart] = useState<CartLine[]>(savedCart);
+  const signedIn = Boolean(customer);
+  const { cart, setCart, emptiedOnServer } = usePersistentCart(store.slug, signedIn, savedCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmation, setConfirmation] = useState('');
-  const loaded = useRef(false);
-  const signedIn = Boolean(customer);
 
-  // First render: a visitor's cart comes from the browser; on sign-in, what was picked
-  // as a visitor joins the account's saved cart and the browser copy is dropped.
   useEffect(() => {
-    const stored = readStoredCart(store.slug);
-    if (!signedIn) setCart(stored);
-    else if (stored.length) {
-      setCart(mergeCarts(stored, savedCart));
-      writeStoredCart(store.slug, []);
-    }
     if (new URL(window.location.href).searchParams.get('carrito') === '1') setCartOpen(true);
-    // Runs once per store and sign-in state.
-  }, [store.slug, signedIn]);
-
-  // Every change is saved: to the account when signed in, otherwise to the browser.
-  // The cart as first loaded is already where it belongs, so that run is skipped.
-  useEffect(() => {
-    if (!loaded.current) {
-      loaded.current = true;
-      return;
-    }
-    if (!signedIn) {
-      writeStoredCart(store.slug, cart);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      sync.submit({ intent: 'sync', items: JSON.stringify(cart.map(({ productoId, cantidad }) => ({ productoId, cantidad }))) }, { method: 'post' });
-    }, 500);
-    return () => window.clearTimeout(timer);
-    // Only cart changes matter here.
-  }, [cart, signedIn, store.slug]);
+  }, []);
 
   useEffect(() => {
     if (order.data?.intent === 'order' && order.data.ok) {
       setConfirmation(order.data.message);
-      loaded.current = false; // the server cart is already empty
-      setCart([]);
+      emptiedOnServer();
       setCartOpen(false);
     }
+    // Only a new order answer matters here.
   }, [order.data]);
 
   const stockOf = (productoId: string) => products.find((p) => p.productoId === productoId)?.stockTotal ?? Infinity;
   const total = cartTotal(cart);
-  const items = JSON.stringify(cart.map(({ productoId, cantidad }) => ({ productoId, cantidad })));
+  const items = itemsJson(cart);
 
   return (
     <main className="store-shell">
@@ -201,7 +172,8 @@ export default function Store() {
       </footer>
 
       {cartOpen ? (
-        <div className="cart-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
+        <div className="cart-backdrop">
+          <button type="button" className="cart-dismiss" aria-label="Cerrar carrito" onClick={() => setCartOpen(false)} />
           <aside className="cart-panel" aria-label="Tu pedido">
             <div className="cart-heading">
               <div><span className="eyebrow">TU COMPRA</span><h2>Mi pedido</h2></div>
@@ -248,7 +220,53 @@ export default function Store() {
   );
 }
 
-function Catalog({ products, error, onAdd }: { products: StoreProduct[]; error: string | null; onAdd: (product: StoreProduct) => void }) {
+/**
+ * The cart, saved where it belongs: in the browser for a visitor, in the account once
+ * signed in. On sign-in, what was picked as a visitor joins the account's saved cart and
+ * the browser copy is dropped. The cart as first loaded is already saved, so that run is
+ * skipped; so is the reset after an order (the API already emptied it).
+ */
+function usePersistentCart(slug: string, signedIn: boolean, savedCart: CartLine[]) {
+  const sync = useFetcher();
+  const [cart, setCart] = useState<CartLine[]>(savedCart);
+  const skipSave = useRef(true);
+
+  useEffect(() => {
+    const stored = readStoredCart(slug);
+    if (!signedIn) setCart(stored);
+    else if (stored.length) {
+      setCart(mergeCarts(stored, savedCart));
+      writeStoredCart(slug, []);
+    }
+    // Runs once per store and sign-in state.
+  }, [slug, signedIn]);
+
+  useEffect(() => {
+    if (skipSave.current) {
+      skipSave.current = false;
+      return;
+    }
+    if (!signedIn) {
+      writeStoredCart(slug, cart);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      sync.submit({ intent: 'sync', items: itemsJson(cart) }, { method: 'post' });
+    }, 500);
+    return () => window.clearTimeout(timer);
+    // Only cart changes matter here.
+  }, [cart, signedIn, slug]);
+
+  const emptiedOnServer = () => {
+    skipSave.current = true;
+    setCart([]);
+  };
+  return { cart, setCart, emptiedOnServer };
+}
+
+const itemsJson = (lines: CartLine[]) => JSON.stringify(lines.map(({ productoId, cantidad }) => ({ productoId, cantidad })));
+
+function Catalog({ products, error, onAdd }: Readonly<{ products: StoreProduct[]; error: string | null; onAdd: (product: StoreProduct) => void }>) {
   if (error) return <output className="catalog-state"><span>!</span><p>{error}</p></output>;
   if (products.length === 0) {
     return <div className="catalog-state"><span>○</span><p>No encontramos productos para mostrar. Probá con otra búsqueda.</p></div>;

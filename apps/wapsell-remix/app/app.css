@@ -204,6 +204,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 /* Store of one Business (/tienda/:slug) and its customer account */
 .store-name { font-size: 13px; letter-spacing: .02em; text-transform: none; }
 .header-actions > a.account-link { color: #191919; font-weight: 700; }
+.cart-dismiss { position: absolute; inset: 0; border: 0; background: transparent; cursor: default; }
+.cart-backdrop .cart-panel { position: relative; z-index: 1; }
 a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration: none; }
 .store-hero--compact { display: block; min-height: 0; padding-top: 64px; padding-bottom: 64px; }
 .store-hero--compact h1 { font-size: clamp(38px, 5vw, 60px); }

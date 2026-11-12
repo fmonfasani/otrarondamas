@@ -23,7 +23,7 @@ const customerStorage = createCookieSessionStorage({
 
 export type StoreCustomer = { jwt: string; nombre: string; email: string };
 
-async function sessionOf(request: Request) {
+function sessionOf(request: Request) {
   return customerStorage.getSession(request.headers.get('Cookie'));
 }
 

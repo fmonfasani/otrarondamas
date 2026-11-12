@@ -56,8 +56,7 @@ export function withCatalogPrices(lines: CartLine[], products: StoreProduct[]): 
 }
 
 export function addToCart(lines: CartLine[], product: StoreProduct): CartLine[] {
-  const found = lines.find((line) => line.productoId === product.productoId);
-  if (!found) return [...lines, { productoId: product.productoId, nombre: product.nombre, precio: product.precio, cantidad: 1 }];
+  if (!lines.some((line) => line.productoId === product.productoId)) return [...lines, { productoId: product.productoId, nombre: product.nombre, precio: product.precio, cantidad: 1 }];
   return lines.map((line) =>
     line.productoId === product.productoId ? { ...line, cantidad: Math.min(line.cantidad + 1, product.stockTotal) } : line,
   );
@@ -77,7 +76,7 @@ export const cartCount = (lines: CartLine[]) => lines.reduce((sum, line) => sum 
 export function parseItems(raw: FormDataEntryValue | null): Array<{ productoId: string; cantidad: number }> | null {
   let value: unknown;
   try {
-    value = JSON.parse(String(raw ?? '[]'));
+    value = JSON.parse(typeof raw === 'string' ? raw : '[]');
   } catch {
     return null;
   }

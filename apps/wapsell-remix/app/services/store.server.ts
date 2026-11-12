@@ -30,9 +30,9 @@ export const loadServerCart = (jwt: string) => apiRequest<ServerCart>(jwt, '/car
 export async function replaceServerCart(jwt: string, items: Array<{ productoId: string; cantidad: number }>) {
   const cart = await loadServerCart(jwt);
   await apiRequest(jwt, `/cart/${cart.id}`, { method: 'DELETE' });
-  for (const item of items) {
-    await apiRequest(jwt, `/cart/${cart.id}/items`, { method: 'POST', body: JSON.stringify(item) });
-  }
+  await Promise.all(
+    items.map((item) => apiRequest(jwt, `/cart/${cart.id}/items`, { method: 'POST', body: JSON.stringify(item) })),
+  );
 }
 
 export async function placeCustomerOrder(jwt: string, slug: string, items: Array<{ productoId: string; cantidad: number }>) {

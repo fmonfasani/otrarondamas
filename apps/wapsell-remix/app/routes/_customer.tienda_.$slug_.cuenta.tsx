@@ -89,7 +89,7 @@ export default function Account() {
   );
 }
 
-function SignIn({ store }: { store: { nombre: string; slug: string } }) {
+function SignIn({ store }: Readonly<{ store: { nombre: string; slug: string } }>) {
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
@@ -133,12 +133,12 @@ function Orders({
   orders,
   error,
   slug,
-}: {
+}: Readonly<{
   customer: { nombre: string; email: string };
   orders: CustomerOrder[];
   error: string | null;
   slug: string;
-}) {
+}>) {
   return (
     <>
       <div className="account-intro account-intro--row">

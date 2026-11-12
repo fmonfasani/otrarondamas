@@ -1,4 +1,4 @@
-import * as net from 'net';
+import * as net from 'node:net';
 import type { PrismaService } from '../../../src/prisma/prisma.service';
 
 /** Resolves once something listens on the local port (the spawned API). */

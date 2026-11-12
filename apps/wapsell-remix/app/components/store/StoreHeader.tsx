@@ -6,11 +6,11 @@ export function StoreHeader({
   store,
   customerName,
   children,
-}: {
+}: Readonly<{
   store: { nombre: string; slug: string };
   customerName: string | null;
   children?: ReactNode;
-}) {
+}>) {
   const home = `/tienda/${store.slug}`;
   return (
     <header className="store-header">

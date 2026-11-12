@@ -1,4 +1,5 @@
-import type { ChildProcess } from 'child_process';
+import type { ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
@@ -27,6 +28,10 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
   let email: string;
   let tokenA: string;
   let customerAId: string;
+  // Generated per run: no credential literals in the repository.
+  const secretA = randomUUID();
+  const secretB = randomUUID();
+  const wrongSecret = randomUUID();
 
   const createCompany = (tag: string) =>
     prisma.empresa.create({
@@ -66,7 +71,7 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
   it('registers a customer in the Business of the slug', async () => {
     const res = await request(BASE)
       .post(`/auth/cliente/negocio/${companyA.slug}/registro`)
-      .send({ nombre: 'Ana Compradora', email, password: 'clave-segura-1' })
+      .send({ nombre: 'Ana Compradora', email, password: secretA })
       .expect(201);
     expect(res.body.accessToken).toEqual(expect.any(String));
     expect(res.body.cliente).toMatchObject({ email, empresaId: companyA.id, esMayorista: false });
@@ -78,30 +83,30 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
   it('refuses a second account with the same email in the same store', async () => {
     const res = await request(BASE)
       .post(`/auth/cliente/negocio/${companyA.slug}/registro`)
-      .send({ nombre: 'Otra Ana', email, password: 'clave-segura-2' });
+      .send({ nombre: 'Otra Ana', email, password: secretB });
     expect(res.status).toBe(400);
   });
 
   it('signs in only in the store where the account exists', async () => {
     const ok = await request(BASE)
       .post(`/auth/cliente/negocio/${companyA.slug}/login`)
-      .send({ email, password: 'clave-segura-1' })
+      .send({ email, password: secretA })
       .expect(200);
     expect(ok.body.cliente.id).toBe(customerAId);
     await request(BASE)
       .post(`/auth/cliente/negocio/${companyB.slug}/login`)
-      .send({ email, password: 'clave-segura-1' })
+      .send({ email, password: secretA })
       .expect(401);
     await request(BASE)
       .post(`/auth/cliente/negocio/${companyA.slug}/login`)
-      .send({ email, password: 'incorrecta-123' })
+      .send({ email, password: wrongSecret })
       .expect(401);
   });
 
   it('keeps accounts per store: the same email can register in another Business', async () => {
     const res = await request(BASE)
       .post(`/auth/cliente/negocio/${companyB.slug}/registro`)
-      .send({ nombre: 'Ana en B', email, password: 'clave-de-b-1' })
+      .send({ nombre: 'Ana en B', email, password: secretB })
       .expect(201);
     expect(res.body.cliente.empresaId).toBe(companyB.id);
     expect(res.body.cliente.id).not.toBe(customerAId);
