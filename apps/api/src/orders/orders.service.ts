@@ -45,7 +45,17 @@ export class OrdersService {
     const order = await db.pedido.findUnique({
       where: { id },
       include: {
-        Cliente: true,
+        // Never the customer's store credentials (passwordHash, googleId).
+        Cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            telefono: true,
+            direccion: true,
+            esMayorista: true,
+          },
+        },
         PedidoItem: { include: { Producto: { select: { nombre: true } } } },
       },
     });

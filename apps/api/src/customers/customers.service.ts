@@ -13,6 +13,17 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export type LoyaltyLevel = 'NUEVO' | 'FRECUENTE' | 'VIP';
 
 /**
+ * Staff-facing view of a Cliente: never the credentials a store customer signs in with
+ * (`passwordHash`, `googleId`). Every response of this service goes through it.
+ */
+export function toCustomerView<T extends { passwordHash?: unknown; googleId?: unknown }>(
+  customer: T,
+) {
+  const { passwordHash: _passwordHash, googleId: _googleId, ...view } = customer;
+  return view;
+}
+
+/**
  * Phase 1 of the Loyalty roadmap: minimal Cliente CRUD — blocking base
  * for everything else (loyalty levels, discount rules). The
  * `clientes.gestionar` permission already existed in the seed since the
@@ -52,7 +63,10 @@ export class CustomersService {
     // criterion as consolidatedStock() (there is no pagination yet in any
     // listing of the project).
     return Promise.all(
-      customers.map(async (c) => ({ ...c, nivel: await this.calculateLevel(companyId, c.id) })),
+      customers.map(async (c) => ({
+        ...toCustomerView(c),
+        nivel: await this.calculateLevel(companyId, c.id),
+      })),
     );
   }
 
@@ -63,7 +77,7 @@ export class CustomersService {
       throw new NotFoundException('Cliente no encontrado');
     }
     const level = await this.calculateLevel(companyId, id);
-    return { ...customer, nivel: level };
+    return { ...toCustomerView(customer), nivel: level };
   }
 
   /**
@@ -105,7 +119,7 @@ export class CustomersService {
     // cannot resolve the Exact<XOR<...>> that Prisma requires for `create`
     // (same pattern as Proveedor/Producto).
     const data: Prisma.ClienteUncheckedCreateInput = { ...dto, empresaId: companyId };
-    return db.cliente.create({ data });
+    return toCustomerView(await db.cliente.create({ data }));
   }
 
   async update(companyId: string, id: string, dto: UpdateCustomerDto) {
@@ -117,7 +131,7 @@ export class CustomersService {
     if (dto.email && dto.email !== existing.email) {
       await this.verifyEmailAvailable(companyId, dto.email, id);
     }
-    return db.cliente.update({ where: { id }, data: dto });
+    return toCustomerView(await db.cliente.update({ where: { id }, data: dto }));
   }
 
   /**
