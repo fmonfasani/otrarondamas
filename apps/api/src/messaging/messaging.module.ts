@@ -4,6 +4,7 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 import { MembershipRevocationModule } from '../membership/membership-revocation.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingController } from './messaging.controller';
+import { CustomerChatController } from './customer-chat.controller';
 import { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
 import { StoreModule } from '../store/store.module';
@@ -33,7 +34,7 @@ import { CartModule } from '../cart/cart.module';
     StoreModule,
     CartModule,
   ],
-  controllers: [MessagingController],
+  controllers: [MessagingController, CustomerChatController],
   providers: [MessagingService, MessagingGateway],
 })
 export class MessagingModule {}

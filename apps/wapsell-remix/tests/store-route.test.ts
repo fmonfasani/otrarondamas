@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formBody, ok } from './helpers/route';
 import { action as storeAction, loader as storeLoader } from '../app/routes/_customer.tienda_.$slug';
 import { action as accountAction, afterSignIn } from '../app/routes/_customer.tienda_.$slug_.cuenta';
+import { action as chatAction } from '../app/routes/_customer.tienda_.$slug_.chat';
 import { signInCookie } from '../app/services/customer-session.server';
 import { linesFromServer, mergeCarts, parseItems, storeMark, type CartLine } from '../app/utils/store';
 
@@ -29,6 +30,7 @@ describe('store helpers', () => {
     expect(storeMark('Otra Ronda Más')).toBe('OR');
     expect(storeMark('kiosco')).toBe('KI');
     expect(afterSignIn('demo', 'carrito')).toBe('/tienda/demo?carrito=1');
+    expect(afterSignIn('demo', 'chat')).toBe('/tienda/demo/chat');
     expect(afterSignIn('demo', 'https://evil.test')).toBe('/tienda/demo/cuenta');
   });
 });
@@ -110,6 +112,26 @@ describe('store routes', () => {
     api.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Credenciales inválidas' }), { status: 401 }));
     const response = await post(accountAction, '/tienda/demo/cuenta', [['intent', 'login'], ['email', 'ana@test'], ['password', 'mala-clave']]);
     await expect(response.json()).resolves.toEqual({ intent: 'login', message: 'El email o la contraseña no son correctos.' });
+  });
+
+  it('sends sign-in first when a visitor opens the chat', async () => {
+    const result = post(chatAction, '/tienda/demo/chat', [['content', 'hola'], ['clientMessageId', 'k-1']]);
+    await expect(result).rejects.toMatchObject({ status: 302 });
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it('sends a chat message with its retry key as the signed-in customer', async () => {
+    api.mockResolvedValueOnce(ok({ conversationId: 'conv-1', message: { id: 'm-1' } }));
+    const response = await post(chatAction, '/tienda/demo/chat', [['content', '  ¿Hacen envíos?  '], ['clientMessageId', 'k-1']], await customerCookie());
+    await expect(response.json()).resolves.toEqual({ ok: true, message: '' });
+    expect(api.mock.calls[0][0]).toBe('http://api.test/demo/tienda/chat/mensajes');
+    expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ clientMessageId: 'k-1', content: '¿Hacen envíos?' });
+  });
+
+  it('does not send an empty chat message', async () => {
+    const response = await post(chatAction, '/tienda/demo/chat', [['content', '   '], ['clientMessageId', 'k-1']], await customerCookie());
+    expect(response.status).toBe(400);
+    expect(api).not.toHaveBeenCalled();
   });
 
   it('answers 404 for a store that does not exist', async () => {

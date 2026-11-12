@@ -38,9 +38,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 }
 
-/** Where to go after signing in: back to the cart when the customer came to confirm an order. */
-export const afterSignIn = (slug: string, volver: string | null) =>
-  volver === 'carrito' ? `/tienda/${slug}?carrito=1` : `/tienda/${slug}/cuenta`;
+/**
+ * Where to go after signing in: back to the cart or the chat when the customer came from
+ * there. Only these known places: never a URL taken from the request.
+ */
+export function afterSignIn(slug: string, volver: string | null) {
+  if (volver === 'carrito') return `/tienda/${slug}?carrito=1`;
+  if (volver === 'chat') return `/tienda/${slug}/chat`;
+  return `/tienda/${slug}/cuenta`;
+}
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const slug = params.slug ?? '';
