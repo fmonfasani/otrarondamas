@@ -27,6 +27,16 @@ interface Order {
   createdAt: string;
 }
 
+const INPUT_TYPES: Record<string, string> = { email: 'email', telefono: 'tel' };
+
+/** Result of the last action, or the "saved" flag left by a redirect. */
+function Notice({ result, saved }: { result?: { ok: boolean; message: string }; saved: boolean }) {
+  if (result && !result.ok) return <p className="ws-alert" role="alert">{result.message}</p>;
+  if (result) return <output className="ws-success-note">{result.message}</output>;
+  if (saved) return <output className="ws-success-note">Cliente guardado.</output>;
+  return null;
+}
+
 export const LEVELS: Record<string, { label: string; tone: string }> = {
   NUEVO: { label: 'Nuevo', tone: 'muted' },
   FRECUENTE: { label: 'Frecuente', tone: 'secondary' },
@@ -38,12 +48,21 @@ export function customerAbilities(role: string) {
   return { manage: ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role) };
 }
 
+/** Light shape check (one "@", a dot after it, no spaces); the API validates for real. */
+export function looksLikeEmail(value: string): boolean {
+  const at = value.indexOf('@');
+  return at > 0 && value.indexOf('@', at + 1) === -1 && value.lastIndexOf('.') > at + 1 && !value.endsWith('.') && !/\s/.test(value);
+}
+
 /** Body for POST/PATCH /clientes: trimmed, empty optional fields left out (or cleared on edit). */
 export function customerBody(form: FormData, editing: boolean): { ok: true; body: Record<string, string> } | { ok: false; message: string } {
-  const text = (key: string) => String(form.get(key) ?? '').trim();
+  const text = (key: string) => {
+    const raw = form.get(key);
+    return typeof raw === 'string' ? raw.trim() : '';
+  };
   if (!text('nombre')) return { ok: false, message: 'El nombre es obligatorio.' };
   const email = text('email');
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'El email no es válido.' };
+  if (email && !looksLikeEmail(email)) return { ok: false, message: 'El email no es válido.' };
   const body: Record<string, string> = { nombre: text('nombre') };
   for (const key of ['email', 'telefono', 'direccion']) {
     // The API validates `email` as an email, so an empty one is never sent.
@@ -59,7 +78,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const query = url.searchParams.get('q')?.trim() ?? '';
   const selectedId = url.searchParams.get('c');
   const [customers, selected, orders] = await Promise.all([
-    settle(apiRequest<Customer[]>(token, `/clientes${query ? `?search=${encodeURIComponent(query)}` : ''}`)),
+    settle(apiRequest<Customer[]>(token, query ? `/clientes?search=${encodeURIComponent(query)}` : '/clientes')),
     selectedId ? settle(apiRequest<Customer>(token, `/clientes/${encodeURIComponent(selectedId)}`)) : null,
     selectedId ? settle(apiRequest<Order[]>(token, '/pedidos')) : null,
   ]);
@@ -129,7 +148,10 @@ export default function CustomersPage() {
   const creating = searchParams.get('nuevo') === '1';
   const saved = searchParams.get('guardado') === '1';
   const query = searchParams.get('q') ?? '';
-  const withQuery = (extra: string) => `${base}?${[query ? `q=${encodeURIComponent(query)}` : '', extra].filter(Boolean).join('&')}`;
+  const withQuery = (extra: Record<string, string>) => {
+    const next = new URLSearchParams(query ? { q: query, ...extra } : extra);
+    return next.size ? `${base}?${next}` : base;
+  };
 
   if (!data.available) {
     return (
@@ -149,14 +171,13 @@ export default function CustomersPage() {
           <p className="ws-page__lead">{data.customers.length} {data.customers.length === 1 ? 'cliente' : 'clientes'}{query ? ` para "${query}"` : ''}.</p>
         </div>
         {can.manage && (
-          <Link className="ws-button ws-button--primary ws-button--auto" to={withQuery('nuevo=1')}>
+          <Link className="ws-button ws-button--primary ws-button--auto" to={withQuery({ nuevo: '1' })}>
             <Plus size={16} aria-hidden="true" /> Nuevo cliente
           </Link>
         )}
       </div>
 
-      {result && <p className={result.ok ? 'ws-success-note' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
-      {saved && !result && <p className="ws-success-note" role="status">Cliente guardado.</p>}
+      <Notice result={result} saved={saved} />
 
       <div className={`ws-catalog ws-catalog--two${creating || data.selected ? ' has-editor' : ''}`}>
         <section className="ws-card" aria-label="Clientes">
@@ -185,7 +206,7 @@ export default function CustomersPage() {
                     return (
                       <tr key={customer.id} className={customer.id === data.selectedId ? 'is-selected' : undefined}>
                         <td>
-                          <Link className="ws-catalog__name" to={withQuery(`c=${customer.id}`)}>{customer.nombre}</Link>
+                          <Link className="ws-catalog__name" to={withQuery({ c: customer.id })}>{customer.nombre}</Link>
                         </td>
                         <td>{[customer.telefono, customer.email].filter(Boolean).join(' · ') || '—'}</td>
                         <td><span className={`ws-chip ws-chip--${level.tone}`}>{level.label}</span></td>
@@ -202,7 +223,7 @@ export default function CustomersPage() {
           <aside className="ws-card ws-catalog__editor" aria-labelledby="customer-title">
             <div className="ws-card__head">
               <h2 id="customer-title" className="ws-card__title">{creating ? 'Nuevo cliente' : data.selected?.nombre}</h2>
-              <Link className="ws-icon-button" to={query ? `${base}?q=${encodeURIComponent(query)}` : base} aria-label="Cerrar">
+              <Link className="ws-icon-button" to={withQuery({})} aria-label="Cerrar">
                 <X size={18} aria-hidden="true" />
               </Link>
             </div>
@@ -238,7 +259,7 @@ export default function CustomersPage() {
                     <span className="ws-field__control">
                       <input
                         name={String(name)}
-                        type={name === 'email' ? 'email' : name === 'telefono' ? 'tel' : 'text'}
+                        type={INPUT_TYPES[String(name)] ?? 'text'}
                         required={Boolean(required)}
                         defaultValue={creating ? '' : String(value ?? '')}
                       />

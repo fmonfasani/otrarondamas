@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { commitSession, getSession } from '../app/services/auth.server';
+import { ok, postTo, sessionCookie, stubApi } from './helpers/route';
 import { action, customerAbilities, customerBody, loader } from '../app/routes/_business.$lang.dashboard.clientes';
 
 const formOf = (pairs: Array<[string, string]>) => {
@@ -29,31 +29,10 @@ describe('customer helpers', () => {
 });
 
 describe('customers route', () => {
-  const api = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
-  const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
-  async function cookie() {
-    const session = await getSession();
-    session.set('jwt', 'jwt-token');
-    return (await commitSession(session)).split(';')[0];
-  }
-  async function post(pairs: Array<[string, string]>) {
-    const body = new URLSearchParams();
-    for (const [k, v] of pairs) body.append(k, v);
-    return action({
-      request: new Request('http://app.test/es/dashboard/clientes', { method: 'POST', body, headers: { Cookie: await cookie() } }),
-      params: { lang: 'es' },
-      context: {},
-    }) as Promise<Response>;
-  }
+  let api: ReturnType<typeof stubApi>;
+  const post = (pairs: Array<[string, string]>) => postTo(action, 'clientes', pairs);
   beforeEach(() => {
-    process.env.API_BASE_URL = 'http://api.test';
-    api.mockReset();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
-        String(input).endsWith('/auth/me') ? ok({ id: 'u-1', rol: 'VENDEDOR' }) : api(String(input), init),
-      ),
-    );
+    api = stubApi('VENDEDOR');
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -107,7 +86,7 @@ describe('customers route', () => {
       return ok({});
     });
     const response = (await loader({
-      request: new Request('http://app.test/es/dashboard/clientes?c=c-1', { headers: { Cookie: await cookie() } }),
+      request: new Request('http://app.test/es/dashboard/clientes?c=c-1', { headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;

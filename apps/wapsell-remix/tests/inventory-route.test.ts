@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { commitSession, getSession } from '../app/services/auth.server';
+import { ok, postTo, stubApi } from './helpers/route';
 import { action as inventoryAction } from '../app/routes/_business.$lang.dashboard.inventario';
 import { action as purchasesAction } from '../app/routes/_business.$lang.dashboard.compras';
 import {
@@ -76,29 +76,10 @@ describe('inventory helpers', () => {
 });
 
 describe('inventory and purchases routes', () => {
-  const api = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
-  const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
-  async function post(handler: typeof inventoryAction, path: string, pairs: Array<[string, string]>) {
-    const session = await getSession();
-    session.set('jwt', 'jwt-token');
-    const cookie = (await commitSession(session)).split(';')[0];
-    const body = new URLSearchParams();
-    for (const [k, v] of pairs) body.append(k, v);
-    return handler({
-      request: new Request(`http://app.test/es/dashboard/${path}`, { method: 'POST', body, headers: { Cookie: cookie } }),
-      params: { lang: 'es' },
-      context: {},
-    }) as Promise<Response>;
-  }
+  let api: ReturnType<typeof stubApi>;
+  const post = (handler: typeof inventoryAction, path: string, pairs: Array<[string, string]>) => postTo(handler, path, pairs);
   beforeEach(() => {
-    process.env.API_BASE_URL = 'http://api.test';
-    api.mockReset();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
-        String(input).endsWith('/auth/me') ? ok({ id: 'u-1', rol: 'OWNER' }) : api(String(input), init),
-      ),
-    );
+    api = stubApi('OWNER');
   });
   afterEach(() => vi.unstubAllGlobals());
 
