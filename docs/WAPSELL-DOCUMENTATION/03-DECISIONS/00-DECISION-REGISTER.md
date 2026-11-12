@@ -844,3 +844,28 @@ Effects:
 - Wholesale dossier approval: **Owner and Admin**, as approved. It is checked by canonical role, not by
   `CUSTOMERS_MANAGE`, because the matrix also grants `CUSTOMERS_MANAGE` to the Vendedor (the question as asked described
   it as Owner/Admin). A dedicated permission is an open item.
+
+### OR-B4-028 — Catalog categories and internal product code for new businesses — 2026-11-12
+
+**Status:** APPROVED — OWNER RULING
+
+Context (AS-IS before this decision): every `Producto` requires the 4 hierarchy levels
+(Familia → Subfamilia → Tipo → Subtipo), but the API only exposed `GET /catalogo/jerarquia`; a business created with
+`business:create` had no hierarchy and could not create any product. `Producto.codigoInterno` is required and unique
+per Empresa with no generation policy (scaffolding-notas §SKU).
+
+Owner answers (verbatim):
+
+| Question | Owner answer |
+|---|---|
+| How to handle categories on the Catálogo screen? | "Category + subcategory (Recommended)" |
+| Internal product code (SKU)? | "Automatic, editable (Recommended)" |
+
+Effects:
+
+- The panel manages **category** (= Familia) and optional **subcategory** (= Subfamilia). Creating a category also
+  creates its "General" Subfamilia; every Subfamilia gets a "General" Tipo and Subtipo (prefix `GEN`, the convention
+  already documented in `CreateProductDto`). Tipo/Subtipo are not shown in the panel. No schema change.
+- Prefixes (`Char(3)`) are derived from the name (uppercase, no accents) and made unique within their scope.
+- `codigoInterno` becomes optional on create: when omitted, the API generates `<Familia prefix>-<4-digit sequence>`
+  (e.g. `BEB-0001`), unique per Empresa. A code typed by the user is kept as is; a duplicate is rejected.
