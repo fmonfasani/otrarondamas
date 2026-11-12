@@ -79,4 +79,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  // INV-AL-01: threshold for the low-stock alert; 0 (the default) never alerts.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  stockMinimo?: number;
 }

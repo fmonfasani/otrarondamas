@@ -249,7 +249,7 @@ export default function CatalogPage() {
               </div>
             ) : (
               <div className="ws-table-wrap">
-                <table className="ws-table">
+                <table className="ws-table ws-table--catalog">
                   <thead>
                     <tr>
                       <th>Producto</th>
