@@ -76,7 +76,144 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Directory lookups (participant names, last message) default to "nothing found".
+    prisma.membership.findMany.mockResolvedValue([]);
+    prisma.cliente.findMany.mockResolvedValue([]);
+    prisma.message.findFirst.mockResolvedValue(null);
     service = new MessagingService(prisma as unknown as any, businessContext as unknown as any);
+  });
+
+  describe('contacts', () => {
+    it('lists the ACTIVE team of the actor Business with canonical User ids', async () => {
+      prisma.membership.findMany.mockResolvedValue([
+        { userId: 'user-a', role: 'OWNER', User: { nombre: 'Lucía' } },
+        { userId: 'user-b', role: 'VENDEDOR', User: { nombre: 'Diego' } },
+      ]);
+
+      const contacts = await service.listContacts(auth);
+
+      expect(prisma.membership.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { businessId: 'business-a', status: MembershipStatus.ACTIVE },
+        }),
+      );
+      expect(contacts).toEqual([
+        { userId: 'user-a', name: 'Lucía', role: 'OWNER', isViewer: true },
+        { userId: 'user-b', name: 'Diego', role: 'VENDEDOR', isViewer: false },
+      ]);
+    });
+
+    it('refuses customers', async () => {
+      businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce({
+        ...context,
+        userId: null,
+        customerId: 'customer-a',
+        actorType: 'CUSTOMER',
+      });
+
+      await expect(service.listContacts(auth)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.membership.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('inbox directory (participants and last message)', () => {
+    const joinedAt = new Date('2026-11-10T10:00:00Z');
+    const conversation = {
+      id: 'conversation-a',
+      businessId: 'business-a',
+      ConversationParticipant: [
+        { id: 'p-a', userId: 'user-a', customerId: null, isAdmin: true, joinedAt },
+        { id: 'p-c', userId: null, customerId: 'customer-a', isAdmin: false, joinedAt },
+      ],
+    };
+
+    it('names staff from their Membership and customers from Cliente, both scoped to the Business', async () => {
+      prisma.conversation.findMany.mockResolvedValue([conversation]);
+      prisma.membership.findMany.mockResolvedValue([
+        { userId: 'user-a', role: 'OWNER', User: { nombre: 'Lucía' } },
+      ]);
+      prisma.cliente.findMany.mockResolvedValue([{ id: 'customer-a', nombre: 'María' }]);
+
+      const [row] = await service.listConversations(auth);
+
+      expect(row.participants).toEqual([
+        {
+          id: 'p-a',
+          userId: 'user-a',
+          customerId: null,
+          kind: 'STAFF',
+          name: 'Lucía',
+          role: 'OWNER',
+          isAdmin: true,
+          isViewer: true,
+        },
+        {
+          id: 'p-c',
+          userId: null,
+          customerId: 'customer-a',
+          kind: 'CUSTOMER',
+          name: 'María',
+          role: null,
+          isAdmin: false,
+          isViewer: false,
+        },
+      ]);
+      expect(prisma.membership.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { businessId: 'business-a', userId: { in: ['user-a'] } },
+        }),
+      );
+      expect(prisma.cliente.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { empresaId: 'business-a', id: { in: ['customer-a'] } } }),
+      );
+      expect(row.ConversationParticipant).toBe(conversation.ConversationParticipant);
+    });
+
+    it('previews the latest non-deleted message', async () => {
+      prisma.conversation.findMany.mockResolvedValue([conversation]);
+      const last = {
+        id: 'm-9',
+        type: 'TEXT',
+        content: 'hola',
+        createdAt: new Date('2026-11-11T09:00:00Z'),
+      };
+      prisma.message.findFirst.mockResolvedValue(last);
+
+      const [row] = await service.listConversations(auth);
+
+      expect(row.lastMessage).toBe(last);
+      expect(prisma.message.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { conversationId: 'conversation-a', deletedAt: null },
+          orderBy: { sequence: 'desc' },
+        }),
+      );
+    });
+
+    it('hides a preview older than the join date from a participant without full history', async () => {
+      businessContext.resolveForAuthenticatedUser.mockResolvedValueOnce({
+        ...context,
+        role: 'VENDEDOR',
+      });
+      prisma.conversation.findMany.mockResolvedValue([conversation]);
+      prisma.message.findFirst.mockResolvedValue({
+        id: 'm-1',
+        content: 'antes de entrar',
+        createdAt: new Date('2026-11-09T09:00:00Z'),
+      });
+
+      const [row] = await service.listConversations(auth);
+
+      expect(row.lastMessage).toBeNull();
+    });
+
+    it('falls back to a generic label when a name cannot be resolved inside the Business', async () => {
+      prisma.conversation.findMany.mockResolvedValue([conversation]);
+
+      const [row] = await service.listConversations(auth);
+
+      expect(row.participants.map((p) => p.name)).toEqual(['Equipo', 'Cliente']);
+    });
   });
 
   it('resolves authenticated operations through canonical BusinessContext', async () => {
