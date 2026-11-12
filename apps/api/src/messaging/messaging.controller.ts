@@ -63,6 +63,12 @@ export class MessagingController {
   }
 
   @CanonicalPermission('MESSAGING_USE')
+  @Get('contacts')
+  contacts(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.listContacts(user);
+  }
+
+  @CanonicalPermission('MESSAGING_USE')
   @Get(':id')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.getConversation(user, id);

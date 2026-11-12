@@ -381,6 +381,29 @@ export class MessagingService {
     });
   }
 
+  /**
+   * Team members a staff actor can start a conversation with: ACTIVE Memberships of the
+   * actor's own Business (same rule createConversation enforces). Ids are canonical User
+   * ids, the ones `participantUserIds` expects. Customers are not listed here; they come
+   * from /clientes under its own permission.
+   */
+  async listContacts(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId)
+      throw new ForbiddenException('Solo el equipo del negocio puede ver contactos');
+    const memberships = await this.prisma.membership.findMany({
+      where: { businessId: context.businessId, status: MembershipStatus.ACTIVE },
+      select: { userId: true, role: true, User: { select: { nombre: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return memberships.map((m) => ({
+      userId: m.userId,
+      name: m.User.nombre,
+      role: m.role,
+      isViewer: m.userId === context.userId,
+    }));
+  }
+
   async listConversations(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
     const canReadAll = canReadAllConversations(context);
@@ -413,13 +436,108 @@ export class MessagingService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return conversations.map((conversation) => this.withViewerAccess(conversation, context));
+    return this.withDirectory(
+      conversations.map((conversation) => this.withViewerAccess(conversation, context)),
+      context,
+    );
   }
 
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     const conversation = await this.getConversationForActor(this.prisma, conversationId, context);
-    return this.withViewerAccess(conversation, context);
+    const [withDirectory] = await this.withDirectory(
+      [this.withViewerAccess(conversation, context)],
+      context,
+    );
+    return withDirectory;
+  }
+
+  /**
+   * Adds what an inbox needs to show a conversation, without changing the existing shape:
+   * `participants` (display name, STAFF/CUSTOMER, Membership role, admin flag) and
+   * `lastMessage` (preview). Names come from the conversation's own Business: staff via
+   * Membership → User, customers via Cliente scoped by empresaId. A participant who is not
+   * allowed to read the whole history (no MESSAGING_MANAGE) only gets a preview of a
+   * message sent after they joined, same rule as getMessages.
+   */
+  private async withDirectory<
+    T extends {
+      id: string;
+      ConversationParticipant: Array<{
+        id: string;
+        userId: string | null;
+        customerId: string | null;
+        isAdmin: boolean;
+        joinedAt: Date;
+      }>;
+    },
+  >(conversations: T[], context: BusinessContext) {
+    const userIds = [
+      ...new Set(conversations.flatMap((c) => c.ConversationParticipant.map((p) => p.userId))),
+    ].filter((id): id is string => Boolean(id));
+    const customerIds = [
+      ...new Set(conversations.flatMap((c) => c.ConversationParticipant.map((p) => p.customerId))),
+    ].filter((id): id is string => Boolean(id));
+
+    const [memberships, customers, lastMessages] = await Promise.all([
+      userIds.length
+        ? this.prisma.membership.findMany({
+            where: { businessId: context.businessId, userId: { in: userIds } },
+            select: { userId: true, role: true, User: { select: { nombre: true } } },
+          })
+        : Promise.resolve([]),
+      customerIds.length
+        ? this.prisma.cliente.findMany({
+            where: { empresaId: context.businessId, id: { in: customerIds } },
+            select: { id: true, nombre: true },
+          })
+        : Promise.resolve([]),
+      Promise.all(
+        conversations.map((conversation) =>
+          this.prisma.message.findFirst({
+            where: { conversationId: conversation.id, deletedAt: null },
+            orderBy: { sequence: 'desc' },
+            select: {
+              id: true,
+              type: true,
+              content: true,
+              createdAt: true,
+              authorUserId: true,
+              authorCustomerId: true,
+            },
+          }),
+        ),
+      ),
+    ]);
+    const staff = new Map(
+      memberships.map((m) => [m.userId, { name: m.User.nombre, role: m.role }]),
+    );
+    const customerNames = new Map(customers.map((c) => [c.id, c.nombre]));
+    const canReadAll = canReadAllConversations(context);
+
+    return conversations.map((conversation, index) => {
+      const viewer = conversation.ConversationParticipant.find((p) =>
+        context.userId ? p.userId === context.userId : p.customerId === context.customerId,
+      );
+      const last = lastMessages[index];
+      const visible = last && (canReadAll || (viewer && last.createdAt >= viewer.joinedAt));
+      return {
+        ...conversation,
+        participants: conversation.ConversationParticipant.map((p) => ({
+          id: p.id,
+          userId: p.userId,
+          customerId: p.customerId,
+          kind: p.customerId ? ('CUSTOMER' as const) : ('STAFF' as const),
+          name: p.customerId
+            ? (customerNames.get(p.customerId) ?? 'Cliente')
+            : (staff.get(p.userId ?? '')?.name ?? 'Equipo'),
+          role: p.userId ? (staff.get(p.userId)?.role ?? null) : null,
+          isAdmin: p.isAdmin,
+          isViewer: p === viewer,
+        })),
+        lastMessage: visible ? last : null,
+      };
+    });
   }
 
   async listConversationAssociations(auth: AuthenticatedUser, conversationId: string) {
