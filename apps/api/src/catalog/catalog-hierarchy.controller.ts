@@ -1,4 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
+import { CatalogStructureService } from './catalog-structure.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
@@ -34,6 +38,7 @@ export class CatalogHierarchyController {
   constructor(
     private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly businessContext: BusinessContextService,
+    private readonly structure: CatalogStructureService,
   ) {}
 
   /**
@@ -56,5 +61,41 @@ export class CatalogHierarchyController {
       db.subtipo.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
     ]);
     return { familias: families, subfamilias: subfamilies, tipos: types, subtipos: subtypes };
+  }
+
+  /**
+   * OR-B4-028 — a category (Familia) with its "General" subcategory, type and subtype,
+   * so products can be created right away. Same guards as product creation.
+   */
+  @UseGuards(ApprovedDossierGuard)
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Post('categorias')
+  async createCategory(@Body() dto: CreateCategoryDto, @CurrentUser() user: AuthenticatedUser) {
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    return this.structure.createCategory(
+      this.prismaFactory.forCompany(companyId),
+      companyId,
+      dto.nombre,
+    );
+  }
+
+  /** OR-B4-028 — a subcategory (Subfamilia) inside a category of the actor's company. */
+  @UseGuards(ApprovedDossierGuard)
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Post('categorias/:familiaId/subcategorias')
+  async createSubcategory(
+    @Param('familiaId', ParseUUIDPipe) familiaId: string,
+    @Body() dto: CreateCategoryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    return this.structure.createSubcategory(
+      this.prismaFactory.forCompany(companyId),
+      companyId,
+      familiaId,
+      dto.nombre,
+    );
   }
 }

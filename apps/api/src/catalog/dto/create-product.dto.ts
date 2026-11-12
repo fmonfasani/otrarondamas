@@ -18,9 +18,11 @@ export class CreateProductDto {
   @MinLength(1)
   nombre: string;
 
+  // OR-B4-028: optional. When omitted the API generates <Familia prefix>-NNNN.
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  codigoInterno: string;
+  codigoInterno?: string;
 
   @IsOptional()
   @IsString()

@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   NotFoundException,
@@ -19,6 +20,7 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CatalogStructureService } from './catalog-structure.service';
 import {
   CanonicalPermission,
   PRODUCT_UPDATE,
@@ -60,6 +62,7 @@ export class CatalogController {
   constructor(
     private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly businessContext: BusinessContextService,
+    private readonly structure: CatalogStructureService,
   ) {}
 
   /**
@@ -147,7 +150,7 @@ export class CatalogController {
     // confusing error.
     const data: Prisma.ProductoUncheckedCreateInput = {
       nombre: dto.nombre,
-      codigoInterno: dto.codigoInterno,
+      codigoInterno: dto.codigoInterno?.trim() ?? '',
       codigoBarras: dto.codigoBarras,
       marca: dto.marca,
       familiaId: dto.familiaId,
@@ -162,7 +165,22 @@ export class CatalogController {
       activo: dto.activo,
       empresaId: companyId,
     };
-    return db.producto.create({ data });
+    // OR-B4-028: a typed code is kept (a duplicate is a 409); an omitted one is
+    // generated and regenerated if another product took it in the meantime.
+    const generate = !dto.codigoInterno?.trim();
+    for (let attempt = 0; ; attempt++) {
+      if (generate) data.codigoInterno = await this.structure.nextProductCode(db, dto.familiaId);
+      try {
+        return await db.producto.create({ data });
+      } catch (error) {
+        const duplicate =
+          error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+        if (!duplicate) throw error;
+        if (!generate || attempt >= 4) {
+          throw new ConflictException('Ya existe un producto con ese código interno');
+        }
+      }
+    }
   }
 
   @RequirePermission('productos.gestionar')

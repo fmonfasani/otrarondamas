@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { MembershipStatus } from '@prisma/client';
 import { BusinessContextService } from '../../src/business-context/business-context.service';
 import { CatalogController } from '../../src/catalog/catalog.controller';
+import { CatalogStructureService } from '../../src/catalog/catalog-structure.service';
 import { CatalogHierarchyController } from '../../src/catalog/catalog-hierarchy.controller';
 import type { CreateProductDto } from '../../src/catalog/dto/create-product.dto';
 import type { UpdateProductDto } from '../../src/catalog/dto/update-product.dto';
@@ -88,8 +89,12 @@ describe('S-V1-04 — BusinessContext en Catálogo (integración, BD real)', () 
     await prisma.$connect();
     prismaFactory = new CompanyScopedPrismaService(prisma);
     businessContext = new BusinessContextService(new MembershipService(prisma), prisma);
-    catalog = new CatalogController(prismaFactory, businessContext);
-    hierarchy = new CatalogHierarchyController(prismaFactory, businessContext);
+    catalog = new CatalogController(prismaFactory, businessContext, new CatalogStructureService());
+    hierarchy = new CatalogHierarchyController(
+      prismaFactory,
+      businessContext,
+      new CatalogStructureService(),
+    );
     suffix = Date.now();
 
     companyA = await prisma.empresa.create({
