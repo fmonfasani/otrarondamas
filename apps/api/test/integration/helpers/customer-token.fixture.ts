@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHmac } from 'node:crypto';
 
 /** HS256 token with the claim shape issued by /auth/cliente/login (type=cliente). */
 export function signCustomerToken(customerId: string, empresaId: string): string {

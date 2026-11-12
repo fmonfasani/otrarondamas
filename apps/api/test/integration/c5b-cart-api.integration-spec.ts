@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { randomUUID } from 'node:crypto';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
@@ -285,7 +286,7 @@ describe('C5B Phase 2: Cart API', () => {
         data: {
           empresaId: testCompanyId,
           nombre: 'Cart Item Ops Customer',
-          email: `cart-ops-${Date.now()}-${Math.random()}@example.com`,
+          email: `cart-ops-${Date.now()}-${randomUUID()}@example.com`,
         },
       });
       customerId = customer.id;
@@ -394,7 +395,7 @@ describe('C5B Phase 2: Cart API', () => {
         data: {
           empresaId: testCompanyId,
           nombre: 'Cart Retrieval Customer',
-          email: `cart-ret-${Date.now()}-${Math.random()}@example.com`,
+          email: `cart-ret-${Date.now()}-${randomUUID()}@example.com`,
         },
       });
       customerId = customer.id;
@@ -510,7 +511,7 @@ describe('C5B Phase 2: Cart API', () => {
         data: {
           empresaId: testCompanyId,
           nombre: 'Multi-Product Customer',
-          email: `cart-multi-${Date.now()}-${Math.random()}@example.com`,
+          email: `cart-multi-${Date.now()}-${randomUUID()}@example.com`,
         },
       });
       customerId = customer.id;
@@ -564,7 +565,7 @@ describe('C5B Phase 2: Cart API', () => {
         data: {
           empresaId: testCompanyId,
           nombre: 'Cart Clear Customer',
-          email: `cart-clear-${Date.now()}-${Math.random()}@example.com`,
+          email: `cart-clear-${Date.now()}-${randomUUID()}@example.com`,
         },
       });
       customerId = customer.id;
