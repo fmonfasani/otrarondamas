@@ -241,3 +241,17 @@
 @media (min-width: 1024px) {
   .ws-columns { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: start; }
 }
+
+.ws-field__control select {
+  flex: 1 0 0;
+  min-width: 1px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.ws-form--inline { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+.ws-form--inline .ws-field { flex: 1 1 220px; width: auto; }
+.ws-form--inline .ws-button { width: auto; }
