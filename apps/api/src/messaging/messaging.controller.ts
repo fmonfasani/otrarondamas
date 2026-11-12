@@ -102,6 +102,13 @@ export class MessagingController {
     );
   }
 
+  /** What "Crear pedido" would order: the associated customer's cart. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get(':id/cart')
+  getCart(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.messagingService.getConversationCart(user, id);
+  }
+
   @CanonicalPermission(['MESSAGING_USE', 'ORDERS_MANAGE'])
   @Post(':id/orders')
   createOrder(

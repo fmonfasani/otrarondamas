@@ -166,3 +166,19 @@ export function matchesSearch(conversation: Conversation, query: string): boolea
     .toLocaleLowerCase('es')
     .includes(q);
 }
+
+/** GET /messaging/conversations/:id/cart — what "Crear pedido" would order. */
+export interface ConversationCart {
+  customerId: string | null;
+  items: Array<{ productoId: string; nombre: string; cantidad: number; precio: string }>;
+  total: string;
+}
+
+/**
+ * Whether the viewer can turn the customer's cart into an order. Mirrors the API:
+ * ORDERS_MANAGE + MESSAGING_MANAGE (Owner and Admin) and being an admin of this chat.
+ */
+export function canCreateOrder(conversation: Conversation): boolean {
+  const viewer = conversation.participants.find((p) => p.isViewer);
+  return Boolean(viewer?.isAdmin && (viewer.role === 'OWNER' || viewer.role === 'ADMIN') && customerOf(conversation));
+}
