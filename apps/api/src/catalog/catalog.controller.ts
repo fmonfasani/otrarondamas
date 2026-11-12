@@ -163,6 +163,7 @@ export class CatalogController {
       precioMayorista: dto.precioMayorista,
       descuentoPorcentaje: dto.descuentoPorcentaje,
       activo: dto.activo,
+      stockMinimo: dto.stockMinimo,
       empresaId: companyId,
     };
     // OR-B4-028: a typed code is kept (a duplicate is a 409); an omitted one is

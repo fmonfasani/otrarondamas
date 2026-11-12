@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -201,55 +206,66 @@ export class PurchasesService {
     }
 
     const db = this.prismaFactory.forCompany(companyId);
-    return db.$transaction(async (tx) => {
-      const receptionPayload: Prisma.RecepcionCompraUncheckedCreateInput = {
-        empresaId: companyId,
-        compraId: purchaseId,
-        usuarioId: userId,
-        observaciones: dto.observaciones,
-      };
-      const reception = await tx.recepcionCompra.create({ data: receptionPayload });
-
-      for (const receipt of dto.items) {
-        const item = itemsById.get(receipt.compraItemId)!;
-
-        const batchPayload: Prisma.LoteUncheckedCreateInput = {
+    try {
+      return await db.$transaction(async (tx) => {
+        const receptionPayload: Prisma.RecepcionCompraUncheckedCreateInput = {
           empresaId: companyId,
-          productoId: item.productoId,
-          numeroLote: receipt.numeroLote,
-          vencimiento: new Date(receipt.vencimiento),
-          cantidad: receipt.cantidadRecibida,
+          compraId: purchaseId,
+          usuarioId: userId,
+          observaciones: dto.observaciones,
         };
-        const batch = await tx.lote.create({ data: batchPayload });
+        const reception = await tx.recepcionCompra.create({ data: receptionPayload });
 
-        await tx.movimientoStock.create({
-          data: {
+        for (const receipt of dto.items) {
+          const item = itemsById.get(receipt.compraItemId)!;
+
+          const batchPayload: Prisma.LoteUncheckedCreateInput = {
             empresaId: companyId,
             productoId: item.productoId,
-            loteId: batch.id,
-            tipoMovimiento: 'Entrada',
+            numeroLote: receipt.numeroLote,
+            vencimiento: new Date(receipt.vencimiento),
             cantidad: receipt.cantidadRecibida,
-            motivo: 'Compra',
-            referenciaId: purchaseId,
-            usuarioId: userId,
-            recepcionCompraId: reception.id,
-          },
+          };
+          const batch = await tx.lote.create({ data: batchPayload });
+
+          await tx.movimientoStock.create({
+            data: {
+              empresaId: companyId,
+              productoId: item.productoId,
+              loteId: batch.id,
+              tipoMovimiento: 'Entrada',
+              cantidad: receipt.cantidadRecibida,
+              motivo: 'Compra',
+              referenciaId: purchaseId,
+              usuarioId: userId,
+              recepcionCompraId: reception.id,
+            },
+          });
+
+          await tx.compraItem.update({
+            where: { id: item.id },
+            data: { cantidadRecibida: { increment: receipt.cantidadRecibida } },
+          });
+        }
+
+        const newStatus = await this.calculateStatusAfterReception(tx, purchaseId);
+        await tx.compra.update({ where: { id: purchaseId }, data: { estado: newStatus } });
+
+        return tx.recepcionCompra.findUniqueOrThrow({
+          where: { id: reception.id },
+          include: { MovimientoStock: true },
         });
-
-        await tx.compraItem.update({
-          where: { id: item.id },
-          data: { cantidadRecibida: { increment: receipt.cantidadRecibida } },
-        });
-      }
-
-      const newStatus = await this.calculateStatusAfterReception(tx, purchaseId);
-      await tx.compra.update({ where: { id: purchaseId }, data: { estado: newStatus } });
-
-      return tx.recepcionCompra.findUniqueOrThrow({
-        where: { id: reception.id },
-        include: { MovimientoStock: true },
       });
-    });
+    } catch (error) {
+      // Lote is unique per (product, numeroLote, company): reusing a batch number for the
+      // same product is a user error, not a server failure.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(
+          'Ya existe un lote con ese número para el producto. Usá otro número de lote.',
+        );
+      }
+      throw error;
+    }
   }
 
   private async calculateStatusAfterReception(tx: CompanyScopedTx, purchaseId: string) {

@@ -486,8 +486,9 @@
 .ws-table tr.is-selected td { background: var(--background-default); }
 .ws-catalog { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); align-items: start; }
 @media (max-width: 639px) {
-  .ws-catalog .ws-table th:nth-child(2), .ws-catalog .ws-table td:nth-child(2),
-  .ws-catalog .ws-table th:nth-child(3), .ws-catalog .ws-table td:nth-child(3) { display: none; }
+  .ws-table--catalog th:nth-child(2), .ws-table--catalog td:nth-child(2),
+  .ws-table--catalog th:nth-child(3), .ws-table--catalog td:nth-child(3),
+  .ws-table--stock th:nth-child(2), .ws-table--stock td:nth-child(2) { display: none; }
 }
 .ws-catalog__categories { gap: var(--space-12); }
 .ws-catalog__cats { display: flex; flex-wrap: wrap; gap: var(--space-4); }
@@ -522,4 +523,49 @@
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }
   .ws-catalog:has(.ws-catalog__editor) { grid-template-columns: 220px minmax(0, 1fr) 360px; }
   .ws-catalog__editor { position: sticky; top: 88px; max-height: calc(100vh - 112px); overflow-y: auto; }
+}
+
+/* ---------------------------------------------- Inventario y Compras */
+@media (max-width: 1023px) {
+  .ws-panel__rail { justify-content: flex-start; gap: var(--space-4); overflow-x: auto; scrollbar-width: none; }
+  .ws-panel__rail::-webkit-scrollbar { display: none; }
+  .ws-panel__nav { flex: 0 0 auto; }
+}
+.ws-catalog__editor--wide { gap: var(--space-16); }
+.ws-batches { display: flex; flex-direction: column; gap: var(--space-8); width: 100%; margin: 0; padding: 0; list-style: none; }
+.ws-batches li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-8) 0;
+  border-top: 1px solid rgba(176, 174, 165, 0.45);
+  font-size: 13px;
+}
+.ws-batches li:first-child { border-top: 0; }
+.ws-batches li > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-batches small { font-size: 11px; }
+.ws-batches .is-in { color: #2f6b3a; }
+.ws-receipt { display: flex; flex-direction: column; gap: var(--space-12); }
+.ws-receipt__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-control);
+}
+.ws-receipt__row:disabled { opacity: 0.55; }
+.ws-receipt__row legend { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-4); font-size: 13px; }
+.ws-receipt__row legend small { font-size: 11px; }
+.ws-purchase-rows { display: flex; flex-direction: column; gap: var(--space-12); }
+.ws-purchase-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-8); align-items: end; }
+@media (min-width: 768px) {
+  .ws-purchase-row { grid-template-columns: minmax(0, 3fr) minmax(90px, 1fr) minmax(110px, 1fr) 32px; }
+}
+@media (min-width: 1024px) {
+  .ws-catalog--two { grid-template-columns: minmax(0, 1fr); }
+  .ws-catalog--two.has-editor { grid-template-columns: minmax(0, 1fr) 400px; }
+  .ws-catalog--two.has-editor:has(.ws-catalog__editor--wide) { grid-template-columns: minmax(0, 1fr) 480px; }
 }
