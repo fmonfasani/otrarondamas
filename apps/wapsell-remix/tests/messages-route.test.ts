@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
 import { action, loader } from '../app/routes/_business.$lang.dashboard.mensajes';
 import {
+  canCreateOrder,
   conversationTitle,
   groupByDay,
   isOwnSide,
@@ -112,6 +113,16 @@ describe('messaging presentation', () => {
   });
 });
 
+describe('crear pedido', () => {
+  it('only an Owner or Admin who administers the chat, and only with a customer', () => {
+    expect(canCreateOrder(conversation({}))).toBe(true);
+    expect(canCreateOrder(conversation({ participants: [{ ...lucia, isAdmin: false }, maria] }))).toBe(false);
+    expect(canCreateOrder(conversation({ participants: [{ ...diego, isViewer: true, isAdmin: true }, maria] }))).toBe(false);
+    expect(canCreateOrder(conversation({ participants: [{ ...sofia, isViewer: true, isAdmin: true }, maria] }))).toBe(true);
+    expect(canCreateOrder(conversation({ participants: [lucia, diego] }))).toBe(false);
+  });
+});
+
 describe('messages route', () => {
   // requireAuth validates the session against /auth/me first; every other call goes to `api`.
   const api = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
@@ -171,6 +182,23 @@ describe('messages route', () => {
     await expect(response.json()).resolves.toEqual({ ok: false, message: 'Uno o más Users no pertenecen al Business' });
   });
 
+  it('creates the order from the customer cart and returns its id', async () => {
+    api.mockResolvedValueOnce(ok({ id: 'pedido-9' }));
+    const response = await post([['intent', 'order'], ['conversationId', 'conv-1']]);
+    await expect(response.json()).resolves.toEqual({ ok: true, message: 'Pedido creado.', orderId: 'pedido-9' });
+    const [url, init] = api.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://api.test/messaging/conversations/conv-1/orders');
+    expect(init.method).toBe('POST');
+  });
+
+  it('shows why an order could not be created', async () => {
+    api.mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'El cliente no tiene un carrito con ítems para crear un pedido' }), { status: 409 }),
+    );
+    const response = await post([['intent', 'order'], ['conversationId', 'conv-1']]);
+    await expect(response.json()).resolves.toMatchObject({ ok: false, message: expect.stringContaining('carrito') });
+  });
+
   it('opens a conversation and marks the latest incoming message read', async () => {
     const conv = conversation({});
     api.mockImplementation(async (input, init) => {
@@ -183,6 +211,7 @@ describe('messages route', () => {
           { ...msg('out-1', { userId: 'u-l' }), deletedAt: null },
         ]);
       if (url.endsWith('/clientes/c-m')) return ok({ id: 'c-m', nombre: 'María Sánchez', email: 'maria@ejemplo.com', telefono: null });
+      if (url.endsWith('/conv-1/cart')) return ok({ customerId: 'c-m', items: [{ productoId: 'p', nombre: 'Yerba', cantidad: 2, precio: '1500' }], total: '3000.00' });
       if (url.endsWith('/read') && init?.method === 'POST') return ok({ read: true });
       return new Response('{}', { status: 404 });
     });
@@ -191,6 +220,7 @@ describe('messages route', () => {
 
     expect(data.selected.id).toBe('conv-1');
     expect(data.customer.email).toBe('maria@ejemplo.com');
+    expect(data.cart.total).toBe('3000.00');
     const urls = api.mock.calls.map((call) => String(call[0]));
     expect(urls).toContain('http://api.test/messaging/conversations/conv-1/messages/in-1/read');
   });

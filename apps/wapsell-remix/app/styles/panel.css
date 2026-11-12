@@ -570,3 +570,13 @@
   .ws-catalog--two.has-editor { grid-template-columns: minmax(0, 1fr) 400px; }
   .ws-catalog--two.has-editor:has(.ws-catalog__editor--wide) { grid-template-columns: minmax(0, 1fr) 480px; }
 }
+
+/* ---------------------------------------------- Crear pedido desde la conversación */
+.ws-orderbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); padding: var(--space-12) var(--space-16); border-top: 1px solid var(--text-muted); background: var(--surface-card); font-size: 13px; }
+.ws-orderbar__summary { display: flex; flex: 1 1 220px; align-items: flex-start; gap: var(--space-8); min-width: 0; line-height: 1.4; }
+.ws-orderbar__summary svg { flex: none; margin-top: 1px; }
+.ws-orderbar summary { cursor: pointer; }
+.ws-orderbar ul { margin: var(--space-8) 0 0; padding-left: 18px; }
+.ws-orderbar li small { margin-left: 4px; }
+.ws-orderbar .ws-button { padding-right: var(--space-16); padding-left: var(--space-16); }
+.ws-orderbar__error { flex-basis: 100%; margin: 0; }

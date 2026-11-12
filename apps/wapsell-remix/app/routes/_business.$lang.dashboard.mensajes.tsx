@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useRevalidator, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Eye, Search, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Eye, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
+import { formatMoney } from '~/utils/format';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import {
   authorOf,
+  canCreateOrder,
   conversationSubtitle,
   conversationTitle,
   customerOf,
@@ -19,6 +21,7 @@ import {
   sortByActivity,
   type Contact,
   type Conversation,
+  type ConversationCart,
   type Message,
 } from '~/utils/messaging';
 
@@ -54,6 +57,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let selected: Conversation | null = null;
   let messages: Message[] = [];
   let customer: Customer | null = null;
+  let cart: ConversationCart | null = null;
   if (selectedId && conversations) {
     const id = encodeURIComponent(selectedId);
     const [conversation, list] = await Promise.all([
@@ -73,6 +77,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
               customer = found;
             },
           )
+        : null,
+      customerParticipant
+        ? settle(apiRequest<ConversationCart>(token, `/messaging/conversations/${id}/cart`)).then((found) => {
+            cart = found;
+          })
         : null,
       // Opening a conversation as a participant marks its latest incoming message read.
       conversation?.viewerAccess.canSend && lastIncoming
@@ -94,13 +103,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     selected,
     messages,
     customer: customer as Customer | null,
+    cart: cart as ConversationCart | null,
     composing,
     contacts: contacts ?? [],
     customers: customers ?? [],
   });
 }
 
-type ActionData = { ok: boolean; message?: string };
+type ActionData = { ok: boolean; message?: string; orderId?: string };
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const token = await requireAuth(request);
@@ -116,6 +126,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
         body: JSON.stringify({ clientMessageId: crypto.randomUUID(), content }),
       });
       return json<ActionData>({ ok: true });
+    }
+    if (intent === 'order') {
+      const conversationId = String(form.get('conversationId') ?? '');
+      if (!conversationId) return json<ActionData>({ ok: false, message: 'Elegí una conversación.' }, { status: 400 });
+      const order = await apiRequest<{ id: string }>(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      return json<ActionData>({ ok: true, message: 'Pedido creado.', orderId: order.id });
     }
     if (intent === 'create') {
       const participantUserIds = form.getAll('userId').map(String).filter(Boolean);
@@ -263,6 +282,8 @@ export default function MessagesPage() {
             messages={data.messages}
             back={hrefWith({ c: null })}
             sender={sender}
+            cart={data.cart}
+            lang={lang}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -287,12 +308,16 @@ function Thread({
   messages,
   back,
   sender,
-}: {
+  cart,
+  lang,
+}: Readonly<{
   conversation: Conversation;
   messages: Message[];
   back: string;
   sender: ReturnType<typeof useFetcher<ActionData>>;
-}) {
+  cart: ConversationCart | null;
+  lang: string;
+}>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const lastId = messages[messages.length - 1]?.id;
@@ -356,6 +381,8 @@ function Thread({
         <p className="ws-alert ws-chat__error" role="alert">{sender.data.message}</p>
       )}
 
+      {cart && customerOf(conversation) ? <OrderBar conversation={conversation} cart={cart} lang={lang} /> : null}
+
       {canSend ? (
         <sender.Form method="post" className="ws-composer" ref={formRef}>
           <input type="hidden" name="intent" value="send" />
@@ -386,6 +413,55 @@ function Thread({
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * The customer's cart (built by them in the store) and, for whoever may create orders,
+ * the button that turns it into an order. Shown at every screen size, above the composer.
+ */
+function OrderBar({ conversation, cart, lang }: Readonly<{ conversation: Conversation; cart: ConversationCart; lang: string }>) {
+  const order = useFetcher<ActionData>();
+  const busy = order.state !== 'idle';
+  const created = order.state === 'idle' && order.data?.ok ? order.data.orderId : undefined;
+  const units = cart.items.reduce((sum, item) => sum + item.cantidad, 0);
+  return (
+    <div className="ws-orderbar">
+      <div className="ws-orderbar__summary">
+        <ShoppingBag size={16} aria-hidden="true" />
+        {cart.items.length === 0 ? (
+          <span>El carrito del cliente está vacío. Lo arma desde la tienda.</span>
+        ) : (
+          <details>
+            <summary>
+              Carrito del cliente: {units} {units === 1 ? 'unidad' : 'unidades'} · <b>{formatMoney(cart.total)}</b>
+            </summary>
+            <ul>
+              {cart.items.map((item) => (
+                <li key={item.productoId}>
+                  {item.cantidad} × {item.nombre} <small>{formatMoney(item.precio)}</small>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+      {created ? (
+        <Link className="ws-link" to={`/${lang}/dashboard/pedidos/${created}`}>Pedido creado · Ver pedido</Link>
+      ) : null}
+      {canCreateOrder(conversation) && cart.items.length > 0 ? (
+        <order.Form method="post">
+          <input type="hidden" name="intent" value="order" />
+          <input type="hidden" name="conversationId" value={conversation.id} />
+          <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>
+            {busy ? 'Creando…' : 'Crear pedido'}
+          </button>
+        </order.Form>
+      ) : null}
+      {order.state === 'idle' && order.data && !order.data.ok ? (
+        <output className="ws-alert ws-orderbar__error">{order.data.message}</output>
+      ) : null}
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   MessagingConversationType,
   Prisma,
 } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,6 +32,21 @@ function canReadAllConversations(context: BusinessContext): boolean {
 }
 
 const MAX_GROUP_PARTICIPANTS = 50;
+
+/**
+ * Retry key of an order made from a conversation: the conversation plus the exact cart
+ * lines (ids and quantities). Same cart → same key → same order; any change → new order.
+ */
+function conversationOrderKey(
+  conversationId: string,
+  lines: Array<{ id: string; cantidad: unknown }>,
+): string {
+  const fingerprint = lines
+    .map((line) => `${line.id}:${String(line.cantidad)}`)
+    .sort((a, b) => a.localeCompare(b))
+    .join('|');
+  return `msg-${createHash('sha256').update(`${conversationId}|${fingerprint}`).digest('hex')}`;
+}
 
 /**
  * MESSAGING ACCESS POLICY — INVARIANTS FOR CONVERSATION CORE
@@ -738,6 +754,44 @@ export class MessagingService {
     });
   }
 
+  /**
+   * What "Crear pedido" would order: the cart of the conversation's associated Customer,
+   * at current catalog prices. Readable by whoever can read the conversation.
+   */
+  async getConversationCart(auth: AuthenticatedUser, conversationId: string) {
+    const context = await this.resolveContext(auth);
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+    if (!canReadAllConversations(context)) {
+      await this.assertActiveParticipant(this.prisma, conversationId, context);
+    }
+    const associations = await this.prisma.conversationAssociation.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.CUSTOMER,
+        active: true,
+      },
+      select: { entityId: true },
+    });
+    if (associations.length !== 1 || !this.cartService) {
+      return { customerId: null, items: [], total: '0' };
+    }
+    const customerId = associations[0].entityId;
+    const cart = await this.cartService.getCartForCustomer(customerId, context.businessId);
+    const items = (cart?.CartItem ?? []).map((item) => ({
+      productoId: item.productoId,
+      nombre: item.Producto.nombre,
+      cantidad: Number(item.cantidad),
+      precio: String(item.Producto.precioMinorista),
+    }));
+    const total = items.reduce((sum, item) => sum + Number(item.precio) * item.cantidad, 0);
+    return { customerId, items, total: total.toFixed(2) };
+  }
+
   async createOrderFromConversation(auth: AuthenticatedUser, conversationId: string) {
     // C3 — Cart→Order integration. The persistent cart (via CartService) is the
     // authoritative source of items. Prices are revalidated at confirmation.
@@ -801,9 +855,10 @@ export class MessagingService {
     // Reuse the existing Commerce engine for server-side pricing, loyalty and
     // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
     // stock/ERP confirmation stays in the existing authorized Orders workflow.
-    // C3: Pass conversationId as idempotencyKey to guarantee no duplicate orders
-    // on reintent. If a previous attempt succeeded but the response was lost,
-    // the next request will return the same order.
+    // Idempotency per cart, not per conversation: a retry of the same cart returns the
+    // same order, while a later cart in the same conversation is a new order. (Keying on
+    // the conversation alone made every later order return the first one and still empty
+    // the customer's new cart.)
     const order = await this.storeService.createOrder(
       {
         nombre: customer.nombre,
@@ -813,20 +868,32 @@ export class MessagingService {
       },
       context.businessId,
       'messaging',
-      conversationId, // idempotencyKey: unique per conversation
+      conversationOrderKey(conversationId, cart.CartItem),
     );
 
-    // C3: Create the association linking this conversation to the created order.
-    await this.prisma.conversationAssociation.create({
-      data: {
+    // C3: Create the association linking this conversation to the created order
+    // (once: a retry that returns the same order must not add it again).
+    const linked = await this.prisma.conversationAssociation.findFirst({
+      where: {
         conversationId,
         businessId: context.businessId,
         entityType: MessagingAssociationType.ORDER,
         entityId: order.id,
-        changedBy: context.userId,
-        reason: 'Pedido creado desde el contexto comercial de Messaging',
       },
+      select: { id: true },
     });
+    if (!linked) {
+      await this.prisma.conversationAssociation.create({
+        data: {
+          conversationId,
+          businessId: context.businessId,
+          entityType: MessagingAssociationType.ORDER,
+          entityId: order.id,
+          changedBy: context.userId,
+          reason: 'Pedido creado desde el contexto comercial de Messaging',
+        },
+      });
+    }
 
     // C3: Remove only the items that were confirmed in this order from the cart.
     // This prevents loss of items added concurrently after the snapshot was taken.
