@@ -942,3 +942,38 @@ Effects:
 - A Business without an active Owner answers 409 ("todavía no puede recibir mensajes"); no conversation is created.
 - The customer sees only content, time and whether each message is theirs: no staff identities or internal fields.
 - No schema change.
+
+### OR-B4-032 — Each Business collects online payments in its own Mercado Pago account; customers pay after the Business confirms — 2026-11-12
+
+**Status:** APPROVED — OWNER RULING (details D-011 left `OPEN`: credentials and checkout timing)
+
+Context (AS-IS before this decision): `MercadoPagoProviderService` was a mock (invented ids, always "approved", a
+signature check that is not Mercado Pago's scheme). Production had one global `MERCADOPAGO_ACCESS_TOKEN` (a real MLA
+account), so every store would have collected into that single account.
+
+Questions and Owner answers (verbatim):
+- "¿A qué cuenta de Mercado Pago entra la plata que pagan los clientes de cada tienda?" → "Cada negocio la suya (Recommended)".
+- "¿Cuándo paga el cliente un pedido de la tienda o del chat?" → "Después de que el negocio confirma (Recommended)".
+
+Effects:
+
+- Each Business connects its own account through Mercado Pago's official OAuth from the panel (**Cobros**). Wapsell
+  never sees the Mercado Pago password; it keeps the access/refresh tokens encrypted (AES-256-GCM, key
+  `MERCADOPAGO_TOKEN_KEY` in the API environment) inside `Empresa.configuracion.mercadoPago`. No schema change.
+- One Mercado Pago account can be connected to only one Business (webhooks are routed by the account's user id).
+- Platform configuration: the Wapsell application in Mercado Pago Developers (`MERCADOPAGO_CLIENT_ID`,
+  `MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_OAUTH_REDIRECT_URI`). The global `MERCADOPAGO_ACCESS_TOKEN` is not used by
+  this flow.
+- The customer pays an order once the Business has confirmed it (next PR: checkout + webhook with Mercado Pago's real
+  signature scheme). Payment lifecycle independent of the Sale, per R8-PAY-002 C1.
+
+### OR-B4-033 — PAYMENTS_CONFIGURE: only the Owner connects the payment account — 2026-11-12
+
+**Status:** APPROVED — OWNER RULING (amends the fixed matrix of OR-B4-024)
+
+Question: "¿Quién puede conectar o desconectar la cuenta de Mercado Pago del negocio (la cuenta donde entra la plata)?"
+Owner answer (verbatim): "Solo el Owner (Recommended)".
+
+Effects: new canonical permission `PAYMENTS_CONFIGURE` (high sensitivity), held only by OWNER (ADMIN = all except
+`BRAND_MANAGE` and `PAYMENTS_CONFIGURE`). Checked when the connection starts and again when Mercado Pago calls back.
+Authorization spec updated (§2 catalogue, §4 matrix).

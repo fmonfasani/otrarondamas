@@ -39,6 +39,7 @@ export const PERMISSIONS = [
   'PAYMENTS_VIEW',
   'PAYMENTS_REGISTER',
   'PAYMENTS_REFUND',
+  'PAYMENTS_CONFIGURE', // OR-B4-033: connect the Business's payment-provider account
   'RECEIVABLES_VIEW',
   'RECEIVABLES_MANAGE',
   'PURCHASES_VIEW', // OR-B4-025
@@ -64,6 +65,7 @@ export const HIGH_SENSITIVITY: readonly Permission[] = [
   'CASH_ADJUST',
   'CASH_WITHDRAW',
   'PAYMENTS_REFUND',
+  'PAYMENTS_CONFIGURE',
   'BRAND_MANAGE',
   'AUDIT_VIEW_ALL',
 ];
@@ -87,7 +89,7 @@ const ALL: readonly Permission[] = PERMISSIONS;
 
 /**
  * Fixed Role → Permission matrix (spec §4, approved by OR-B4-024; RETURNS_VIEW and
- * PURCHASES_VIEW added by OR-B4-025). No per-Membership
+ * PURCHASES_VIEW added by OR-B4-025; PAYMENTS_CONFIGURE, Owner only, by OR-B4-033). No per-Membership
  * grants or denials in the MVP (AUTH-04).
  *
  * Constraints that the matrix alone cannot express (enforced by the engine in stage 2):
@@ -96,7 +98,8 @@ const ALL: readonly Permission[] = PERMISSIONS;
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   OWNER: ALL,
-  ADMIN: ALL.filter((p) => p !== 'BRAND_MANAGE'),
+  // OR-B4-033: where the Business's money goes (PAYMENTS_CONFIGURE) is the Owner's alone.
+  ADMIN: ALL.filter((p) => p !== 'BRAND_MANAGE' && p !== 'PAYMENTS_CONFIGURE'),
   VENDEDOR: [
     'CUSTOMERS_VIEW',
     'CUSTOMERS_MANAGE',
