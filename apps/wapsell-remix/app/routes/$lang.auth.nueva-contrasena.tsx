@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   json,
   type ActionFunctionArgs,
@@ -7,11 +6,12 @@ import {
 } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useParams } from '@remix-run/react';
 import { AuthShell } from '~/components/auth/AuthShell';
+import { MIN_PASSWORD_LENGTH, PasswordField } from '~/components/auth/PasswordField';
 import { INVALID_LINK, resetPassword } from '~/services/password.server';
 
 export const meta: MetaFunction = () => [{ title: 'Nueva contraseña · Wapsell' }];
 
-export const MIN_PASSWORD_LENGTH = 8;
+export { MIN_PASSWORD_LENGTH };
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = new URL(request.url).searchParams.get('token') ?? '';
@@ -39,35 +39,6 @@ export async function action({ request }: ActionFunctionArgs) {
   const result = await resetPassword(token, password);
   if ('error' in result) return json<ActionData>({ done: false, error: result.error }, { status: 400 });
   return json<ActionData>({ done: true });
-}
-
-function PasswordField({ name, label, autoFocus }: { name: string; label: string; autoFocus?: boolean }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <label className="ws-field">
-      <span className="ws-field__label">{label}</span>
-      <span className="ws-field__control">
-        <input
-          type={visible ? 'text' : 'password'}
-          name={name}
-          required
-          minLength={MIN_PASSWORD_LENGTH}
-          maxLength={72}
-          autoComplete="new-password"
-          autoFocus={autoFocus}
-        />
-        <button
-          type="button"
-          className="ws-field__toggle"
-          onClick={() => setVisible((value) => !value)}
-          aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          aria-pressed={visible}
-        >
-          <img src="/brand/eye.svg" alt="" width={20} height={20} />
-        </button>
-      </span>
-    </label>
-  );
 }
 
 export default function NewPasswordPage() {

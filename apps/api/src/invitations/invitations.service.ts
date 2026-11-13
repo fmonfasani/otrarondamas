@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
+import { MembershipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
@@ -16,6 +17,9 @@ import { ActivateWholesaleInvitationDto } from './dto/activate-wholesale-invitat
 // business parameter of the owner, it is a reasonable security decision
 // with no real case asking to change it.
 const INVITATION_EXPIRATION_DAYS = 7;
+const DEFAULT_WEB_APP_URL = 'https://app.wapsell.com';
+const webAppUrl = () =>
+  (process.env.WEB_APP_URL || process.env.FRONTEND_URL || DEFAULT_WEB_APP_URL).replace(/\/+$/, '');
 
 /**
  * RF-17 (docs/spec-login-roles.md): sign-up by invitation, never public
@@ -65,12 +69,16 @@ export class InvitationsService {
       },
     });
 
-    const frontendUrl = process.env.FRONTEND_URL;
-    if (!frontendUrl) {
-      throw new Error('FRONTEND_URL no configurado (ver apps/api/.env)');
-    }
-    const activationLink = new URL('/activar-invitacion', frontendUrl);
+    // The panel's activation page. Same base URL as the password-reset link: FRONTEND_URL
+    // was required here and is not set in production, so creating an invitation failed
+    // with a 500 after saving it.
+    const activationLink = new URL('/es/auth/activar', webAppUrl());
     activationLink.searchParams.set('token', invitation.token);
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: companyId },
+      select: { nombre: true },
+    });
+    const businessName = business?.nombre ?? 'Wapsell';
 
     // Sending may fail (Resend not configured, quota limit, etc.) without
     // that preventing the invitation from being created — the link is still
@@ -78,8 +86,8 @@ export class InvitationsService {
     // the email did not go out (see EmailService).
     const sent = await this.emailService.send(
       dto.email,
-      'Te invitaron a Otra Roonda Más',
-      `<p>Te invitaron a sumarte a Otra Roonda Más con el rol ${this.roleName(dto.rol)}.</p>
+      `Te invitaron a ${businessName}`,
+      `<p>Te invitaron a sumarte a ${businessName} con el rol ${this.roleName(dto.rol)}.</p>
        <p><a href="${activationLink.toString()}">Activar mi cuenta</a></p>
        <p>Este link vence en ${INVITATION_EXPIRATION_DAYS} días.</p>`,
     );
@@ -122,16 +130,20 @@ export class InvitationsService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const role = invitation.rol === 'ASISTENTE_LOCAL' ? 'VENDEDOR' : invitation.rol;
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.usuario.create({
+    // The account and its Membership are born together: the panel resolves every request
+    // through the canonical User + Membership (BusinessContext). Activating used to create
+    // only the legacy Usuario, so the new person was refused everywhere.
+    const user = await this.prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.create({
         data: {
           empresaId: invitation.empresaId,
           nombre: dto.nombre,
           email: invitation.email,
           passwordHash,
           // OR-B4-027: a pending invitation created before the change activates as VENDEDOR.
-          rol: invitation.rol === 'ASISTENTE_LOCAL' ? 'VENDEDOR' : invitation.rol,
+          rol: role,
           activo: true,
           // Explicit, NOT the schema default (APROBADO — correct for OWNER and for
           // migrating accounts that already existed before this increment, but an
@@ -140,12 +152,28 @@ export class InvitationsService {
           estadoLegajo: 'PENDIENTE',
         },
         include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
-      }),
-      this.prisma.invitacion.update({
-        where: { id: invitation.id },
-        data: { usadaEn: new Date() },
-      }),
-    ]);
+      });
+      const canonicalUser = await tx.user.create({
+        data: { email: invitation.email, nombre: dto.nombre, usuarioId: usuario.id },
+      });
+      await tx.membership.create({
+        data: {
+          userId: canonicalUser.id,
+          businessId: invitation.empresaId,
+          role,
+          status: MembershipStatus.ACTIVE,
+        },
+      });
+      await tx.userEmpresa.create({
+        data: {
+          usuarioId: usuario.id,
+          empresaId: invitation.empresaId,
+          role: role === 'ADMIN' ? 'admin' : 'user',
+        },
+      });
+      await tx.invitacion.update({ where: { id: invitation.id }, data: { usadaEn: new Date() } });
+      return usuario;
+    });
 
     return this.authService.issueSession(user, []);
   }
