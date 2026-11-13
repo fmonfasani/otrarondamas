@@ -23,8 +23,8 @@ import {
 describe('canonical authorization model (Authorization spec v0.2)', () => {
   const sorted = (xs: Iterable<string>) => [...xs].sort();
 
-  it('has 38 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025)', () => {
-    expect(PERMISSIONS).toHaveLength(38);
+  it('has 39 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025 + PAYMENTS_CONFIGURE of OR-B4-033)', () => {
+    expect(PERMISSIONS).toHaveLength(39);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
   });
 
@@ -37,11 +37,20 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
       expect(sorted(permissionsForRole('OWNER'))).toEqual(sorted(PERMISSIONS));
     });
 
-    it('gives the Admin everything except the Brand (Owner-only)', () => {
+    it('gives the Admin everything except the Brand and the payment account (Owner-only)', () => {
       expect(roleHasPermission('ADMIN', 'BRAND_MANAGE')).toBe(false);
+      expect(roleHasPermission('ADMIN', 'PAYMENTS_CONFIGURE')).toBe(false);
       expect(sorted(permissionsForRole('ADMIN'))).toEqual(
-        sorted(PERMISSIONS.filter((p) => p !== 'BRAND_MANAGE')),
+        sorted(PERMISSIONS.filter((p) => p !== 'BRAND_MANAGE' && p !== 'PAYMENTS_CONFIGURE')),
       );
+    });
+
+    it('lets only the Owner connect the payment account (OR-B4-033)', () => {
+      expect(roleHasPermission('OWNER', 'PAYMENTS_CONFIGURE')).toBe(true);
+      for (const role of ['ADMIN', 'VENDEDOR', 'GESTOR_DE_STOCK'] as const) {
+        expect(roleHasPermission(role, 'PAYMENTS_CONFIGURE')).toBe(false);
+      }
+      expect(HIGH_SENSITIVITY).toContain('PAYMENTS_CONFIGURE');
     });
 
     it('lets the Vendedor confirm orders and register small cash expenses, but not cancel or adjust', () => {

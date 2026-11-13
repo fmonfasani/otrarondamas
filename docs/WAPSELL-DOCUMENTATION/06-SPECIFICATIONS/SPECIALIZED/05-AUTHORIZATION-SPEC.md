@@ -86,6 +86,7 @@ Naming: `DOMAIN_ACTION`, upper snake case, English, matching the identifiers alr
 | payments | `PAYMENTS_VIEW` | See payments |
 | payments | `PAYMENTS_REGISTER` | Register a payment |
 | payments | `PAYMENTS_REFUND` ★ | Refund a payment |
+| payments | `PAYMENTS_CONFIGURE` ★ | Connect or disconnect the Business's payment-provider account (where the money goes). Owner only — OR-B4-033 |
 | receivables | `RECEIVABLES_VIEW` | See customer accounts |
 | receivables | `RECEIVABLES_MANAGE` | Apply payments and manage customer accounts |
 | purchases | `PURCHASES_VIEW` | See purchases and suppliers (`OR-B4-025`) |
@@ -152,6 +153,7 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 | `PAYMENTS_VIEW` | ● | ● | ● | — |
 | `PAYMENTS_REGISTER` | ● | ● | ● | — |
 | `PAYMENTS_REFUND` | ● | ● | — | — |
+| `PAYMENTS_CONFIGURE` | ● | — | — | — |
 | `RECEIVABLES_VIEW` | ● | ● | ● | — |
 | `RECEIVABLES_MANAGE` | ● | ● | — | — |
 | `PURCHASES_VIEW` | ● | ● | — | ● |
