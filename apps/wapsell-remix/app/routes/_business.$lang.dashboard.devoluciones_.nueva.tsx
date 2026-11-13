@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
-import { RETURN_WINDOW_DAYS, returnItemsFrom, returnWindow, returnedBySaleItem, type CustomerReturn } from '~/utils/returns';
+import { RETURN_REASONS, RETURN_WINDOW_DAYS, returnItemsFrom, returnWindow, returnedBySaleItem, type CustomerReturn } from '~/utils/returns';
 import { saleNumber } from '~/utils/sales';
 
 export const meta: MetaFunction = () => [{ title: 'Nueva devolución · Wapsell' }];
@@ -133,7 +133,18 @@ export default function NewReturn() {
                       <label className="ws-field">
                         <span className="ws-field__label">Motivo</span>
                         <span className="ws-field__control">
-                          <input name={`motivo-${line.ventaItemId}`} placeholder="Ej.: envase roto, no era el que quería" maxLength={500} />
+                          <select name={`razon-${line.ventaItemId}`} defaultValue="">
+                            <option value="" disabled>Elegí el motivo</option>
+                            {RETURN_REASONS.map((r) => (
+                              <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                          </select>
+                        </span>
+                      </label>
+                      <label className="ws-field">
+                        <span className="ws-field__label">Comentario (obligatorio si es «Otro»)</span>
+                        <span className="ws-field__control">
+                          <input name={`motivo-${line.ventaItemId}`} placeholder="Ej.: la botella vino pinchada" maxLength={500} />
                         </span>
                       </label>
                     </>

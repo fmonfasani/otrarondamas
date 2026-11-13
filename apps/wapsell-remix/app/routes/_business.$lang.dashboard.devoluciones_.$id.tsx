@@ -6,11 +6,13 @@ import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
 import {
   DESTINATIONS,
-  RETURN_STATES,
   canManageReturns,
   destinationsFrom,
+  isClosedWithoutRefund,
+  refundAmountFrom,
   refundDescription,
   returnNumber,
+  returnState,
   type CustomerReturn,
 } from '~/utils/returns';
 
@@ -61,9 +63,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ ok: true, message: 'Productos recibidos.' });
     }
     if (intent === 'refund') {
+      const found = await apiRequest<CustomerReturn>(token, `/devoluciones/${id}`);
+      const parsed = refundAmountFrom(form, Number(found.montoReembolsable));
+      if (!parsed.ok) return json({ ok: false, message: parsed.message }, { status: 400 });
       const notes = String(form.get('notes') ?? '').trim();
-      await apiRequest(token, `/devoluciones/${id}/process-refund`, { method: 'PUT', body: JSON.stringify(notes ? { notes } : {}) });
+      await apiRequest(token, `/devoluciones/${id}/process-refund`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...(notes ? { notes } : {}), ...(parsed.amount === undefined ? {} : { amount: parsed.amount }) }),
+      });
       return json({ ok: true, message: 'Reembolso registrado. La devolución terminó.' });
+    }
+    if (intent === 'cancel' || intent === 'reject') {
+      const motivo = String(form.get('motivo') ?? '').trim();
+      if (!motivo) return json({ ok: false, message: 'Contá el motivo.' }, { status: 400 });
+      await apiRequest(token, `/devoluciones/${id}/${intent}`, { method: 'PUT', body: JSON.stringify({ motivo }) });
+      return json({ ok: true, message: intent === 'cancel' ? 'Devolución cancelada.' : 'Devolución rechazada: el producto vuelve al cliente.' });
     }
     return json({ ok: false, message: 'Acción desconocida.' }, { status: 400 });
   } catch (error) {
@@ -85,9 +99,11 @@ export default function ReturnPage() {
   const navigation = useNavigation();
   const [params] = useSearchParams();
   const { lang = 'es' } = useParams();
-  const state = RETURN_STATES[found.estado] ?? { label: found.estado, tone: 'muted', next: '' };
+  const state = returnState(found);
+  const closed = isClosedWithoutRefund(found);
   const manage = canManageReturns(role);
   const busy = navigation.state !== 'idle';
+  const steps = closed ? [...STEPS.slice(0, 3).filter((s) => found[s.key]), { key: 'fechaProcesada', label: state.label } as const] : STEPS;
 
   return (
     <div className="ws-page">
@@ -110,7 +126,7 @@ export default function ReturnPage() {
       {result && <p className={result.ok ? 'ws-notice' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
 
       <ol className="ws-return-steps" aria-label="Pasos de la devolución">
-        {STEPS.map((step) => {
+        {steps.map((step) => {
           const when = found[step.key];
           return (
             <li key={step.key} className={when ? 'is-done' : ''}>
@@ -172,9 +188,9 @@ export default function ReturnPage() {
 
         <aside className="ws-stack">
           <section className="ws-card" aria-labelledby="next-title">
-            <h2 id="next-title" className="ws-card__title">{found.estado === 'PROCESADA' ? 'Reembolso' : 'Siguiente paso'}</h2>
+            <h2 id="next-title" className="ws-card__title">{found.estado === 'PROCESADA' ? (closed ? state.label : 'Reembolso') : 'Siguiente paso'}</h2>
             {found.estado === 'PROCESADA' ? (
-              <p className="ws-meta">{refundDescription(found, method)}</p>
+              <p className="ws-meta">{closed ? found.reembolso?.resultado : refundDescription(found, method)}</p>
             ) : (
               <p className="ws-meta">{state.next}</p>
             )}
@@ -192,10 +208,44 @@ export default function ReturnPage() {
               <Form method="post" className="ws-pos__checkout">
                 <input type="hidden" name="intent" value="refund" />
                 <p className="ws-meta">{refundDescription(found, method)}</p>
+                <label className="ws-field">
+                  <span className="ws-field__label">Monto a devolver (podés devolver una parte)</span>
+                  <span className="ws-field__control">
+                    <input name="amount" inputMode="decimal" defaultValue={Number(found.montoReembolsable).toLocaleString('es-AR')} />
+                  </span>
+                  <small className="ws-meta">Como máximo {formatMoney(found.montoReembolsable)}.</small>
+                </label>
                 <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>
-                  Reembolsar {formatMoney(found.montoReembolsable)}
+                  Reembolsar
                 </button>
               </Form>
+            )}
+            {manage && found.estado === 'AUTORIZADA' && (
+              <details className="ws-return-close">
+                <summary>Rechazar tras revisar</summary>
+                <Form method="post" className="ws-pos__checkout">
+                  <input type="hidden" name="intent" value="reject" />
+                  <p className="ws-meta">No se devuelve dinero y el producto vuelve al cliente.</p>
+                  <label className="ws-field">
+                    <span className="ws-field__label">Motivo del rechazo</span>
+                    <span className="ws-field__control"><input name="motivo" required maxLength={500} /></span>
+                  </label>
+                  <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>Rechazar devolución</button>
+                </Form>
+              </details>
+            )}
+            {manage && (found.estado === 'SOLICITADA' || found.estado === 'AUTORIZADA') && (
+              <details className="ws-return-close">
+                <summary>Cancelar devolución</summary>
+                <Form method="post" className="ws-pos__checkout">
+                  <input type="hidden" name="intent" value="cancel" />
+                  <label className="ws-field">
+                    <span className="ws-field__label">Motivo de la cancelación</span>
+                    <span className="ws-field__control"><input name="motivo" required maxLength={500} /></span>
+                  </label>
+                  <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>Cancelar devolución</button>
+                </Form>
+              </details>
             )}
             {!manage && found.estado !== 'PROCESADA' && <p className="ws-meta">Lo continúa el Owner o un administrador.</p>}
           </section>

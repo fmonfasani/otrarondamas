@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DevolucionesService } from './devoluciones.service';
 import {
   AuthorizeDevolucionDto,
+  CloseDevolucionDto,
   CreateDevolucionDto,
   ProcessRefundDto,
   ReceiveDevolucionDto,
@@ -33,7 +34,9 @@ import { hasCanonicalPermission, type Permission } from '../authorization/canoni
  *   GET  /devoluciones[/:id]               view (RETURNS_VIEW)
  *   PUT  /devoluciones/:id/authorize       authorize (REFUNDS_MANAGE: Owner, Admin)
  *   PUT  /devoluciones/:id/receive         receive + inspect each product (REFUNDS_MANAGE)
- *   PUT  /devoluciones/:id/process-refund  refund by the original method (PAYMENTS_REFUND)
+ *   PUT  /devoluciones/:id/process-refund  refund, full or partial, by the original method (PAYMENTS_REFUND)
+ *   PUT  /devoluciones/:id/cancel          cancel before receiving, with a reason (REFUNDS_MANAGE)
+ *   PUT  /devoluciones/:id/reject          reject after inspection, with a reason (REFUNDS_MANAGE)
  * Each permission is also checked against the role matrix here, so it holds in every
  * authorization mode (in `shadow` the legacy guard decides).
  */
@@ -143,6 +146,40 @@ export class DevolucionClienteController {
       id,
       user.id,
       dto,
+    );
+  }
+
+  @RequirePermission('orders.authorize_returns')
+  @CanonicalPermission('REFUNDS_MANAGE')
+  @Put(':id/cancel')
+  @ApiOperation({ summary: 'Cancel a return before its products are received (OR-B4-035)' })
+  async cancelDevolucion(
+    @Param('id') id: string,
+    @Body() dto: CloseDevolucionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.devolucionesService.cancel(
+      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      id,
+      user.id,
+      dto.motivo,
+    );
+  }
+
+  @RequirePermission('orders.process_returns')
+  @CanonicalPermission('REFUNDS_MANAGE')
+  @Put(':id/reject')
+  @ApiOperation({ summary: 'Reject a return after inspecting its products (OR-B4-035)' })
+  async rejectDevolucion(
+    @Param('id') id: string,
+    @Body() dto: CloseDevolucionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.devolucionesService.reject(
+      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      id,
+      user.id,
+      dto.motivo,
     );
   }
 }

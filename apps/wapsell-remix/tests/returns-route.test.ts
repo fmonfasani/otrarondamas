@@ -4,7 +4,9 @@ import { action as newAction } from '../app/routes/_business.$lang.dashboard.dev
 import { action as detailAction } from '../app/routes/_business.$lang.dashboard.devoluciones_.$id';
 import {
   destinationsFrom,
+  refundAmountFrom,
   refundDescription,
+  returnState,
   returnItemsFrom,
   returnWindow,
   returnedBySaleItem,
@@ -37,17 +39,50 @@ describe('returns helpers (OR-B4-034)', () => {
       'v-1',
     );
     expect(returned.get('vi-1')).toBe(3);
+    const cancelled = { estado: 'RECHAZADO', metodo: null, monto: '0', resultado: 'Cancelada: x' };
+    const withCancelled = returnedBySaleItem(
+      [
+        { ventaId: 'v-1', items: [{ ...item('a', 'Yerba'), ventaItemId: 'vi-1', cantidad: 2 }] },
+        { ventaId: 'v-1', items: [{ ...item('b', 'Yerba'), ventaItemId: 'vi-1', cantidad: 1 }], reembolso: cancelled },
+      ],
+      'v-1',
+    );
+    expect(withCancelled.get('vi-1')).toBe(2);
   });
 
-  it('reads the products to return: whole units, within what is left, each with a reason', () => {
+  it('shows cancelled and rejected returns as such', () => {
+    const closed = (resultado: string) => ({ estado: 'PROCESADA', reembolso: { estado: 'RECHAZADO', metodo: null, monto: '0', resultado } });
+    expect(returnState(closed('Cancelada: se arrepintió')).label).toBe('Cancelada');
+    expect(returnState(closed('Rechazada tras inspección: roto por el cliente')).label).toBe('Rechazada');
+    expect(returnState({ estado: 'PROCESADA', reembolso: { estado: 'EXITO', metodo: 'efectivo', monto: '1', resultado: null } }).label).toBe('Terminada');
+    expect(returnState({ estado: 'SOLICITADA', reembolso: null }).label).toBe('Por autorizar');
+  });
+
+  it('reads the refund amount: all of it by default, a part when lower, never more', () => {
+    expect(refundAmountFrom(formOf([]), 20)).toEqual({ ok: true });
+    expect(refundAmountFrom(formOf([['amount', '20']]), 20)).toEqual({ ok: true });
+    expect(refundAmountFrom(formOf([['amount', '5,50']]), 20)).toEqual({ ok: true, amount: 5.5 });
+    expect(refundAmountFrom(formOf([['amount', '1.500']]), 2000)).toEqual({ ok: true, amount: 1500 });
+    expect(refundAmountFrom(formOf([['amount', '25']]), 20)).toMatchObject({ ok: false, message: expect.stringContaining('como máximo') });
+    expect(refundAmountFrom(formOf([['amount', '0']]), 20)).toMatchObject({ ok: false });
+  });
+
+  it('reads the products to return: whole units, within what is left, each with a reason from the list', () => {
     const lines = [{ ventaItemId: 'vi-1', nombre: 'Yerba', available: 2 }, { ventaItemId: 'vi-2', nombre: 'Agua', available: 1 }];
-    expect(returnItemsFrom(formOf([['cantidad-vi-1', '2'], ['motivo-vi-1', 'Rota'], ['cantidad-vi-2', '0']]), lines)).toEqual({
+    expect(
+      returnItemsFrom(formOf([['cantidad-vi-1', '2'], ['razon-vi-1', 'ROTO'], ['motivo-vi-1', 'Rota'], ['cantidad-vi-2', '0']]), lines),
+    ).toEqual({
       ok: true,
-      items: [{ ventaItemId: 'vi-1', cantidad: 2, motivo: 'Rota' }],
+      items: [{ ventaItemId: 'vi-1', cantidad: 2, motivoCodigo: 'ROTO', motivo: 'Rota' }],
     });
-    expect(returnItemsFrom(formOf([['cantidad-vi-1', '3'], ['motivo-vi-1', 'Rota']]), lines)).toMatchObject({ ok: false, message: expect.stringContaining('como máximo 2') });
-    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1'], ['motivo-vi-1', '']]), lines)).toMatchObject({ ok: false });
-    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1.5'], ['motivo-vi-1', 'x']]), lines)).toMatchObject({ ok: false });
+    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1'], ['razon-vi-1', 'VENCIDO']]), lines)).toEqual({
+      ok: true,
+      items: [{ ventaItemId: 'vi-1', cantidad: 1, motivoCodigo: 'VENCIDO' }],
+    });
+    expect(returnItemsFrom(formOf([['cantidad-vi-1', '3'], ['razon-vi-1', 'ROTO']]), lines)).toMatchObject({ ok: false, message: expect.stringContaining('como máximo 2') });
+    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1'], ['motivo-vi-1', 'Rota']]), lines)).toMatchObject({ ok: false, message: expect.stringContaining('Elegí') });
+    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1'], ['razon-vi-1', 'OTRO']]), lines)).toMatchObject({ ok: false, message: expect.stringContaining('Contá') });
+    expect(returnItemsFrom(formOf([['cantidad-vi-1', '1.5'], ['razon-vi-1', 'ROTO']]), lines)).toMatchObject({ ok: false });
     expect(returnItemsFrom(formOf([]), lines)).toMatchObject({ ok: false, message: 'Indicá qué productos se devuelven.' });
   });
 
@@ -92,12 +127,12 @@ describe('returns routes', () => {
       .mockResolvedValueOnce(ok({ items: [] }))
       .mockResolvedValueOnce(ok({ id: 'd-1' }));
     const response = await post(newAction, 'devoluciones/nueva', [
-      ['ventaId', 'v-1'], ['cantidad-vi-1', '2'], ['motivo-vi-1', 'Rota'], ['clienteId', 'c-1'], ['motivo_general', ''],
+      ['ventaId', 'v-1'], ['cantidad-vi-1', '2'], ['razon-vi-1', 'ROTO'], ['motivo-vi-1', 'Rota'], ['clienteId', 'c-1'], ['motivo_general', ''],
     ]);
     expect(response.headers.get('Location')).toBe('/es/dashboard/devoluciones/d-1?nueva=1');
     expect(JSON.parse(String(api.mock.calls[2][1]?.body))).toEqual({
       ventaId: 'v-1',
-      items: [{ ventaItemId: 'vi-1', cantidad: 2, motivo: 'Rota' }],
+      items: [{ ventaItemId: 'vi-1', cantidad: 2, motivoCodigo: 'ROTO', motivo: 'Rota' }],
       clienteId: 'c-1',
     });
   });
@@ -109,8 +144,30 @@ describe('returns routes', () => {
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({ items: [{ itemId: 'a', destino: 'DESCARTE' }], condition_check: 'Dañado' });
   });
 
+  it('sends a partial refund amount only when it is lower than the total', async () => {
+    api.mockResolvedValueOnce(ok({ id: 'd-1', montoReembolsable: '20', items: [] })).mockResolvedValueOnce(ok({}));
+    await post(detailAction, 'devoluciones/d-1', [['intent', 'refund'], ['amount', '7,5']], 'd-1');
+    expect(api.mock.calls[1][0]).toBe('http://api.test/devoluciones/d-1/process-refund');
+    expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({ amount: 7.5 });
+  });
+
+  it('cancels and rejects with the reason given', async () => {
+    api.mockImplementation(async () => ok({}));
+    const missing = await post(detailAction, 'devoluciones/d-1', [['intent', 'cancel'], ['motivo', ' ']], 'd-1');
+    expect(missing.status).toBe(400);
+    expect(api).not.toHaveBeenCalled();
+    await post(detailAction, 'devoluciones/d-1', [['intent', 'cancel'], ['motivo', 'Se arrepintió']], 'd-1');
+    await post(detailAction, 'devoluciones/d-1', [['intent', 'reject'], ['motivo', 'Lo rompió']], 'd-1');
+    expect(api.mock.calls.map((c) => [c[0], JSON.parse(String(c[1]?.body))])).toEqual([
+      ['http://api.test/devoluciones/d-1/cancel', { motivo: 'Se arrepintió' }],
+      ['http://api.test/devoluciones/d-1/reject', { motivo: 'Lo rompió' }],
+    ]);
+  });
+
   it('says to open the register when a cash refund finds it closed', async () => {
-    api.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'CAJA_CERRADA' }), { status: 409 }));
+    api
+      .mockResolvedValueOnce(ok({ id: 'd-1', montoReembolsable: '20', items: [] }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'CAJA_CERRADA' }), { status: 409 }));
     const response = await post(detailAction, 'devoluciones/d-1', [['intent', 'refund']], 'd-1');
     await expect(response.json()).resolves.toEqual({ ok: false, message: 'La caja está cerrada. Abrila en Caja para devolver en efectivo.' });
   });

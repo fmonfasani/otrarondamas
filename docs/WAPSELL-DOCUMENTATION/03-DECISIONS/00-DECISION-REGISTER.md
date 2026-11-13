@@ -1015,3 +1015,25 @@ Effects:
   was ignored) and `Devolucion`.
 - Not in this slice (workshop items still open): customer-initiated returns from the store, exchanges, rejection after
   inspection, configurable rules per Business/Product/Customer, events in the conversation.
+
+### OR-B4-035 — Customer returns, second round: 13 rules — 2026-11-13
+
+**Status:** APPROVED — OWNER RULING. Owner answer (verbatim) to the 13 proposals with three options each: "All recommended ITS ok".
+
+1. Customers request returns from "Mis pedidos" in the store; they arrive "Por autorizar" (workshop 391).
+2. Exchange instead of refund: the return closes and a sale of the new product is created, charging or giving back the difference (422–423).
+3. After inspection the Owner chooses: full refund, partial refund (amount entered) or reject (no money, product back to the customer) (404).
+4. Each Business sets its return window (Ajustes); per-product exceptions later (405, 406).
+5. Past the window the Owner can still authorize, with a recorded reason.
+6. Reasons from a fixed Wapsell list (roto, vencido, producto equivocado, no le gustó, otro) plus a comment (415–416).
+7. Sales paid with several methods: the person refunding chooses method and amount for each, pre-filled proportionally.
+8. Mercado Pago refunds automatic through the connected account once Mercado Pago is live; manual until then (398).
+9. Cash refund with the register closed stays blocked until it is opened.
+10. A return can be cancelled, with a reason, while "Por autorizar" or "Por recibir" (no stock or money moved yet).
+11. The Gestor de stock can receive and inspect returns; money stays with Owner/Admin (amends the role matrix).
+12. Each step posts an automatic message in the customer's conversation (400).
+13. Shipping cost refunded when the fault is the Business's (by reason) (426).
+
+Implementation note: `EstadoDevolucion` has no CANCELADA/RECHAZADA value and the migration history is broken, so a cancelled or
+rejected return is stored as PROCESADA with a `Reembolso` in state RECHAZADO and its reason; the panel shows it as
+"Cancelada" / "Rechazada". Delivered in batches: 6, 10, 3, 12 first; then 1, 2; then 4, 5, 7, 8, 11, 13.

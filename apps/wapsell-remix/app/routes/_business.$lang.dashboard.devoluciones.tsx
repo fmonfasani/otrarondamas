@@ -3,7 +3,7 @@ import { Link, useLoaderData, useParams, useSearchParams } from '@remix-run/reac
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
-import { RETURN_STATES, returnNumber, type CustomerReturn } from '~/utils/returns';
+import { returnNumber, returnState, type CustomerReturn } from '~/utils/returns';
 
 export const meta: MetaFunction = () => [{ title: 'Devoluciones · Wapsell' }];
 
@@ -12,7 +12,7 @@ const FILTERS = [
   { value: 'SOLICITADA', label: 'Por autorizar' },
   { value: 'AUTORIZADA', label: 'Por recibir' },
   { value: 'RECIBIDA', label: 'Por reembolsar' },
-  { value: 'PROCESADA', label: 'Terminadas' },
+  { value: 'PROCESADA', label: 'Cerradas' },
 ];
 
 /**
@@ -80,7 +80,7 @@ export default function Devoluciones() {
             </thead>
             <tbody>
               {returns.map((r) => {
-                const state = RETURN_STATES[r.estado] ?? { label: r.estado, tone: 'muted' };
+                const state = returnState(r);
                 return (
                   <tr key={r.id}>
                     <td>

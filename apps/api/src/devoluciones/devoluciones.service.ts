@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDevolucionDto, ProcessRefundDto, ReceiveDevolucionDto } from './dto';
+import {
+  CreateDevolucionDto,
+  CreateDevolucionItemDto,
+  ProcessRefundDto,
+  RETURN_REASONS,
+  ReceiveDevolucionDto,
+} from './dto';
+import { ReturnNotifierService } from './return-notifier.service';
 
 /** OR-B4-034: a sale can be returned up to 10 days after it was made. */
 export const RETURN_WINDOW_DAYS = 10;
@@ -18,6 +25,21 @@ const DESTINATION_NOTE = {
 } as const;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const money = (n: number) =>
+  `$ ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** OR-B4-035 rule 6 — the stored reason: the fixed label plus the comment, if any. */
+export const reasonText = (item: Pick<CreateDevolucionItemDto, 'motivoCodigo' | 'motivo'>) => {
+  const label = RETURN_REASONS[item.motivoCodigo];
+  const comment = item.motivo?.trim();
+  return comment ? `${label}: ${comment}` : label;
+};
+
+/**
+ * OR-B4-035 — a return closed without a refund (cancelled, or rejected after inspection) is
+ * stored as PROCESADA with a RECHAZADO refund whose result starts with one of these.
+ */
+export const CLOSED_PREFIX = { CANCEL: 'Cancelada', REJECT: 'Rechazada tras inspección' } as const;
 
 /**
  * Customer returns (OR-B4-034), registered by the team from the original sale:
@@ -31,7 +53,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  */
 @Injectable()
 export class DevolucionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifier: ReturnNotifierService,
+  ) {}
 
   private readonly include = {
     Cliente: { select: { id: true, nombre: true } },
@@ -136,7 +161,14 @@ export class DevolucionesService {
 
     const returned = await this.prisma.devolucionClienteItem.groupBy({
       by: ['ventaItemId'],
-      where: { DevolucionCliente: { ventaId: sale.id, empresaId: companyId } },
+      where: {
+        DevolucionCliente: {
+          ventaId: sale.id,
+          empresaId: companyId,
+          // A cancelled or rejected return (OR-B4-035) took nothing back.
+          NOT: { Reembolso: { is: { estado: 'RECHAZADO' } } },
+        },
+      },
       _sum: { cantidad: true },
     });
     const returnedOf = new Map(returned.map((r) => [r.ventaItemId, Number(r._sum.cantidad ?? 0)]));
@@ -166,7 +198,7 @@ export class DevolucionesService {
         precioDevuelto: new Prisma.Decimal(unit),
         descuentoItem: new Prisma.Decimal(0),
         montoLineaDevuelto: new Prisma.Decimal(round2(unit * item.cantidad)),
-        motivo: item.motivo,
+        motivo: reasonText(item),
       };
     });
     const total = round2(lines.reduce((sum, l) => sum + Number(l.montoLineaDevuelto), 0));
@@ -189,7 +221,7 @@ export class DevolucionesService {
             diasDesdeVenta: days,
             montoTotal: new Prisma.Decimal(total),
             montoReembolsable: new Prisma.Decimal(total),
-            motivo: dto.motivo_general?.trim() || dto.items.map((i) => i.motivo).join('; '),
+            motivo: dto.motivo_general?.trim() || lines.map((l) => l.motivo).join('; '),
             DevolucionClienteItem: { create: lines },
           },
         });
@@ -207,6 +239,14 @@ export class DevolucionesService {
         return row;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    await this.notifier.notify(
+      companyId,
+      clienteId,
+      created.id,
+      'solicitada',
+      `Registramos tu devolución #${created.numeroDevolucion} de la venta ${sale.numero ?? ''}. ` +
+        'Te avisamos cuando la autoricemos.',
     );
     return this.view(await this.load(companyId, created.id));
   }
@@ -258,6 +298,13 @@ export class DevolucionesService {
         },
       }),
     ]);
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'autorizada',
+      `Autorizamos tu devolución #${row.numeroDevolucion}. Acercanos los productos para revisarlos.`,
+    );
     return this.view(await this.load(companyId, id));
   }
 
@@ -333,6 +380,13 @@ export class DevolucionesService {
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'recibida',
+      `Recibimos y revisamos los productos de tu devolución #${row.numeroDevolucion}. Falta el reembolso.`,
     );
     return this.view(await this.load(companyId, id));
   }
@@ -425,12 +479,17 @@ export class DevolucionesService {
       },
       _sum: { montoActual: true },
     });
-    const amount = round2(
+    const maximum = round2(
       Math.max(
         0,
         Math.min(Number(row.montoReembolsable), collected - Number(previous._sum.montoActual ?? 0)),
       ),
     );
+    if (dto.amount !== undefined && round2(dto.amount) > maximum) {
+      throw new BadRequestException(`Se pueden devolver como máximo ${money(maximum)}.`);
+    }
+    const amount = dto.amount === undefined ? maximum : round2(dto.amount);
+    const partial = amount < maximum;
     const method = payments[0]?.medio ?? null;
     const notes = dto.notes?.trim();
 
@@ -460,10 +519,12 @@ export class DevolucionesService {
               referenciaId: row.id,
             },
           });
-          resultado = 'Devuelto en efectivo desde la caja';
+          resultado = partial
+            ? 'Devuelto en parte, en efectivo desde la caja'
+            : 'Devuelto en efectivo desde la caja';
         } else {
           estado = 'PENDIENTE_MANUAL';
-          resultado = `Devolver por ${method ?? 'el medio original'} fuera de Wapsell`;
+          resultado = `Devolver${partial ? ' en parte' : ''} por ${method ?? 'el medio original'} fuera de Wapsell`;
         }
         await tx.reembolso.create({
           data: {
@@ -490,13 +551,115 @@ export class DevolucionesService {
             accion: 'REEMBOLSO',
             entidadAfectada: 'DevolucionCliente',
             entidadId: id,
-            valoresPosteriores: { monto: amount, metodo: method, estado },
+            valoresPosteriores: { monto: amount, maximo: maximum, metodo: method, estado },
             ventaId: row.ventaId,
           },
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'reembolsada',
+      this.refundNotice(row.numeroDevolucion, amount, method),
+    );
     return this.view(await this.load(companyId, id));
+  }
+
+  private refundNotice(numero: number | null, amount: number, method: string | null) {
+    if (amount === 0) return `Tu devolución #${numero} terminó.`;
+    if (method === 'efectivo') {
+      return `Tu devolución #${numero} terminó: te devolvimos ${money(amount)} en efectivo.`;
+    }
+    return `Tu devolución #${numero} terminó: te devolvemos ${money(amount)} por ${method ?? 'el medio con que pagaste'}.`;
+  }
+
+  /**
+   * OR-B4-035 rule 10 — cancel, with a reason, while nothing moved yet (SOLICITADA or
+   * AUTORIZADA): no stock, no money.
+   */
+  async cancel(companyId: string, id: string, userId: string, motivo: string) {
+    const row = await this.load(companyId, id);
+    if (row.estado !== 'SOLICITADA' && row.estado !== 'AUTORIZADA') {
+      throw new ConflictException('Solo se puede cancelar antes de recibir los productos');
+    }
+    const reason = motivo.trim();
+    await this.close(companyId, row, userId, 'CANCELAR', `${CLOSED_PREFIX.CANCEL}: ${reason}`);
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'cancelada',
+      `Cancelamos tu devolución #${row.numeroDevolucion}. Motivo: ${reason}`,
+    );
+    return this.view(await this.load(companyId, id));
+  }
+
+  /**
+   * OR-B4-035 rule 3 — after inspecting the products the Business rejects the return: no
+   * money, the products go back to the customer, so the stock does not move.
+   */
+  async reject(companyId: string, id: string, userId: string, motivo: string) {
+    const row = await this.load(companyId, id);
+    if (row.estado !== 'AUTORIZADA') {
+      throw new ConflictException(
+        row.estado === 'SOLICITADA'
+          ? 'Primero hay que autorizar la devolución'
+          : 'La devolución ya fue recibida',
+      );
+    }
+    const reason = motivo.trim();
+    await this.close(companyId, row, userId, 'RECHAZAR', `${CLOSED_PREFIX.REJECT}: ${reason}`);
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'rechazada',
+      `Revisamos los productos de tu devolución #${row.numeroDevolucion} y no podemos aceptarla: ${reason}. Te los devolvemos.`,
+    );
+    return this.view(await this.load(companyId, id));
+  }
+
+  /** Closes a return without refunding it: PROCESADA plus a RECHAZADO refund of 0. */
+  private async close(
+    companyId: string,
+    row: Awaited<ReturnType<DevolucionesService['load']>>,
+    userId: string,
+    accion: 'CANCELAR' | 'RECHAZAR',
+    resultado: string,
+  ) {
+    await this.prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.devolucionCliente.updateMany({
+          where: { id: row.id, empresaId: companyId, estado: row.estado },
+          data: { estado: 'PROCESADA', fechaProcesada: new Date() },
+        });
+        if (updated.count !== 1) throw new ConflictException('La devolución cambió mientras tanto');
+        await tx.reembolso.create({
+          data: {
+            devolucionClienteId: row.id,
+            empresaId: companyId,
+            estado: 'RECHAZADO',
+            montoReembolsable: row.montoReembolsable,
+            montoActual: new Prisma.Decimal(0),
+            resultado,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            empresaId: companyId,
+            usuarioId: userId,
+            accion,
+            entidadAfectada: 'DevolucionCliente',
+            entidadId: row.id,
+            valoresPosteriores: { resultado },
+            ventaId: row.ventaId,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 }

@@ -1,5 +1,5 @@
-/** Shapes of /devoluciones and the pure helpers of the Devoluciones screens (OR-B4-034). */
-import { formatMoney } from './format';
+/** Shapes of /devoluciones and the pure helpers of the Devoluciones screens (OR-B4-034, OR-B4-035). */
+import { formatMoney, parseArsNumber } from './format';
 
 export type ReturnItem = {
   id: string;
@@ -42,6 +42,30 @@ export const RETURN_STATES: Record<string, { label: string; tone: string; next: 
   PROCESADA: { label: 'Terminada', tone: 'success', next: '' },
 };
 
+/** OR-B4-035 rule 6 — the fixed reasons (API RETURN_REASONS); «Otro» needs a comment. */
+export const RETURN_REASONS = [
+  { value: 'ROTO', label: 'Roto o dañado' },
+  { value: 'VENCIDO', label: 'Vencido' },
+  { value: 'PRODUCTO_EQUIVOCADO', label: 'Producto equivocado' },
+  { value: 'NO_LE_GUSTO', label: 'No le gustó' },
+  { value: 'OTRO', label: 'Otro' },
+] as const;
+
+/**
+ * The state to show. A cancelled or rejected return (OR-B4-035) is stored as PROCESADA with a
+ * RECHAZADO refund; its result says which one it was.
+ */
+export function returnState(r: Pick<CustomerReturn, 'estado' | 'reembolso'>) {
+  if (r.estado === 'PROCESADA' && r.reembolso?.estado === 'RECHAZADO') {
+    return r.reembolso.resultado?.startsWith('Cancelada')
+      ? { label: 'Cancelada', tone: 'muted', next: '' }
+      : { label: 'Rechazada', tone: 'muted', next: '' };
+  }
+  return RETURN_STATES[r.estado] ?? { label: r.estado, tone: 'muted', next: '' };
+}
+
+export const isClosedWithoutRefund = (r: Partial<Pick<CustomerReturn, 'reembolso'>>) => r.reembolso?.estado === 'RECHAZADO';
+
 export const DESTINATIONS = [
   { value: 'REINGRESO', label: 'Vuelve a la venta', help: 'El stock vuelve a los lotes de donde salió.' },
   { value: 'DESCARTE', label: 'Descarte', help: 'No vuelve al stock (dañado, vencido).' },
@@ -55,33 +79,41 @@ export function returnWindow(saleDate: string, now = new Date()) {
   return { days, open: days <= RETURN_WINDOW_DAYS, left: Math.max(0, RETURN_WINDOW_DAYS - days) };
 }
 
-/** Units of each sale line already returned in earlier returns of the same sale. */
-export function returnedBySaleItem(returns: Array<Pick<CustomerReturn, 'ventaId' | 'items'>>, saleId: string) {
+/** Units of each sale line already returned in earlier returns of the same sale (cancelled or rejected ones took nothing back). */
+export function returnedBySaleItem(
+  returns: Array<Pick<CustomerReturn, 'ventaId' | 'items'> & Partial<Pick<CustomerReturn, 'reembolso'>>>,
+  saleId: string,
+) {
   const map = new Map<string, number>();
-  for (const r of returns.filter((x) => x.ventaId === saleId)) {
+  for (const r of returns.filter((x) => x.ventaId === saleId && !isClosedWithoutRefund(x))) {
     for (const item of r.items) map.set(item.ventaItemId, (map.get(item.ventaItemId) ?? 0) + item.cantidad);
   }
   return map;
 }
 
+export type ReturnLineInput = { ventaItemId: string; cantidad: number; motivoCodigo: string; motivo?: string };
+
 /**
- * The lines the form asks to return: every sale line with a quantity > 0 and a reason.
- * Quantities are whole units and never more than what is still returnable.
+ * The lines the form asks to return: every sale line with a quantity > 0 and a reason from the
+ * list (a comment is optional, except for «Otro»). Quantities are whole units and never more
+ * than what is still returnable.
  */
 export function returnItemsFrom(
   form: FormData,
   lines: Array<{ ventaItemId: string; nombre: string; available: number }>,
-): { ok: true; items: Array<{ ventaItemId: string; cantidad: number; motivo: string }> } | { ok: false; message: string } {
-  const items: Array<{ ventaItemId: string; cantidad: number; motivo: string }> = [];
+): { ok: true; items: ReturnLineInput[] } | { ok: false; message: string } {
+  const items: ReturnLineInput[] = [];
   for (const line of lines) {
     const raw = String(form.get(`cantidad-${line.ventaItemId}`) ?? '').trim();
     if (!raw || raw === '0') continue;
     const cantidad = Number(raw);
     if (!Number.isInteger(cantidad) || cantidad < 0) return { ok: false, message: `La cantidad de ${line.nombre} tiene que ser un número entero.` };
     if (cantidad > line.available) return { ok: false, message: `De ${line.nombre} se pueden devolver como máximo ${line.available}.` };
+    const motivoCodigo = String(form.get(`razon-${line.ventaItemId}`) ?? '');
+    if (!RETURN_REASONS.some((r) => r.value === motivoCodigo)) return { ok: false, message: `Elegí por qué se devuelve ${line.nombre}.` };
     const motivo = String(form.get(`motivo-${line.ventaItemId}`) ?? '').trim();
-    if (!motivo) return { ok: false, message: `Contá por qué se devuelve ${line.nombre}.` };
-    items.push({ ventaItemId: line.ventaItemId, cantidad, motivo });
+    if (motivoCodigo === 'OTRO' && !motivo) return { ok: false, message: `Contá por qué se devuelve ${line.nombre}.` };
+    items.push({ ventaItemId: line.ventaItemId, cantidad, motivoCodigo, ...(motivo ? { motivo } : {}) });
   }
   if (items.length === 0) return { ok: false, message: 'Indicá qué productos se devuelven.' };
   return { ok: true, items };
@@ -93,6 +125,18 @@ export function destinationsFrom(form: FormData, items: ReturnItem[]) {
   const missing = chosen.find((c) => !DESTINATIONS.some((d) => d.value === c.destino));
   if (missing) return { ok: false as const, message: `Elegí qué pasa con ${missing.producto}.` };
   return { ok: true as const, items: chosen.map(({ itemId, destino }) => ({ itemId, destino })) };
+}
+
+/**
+ * OR-B4-035 rule 3 — the amount to refund: empty means all of it; otherwise more than 0 and
+ * no more than what the return is worth. `amount` is only set for a partial refund.
+ */
+export function refundAmountFrom(form: FormData, maximum: number): { ok: true; amount?: number } | { ok: false; message: string } {
+  const value = parseArsNumber(form.get('amount'));
+  if (value === null) return { ok: true };
+  if (!Number.isFinite(value) || value <= 0) return { ok: false, message: 'Escribí un monto mayor a 0.' };
+  if (Math.round(value * 100) > Math.round(maximum * 100)) return { ok: false, message: `Se puede devolver como máximo ${formatMoney(maximum)}.` };
+  return Math.round(value * 100) === Math.round(maximum * 100) ? { ok: true } : { ok: true, amount: Math.round(value * 100) / 100 };
 }
 
 const METHOD_LABELS: Record<string, string> = { efectivo: 'efectivo', transferencia: 'transferencia', QR: 'QR / billetera', MERCADOPAGO: 'Mercado Pago' };
