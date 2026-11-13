@@ -83,3 +83,58 @@ export function canChangeStatus(member: TeamMember, viewerRole: string | null) {
 }
 
 export const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+/**
+ * Where a staff member stands with their dossier (RF-17), for the panel notice:
+ * - pending: they can sign in but not operate until the Owner approves it;
+ * - relogin: approved, but the session was opened while pending (the API reads the state
+ *   from the session token), so they need to sign in again;
+ * - ok: nothing to say.
+ */
+export type DossierStanding = 'ok' | 'pending' | 'relogin';
+
+export function dossierStanding(role: string, stored: string | null | undefined, inSession: string | null | undefined): DossierStanding {
+  if (role === 'OWNER') return 'ok';
+  if (stored === 'PENDIENTE') return 'pending';
+  if (inSession === 'PENDIENTE') return 'relogin';
+  return 'ok';
+}
+
+/** Documents RF-17 asks every staff member for (API DOSSIER_DOCUMENT_TYPES). */
+export const DOCUMENT_TYPES = [
+  { value: 'ANTECEDENTES_PENALES', label: 'Certificado de antecedentes penales' },
+  { value: 'CONSTANCIA_CUIL', label: 'Constancia de CUIL' },
+] as const;
+
+/** The API refuses files over 10 MB. */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+export type DossierDocument = { id: string; tipo: string; nombreArchivo: string; vencimiento: string; createdAt: string };
+
+type DossierField = { name: string; label: string; inputMode?: 'numeric' | 'tel' | 'text'; autoComplete?: string };
+
+/** The data the API requires from each role (REQUIRED_FIELDS_BY_ROLE). */
+export function dossierFieldsFor(role: string): DossierField[] {
+  if (role === 'OWNER') {
+    return [
+      { name: 'cuit', label: 'CUIT', inputMode: 'numeric' },
+      { name: 'razonSocial', label: 'Razón social', autoComplete: 'organization' },
+      { name: 'condicionIva', label: 'Condición frente al IVA' },
+    ];
+  }
+  return [
+    { name: 'dni', label: 'DNI', inputMode: 'numeric' },
+    { name: 'telefono', label: 'Teléfono', inputMode: 'tel', autoComplete: 'tel' },
+    { name: 'direccion', label: 'Dirección', autoComplete: 'street-address' },
+  ];
+}
+
+/** State chip and next step of the person's own dossier. */
+export function dossierProgress(state: string | null, missing: string[]) {
+  if (state === 'APROBADO') return { label: 'Legajo aprobado', tone: 'success', hint: '' };
+  if (missing.length > 0) {
+    const sentence = missingSentence(missing).replace('Todavía no se puede aprobar. Le falta cargar:', 'Para que el Owner pueda aprobarlo, falta:');
+    return { label: 'Legajo pendiente', tone: 'warning', hint: sentence };
+  }
+  return { label: 'Esperando aprobación', tone: 'warning', hint: 'Ya está todo cargado. Avisale al Owner para que lo apruebe desde Equipo.' };
+}

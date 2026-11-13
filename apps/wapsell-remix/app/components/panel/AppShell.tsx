@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Form, NavLink, useLocation } from '@remix-run/react';
+import { Form, Link, NavLink, useLocation } from '@remix-run/react';
 import type { LucideIcon } from 'lucide-react';
 import { Boxes, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { Logo } from '~/components/brand/Logo';
@@ -33,6 +33,8 @@ export interface ShellUser {
   nombre: string;
   empresaNombre: string;
   rol: string;
+  /** RF-17: whether to tell the person their dossier blocks them (see dossierStanding). */
+  dossier?: 'ok' | 'pending' | 'relogin';
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -78,6 +80,9 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
                 <b>{user.nombre}</b>
                 <span>{user.empresaNombre}</span>
               </p>
+              <Link to={`/${lang}/dashboard/mi-legajo`} className="ws-panel__menu-link">
+                Mi legajo
+              </Link>
               <Form method="post" action="/logout">
                 <button type="submit">
                   <LogOut size={16} aria-hidden="true" /> Cerrar sesión
@@ -103,8 +108,34 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
             </NavLink>
           ))}
         </nav>
-        <main className="ws-panel__main">{children}</main>
+        <main className="ws-panel__main">
+          <DossierNotice standing={user.dossier ?? 'ok'} lang={lang} onDossierPage={pathname.endsWith('/mi-legajo')} />
+          {children}
+        </main>
       </div>
     </div>
   );
+}
+
+/** Why the panel cannot load data for a person whose dossier is not approved yet. */
+function DossierNotice({ standing, lang, onDossierPage }: Readonly<{ standing: string; lang: string; onDossierPage: boolean }>) {
+  if (standing === 'pending' && !onDossierPage) {
+    return (
+      <p className="ws-alert ws-dossier-notice" role="alert">
+        Todavía no podés operar: completá tu legajo y esperá que el Owner lo apruebe.{' '}
+        <Link className="ws-link" to={`/${lang}/dashboard/mi-legajo`}>Completar mi legajo</Link>
+      </p>
+    );
+  }
+  if (standing === 'relogin') {
+    return (
+      <div className="ws-notice ws-dossier-notice" role="status">
+        Tu legajo ya fue aprobado. Cerrá sesión y volvé a ingresar para empezar a operar.{' '}
+        <Form method="post" action="/logout" className="ws-dossier-notice__form">
+          <button type="submit" className="ws-link">Cerrar sesión</button>
+        </Form>
+      </div>
+    );
+  }
+  return null;
 }
