@@ -4,10 +4,13 @@ import { ArrowLeft } from 'lucide-react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
+import { PAYMENT_METHODS, type SearchProduct } from '~/utils/sales';
 import {
   DESTINATIONS,
   canManageReturns,
   destinationsFrom,
+  exchangeItemsFrom,
+  exchangeSummary,
   isClosedWithoutRefund,
   refundAmountFrom,
   refundDescription,
@@ -30,8 +33,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const sale = await settle(
       apiRequest<{ Pago: Array<{ medio: string; monto: string; estado: string }> }>(token, `/ventas/${encodeURIComponent(found.ventaId)}`),
     );
-    const paid = (sale?.Pago ?? []).filter((p) => p.estado === 'APROBADO').sort((a, b) => Number(b.monto) - Number(a.monto));
-    return json({ found, role: String(user?.rol ?? ''), method: paid[0]?.medio ?? null });
+    const paid = (sale?.Pago ?? [])
+      .filter((p) => p.estado === 'APROBADO' && p.medio !== 'cambio')
+      .sort((a, b) => Number(b.monto) - Number(a.monto));
+    // OR-B4-035 rule 2 — products to take in exchange, searched like in Ventas.
+    const search = new URL(request.url).searchParams.get('buscar')?.trim() ?? '';
+    const products =
+      found.estado === 'RECIBIDA' && search.length >= 2
+        ? ((await settle(apiRequest<SearchProduct[]>(token, `/ventas/productos?search=${encodeURIComponent(search)}`))) ?? [])
+        : [];
+    return json({ found, role: String(user?.rol ?? ''), method: paid[0]?.medio ?? null, search, products });
   } catch (error) {
     if (error instanceof ApiError) throw new Response(error.message, { status: error.status });
     throw error;
@@ -73,6 +84,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
       return json({ ok: true, message: 'Reembolso registrado. La devolución terminó.' });
     }
+    if (intent === 'exchange') {
+      const parsed = exchangeItemsFrom(form);
+      if (!parsed.ok) return json({ ok: false, message: parsed.message }, { status: 400 });
+      const medio = String(form.get('medio') ?? '');
+      const done = await apiRequest<{ ventaNueva: { id: string; numero: number | null; diferencia: string; resto: string; pendiente: string } }>(
+        token,
+        `/devoluciones/${id}/exchange`,
+        { method: 'PUT', body: JSON.stringify({ items: parsed.items, ...(medio ? { medio } : {}) }) },
+      );
+      return json({ ok: true, message: exchangeSummary(done.ventaNueva), saleId: done.ventaNueva.id });
+    }
     if (intent === 'cancel' || intent === 'reject') {
       const motivo = String(form.get('motivo') ?? '').trim();
       if (!motivo) return json({ ok: false, message: 'Contá el motivo.' }, { status: 400 });
@@ -94,7 +116,7 @@ const STEPS = [
 ] as const;
 
 export default function ReturnPage() {
-  const { found, role, method } = useLoaderData<typeof loader>();
+  const { found, role, method, search, products } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
@@ -123,7 +145,17 @@ export default function ReturnPage() {
       </div>
 
       {params.get('nueva') === '1' && !result && <p className="ws-notice" role="status">Devolución registrada. {state.next}</p>}
-      {result && <p className={result.ok ? 'ws-notice' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
+      {result && (
+        <p className={result.ok ? 'ws-notice' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>
+          {result.message}
+          {'saleId' in result && result.saleId ? (
+            <>
+              {' '}
+              <Link className="ws-link" to={`/${lang}/dashboard/ventas/${result.saleId}`}>Ver la venta</Link>
+            </>
+          ) : null}
+        </p>
+      )}
 
       <ol className="ws-return-steps" aria-label="Pasos de la devolución">
         {steps.map((step) => {
@@ -219,6 +251,55 @@ export default function ReturnPage() {
                   Reembolsar
                 </button>
               </Form>
+            )}
+            {manage && found.estado === 'RECIBIDA' && (
+              <details className="ws-return-close" open={Boolean(search)}>
+                <summary>Cambiar por otros productos</summary>
+                <p className="ws-meta">
+                  En vez de devolver el dinero, se lleva otros productos. El crédito es {formatMoney(found.montoReembolsable)}; si
+                  cuesta más paga la diferencia, si cuesta menos se le devuelve el resto.
+                </p>
+                <Form method="get" className="ws-return-search">
+                  <label className="ws-field">
+                    <span className="ws-field__label">Buscar producto</span>
+                    <span className="ws-field__control"><input name="buscar" defaultValue={search} minLength={2} placeholder="Nombre o código" /></span>
+                  </label>
+                  <button className="ws-button ws-button--outline ws-button--auto" type="submit">Buscar</button>
+                </Form>
+                {search && products.length === 0 && <p className="ws-meta">No hay productos con «{search}».</p>}
+                {products.length > 0 && (
+                  <Form method="post" className="ws-pos__checkout">
+                    <input type="hidden" name="intent" value="exchange" />
+                    <ul className="ws-return-lines">
+                      {products.map((p) => (
+                        <li key={p.id}>
+                          <span className="ws-pos__line-name">
+                            <b>{p.nombre}</b>
+                            <small>{formatMoney(p.precioMinorista)} · stock {p.stockDisponible}</small>
+                          </span>
+                          <label className="ws-field ws-return-qty">
+                            <span className="ws-field__label">Cantidad</span>
+                            <span className="ws-field__control">
+                              <input name={`cambio-${p.id}`} type="number" min={0} max={p.stockDisponible} step={1} defaultValue={0} inputMode="numeric" />
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <label className="ws-field">
+                      <span className="ws-field__label">Si cuesta más, paga la diferencia con</span>
+                      <span className="ws-field__control">
+                        <select name="medio" defaultValue="efectivo">
+                          {PAYMENT_METHODS.map((m) => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                          ))}
+                        </select>
+                      </span>
+                    </label>
+                    <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Hacer el cambio</button>
+                  </Form>
+                )}
+              </details>
             )}
             {manage && found.estado === 'AUTORIZADA' && (
               <details className="ws-return-close">

@@ -4,6 +4,8 @@ import { action as newAction } from '../app/routes/_business.$lang.dashboard.dev
 import { action as detailAction } from '../app/routes/_business.$lang.dashboard.devoluciones_.$id';
 import {
   destinationsFrom,
+  exchangeItemsFrom,
+  exchangeSummary,
   refundAmountFrom,
   refundDescription,
   returnState,
@@ -56,6 +58,20 @@ describe('returns helpers (OR-B4-034)', () => {
     expect(returnState(closed('Rechazada tras inspección: roto por el cliente')).label).toBe('Rechazada');
     expect(returnState({ estado: 'PROCESADA', reembolso: { estado: 'EXITO', metodo: 'efectivo', monto: '1', resultado: null } }).label).toBe('Terminada');
     expect(returnState({ estado: 'SOLICITADA', reembolso: null }).label).toBe('Por autorizar');
+  });
+
+  it('reads the products taken in exchange and explains the result', () => {
+    expect(exchangeItemsFrom(formOf([['intent', 'exchange'], ['cambio-p1', '2'], ['cambio-p2', '0'], ['medio', 'QR']]))).toEqual({
+      ok: true,
+      items: [{ productoId: 'p1', cantidad: 2 }],
+    });
+    expect(exchangeItemsFrom(formOf([['cambio-p1', '0']]))).toMatchObject({ ok: false });
+    expect(exchangeItemsFrom(formOf([['cambio-p1', '1.5']]))).toMatchObject({ ok: false });
+    const base = { numero: 9, diferencia: '0', resto: '0', pendiente: '0' };
+    expect(exchangeSummary({ ...base, diferencia: '20' })).toMatch(/pagó \$\s20,00 de diferencia/);
+    expect(exchangeSummary({ ...base, resto: '5' })).toMatch(/devolvieron \$\s5,00/);
+    expect(exchangeSummary({ ...base, diferencia: '20', pendiente: '20' })).toContain('Falta cobrar');
+    expect(exchangeSummary(base)).toBe('Cambio hecho con la venta #9.');
   });
 
   it('reads the refund amount: all of it by default, a part when lower, never more', () => {
@@ -149,6 +165,14 @@ describe('returns routes', () => {
     await post(detailAction, 'devoluciones/d-1', [['intent', 'refund'], ['amount', '7,5']], 'd-1');
     expect(api.mock.calls[1][0]).toBe('http://api.test/devoluciones/d-1/process-refund');
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({ amount: 7.5 });
+  });
+
+  it('makes the exchange with the products and the method for the difference', async () => {
+    api.mockResolvedValueOnce(ok({ ventaNueva: { id: 'v-9', numero: 9, diferencia: '20', resto: '0', pendiente: '0' } }));
+    const response = await post(detailAction, 'devoluciones/d-1', [['intent', 'exchange'], ['cambio-p1', '3'], ['medio', 'transferencia']], 'd-1');
+    expect(api.mock.calls[0][0]).toBe('http://api.test/devoluciones/d-1/exchange');
+    expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ items: [{ productoId: 'p1', cantidad: 3 }], medio: 'transferencia' });
+    await expect(response.json()).resolves.toMatchObject({ ok: true, saleId: 'v-9' });
   });
 
   it('cancels and rejects with the reason given', async () => {

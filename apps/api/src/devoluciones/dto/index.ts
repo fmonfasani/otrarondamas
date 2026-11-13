@@ -4,3 +4,4 @@ export * from './receive-devolucione.dto';
 export * from './process-refund.dto';
 export * from './devolucione.response.dto';
 export * from './close-devolucion.dto';
+export * from './exchange-devolucion.dto';

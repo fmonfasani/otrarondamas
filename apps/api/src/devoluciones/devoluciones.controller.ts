@@ -17,6 +17,7 @@ import {
   AuthorizeDevolucionDto,
   CloseDevolucionDto,
   CreateDevolucionDto,
+  ExchangeDevolucionDto,
   ProcessRefundDto,
   ReceiveDevolucionDto,
 } from './dto';
@@ -35,6 +36,7 @@ import { hasCanonicalPermission, type Permission } from '../authorization/canoni
  *   PUT  /devoluciones/:id/authorize       authorize (REFUNDS_MANAGE: Owner, Admin)
  *   PUT  /devoluciones/:id/receive         receive + inspect each product (REFUNDS_MANAGE)
  *   PUT  /devoluciones/:id/process-refund  refund, full or partial, by the original method (PAYMENTS_REFUND)
+ *   PUT  /devoluciones/:id/exchange        exchange for other products instead of a refund (PAYMENTS_REFUND)
  *   PUT  /devoluciones/:id/cancel          cancel before receiving, with a reason (REFUNDS_MANAGE)
  *   PUT  /devoluciones/:id/reject          reject after inspection, with a reason (REFUNDS_MANAGE)
  * Each permission is also checked against the role matrix here, so it holds in every
@@ -181,5 +183,22 @@ export class DevolucionClienteController {
       user.id,
       dto.motivo,
     );
+  }
+
+  @RequirePermission('payments.process_refunds')
+  @CanonicalPermission('PAYMENTS_REFUND')
+  @Put(':id/exchange')
+  @ApiOperation({ summary: 'Exchange the returned products for others (OR-B4-035 rule 2)' })
+  async exchangeDevolucion(
+    @Param('id') id: string,
+    @Body() dto: ExchangeDevolucionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const companyId = await this.companyFor(user, 'PAYMENTS_REFUND');
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (!hasCanonicalPermission(context.role, 'SALES_CREATE')) {
+      throw new ForbiddenException('Requiere el permiso SALES_CREATE');
+    }
+    return this.devolucionesService.exchange(companyId, id, user.id, dto);
   }
 }

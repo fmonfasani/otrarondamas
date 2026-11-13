@@ -672,3 +672,5 @@
 .ws-return-close { margin-top: 12px; border-top: 1px solid var(--ws-border, #e5e7eb); padding-top: 12px; }
 .ws-return-close summary { cursor: pointer; font-weight: 600; }
 .ws-return-close[open] summary { margin-bottom: 8px; }
+.ws-return-search { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+.ws-return-search .ws-field { flex: 1 1 180px; }
