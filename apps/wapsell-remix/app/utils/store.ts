@@ -118,3 +118,25 @@ export function writeStoredCart(slug: string, lines: CartLine[]) {
     // Private mode or blocked storage: the cart just lives in memory.
   }
 }
+
+/** Order states after the Business confirmed it: from here it can be paid online (OR-B4-032). */
+const PAYABLE_STATES = new Set(['CONFIRMADO', 'EN_PREPARACION', 'LISTO', 'ASIGNADO', 'EN_CAMINO', 'ENTREGADO', 'PARCIALMENTE_ENTREGADO']);
+
+/**
+ * What the customer can do about paying an order online: pay the rest, wait for the
+ * Business to confirm it, or nothing (paid, cancelled, or the store takes no online payments).
+ */
+export function paymentOf(order: { estado: string; total: string; pagado?: string }, pagosOnline: boolean) {
+  const remaining = Math.round((Number(order.total) - Number(order.pagado ?? 0)) * 100) / 100;
+  if (remaining <= 0) return { kind: 'paid' as const, remaining: 0 };
+  if (!pagosOnline || order.estado === 'CANCELADO') return { kind: 'none' as const, remaining };
+  if (PAYABLE_STATES.has(order.estado)) return { kind: 'pay' as const, remaining };
+  return { kind: 'wait' as const, remaining };
+}
+
+/** Message after coming back from Mercado Pago (?pago=...). The webhook is what records it. */
+export const PAYMENT_RETURN: Record<string, { ok: boolean; text: string }> = {
+  aprobado: { ok: true, text: '¡Gracias! Mercado Pago aprobó tu pago. Puede tardar unos segundos en verse acá.' },
+  pendiente: { ok: true, text: 'Tu pago quedó pendiente en Mercado Pago. Te avisamos acá cuando se acredite.' },
+  rechazado: { ok: false, text: 'Mercado Pago no aprobó el pago. Podés intentar de nuevo con otro medio.' },
+};

@@ -387,12 +387,17 @@ export class StoreService {
       where: { clienteId: customerId },
       orderBy: { createdAt: 'desc' },
       take: 20,
-      include: { PedidoItem: { include: { Producto: { select: { nombre: true } } } } },
+      include: {
+        PedidoItem: { include: { Producto: { select: { nombre: true } } } },
+        Pago: { where: { estado: 'APROBADO' }, select: { monto: true } },
+      },
     });
     return orders.map((order) => ({
       id: order.id,
       estado: order.estado,
       total: order.total,
+      // OR-B4-032: approved payments so far; the store offers to pay the rest once confirmed.
+      pagado: order.Pago.reduce((sum, pago) => sum + Number(pago.monto), 0).toFixed(2),
       createdAt: order.createdAt,
       items: order.PedidoItem.map((i) => ({
         producto: i.Producto.nombre,

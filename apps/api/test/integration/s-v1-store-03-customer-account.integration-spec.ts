@@ -64,7 +64,7 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
 
   it('shows the store name by slug and 404s an unknown store', async () => {
     const res = await request(BASE).get(`/${companyA.slug}/tienda`).expect(200);
-    expect(res.body).toEqual({ nombre: companyA.nombre, slug: companyA.slug });
+    expect(res.body).toEqual({ nombre: companyA.nombre, slug: companyA.slug, pagosOnline: false });
     await request(BASE).get('/no-such-store/tienda').expect(404);
   });
 

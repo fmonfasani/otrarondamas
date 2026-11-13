@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   Post,
@@ -22,6 +23,8 @@ import {
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CustomerOrderDto } from './dto/customer-order.dto';
 import { StoreService } from './store.service';
+import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
+import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 
 /**
  * STORE-V1-02 — slug-scoped public Store surface.
@@ -40,6 +43,8 @@ export class PublicStoreController {
     private readonly businessContext: BusinessContextService,
     private readonly storeService: StoreService,
     private readonly prisma: PrismaService,
+    private readonly mercadoPago: MercadoPagoAccountService,
+    private readonly checkout: MercadoPagoCheckoutService,
   ) {}
 
   private async companyId(businessSlug: string): Promise<string> {
@@ -66,7 +71,11 @@ export class PublicStoreController {
       select: { nombre: true, slug: true },
     });
     if (!business) throw new NotFoundException('Business no encontrado');
-    return business;
+    // OR-B4-032: whether customers can pay confirmed orders online in this store.
+    const mp = await this.mercadoPago.status(businessId);
+    const pagosOnline =
+      mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
+    return { ...business, pagosOnline };
   }
 
   @Public()
@@ -126,5 +135,19 @@ export class PublicStoreController {
   ) {
     const { businessId, customerId } = await this.customerOf(user, businessSlug);
     return this.storeService.customerOrders(customerId, businessId);
+  }
+
+  /** POST /:slug/tienda/mis-pedidos/:id/pagar — Mercado Pago checkout for a confirmed order. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('mis-pedidos/:id/pagar')
+  @HttpCode(200)
+  async payOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('id') orderId: string,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.checkout.checkoutUrl({ businessId, customerId, orderId, storeSlug: businessSlug });
   }
 }

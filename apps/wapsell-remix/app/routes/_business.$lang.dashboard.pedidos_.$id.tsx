@@ -16,7 +16,20 @@ interface OrderDetail {
   canalOrigen: string;
   Cliente: { nombre: string; email?: string | null; telefono?: string | null };
   PedidoItem: { id: string; cantidad: string; precioUnitario: string; Producto?: { nombre: string } | null }[];
+  Pago?: { id: string; monto: string; estado: string; medio: string; createdAt: string }[];
 }
+
+/** AS-IS Pago states, as the team reads them. */
+const PAYMENT_STATES: Record<string, { label: string; tone: string }> = {
+  APROBADO: { label: 'Aprobado', tone: 'success' },
+  PENDIENTE: { label: 'Pendiente', tone: 'warning' },
+  EN_PROCESO: { label: 'En proceso', tone: 'warning' },
+  RECHAZADO: { label: 'Rechazado', tone: 'primary' },
+  CANCELADO: { label: 'Cancelado', tone: 'muted' },
+  REEMBOLSADO_PARCIAL: { label: 'Reembolso parcial', tone: 'muted' },
+  REEMBOLSADO_TOTAL: { label: 'Reembolsado', tone: 'muted' },
+};
+const MEDIOS: Record<string, string> = { MERCADOPAGO: 'Mercado Pago' };
 
 /** API rule (orders.service cancelOrder): these states can still be cancelled. */
 const CANCELLABLE = new Set(['RECIBIDO', 'CONFIRMADO', 'ENTREGA_FALLIDA']);
@@ -69,6 +82,8 @@ export default function OrderPage() {
   const { lang = 'es' } = useParams();
   const busy = navigation.state === 'submitting';
   const state = orderState(order.estado);
+  const payments = order.Pago ?? [];
+  const paid = payments.filter((p) => p.estado === 'APROBADO').reduce((sum, p) => sum + Number(p.monto), 0);
 
   return (
     <div className="ws-page">
@@ -135,6 +150,36 @@ export default function OrderPage() {
               {order.Cliente.email && <span>{order.Cliente.email}</span>}
               {order.Cliente.telefono && <span>{order.Cliente.telefono}</span>}
             </p>
+          </section>
+
+          <section className="ws-card" aria-labelledby="payments-title">
+            <h2 id="payments-title" className="ws-card__title">Pagos</h2>
+            {payments.length === 0 ? (
+              <p className="ws-meta">Sin pagos online. El cliente puede pagar con Mercado Pago cuando confirmes el pedido.</p>
+            ) : (
+              <ul className="ws-payments">
+                {payments.map((payment) => {
+                  const ps = PAYMENT_STATES[payment.estado] ?? { label: payment.estado, tone: 'muted' };
+                  return (
+                    <li key={payment.id}>
+                      <span>
+                        <span>
+                          <b>{formatMoney(payment.monto)}</b> · {MEDIOS[payment.medio] ?? payment.medio}
+                        </span>
+                        <small>{formatDateTime(payment.createdAt)}</small>
+                      </span>
+                      <span className={`ws-chip ws-chip--${ps.tone}`}>{ps.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {paid > 0 && (
+              <p className="ws-meta">
+                {paid >= Number(order.total) ? 'Pagado completo.' : `Pagado ${formatMoney(paid)} de ${formatMoney(order.total)}.`}
+                {CANCELLABLE.has(order.estado) && ' Si lo cancelás, devolvé el dinero desde Mercado Pago: Wapsell no lo reembolsa solo.'}
+              </p>
+            )}
           </section>
 
           {(order.estado === 'RECIBIDO' || CANCELLABLE.has(order.estado)) && (

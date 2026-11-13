@@ -57,6 +57,11 @@ export class OrdersService {
           },
         },
         PedidoItem: { include: { Producto: { select: { nombre: true } } } },
+        // OR-B4-032: online payments of the order (Mercado Pago), newest first.
+        Pago: {
+          select: { id: true, monto: true, estado: true, medio: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!order) {

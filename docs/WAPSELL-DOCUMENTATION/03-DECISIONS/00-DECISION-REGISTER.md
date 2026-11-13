@@ -964,8 +964,15 @@ Effects:
 - Platform configuration: the Wapsell application in Mercado Pago Developers (`MERCADOPAGO_CLIENT_ID`,
   `MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_OAUTH_REDIRECT_URI`). The global `MERCADOPAGO_ACCESS_TOKEN` is not used by
   this flow.
-- The customer pays an order once the Business has confirmed it (next PR: checkout + webhook with Mercado Pago's real
-  signature scheme). Payment lifecycle independent of the Sale, per R8-PAY-002 C1.
+- The customer pays an order once the Business has confirmed it (CONFIRMADO onwards; RECIBIDO/CANCELADO cannot be
+  paid). The checkout (Mercado Pago preference in the Business's account) charges what is still unpaid; a fully paid
+  order cannot be charged again (R8-PAY-002 D1/E1). Payment lifecycle independent of the Sale (R8-PAY-002 C1).
+- Payments are recorded only from a webhook signed with Mercado Pago's scheme (`x-signature`, manifest
+  `id;request-id;ts`, app secret `MERCADOPAGO_WEBHOOK_SECRET`), reading the payment from Mercado Pago with the
+  Business's token; it must be collected by that Business's account and reference one of its orders. Stored as the
+  AS-IS `Pago` (`medio=MERCADOPAGO`, `referencia=mercadopago:<id>`, states mapped to `EstadoPago`), idempotent per
+  Mercado Pago payment. The return URL never records anything. No schema change.
+- Not automatic: refunding a paid order that is later cancelled (done in Mercado Pago; the panel warns).
 
 ### OR-B4-033 — PAYMENTS_CONFIGURE: only the Owner connects the payment account — 2026-11-12
 

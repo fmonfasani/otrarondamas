@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Delete,
   ForbiddenException,
   Get,
+  Headers,
   HttpCode,
   Logger,
   Post,
@@ -18,6 +20,7 @@ import { CanonicalPermission } from '../../authorization/canonical-permission.de
 import { BusinessContextService } from '../../business-context/business-context.service';
 import { hasCanonicalPermission } from '../../authorization/canonical-permissions';
 import { MercadoPagoAccountService } from './mercadopago-account.service';
+import { MercadoPagoCheckoutService } from './mercadopago-checkout.service';
 
 const DEFAULT_WEB_APP_URL = 'https://app.wapsell.com';
 
@@ -27,6 +30,7 @@ const DEFAULT_WEB_APP_URL = 'https://app.wapsell.com';
  *   POST   /cobros/mercadopago/conectar  URL to authorize Wapsell in Mercado Pago
  *   GET    /cobros/mercadopago/callback  Mercado Pago's redirect (no session: signed state)
  *   DELETE /cobros/mercadopago           disconnect
+ *   POST   /cobros/mercadopago/webhook   payment notifications (no session: MP signature)
  */
 @ApiTags('cobros')
 @Controller('cobros/mercadopago')
@@ -36,6 +40,7 @@ export class MercadoPagoAccountController {
   constructor(
     private readonly accounts: MercadoPagoAccountService,
     private readonly businessContext: BusinessContextService,
+    private readonly checkout: MercadoPagoCheckoutService,
   ) {}
 
   /**
@@ -98,5 +103,22 @@ export class MercadoPagoAccountController {
       back.searchParams.set('mp', status === 409 ? 'otra-cuenta' : 'error');
     }
     return res.redirect(back.toString());
+  }
+
+  /**
+   * Mercado Pago notifications. Public: authenticated by Mercado Pago's x-signature with
+   * the app's webhook secret; the payment itself is then read from Mercado Pago.
+   */
+  @Public()
+  @ApiExcludeEndpoint()
+  @Post('webhook')
+  @HttpCode(200)
+  async webhook(
+    @Headers('x-signature') signature: string | undefined,
+    @Headers('x-request-id') requestId: string | undefined,
+    @Query() query: Record<string, string | undefined>,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.checkout.handleNotification({ signature, requestId, query, body });
   }
 }
