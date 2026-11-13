@@ -650,3 +650,20 @@
 .ws-dossier-notice__form button { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
 .ws-panel__menu-link { display: block; padding: var(--space-8) 0; color: inherit; font-size: 14px; text-decoration: none; }
 .ws-panel__menu-link:hover { text-decoration: underline; }
+
+/* ---------------------------------------------- Devoluciones (OR-B4-034) */
+.ws-return-lines { display: flex; flex-direction: column; gap: var(--space-16); margin: 0; padding: 0; list-style: none; }
+.ws-return-lines li { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-8); padding-bottom: var(--space-16); border-bottom: 1px solid var(--text-muted); }
+.ws-return-qty { max-width: 140px; }
+.ws-radio { display: inline-flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12); border: 1px solid var(--text-muted); border-radius: 999px; font-size: 13px; cursor: pointer; }
+.ws-radio:has(input:checked) { border-color: var(--text-primary); background: var(--background-default); font-weight: 600; }
+.ws-return-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-8); margin: 0; padding: 0; list-style: none; }
+.ws-return-steps li { display: flex; flex-direction: column; gap: 2px; padding: var(--space-12); border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); font-size: 13px; }
+.ws-return-steps li.is-done { border-color: var(--feedback-success); }
+.ws-return-steps small { font-size: 11px; }
+@media (min-width: 900px) { .ws-return-lines li { grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1.2fr); align-items: end; } }
+@media (max-width: 639px) {
+  .ws-return-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws-table--returns th:nth-child(3), .ws-table--returns td:nth-child(3) { display: none; }
+}
+@media (min-width: 900px) { .ws-return-lines--receive li { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } }

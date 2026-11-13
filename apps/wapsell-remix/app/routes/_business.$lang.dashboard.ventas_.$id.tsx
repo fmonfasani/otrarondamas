@@ -1,10 +1,11 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
 import { useState } from 'react';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Printer, RotateCcw } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
+import { returnWindow } from '~/utils/returns';
 import { COLLECTION_STATES, PAYMENT_METHODS, changeFor, parseNumber, paymentBody, paymentFrom, saleErrorMessage, saleNumber, type PaymentMethod } from '~/utils/sales';
 
 export const meta: MetaFunction = () => [{ title: 'Venta · Wapsell' }];
@@ -151,6 +152,11 @@ export default function SalePage() {
         <button type="button" className="ws-button ws-button--outline ws-button--auto" onClick={() => window.print()}>
           <Printer size={16} aria-hidden="true" /> Imprimir comprobante
         </button>
+        {returnWindow(sale.createdAt).open && (
+          <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/devoluciones/nueva?venta=${sale.id}`}>
+            <RotateCcw size={16} aria-hidden="true" /> Registrar devolución
+          </Link>
+        )}
       </div>
 
       {balance > 0 && (

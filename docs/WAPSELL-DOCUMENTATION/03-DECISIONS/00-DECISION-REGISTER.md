@@ -984,3 +984,34 @@ Owner answer (verbatim): "Solo el Owner (Recommended)".
 Effects: new canonical permission `PAYMENTS_CONFIGURE` (high sensitivity), held only by OWNER (ADMIN = all except
 `BRAND_MANAGE` and `PAYMENTS_CONFIGURE`). Checked when the connection starts and again when Mercado Pago calls back.
 Authorization spec updated (§2 catalogue, §4 matrix).
+
+### OR-B4-034 — Customer returns: registered by the team, inspected before restocking, refunded by the original method, 10 days — 2026-11-13
+
+**Status:** APPROVED — OWNER RULING (first slice of the Returns spec; builds on workshop items 391–426)
+
+Context (AS-IS before this decision): `/devoluciones` existed only as a scaffold — every service method threw
+`NotImplementedException('P3-2')`. The tables (`DevolucionCliente`, `DevolucionClienteItem`, `Reembolso`) exist in
+production.
+
+Questions and Owner answers (verbatim):
+- "¿Quién registra una devolución?" → "El equipo en el panel (Recommended)".
+- "Cuando el producto vuelve físicamente, ¿qué pasa con el stock?" → "Revisión antes de volver (Recommended)".
+- "¿Cómo se devuelve la plata?" → "Por el mismo medio que pagó (Recommended)".
+- "¿Hasta cuántos días después de la venta se acepta una devolución?" → "10 días".
+
+Effects:
+
+- Flow `SOLICITADA → AUTORIZADA → RECIBIDA → PROCESADA`. Registering needs `SALES_CREATE` (Owner, Admin, Vendedor);
+  authorizing and receiving `REFUNDS_MANAGE`, refunding `PAYMENTS_REFUND` (Owner, Admin); viewing `RETURNS_VIEW`.
+  Checked against the role matrix in the controller too (holds in shadow mode).
+- Registered from the original sale, up to 10 days after it; never more units than sold minus earlier returns. A return
+  never edits the Sale. A sale to "Consumidor final" asks for the customer (the schema requires one; no schema change).
+- Receiving inspects each product: "vuelve a la venta" returns the units to the lots the sale took them from (stock
+  movement `Entrada`, motivo `Devolución #n`); "descarte" keeps them out of stock.
+- Refund by the method the sale was paid with, never more than what was collected minus earlier refunds of that sale.
+  Cash leaves the open register as a `Devolucion` cash movement; transfer/QR/Mercado Pago are recorded as
+  `PENDIENTE_MANUAL` for the team to return outside Wapsell.
+- Cash count fix in the same change: expected cash now subtracts `Egreso` (a manual cash-out the Caja screen offers, which
+  was ignored) and `Devolucion`.
+- Not in this slice (workshop items still open): customer-initiated returns from the store, exchanges, rejection after
+  inspection, configurable rules per Business/Product/Customer, events in the conversation.
