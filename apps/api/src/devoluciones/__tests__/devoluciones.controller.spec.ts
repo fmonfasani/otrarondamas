@@ -50,7 +50,8 @@ describe('DevolucionClienteController', () => {
     } as CreateDevolucionDto;
     service.create.mockResolvedValue({ id: 'd-1' });
     await expect(controller.createDevolucione(dto, user)).resolves.toEqual({ id: 'd-1' });
-    expect(service.create).toHaveBeenCalledWith('empresa-1', 'usuario-1', dto);
+    // OR-B4-035 rule 5: a Vendedor cannot register past the window (canOverride = false).
+    expect(service.create).toHaveBeenCalledWith('empresa-1', 'usuario-1', dto, expect.any(Date), false);
   });
 
   it('refuses a Gestor de stock registering a return', async () => {
