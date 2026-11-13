@@ -629,3 +629,17 @@
   .ws-receipt { position: absolute; inset: 0 auto auto 0; width: 100%; border: 0; box-shadow: none; }
   .ws-no-print { display: none !important; }
 }
+
+/* ---------------------------------------------- Equipo */
+.ws-team { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-24); align-items: start; }
+.ws-team__invite { display: flex; flex-direction: column; gap: var(--space-16); margin-bottom: var(--space-12); }
+.ws-team__email { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.ws-team__chips { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.ws-team__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-8); }
+.ws-copy { display: flex; gap: var(--space-8); margin-top: var(--space-8); }
+.ws-copy input { flex: 1; min-width: 0; padding: var(--space-8) var(--space-12); border: 1px solid var(--text-muted); border-radius: var(--radius-control); font: inherit; font-size: 12px; }
+@media (min-width: 1100px) { .ws-team { grid-template-columns: minmax(0, 360px) minmax(0, 1fr); } .ws-team > :nth-child(3) { grid-column: 2; } }
+@media (max-width: 639px) {
+  .ws-table--team th:nth-child(2), .ws-table--team td:nth-child(2) { display: none; }
+  .ws-team__actions { justify-content: flex-start; }
+}

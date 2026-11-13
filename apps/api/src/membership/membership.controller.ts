@@ -1,4 +1,4 @@
-import { Controller, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Param, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -10,6 +10,13 @@ import { CanonicalPermission } from '../authorization/canonical-permission.decor
 @Controller('memberships')
 export class MembershipController {
   constructor(private readonly membershipRevocation: MembershipRevocationService) {}
+
+  /** The Business's team (Equipo screen). */
+  @CanonicalPermission('USERS_VIEW')
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.membershipRevocation.listTeam(user);
+  }
 
   @CanonicalPermission('USERS_MANAGE')
   @Patch(':membershipId/suspend')
