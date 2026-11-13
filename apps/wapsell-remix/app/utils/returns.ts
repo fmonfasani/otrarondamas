@@ -139,7 +139,31 @@ export function refundAmountFrom(form: FormData, maximum: number): { ok: true; a
   return Math.round(value * 100) === Math.round(maximum * 100) ? { ok: true } : { ok: true, amount: Math.round(value * 100) / 100 };
 }
 
-const METHOD_LABELS: Record<string, string> = { efectivo: 'efectivo', transferencia: 'transferencia', QR: 'QR / billetera', MERCADOPAGO: 'Mercado Pago' };
+/** OR-B4-035 rule 2 — the products taken in exchange (`cambio-<productoId>` = whole units). */
+export function exchangeItemsFrom(form: FormData): { ok: true; items: Array<{ productoId: string; cantidad: number }> } | { ok: false; message: string } {
+  const items: Array<{ productoId: string; cantidad: number }> = [];
+  for (const [key, value] of form.entries()) {
+    if (!key.startsWith('cambio-')) continue;
+    const raw = String(value).trim();
+    if (!raw || raw === '0') continue;
+    const cantidad = Number(raw);
+    if (!Number.isInteger(cantidad) || cantidad < 0) return { ok: false, message: 'Las cantidades tienen que ser números enteros.' };
+    items.push({ productoId: key.slice('cambio-'.length), cantidad });
+  }
+  if (items.length === 0) return { ok: false, message: 'Elegí los productos que se lleva a cambio.' };
+  return { ok: true, items };
+}
+
+/** What the exchange did, in words. */
+export function exchangeSummary(n: { numero: number | null; diferencia: string; resto: string; pendiente: string }) {
+  const sale = n.numero ? `la venta #${n.numero}` : 'una venta nueva';
+  if (Number(n.pendiente) > 0) return `Cambio hecho con ${sale}. Falta cobrar ${formatMoney(n.pendiente)}: cobralo desde la venta.`;
+  if (Number(n.diferencia) > 0) return `Cambio hecho con ${sale}. El cliente pagó ${formatMoney(n.diferencia)} de diferencia.`;
+  if (Number(n.resto) > 0) return `Cambio hecho con ${sale}. Se devolvieron ${formatMoney(n.resto)} de diferencia.`;
+  return `Cambio hecho con ${sale}.`;
+}
+
+const METHOD_LABELS: Record<string, string> = { efectivo: 'efectivo', transferencia: 'transferencia', QR: 'QR / billetera', MERCADOPAGO: 'Mercado Pago', cambio: 'cambio' };
 
 /** How the refund will be (before) or was (after) made, in words. */
 export function refundDescription(r: Pick<CustomerReturn, 'reembolso' | 'montoReembolsable'>, method: string | null) {

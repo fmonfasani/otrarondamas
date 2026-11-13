@@ -620,4 +620,103 @@ describe('P3-2 — devoluciones', () => {
     expect(notice?.content).toContain('Registramos tu devolución');
     await prisma.cliente.delete({ where: { id: stranger.id } });
   });
+
+  describe('exchange instead of refund (OR-B4-035 rule 2)', () => {
+    async function receivedReturn(cantidad: number, destino: 'REINGRESO' | 'DESCARTE') {
+      const bought = await sale(customer.id, 'efectivo', cantidad);
+      const created = await request(BASE)
+        .post('/devoluciones')
+        .set('Authorization', people.vendedor.auth)
+        .send({
+          ventaId: bought.id,
+          items: [{ ventaItemId: bought.itemId, cantidad, motivoCodigo: 'NO_LE_GUSTO' }],
+        })
+        .expect(201);
+      const id = created.body.id as string;
+      await request(BASE)
+        .put(`/devoluciones/${id}/authorize`)
+        .set('Authorization', people.owner.auth)
+        .send({ condition: 'accepted' })
+        .expect(200);
+      await request(BASE)
+        .put(`/devoluciones/${id}/receive`)
+        .set('Authorization', people.owner.auth)
+        .send({ items: [{ itemId: created.body.items[0].id, destino }] })
+        .expect(200);
+      return id;
+    }
+    const exchange = (id: string, body: Record<string, unknown>, auth = people.owner.auth) =>
+      request(BASE).put(`/devoluciones/${id}/exchange`).set('Authorization', auth).send(body);
+
+    beforeAll(async () => {
+      await prisma.lote.update({ where: { id: lotId }, data: { cantidad: 50 } });
+    });
+
+    it('asks how the difference is paid, without creating anything, and keeps it to Owner/Admin', async () => {
+      const id = await receivedReturn(1, 'REINGRESO');
+      await exchange(
+        id,
+        { items: [{ productoId: product.id, cantidad: 3 }] },
+        people.vendedor.auth,
+      ).expect(403);
+      const res = await exchange(id, { items: [{ productoId: product.id, cantidad: 3 }] });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('$ 20,00 más');
+      expect(await prisma.venta.count({ where: { idempotencyKey: `cambio-${id}` } })).toBe(0);
+
+      const stock = await lotQuantity();
+      const done = await exchange(id, {
+        items: [{ productoId: product.id, cantidad: 3 }],
+        medio: 'transferencia',
+      }).expect(200);
+      expect(done.body).toMatchObject({
+        estado: 'PROCESADA',
+        reembolso: { estado: 'EXITO', metodo: 'cambio', monto: '10' },
+        ventaNueva: {
+          total: '30.00',
+          credito: '10.00',
+          diferencia: '20.00',
+          resto: '0.00',
+          pendiente: '0.00',
+        },
+      });
+      expect(done.body.reembolso.resultado).toContain('el cliente paga $ 20,00 de diferencia');
+      const pagos = await prisma.pago.findMany({
+        where: { ventaId: done.body.ventaNueva.id },
+        orderBy: { monto: 'asc' },
+      });
+      expect(pagos.map((p) => [p.medio, Number(p.monto)])).toEqual([
+        ['cambio', 10],
+        ['transferencia', 20],
+      ]);
+      expect(await lotQuantity()).toBe(stock - 3);
+      await exchange(id, { items: [{ productoId: product.id, cantidad: 1 }] }).expect(409);
+    });
+
+    it('gives back the rest of the credit when the new products cost less', async () => {
+      const id = await receivedReturn(3, 'DESCARTE');
+      const done = await exchange(id, { items: [{ productoId: product.id, cantidad: 1 }] }).expect(
+        200,
+      );
+      expect(done.body.ventaNueva).toMatchObject({
+        total: '10.00',
+        credito: '10.00',
+        diferencia: '0.00',
+        resto: '20.00',
+      });
+      expect(done.body.reembolso).toMatchObject({
+        estado: 'EXITO',
+        metodo: 'efectivo',
+        monto: '30',
+      });
+      const cash = await prisma.movimientoCaja.findFirst({
+        where: { referenciaId: id, tipo: 'Devolucion' },
+      });
+      expect(Number(cash?.monto)).toBe(20);
+      const notice = (await customerMessages()).find(
+        (m) => m.clientMessageId === `devolucion-${id}-cambio`,
+      );
+      expect(notice?.content).toContain('la cambiamos por otros productos');
+    });
+  });
 });

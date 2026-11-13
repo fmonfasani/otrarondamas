@@ -8,12 +8,14 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDevolucionDto,
+  ExchangeDevolucionDto,
   CreateDevolucionItemDto,
   ProcessRefundDto,
   RETURN_REASONS,
   ReceiveDevolucionDto,
 } from './dto';
 import { ReturnNotifierService } from './return-notifier.service';
+import { SalesService } from '../sales/sales.service';
 
 /** OR-B4-034: a sale can be returned up to 10 days after it was made. */
 export const RETURN_WINDOW_DAYS = 10;
@@ -39,6 +41,9 @@ export const reasonText = (item: Pick<CreateDevolucionItemDto, 'motivoCodigo' | 
  * OR-B4-035 — a return closed without a refund (cancelled, or rejected after inspection) is
  * stored as PROCESADA with a RECHAZADO refund whose result starts with one of these.
  */
+/** OR-B4-035 rule 2 — the payment method of the credit a return leaves on an exchange sale. */
+export const EXCHANGE_METHOD = 'cambio';
+
 export const CLOSED_PREFIX = { CANCEL: 'Cancelada', REJECT: 'Rechazada tras inspección' } as const;
 
 /**
@@ -56,6 +61,7 @@ export class DevolucionesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifier: ReturnNotifierService,
+    private readonly sales: SalesService,
   ) {}
 
   private readonly include = {
@@ -561,31 +567,12 @@ export class DevolucionesService {
           : 'Primero hay que recibir los productos',
       );
     }
-    const payments = await this.prisma.pago.findMany({
-      where: { empresaId: companyId, ventaId: row.ventaId, estado: 'APROBADO' },
-      orderBy: { monto: 'desc' },
-    });
-    const collected = payments.reduce((sum, p) => sum + Number(p.monto), 0);
-    const previous = await this.prisma.reembolso.aggregate({
-      where: {
-        empresaId: companyId,
-        DevolucionCliente: { ventaId: row.ventaId },
-        estado: { in: ['EXITO', 'PENDIENTE_MANUAL'] },
-      },
-      _sum: { montoActual: true },
-    });
-    const maximum = round2(
-      Math.max(
-        0,
-        Math.min(Number(row.montoReembolsable), collected - Number(previous._sum.montoActual ?? 0)),
-      ),
-    );
+    const { maximum, method } = await this.refundBasis(companyId, row);
     if (dto.amount !== undefined && round2(dto.amount) > maximum) {
       throw new BadRequestException(`Se pueden devolver como máximo ${money(maximum)}.`);
     }
     const amount = dto.amount === undefined ? maximum : round2(dto.amount);
     const partial = amount < maximum;
-    const method = payments[0]?.medio ?? null;
     const notes = dto.notes?.trim();
 
     await this.prisma.$transaction(
@@ -595,18 +582,11 @@ export class DevolucionesService {
         if (amount === 0) {
           resultado = 'La venta no tenía cobros: no hay dinero para devolver';
         } else if (method === 'efectivo') {
-          const register = await tx.caja.findUnique({ where: { empresaId: companyId } });
-          const opening = register
-            ? await tx.aperturaCaja.findFirst({
-                where: { cajaId: register.id, fechaCierre: null },
-                orderBy: { fechaApertura: 'desc' },
-              })
-            : null;
-          if (!register || !opening) throw new ConflictException('CAJA_CERRADA');
+          const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
           await tx.movimientoCaja.create({
             data: {
-              cajaId: register.id,
-              aperturaCajaId: opening.id,
+              cajaId,
+              aperturaCajaId,
               usuarioId: userId,
               tipo: 'Devolucion',
               monto: new Prisma.Decimal(amount),
@@ -661,6 +641,210 @@ export class DevolucionesService {
       this.refundNotice(row.numeroDevolucion, amount, method),
     );
     return this.view(await this.load(companyId, id));
+  }
+
+  /**
+   * What a received return can give back: its value, never more than what was collected for
+   * the sale minus what earlier returns of it already used; and the method to give it back by
+   * (the sale's largest payment, leaving aside credit from an exchange).
+   */
+  private async refundBasis(
+    companyId: string,
+    row: { ventaId: string; montoReembolsable: Prisma.Decimal },
+  ) {
+    const payments = await this.prisma.pago.findMany({
+      where: { empresaId: companyId, ventaId: row.ventaId, estado: 'APROBADO' },
+      orderBy: { monto: 'desc' },
+    });
+    const collected = payments.reduce((sum, p) => sum + Number(p.monto), 0);
+    const previous = await this.prisma.reembolso.aggregate({
+      where: {
+        empresaId: companyId,
+        DevolucionCliente: { ventaId: row.ventaId },
+        estado: { in: ['EXITO', 'PENDIENTE_MANUAL'] },
+      },
+      _sum: { montoActual: true },
+    });
+    const maximum = round2(
+      Math.max(
+        0,
+        Math.min(Number(row.montoReembolsable), collected - Number(previous._sum.montoActual ?? 0)),
+      ),
+    );
+    const method = payments.find((p) => p.medio !== EXCHANGE_METHOD)?.medio ?? null;
+    return { maximum, method };
+  }
+
+  /** The open register's opening, or CAJA_CERRADA. */
+  private async openRegister(tx: Prisma.TransactionClient | PrismaService, companyId: string) {
+    const register = await tx.caja.findUnique({ where: { empresaId: companyId } });
+    const opening = register
+      ? await tx.aperturaCaja.findFirst({
+          where: { cajaId: register.id, fechaCierre: null },
+          orderBy: { fechaApertura: 'desc' },
+        })
+      : null;
+    if (!register || !opening) throw new ConflictException('CAJA_CERRADA');
+    return { cajaId: register.id, aperturaCajaId: opening.id };
+  }
+
+  /**
+   * OR-B4-035 rule 2 — exchange instead of refund. A new sale of the products the customer
+   * takes is created (stock leaves as in any sale); the return's credit pays it as a
+   * `cambio` payment. If the new products cost more, the customer pays the difference by
+   * the method chosen; if less, the rest of the credit is given back like a refund.
+   * The sale is created with a key tied to the return, so a retry reuses it.
+   */
+  async exchange(companyId: string, id: string, userId: string, dto: ExchangeDevolucionDto) {
+    const row = await this.load(companyId, id);
+    if (row.estado !== 'RECIBIDA') {
+      throw new ConflictException(
+        row.estado === 'PROCESADA'
+          ? 'La devolución ya está cerrada'
+          : 'Primero hay que recibir los productos',
+      );
+    }
+    const { maximum, method } = await this.refundBasis(companyId, row);
+    const quote = await this.sales.quote(
+      { canal: 'presencial', clienteId: row.clienteId, items: dto.items },
+      companyId,
+    );
+    const total = round2(Number(quote.total));
+    const credit = round2(Math.min(maximum, total));
+    const difference = round2(total - credit);
+    const leftover = round2(maximum - credit);
+    if (difference > 0 && !dto.medio) {
+      throw new BadRequestException(
+        `Los productos nuevos cuestan ${money(difference)} más: elegí cómo paga la diferencia.`,
+      );
+    }
+    if ((difference > 0 && dto.medio === 'efectivo') || (leftover > 0 && method === 'efectivo')) {
+      await this.openRegister(this.prisma, companyId);
+    }
+
+    const sale = await this.sales.create(
+      {
+        canal: 'presencial',
+        clienteId: row.clienteId,
+        items: dto.items,
+        idempotencyKey: `cambio-${row.id}`,
+      },
+      companyId,
+      userId,
+    );
+    const saleLabel = `#${sale.numero ?? sale.id.slice(0, 8)}`;
+
+    let estado: 'EXITO' | 'PENDIENTE_MANUAL' = 'EXITO';
+    let resultado = `Cambio por la venta ${saleLabel}`;
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (credit > 0) {
+          await tx.pago.create({
+            data: {
+              empresaId: companyId,
+              usuarioId: userId,
+              ventaId: sale.id,
+              monto: new Prisma.Decimal(credit),
+              medio: EXCHANGE_METHOD,
+              estado: 'APROBADO',
+              referencia: `Devolución #${row.numeroDevolucion}`,
+            },
+          });
+        }
+        if (leftover > 0 && method === 'efectivo') {
+          const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
+          await tx.movimientoCaja.create({
+            data: {
+              cajaId,
+              aperturaCajaId,
+              usuarioId: userId,
+              tipo: 'Devolucion',
+              monto: new Prisma.Decimal(leftover),
+              descripcion: `Resto de la devolución #${row.numeroDevolucion} (cambio por la venta ${saleLabel})`,
+              referenciaId: row.id,
+            },
+          });
+          resultado += ` · se devolvieron ${money(leftover)} en efectivo`;
+        } else if (leftover > 0) {
+          estado = 'PENDIENTE_MANUAL';
+          resultado += ` · devolver ${money(leftover)} por ${method ?? 'el medio original'} fuera de Wapsell`;
+        } else if (difference > 0) {
+          resultado += ` · el cliente paga ${money(difference)} de diferencia`;
+        }
+        await tx.reembolso.create({
+          data: {
+            devolucionClienteId: row.id,
+            empresaId: companyId,
+            estado,
+            montoReembolsable: row.montoReembolsable,
+            // The whole credit used (applied to the new sale + given back), so later returns
+            // of the original sale count it as already returned.
+            montoActual: new Prisma.Decimal(maximum),
+            metodoReembolso: leftover > 0 ? method : EXCHANGE_METHOD,
+            resultado,
+            procesadoEn: estado === 'EXITO' ? new Date() : null,
+          },
+        });
+        const updated = await tx.devolucionCliente.updateMany({
+          where: { id, empresaId: companyId, estado: 'RECIBIDA' },
+          data: { estado: 'PROCESADA', fechaProcesada: new Date() },
+        });
+        if (updated.count !== 1) throw new ConflictException('La devolución cambió mientras tanto');
+        await tx.auditLog.create({
+          data: {
+            empresaId: companyId,
+            usuarioId: userId,
+            accion: 'CAMBIO',
+            entidadAfectada: 'DevolucionCliente',
+            entidadId: id,
+            valoresPosteriores: {
+              ventaNueva: sale.id,
+              total,
+              credito: credit,
+              diferencia: difference,
+              resto: leftover,
+            },
+            ventaId: row.ventaId,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    let pendiente = 0;
+    if (difference > 0 && dto.medio) {
+      try {
+        await this.sales.createPayment(
+          sale.id,
+          { medio: dto.medio, monto: difference, montoRecibido: dto.montoRecibido },
+          companyId,
+          userId,
+        );
+      } catch {
+        // The exchange is done; the difference stays as the new sale's balance to charge
+        // from Ventas.
+        pendiente = difference;
+      }
+    }
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      id,
+      'cambio',
+      `Tu devolución #${row.numeroDevolucion} terminó: la cambiamos por otros productos (venta ${saleLabel}).`,
+    );
+    return {
+      ...this.view(await this.load(companyId, id)),
+      ventaNueva: {
+        id: sale.id,
+        numero: sale.numero,
+        total: total.toFixed(2),
+        credito: credit.toFixed(2),
+        diferencia: difference.toFixed(2),
+        resto: leftover.toFixed(2),
+        pendiente: pendiente.toFixed(2),
+      },
+    };
   }
 
   private refundNotice(numero: number | null, amount: number, method: string | null) {
