@@ -17,7 +17,10 @@ import {
 import { ReturnNotifierService } from './return-notifier.service';
 import { SalesService } from '../sales/sales.service';
 
-/** OR-B4-034: a sale can be returned up to 10 days after it was made. */
+/**
+ * OR-B4-034: a sale can be returned up to 10 days after it was made. OR-B4-035 rule 4: each
+ * Business can change it (Empresa.configuracion.devoluciones.plazoDias); this is the default.
+ */
 export const RETURN_WINDOW_DAYS = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -139,9 +142,64 @@ export class DevolucionesService {
     return qty > 0 ? lineTotal / qty : 0;
   }
 
-  /** Registered by the team (OR-B4-034). */
-  async create(companyId: string, userId: string, dto: CreateDevolucionDto, now = new Date()) {
-    return this.register(companyId, { userId }, dto, now);
+  /** OR-B4-035 rule 4 — the Business's return window, in days. */
+  async windowDays(companyId: string): Promise<number> {
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: companyId },
+      select: { configuracion: true },
+    });
+    const config = (business?.configuracion ?? {}) as { devoluciones?: { plazoDias?: unknown } };
+    const days = Number(config.devoluciones?.plazoDias);
+    return Number.isInteger(days) && days > 0 ? days : RETURN_WINDOW_DAYS;
+  }
+
+  async settings(companyId: string) {
+    return { plazoDias: await this.windowDays(companyId), predeterminado: RETURN_WINDOW_DAYS };
+  }
+
+  async updateSettings(companyId: string, userId: string, plazoDias: number) {
+    const before = await this.windowDays(companyId);
+    await this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUniqueOrThrow({
+        where: { id: companyId },
+        select: { configuracion: true },
+      });
+      const config = { ...((business.configuracion ?? {}) as Record<string, unknown>) };
+      config.devoluciones = {
+        ...((config.devoluciones ?? {}) as Record<string, unknown>),
+        plazoDias,
+      };
+      await tx.empresa.update({
+        where: { id: companyId },
+        data: { configuracion: config as Prisma.InputJsonValue },
+      });
+      await tx.auditLog.create({
+        data: {
+          empresaId: companyId,
+          usuarioId: userId,
+          accion: 'UPDATE',
+          entidadAfectada: 'Empresa.devoluciones',
+          entidadId: companyId,
+          valoresAnteriores: { plazoDias: before },
+          valoresPosteriores: { plazoDias },
+        },
+      });
+    });
+    return this.settings(companyId);
+  }
+
+  /**
+   * Registered by the team (OR-B4-034). `canOverride` (Owner/Admin) lets it go past the
+   * window with a recorded reason (OR-B4-035 rule 5).
+   */
+  async create(
+    companyId: string,
+    userId: string,
+    dto: CreateDevolucionDto,
+    now = new Date(),
+    canOverride = false,
+  ) {
+    return this.register(companyId, { userId, canOverride }, dto, now);
   }
 
   /**
@@ -167,6 +225,7 @@ export class DevolucionesService {
    * be returned of each line and the returns they already have.
    */
   async customerPurchases(companyId: string, customerId: string, now = new Date()) {
+    const window = await this.windowDays(companyId);
     const sales = await this.prisma.venta.findMany({
       where: { empresaId: companyId, clienteId: customerId, estado: { not: 'ANULADA' } },
       orderBy: { createdAt: 'desc' },
@@ -195,8 +254,8 @@ export class DevolucionesService {
         numero: sale.numero,
         fecha: sale.createdAt,
         total: sale.total.toString(),
-        diasParaDevolver: Math.max(0, RETURN_WINDOW_DAYS - days),
-        devolvible: days <= RETURN_WINDOW_DAYS,
+        diasParaDevolver: Math.max(0, window - days),
+        devolvible: days <= window,
         items: sale.VentaItem.map((item) => ({
           ventaItemId: item.id,
           producto: item.Producto.nombre,
@@ -222,7 +281,7 @@ export class DevolucionesService {
 
   private async register(
     companyId: string,
-    actor: { userId?: string; customerId?: string },
+    actor: { userId?: string; customerId?: string; canOverride?: boolean },
     dto: CreateDevolucionDto,
     now: Date,
   ) {
@@ -234,9 +293,17 @@ export class DevolucionesService {
     if (!sale) throw new NotFoundException('Venta no encontrada');
     if (sale.estado === 'ANULADA') throw new ConflictException('La venta está anulada');
     const days = Math.floor((now.getTime() - sale.createdAt.getTime()) / DAY_MS);
-    if (days > RETURN_WINDOW_DAYS) {
+    const window = await this.windowDays(companyId);
+    const lateReason = dto.fuera_de_plazo?.trim();
+    const late = days > window;
+    if (late && !(actor.canOverride && lateReason)) {
       throw new ConflictException(
-        `Pasaron ${days} días desde la venta: se aceptan devoluciones hasta ${RETURN_WINDOW_DAYS} días después.`,
+        `Pasaron ${days} días desde la venta: se aceptan devoluciones hasta ${window} días después.` +
+          (actor.canOverride
+            ? ' Para registrarla igual, indicá el motivo.'
+            : actor.userId
+              ? ' Solo el Owner o un administrador puede registrarla fuera de plazo.'
+              : ''),
       );
     }
 
@@ -312,6 +379,7 @@ export class DevolucionesService {
             creadoPorId: userId ?? (actor.customerId as string),
             createdBy: userId,
             ...(actor.customerId ? { observaciones: 'Pedida por el cliente desde la tienda' } : {}),
+            ...(late ? { observaciones: `Fuera de plazo (${days} días): ${lateReason}` } : {}),
             numeroDevolucion: (last._max.numeroDevolucion ?? 0) + 1,
             ventaFecha: sale.createdAt,
             diasDesdeVenta: days,
@@ -333,6 +401,7 @@ export class DevolucionesService {
               total,
               items: lines.length,
               ...(actor.customerId ? { origen: 'tienda', clienteId: actor.customerId } : {}),
+              ...(late ? { fueraDePlazo: { dias: days, plazo: window, motivo: lateReason } } : {}),
             },
             ventaId: sale.id,
           },

@@ -11,6 +11,7 @@ import {
   returnState,
   returnItemsFrom,
   returnWindow,
+  windowDaysFrom,
   returnedBySaleItem,
   type ReturnItem,
 } from '../app/utils/returns';
@@ -27,8 +28,17 @@ const item = (id: string, producto: string): ReturnItem => ({
 describe('returns helpers (OR-B4-034)', () => {
   it('counts the 10-day window from the sale', () => {
     const now = new Date('2026-11-13T12:00:00Z');
-    expect(returnWindow('2026-11-05T12:00:00Z', now)).toEqual({ days: 8, open: true, left: 2 });
+    expect(returnWindow('2026-11-05T12:00:00Z', now)).toEqual({ days: 8, limit: 10, open: true, left: 2 });
     expect(returnWindow('2026-11-02T12:00:00Z', now)).toMatchObject({ days: 11, open: false });
+  });
+
+  it('uses the Business window when it has one (OR-B4-035 rule 4)', () => {
+    const now = new Date('2026-11-13T12:00:00Z');
+    expect(returnWindow('2026-11-02T12:00:00Z', now, 15)).toEqual({ days: 11, limit: 15, open: true, left: 4 });
+    expect(windowDaysFrom('30')).toBe(30);
+    expect(windowDaysFrom('0')).toBeNull();
+    expect(windowDaysFrom('400')).toBeNull();
+    expect(windowDaysFrom('2.5')).toBeNull();
   });
 
   it('sums what earlier returns of the same sale took back', () => {
@@ -136,6 +146,17 @@ describe('returns routes', () => {
     })) as Response;
 
   const sale = { id: 'v-1', ventaItems: [{ id: 'vi-1', nombre: 'Yerba', cantidad: '3', precioUnitario: '10', descuentoFidelizacionPorcentaje: null }] };
+
+  it('sends the reason to accept a return past the window', async () => {
+    api
+      .mockResolvedValueOnce(ok(sale))
+      .mockResolvedValueOnce(ok({ items: [] }))
+      .mockResolvedValueOnce(ok({ id: 'd-2' }));
+    await post(newAction, 'devoluciones/nueva', [
+      ['ventaId', 'v-1'], ['cantidad-vi-1', '1'], ['razon-vi-1', 'VENCIDO'], ['clienteId', 'c-1'], ['fuera_de_plazo', 'Estuvo de viaje'],
+    ]);
+    expect(JSON.parse(String(api.mock.calls[2][1]?.body))).toMatchObject({ fuera_de_plazo: 'Estuvo de viaje' });
+  });
 
   it('registers the return with the customer when the sale had none, then opens it', async () => {
     api
