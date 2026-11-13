@@ -1,4 +1,14 @@
-import { Controller, Delete, Get, HttpCode, Logger, Post, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Logger,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -6,6 +16,7 @@ import { Public } from '../../auth/decorators/public.decorator';
 import type { AuthenticatedUser } from '../../auth/auth.types';
 import { CanonicalPermission } from '../../authorization/canonical-permission.decorator';
 import { BusinessContextService } from '../../business-context/business-context.service';
+import { hasCanonicalPermission } from '../../authorization/canonical-permissions';
 import { MercadoPagoAccountService } from './mercadopago-account.service';
 
 const DEFAULT_WEB_APP_URL = 'https://app.wapsell.com';
@@ -27,10 +38,23 @@ export class MercadoPagoAccountController {
     private readonly businessContext: BusinessContextService,
   ) {}
 
+  /**
+   * The Owner's Business. PAYMENTS_CONFIGURE is checked here against the role matrix too,
+   * so the rule holds in every authorization mode: in `shadow` the legacy guard decides and
+   * would let any staff user through a route without a legacy permission (OR-B4-027 pattern).
+   */
+  private async ownerBusiness(user: AuthenticatedUser) {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (!hasCanonicalPermission(context.role, 'PAYMENTS_CONFIGURE')) {
+      throw new ForbiddenException('Solo el Owner del negocio puede configurar los cobros');
+    }
+    return context;
+  }
+
   @CanonicalPermission('PAYMENTS_CONFIGURE')
   @Get()
   async status(@CurrentUser() user: AuthenticatedUser) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    const context = await this.ownerBusiness(user);
     return this.accounts.status(context.businessId);
   }
 
@@ -38,7 +62,7 @@ export class MercadoPagoAccountController {
   @Post('conectar')
   @HttpCode(200)
   async connect(@CurrentUser() user: AuthenticatedUser) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    const context = await this.ownerBusiness(user);
     return { url: this.accounts.authorizationUrl(context.businessId, context.userId as string) };
   }
 
@@ -46,7 +70,7 @@ export class MercadoPagoAccountController {
   @Delete()
   @HttpCode(204)
   async disconnect(@CurrentUser() user: AuthenticatedUser) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    const context = await this.ownerBusiness(user);
     await this.accounts.disconnect(context.businessId);
   }
 
