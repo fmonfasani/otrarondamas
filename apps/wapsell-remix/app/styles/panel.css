@@ -667,3 +667,8 @@
   .ws-table--returns th:nth-child(3), .ws-table--returns td:nth-child(3) { display: none; }
 }
 @media (min-width: 900px) { .ws-return-lines--receive li { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } }
+
+/* OR-B4-035 — cancel / reject a return, folded until needed */
+.ws-return-close { margin-top: 12px; border-top: 1px solid var(--ws-border, #e5e7eb); padding-top: 12px; }
+.ws-return-close summary { cursor: pointer; font-weight: 600; }
+.ws-return-close[open] summary { margin-bottom: 8px; }

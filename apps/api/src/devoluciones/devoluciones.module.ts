@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DevolucionClienteController } from './devoluciones.controller';
 import { DevolucionesService } from './devoluciones.service';
+import { ReturnNotifierService } from './return-notifier.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
@@ -10,6 +11,6 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 @Module({
   imports: [PrismaModule, AuthModule, BusinessContextModule],
   controllers: [DevolucionClienteController],
-  providers: [DevolucionesService],
+  providers: [DevolucionesService, ReturnNotifierService],
 })
 export class DevolucionesModule {}

@@ -16,6 +16,8 @@ import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
  * Owner/Admin authorize it, receive and inspect each product (back on sale → stock returns
  * to the sale's lots; discard → it does not) and refund by the original method (cash leaves
  * the open register; transfer is left for the team to return by hand).
+ * OR-B4-035: fixed reasons, cancel, reject after inspection, partial refunds and a notice in
+ * the customer's chat at each step.
  */
 describe('P3-2 — devoluciones', () => {
   const PORT = '3381';
@@ -150,6 +152,10 @@ describe('P3-2 — devoluciones', () => {
     await prisma.venta.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.aperturaCaja.deleteMany({ where: { Caja: { empresaId: { in: companies } } } });
     await prisma.caja.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.message.deleteMany({ where: { businessId: { in: companies } } });
+    await prisma.conversationAssociation.deleteMany({ where: { businessId: { in: companies } } });
+    await prisma.conversationParticipant.deleteMany({ where: { businessId: { in: companies } } });
+    await prisma.conversation.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
     await prisma.usuarioPermiso.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
@@ -165,7 +171,14 @@ describe('P3-2 — devoluciones', () => {
       .set('Authorization', people.vendedor.auth)
       .send({
         ventaId: cashSale.id,
-        items: [{ ventaItemId: cashSale.itemId, cantidad: 2, motivo: 'Envase roto' }],
+        items: [
+          {
+            ventaItemId: cashSale.itemId,
+            cantidad: 2,
+            motivoCodigo: 'ROTO',
+            motivo: 'Envase roto',
+          },
+        ],
       })
       .expect(201);
     returnId = res.body.id;
@@ -176,8 +189,27 @@ describe('P3-2 — devoluciones', () => {
       cliente: { id: customer.id },
     });
     expect(res.body.items).toEqual([
-      expect.objectContaining({ producto: product.nombre, cantidad: 2, monto: '20' }),
+      expect.objectContaining({
+        producto: product.nombre,
+        cantidad: 2,
+        monto: '20',
+        motivo: 'Roto o dañado: Envase roto',
+      }),
     ]);
+  });
+
+  it('takes the reason from the fixed list; «Otro» needs a comment', async () => {
+    const send = (item: Record<string, unknown>) =>
+      request(BASE)
+        .post('/devoluciones')
+        .set('Authorization', people.vendedor.auth)
+        .send({
+          ventaId: cashSale.id,
+          items: [{ ventaItemId: cashSale.itemId, cantidad: 1, ...item }],
+        });
+    expect((await send({ motivo: 'Texto libre' })).status).toBe(400);
+    expect((await send({ motivoCodigo: 'CUALQUIERA' })).status).toBe(400);
+    expect((await send({ motivoCodigo: 'OTRO' })).status).toBe(400);
   });
 
   it('never lets more come back than what was sold', async () => {
@@ -186,7 +218,7 @@ describe('P3-2 — devoluciones', () => {
       .set('Authorization', people.vendedor.auth)
       .send({
         ventaId: cashSale.id,
-        items: [{ ventaItemId: cashSale.itemId, cantidad: 2, motivo: 'Otra' }],
+        items: [{ ventaItemId: cashSale.itemId, cantidad: 2, motivoCodigo: 'NO_LE_GUSTO' }],
       });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('como máximo 1');
@@ -203,7 +235,7 @@ describe('P3-2 — devoluciones', () => {
       .set('Authorization', people.vendedor.auth)
       .send({
         ventaId: old.id,
-        items: [{ ventaItemId: old.itemId, cantidad: 1, motivo: 'Tarde' }],
+        items: [{ ventaItemId: old.itemId, cantidad: 1, motivoCodigo: 'VENCIDO' }],
       });
     expect(res.status).toBe(409);
     expect(res.body.message).toContain('10 días');
@@ -213,7 +245,7 @@ describe('P3-2 — devoluciones', () => {
     const anonymous = await sale(undefined, 'transferencia', 1);
     const body = {
       ventaId: anonymous.id,
-      items: [{ ventaItemId: anonymous.itemId, cantidad: 1, motivo: 'No le sirvió' }],
+      items: [{ ventaItemId: anonymous.itemId, cantidad: 1, motivoCodigo: 'PRODUCTO_EQUIVOCADO' }],
     };
     await request(BASE)
       .post('/devoluciones')
@@ -239,7 +271,7 @@ describe('P3-2 — devoluciones', () => {
       .set('Authorization', people.gestor.auth)
       .send({
         ventaId: cashSale.id,
-        items: [{ ventaItemId: cashSale.itemId, cantidad: 1, motivo: 'x' }],
+        items: [{ ventaItemId: cashSale.itemId, cantidad: 1, motivoCodigo: 'NO_LE_GUSTO' }],
       })
       .expect(403);
   });
@@ -361,5 +393,167 @@ describe('P3-2 — devoluciones', () => {
       .set('Authorization', people.otherOwner.auth)
       .expect(200);
     expect(res.body.total).toBe(0);
+  });
+
+  const customerMessages = async () =>
+    prisma.message.findMany({
+      where: {
+        businessId: company.id,
+        Conversation: {
+          ConversationParticipant: { some: { customerId: customer.id } },
+        },
+      },
+      orderBy: { sequence: 'asc' },
+    });
+
+  it('tells the customer each step in their chat, once per step', async () => {
+    const messages = await customerMessages();
+    const own = messages.filter((m) => m.clientMessageId.startsWith(`devolucion-${returnId}-`));
+    expect(own.map((m) => m.content)).toEqual([
+      expect.stringContaining('Registramos tu devolución #1'),
+      expect.stringContaining('Autorizamos tu devolución #1'),
+      expect.stringContaining('Recibimos y revisamos los productos de tu devolución #1'),
+      expect.stringContaining('te devolvimos $ 20,00 en efectivo'),
+    ]);
+    expect(own.every((m) => m.authorUserId === people.owner.userId)).toBe(true);
+    expect(new Set(messages.map((m) => m.conversationId)).size).toBe(1);
+  });
+
+  let cancelled: string;
+  it('cancels, with a reason, before the products are received: nothing moves', async () => {
+    const created = await request(BASE)
+      .post('/devoluciones')
+      .set('Authorization', people.vendedor.auth)
+      .send({
+        ventaId: cashSale.id,
+        items: [{ ventaItemId: cashSale.itemId, cantidad: 1, motivoCodigo: 'NO_LE_GUSTO' }],
+      })
+      .expect(201);
+    cancelled = created.body.id;
+    const stock = await lotQuantity();
+    await request(BASE)
+      .put(`/devoluciones/${cancelled}/cancel`)
+      .set('Authorization', people.vendedor.auth)
+      .send({ motivo: 'El cliente se arrepintió' })
+      .expect(403);
+    await request(BASE)
+      .put(`/devoluciones/${cancelled}/cancel`)
+      .set('Authorization', people.owner.auth)
+      .send({})
+      .expect(400);
+    const res = await request(BASE)
+      .put(`/devoluciones/${cancelled}/cancel`)
+      .set('Authorization', people.owner.auth)
+      .send({ motivo: 'El cliente se arrepintió' })
+      .expect(200);
+    expect(res.body).toMatchObject({
+      estado: 'PROCESADA',
+      reembolso: {
+        estado: 'RECHAZADO',
+        monto: '0',
+        resultado: 'Cancelada: El cliente se arrepintió',
+      },
+    });
+    expect(await lotQuantity()).toBe(stock);
+    expect(await prisma.movimientoCaja.count({ where: { referenciaId: cancelled } })).toBe(0);
+    await request(BASE)
+      .put(`/devoluciones/${cancelled}/cancel`)
+      .set('Authorization', people.owner.auth)
+      .send({ motivo: 'otra vez' })
+      .expect(409);
+    await request(BASE)
+      .put(`/devoluciones/${returnId}/cancel`)
+      .set('Authorization', people.owner.auth)
+      .send({ motivo: 'tarde' })
+      .expect(409);
+  });
+
+  it('rejects after inspection: no money, the product goes back to the customer', async () => {
+    // The cancelled return gave its unit back: it can be returned again.
+    const created = await request(BASE)
+      .post('/devoluciones')
+      .set('Authorization', people.vendedor.auth)
+      .send({
+        ventaId: cashSale.id,
+        items: [{ ventaItemId: cashSale.itemId, cantidad: 1, motivoCodigo: 'ROTO' }],
+      })
+      .expect(201);
+    const id = created.body.id;
+    await request(BASE)
+      .put(`/devoluciones/${id}/reject`)
+      .set('Authorization', people.owner.auth)
+      .send({ motivo: 'Lo rompió el cliente' })
+      .expect(409);
+    await request(BASE)
+      .put(`/devoluciones/${id}/authorize`)
+      .set('Authorization', people.owner.auth)
+      .send({ condition: 'accepted' })
+      .expect(200);
+    const stock = await lotQuantity();
+    const res = await request(BASE)
+      .put(`/devoluciones/${id}/reject`)
+      .set('Authorization', people.owner.auth)
+      .send({ motivo: 'Lo rompió el cliente' })
+      .expect(200);
+    expect(res.body).toMatchObject({
+      estado: 'PROCESADA',
+      reembolso: {
+        estado: 'RECHAZADO',
+        resultado: 'Rechazada tras inspección: Lo rompió el cliente',
+      },
+    });
+    expect(await lotQuantity()).toBe(stock);
+    expect(await prisma.movimientoCaja.count({ where: { referenciaId: id } })).toBe(0);
+    const notice = (await customerMessages()).find(
+      (m) => m.clientMessageId === `devolucion-${id}-rechazada`,
+    );
+    expect(notice?.content).toContain('no podemos aceptarla: Lo rompió el cliente');
+  });
+
+  it('refunds part of the amount when decided after inspection, never more than due', async () => {
+    const transfer = await sale(customer.id, 'transferencia', 2);
+    const created = await request(BASE)
+      .post('/devoluciones')
+      .set('Authorization', people.vendedor.auth)
+      .send({
+        ventaId: transfer.id,
+        items: [
+          {
+            ventaItemId: transfer.itemId,
+            cantidad: 2,
+            motivoCodigo: 'OTRO',
+            motivo: 'Uno abierto',
+          },
+        ],
+      })
+      .expect(201);
+    const id = created.body.id;
+    expect(created.body.motivo).toBe('Otro: Uno abierto');
+    await request(BASE)
+      .put(`/devoluciones/${id}/authorize`)
+      .set('Authorization', people.owner.auth)
+      .send({ condition: 'accepted' })
+      .expect(200);
+    await request(BASE)
+      .put(`/devoluciones/${id}/receive`)
+      .set('Authorization', people.owner.auth)
+      .send({ items: [{ itemId: created.body.items[0].id, destino: 'REINGRESO' }] })
+      .expect(200);
+    const tooMuch = await request(BASE)
+      .put(`/devoluciones/${id}/process-refund`)
+      .set('Authorization', people.owner.auth)
+      .send({ amount: 21 });
+    expect(tooMuch.status).toBe(400);
+    expect(tooMuch.body.message).toContain('como máximo $ 20,00');
+    const res = await request(BASE)
+      .put(`/devoluciones/${id}/process-refund`)
+      .set('Authorization', people.owner.auth)
+      .send({ amount: 5 })
+      .expect(200);
+    expect(res.body.reembolso).toMatchObject({
+      estado: 'PENDIENTE_MANUAL',
+      monto: '5',
+      resultado: 'Devolver en parte por transferencia fuera de Wapsell',
+    });
   });
 });
