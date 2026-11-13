@@ -2,6 +2,7 @@
  * Shapes of /inventario/* and /compras, /proveedores, and pure helpers for the
  * Inventario and Compras screens. No I/O, unit-tested directly.
  */
+import { parseArsNumber } from './format';
 
 export interface StockRow {
   productoId: string;
@@ -101,10 +102,8 @@ export function expiryLabel(iso: string, now = new Date()): { label: string; ton
 }
 
 const num = (value: FormDataEntryValue | undefined | null) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-  return /^\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : Number.NaN;
+  const n = parseArsNumber(value);
+  return n !== null && n < 0 ? Number.NaN : n;
 };
 
 /** Purchase rows from repeated fields (productoId[], cantidad[], costo[]); blank rows skipped. */

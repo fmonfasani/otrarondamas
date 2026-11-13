@@ -45,3 +45,16 @@ export const ORDER_STATES: Record<OrderState, { label: string; tone: string }> =
 export function orderState(state: string) {
   return ORDER_STATES[state as OrderState] ?? { label: state, tone: 'muted' };
 }
+
+/**
+ * A number typed the Argentine way: "1.234,50", "5.000" (thousands) or "2.5" / "1234.5"
+ * (decimal point). `$` and spaces are ignored. null when empty, NaN when it is not a number.
+ * Before this, "5.000" was read as 5 (catalog prices, inventory, cash and sales).
+ */
+export function parseArsNumber(value: FormDataEntryValue | null | undefined): number | null {
+  const raw = String(value ?? '').replace(/[$\s]/g, '');
+  if (!raw) return null;
+  const thousands = /^-?\d{1,3}(\.\d{3})+$/.test(raw);
+  const normalized = raw.includes(',') || thousands ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  return /^-?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : Number.NaN;
+}
