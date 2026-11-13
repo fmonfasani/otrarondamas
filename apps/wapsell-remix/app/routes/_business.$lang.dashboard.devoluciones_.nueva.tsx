@@ -1,10 +1,10 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useParams } from '@remix-run/react';
 import { ArrowLeft } from 'lucide-react';
-import { requireAuth } from '~/services/auth.server';
+import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
-import { RETURN_REASONS, RETURN_WINDOW_DAYS, returnItemsFrom, returnWindow, returnedBySaleItem, type CustomerReturn } from '~/utils/returns';
+import { RETURN_REASONS, canManageReturns, returnItemsFrom, returnWindow, returnedBySaleItem, type CustomerReturn } from '~/utils/returns';
 import { saleNumber } from '~/utils/sales';
 
 export const meta: MetaFunction = () => [{ title: 'Nueva devolución · Wapsell' }];
@@ -43,9 +43,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const saleId = new URL(request.url).searchParams.get('venta');
   if (!saleId) throw new Response('Elegí la venta a devolver desde Ventas.', { status: 400 });
   try {
-    const { sale, lines } = await saleWithReturns(token, saleId);
+    const [{ sale, lines }, settings, user] = await Promise.all([
+      saleWithReturns(token, saleId),
+      settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
+      getCurrentUser(token),
+    ]);
     const customers = sale.Cliente ? [] : ((await settle(apiRequest<Array<{ id: string; nombre: string }>>(token, '/clientes'))) ?? []);
-    return json({ sale, lines, customers, window: returnWindow(sale.createdAt) });
+    return json({
+      sale,
+      lines,
+      customers,
+      window: returnWindow(sale.createdAt, new Date(), settings?.plazoDias),
+      canOverride: canManageReturns(String(user?.rol ?? '')),
+    });
   } catch (error) {
     if (error instanceof ApiError) throw new Response(error.message, { status: error.status });
     throw error;
@@ -62,6 +72,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (!parsed.ok) return json({ message: parsed.message }, { status: 400 });
     const clienteId = String(form.get('clienteId') ?? '') || undefined;
     const motivoGeneral = String(form.get('motivo_general') ?? '').trim();
+    const late = String(form.get('fuera_de_plazo') ?? '').trim();
     const created = await apiRequest<{ id: string }>(token, '/devoluciones', {
       method: 'POST',
       body: JSON.stringify({
@@ -69,6 +80,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         items: parsed.items,
         ...(clienteId ? { clienteId } : {}),
         ...(motivoGeneral ? { motivo_general: motivoGeneral } : {}),
+        ...(late ? { fuera_de_plazo: late } : {}),
       }),
     });
     return redirect(`/${params.lang ?? 'es'}/dashboard/devoluciones/${created.id}?nueva=1`);
@@ -79,7 +91,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function NewReturn() {
-  const { sale, lines, customers, window } = useLoaderData<typeof loader>();
+  const { sale, lines, customers, window, canOverride } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const { lang = 'es' } = useParams();
@@ -96,14 +108,15 @@ export default function NewReturn() {
           <h1 className="ws-page__title">{sale.Cliente?.nombre ?? 'Consumidor final'}</h1>
           <p className="ws-page__lead">
             Venta {saleNumber(sale)} del {formatDateTime(sale.createdAt)} ·{' '}
-            {window.open ? `quedan ${window.left} ${window.left === 1 ? 'día' : 'días'} para devolverla` : `pasaron más de ${RETURN_WINDOW_DAYS} días`}
+            {window.open ? `quedan ${window.left} ${window.left === 1 ? 'día' : 'días'} para devolverla` : `pasaron más de ${window.limit} días`}
           </p>
         </div>
       </div>
 
-      {!window.open ? (
+      {!window.open && !canOverride ? (
         <p className="ws-alert" role="alert">
-          Esta venta tiene {window.days} días: se aceptan devoluciones hasta {RETURN_WINDOW_DAYS} días después de la venta.
+          Esta venta tiene {window.days} días: se aceptan devoluciones hasta {window.limit} días después de la venta. Solo el Owner
+          o un administrador puede registrarla fuera de plazo.
         </p>
       ) : returnable.length === 0 ? (
         <p className="ws-alert" role="alert">Todos los productos de esta venta ya se devolvieron.</p>
@@ -166,6 +179,17 @@ export default function NewReturn() {
                   </select>
                 </span>
                 <small className="ws-meta">Si no está, cargalo primero en Clientes.</small>
+              </label>
+            )}
+            {!window.open && (
+              <label className="ws-field">
+                <span className="ws-field__label">
+                  Fuera de plazo ({window.days} días, el plazo es {window.limit}): ¿por qué la aceptás igual?
+                </span>
+                <span className="ws-field__control">
+                  <input name="fuera_de_plazo" required maxLength={500} placeholder="Ej.: cliente frecuente, estuvo de viaje" />
+                </span>
+                <small className="ws-meta">Queda registrado en la devolución.</small>
               </label>
             )}
             <label className="ws-field">

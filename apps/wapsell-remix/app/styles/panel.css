@@ -674,3 +674,4 @@
 .ws-return-close[open] summary { margin-bottom: 8px; }
 .ws-return-search { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
 .ws-return-search .ws-field { flex: 1 1 180px; }
+.ws-return-settings { margin: 0 0 16px; }

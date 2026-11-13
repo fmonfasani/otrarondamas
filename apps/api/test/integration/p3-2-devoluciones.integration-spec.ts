@@ -719,4 +719,74 @@ describe('P3-2 — devoluciones', () => {
       expect(notice?.content).toContain('la cambiamos por otros productos');
     });
   });
+
+  describe('the Business return window (OR-B4-035 rules 4 and 5)', () => {
+    async function oldSale(days: number) {
+      const bought = await sale(customer.id, 'efectivo', 1);
+      await prisma.venta.update({
+        where: { id: bought.id },
+        data: { createdAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000) },
+      });
+      return bought;
+    }
+    const register = (bought: { id: string; itemId: string }, auth: string, extra = {}) =>
+      request(BASE)
+        .post('/devoluciones')
+        .set('Authorization', auth)
+        .send({
+          ventaId: bought.id,
+          items: [{ ventaItemId: bought.itemId, cantidad: 1, motivoCodigo: 'VENCIDO' }],
+          ...extra,
+        });
+
+    it('lets Owner/Admin change the window, and the new window applies', async () => {
+      await request(BASE)
+        .get('/devoluciones/ajustes')
+        .set('Authorization', people.vendedor.auth)
+        .expect(200, { plazoDias: 10, predeterminado: 10 });
+      await request(BASE)
+        .put('/devoluciones/ajustes')
+        .set('Authorization', people.vendedor.auth)
+        .send({ plazoDias: 15 })
+        .expect(403);
+      await request(BASE)
+        .put('/devoluciones/ajustes')
+        .set('Authorization', people.owner.auth)
+        .send({ plazoDias: 0 })
+        .expect(400);
+      await request(BASE)
+        .put('/devoluciones/ajustes')
+        .set('Authorization', people.owner.auth)
+        .send({ plazoDias: 15 })
+        .expect(200, { plazoDias: 15, predeterminado: 10 });
+      const bought = await oldSale(12);
+      await register(bought, people.vendedor.auth).expect(201);
+      await request(BASE)
+        .put('/devoluciones/ajustes')
+        .set('Authorization', people.owner.auth)
+        .send({ plazoDias: 10 })
+        .expect(200);
+      const again = await oldSale(12);
+      const late = await register(again, people.vendedor.auth);
+      expect(late.status).toBe(409);
+      expect(late.body.message).toContain('Solo el Owner o un administrador');
+    });
+
+    it('past the window, Owner/Admin can still register it with a recorded reason', async () => {
+      const bought = await oldSale(13);
+      const noReason = await register(bought, people.owner.auth);
+      expect(noReason.status).toBe(409);
+      expect(noReason.body.message).toContain('indicá el motivo');
+      const res = await register(bought, people.owner.auth, {
+        fuera_de_plazo: 'Cliente frecuente, estuvo de viaje',
+      }).expect(201);
+      expect(res.body.observaciones).toBe(
+        'Fuera de plazo (13 días): Cliente frecuente, estuvo de viaje',
+      );
+      const audit = await prisma.auditLog.findFirst({
+        where: { entidadId: res.body.id, accion: 'CREATE' },
+      });
+      expect(audit?.valoresPosteriores).toMatchObject({ fueraDePlazo: { dias: 13, plazo: 10 } });
+    });
+  });
 });

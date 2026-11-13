@@ -1,9 +1,9 @@
-import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useLoaderData, useParams, useSearchParams } from '@remix-run/react';
-import { requireAuth } from '~/services/auth.server';
-import { ApiError, apiRequest } from '~/services/api.server';
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
+import { getCurrentUser, requireAuth } from '~/services/auth.server';
+import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
-import { returnNumber, returnState, type CustomerReturn } from '~/utils/returns';
+import { RETURN_WINDOW_DAYS, canManageReturns, returnNumber, returnState, windowDaysFrom, type CustomerReturn } from '~/utils/returns';
 
 export const meta: MetaFunction = () => [{ title: 'Devoluciones · Wapsell' }];
 
@@ -22,20 +22,42 @@ const FILTERS = [
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
   const estado = new URL(request.url).searchParams.get('estado') ?? '';
+  const [settings, user] = await Promise.all([
+    settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
+    getCurrentUser(token),
+  ]);
+  const plazoDias = settings?.plazoDias ?? RETURN_WINDOW_DAYS;
+  const manage = canManageReturns(String(user?.rol ?? ''));
   try {
     const data = await apiRequest<{ items: CustomerReturn[]; total: number }>(
       token,
       `/devoluciones?limit=100${estado ? `&estado=${encodeURIComponent(estado)}` : ''}`,
     );
-    return json({ returns: data.items, error: null as string | null });
+    return json({ returns: data.items, error: null as string | null, plazoDias, manage });
   } catch (error) {
-    if (error instanceof ApiError) return json({ returns: [] as CustomerReturn[], error: error.message });
+    if (error instanceof ApiError) return json({ returns: [] as CustomerReturn[], error: error.message, plazoDias, manage });
+    throw error;
+  }
+}
+
+/** OR-B4-035 rule 4 — Owner/Admin change the Business's return window. */
+export async function action({ request }: ActionFunctionArgs) {
+  const token = await requireAuth(request);
+  const days = windowDaysFrom((await request.formData()).get('plazoDias'));
+  if (days === null) return json({ ok: false, message: 'El plazo tiene que ser de 1 a 365 días.' }, { status: 400 });
+  try {
+    await apiRequest(token, '/devoluciones/ajustes', { method: 'PUT', body: JSON.stringify({ plazoDias: days }) });
+    return json({ ok: true, message: `Listo: se aceptan devoluciones hasta ${days} días después de la venta.` });
+  } catch (error) {
+    if (error instanceof ApiError) return json({ ok: false, message: error.message }, { status: error.status });
     throw error;
   }
 }
 
 export default function Devoluciones() {
-  const { returns, error } = useLoaderData<typeof loader>();
+  const { returns, error, plazoDias, manage } = useLoaderData<typeof loader>();
+  const saved = useActionData<typeof action>();
+  const navigation = useNavigation();
   const { lang = 'es' } = useParams();
   const [params] = useSearchParams();
   const current = params.get('estado') ?? '';
@@ -46,7 +68,7 @@ export default function Devoluciones() {
           <p className="ws-page__eyebrow">POSVENTA</p>
           <h1 className="ws-page__title">Devoluciones</h1>
           <p className="ws-page__lead">
-            Se registran desde la venta, hasta 10 días después. Cada una pasa por autorizar, recibir y reembolsar.
+            Se registran desde la venta, hasta {plazoDias} días después. Cada una pasa por autorizar, recibir y reembolsar.
           </p>
         </div>
         <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/ventas`}>
@@ -60,6 +82,22 @@ export default function Devoluciones() {
           </Link>
         ))}
       </nav>
+      {manage && (
+        <details className="ws-return-close ws-return-settings">
+          <summary>Plazo para devolver: {plazoDias} días</summary>
+          <Form method="post" className="ws-return-search">
+            <label className="ws-field">
+              <span className="ws-field__label">Días después de la venta</span>
+              <span className="ws-field__control">
+                <input name="plazoDias" type="number" min={1} max={365} step={1} defaultValue={plazoDias} inputMode="numeric" />
+              </span>
+            </label>
+            <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={navigation.state !== 'idle'}>Guardar</button>
+          </Form>
+          <small className="ws-meta">Fuera de plazo solo el Owner o un administrador puede registrarla, con un motivo.</small>
+        </details>
+      )}
+      {saved && <p className={saved.ok ? 'ws-notice' : 'ws-alert'} role={saved.ok ? 'status' : 'alert'}>{saved.message}</p>}
       {error && <p className="ws-alert" role="alert">{error}</p>}
       {!error && returns.length === 0 ? (
         <div className="ws-empty">

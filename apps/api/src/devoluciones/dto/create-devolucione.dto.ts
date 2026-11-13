@@ -73,6 +73,16 @@ export class CreateDevolucionDto {
   @IsOptional()
   @IsUUID()
   clienteId?: string;
+
+  /**
+   * OR-B4-035 rule 5 — past the Business's window, Owner/Admin can still register it with
+   * this reason (recorded on the return). Ignored within the window.
+   */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  fuera_de_plazo?: string;
 }
 
 /** OR-B4-035 rule 1 — a return asked for by the store customer; the sale comes from the URL. */

@@ -32,7 +32,7 @@ export type CustomerReturn = {
   reembolso: { estado: string; metodo: string | null; monto: string; resultado: string | null } | null;
 };
 
-/** Days after the sale a return is accepted (API RETURN_WINDOW_DAYS). */
+/** Default days after the sale a return is accepted (API RETURN_WINDOW_DAYS); each Business can change it (OR-B4-035 rule 4). */
 export const RETURN_WINDOW_DAYS = 10;
 
 export const RETURN_STATES: Record<string, { label: string; tone: string; next: string }> = {
@@ -73,10 +73,16 @@ export const DESTINATIONS = [
 
 export const returnNumber = (r: { numero: number | null; id: string }) => (r.numero ? `#${r.numero}` : `#${r.id.slice(0, 8)}`);
 
-/** Whole days since the sale, and whether it is still within the window. */
-export function returnWindow(saleDate: string, now = new Date()) {
+/** Whole days since the sale, and whether it is still within the Business's window. */
+export function returnWindow(saleDate: string, now = new Date(), limit = RETURN_WINDOW_DAYS) {
   const days = Math.floor((now.getTime() - new Date(saleDate).getTime()) / 86_400_000);
-  return { days, open: days <= RETURN_WINDOW_DAYS, left: Math.max(0, RETURN_WINDOW_DAYS - days) };
+  return { days, limit, open: days <= limit, left: Math.max(0, limit - days) };
+}
+
+/** OR-B4-035 rule 4 — the window typed in the settings form: whole days, 1 to 365. */
+export function windowDaysFrom(value: FormDataEntryValue | null): number | null {
+  const days = Number(String(value ?? '').trim());
+  return Number.isInteger(days) && days >= 1 && days <= 365 ? days : null;
 }
 
 /** Units of each sale line already returned in earlier returns of the same sale (cancelled or rejected ones took nothing back). */

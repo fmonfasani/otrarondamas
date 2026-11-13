@@ -18,6 +18,7 @@ import {
   CloseDevolucionDto,
   CreateDevolucionDto,
   ExchangeDevolucionDto,
+  ReturnSettingsDto,
   ProcessRefundDto,
   ReceiveDevolucionDto,
 } from './dto';
@@ -33,6 +34,7 @@ import { hasCanonicalPermission, type Permission } from '../authorization/canoni
  * Customer returns (OR-B4-034), registered by the team from the original sale.
  *   POST /devoluciones                     register (SALES_CREATE: Owner, Admin, Vendedor)
  *   GET  /devoluciones[/:id]               view (RETURNS_VIEW)
+ *   GET  /devoluciones/ajustes             the return window (RETURNS_VIEW); PUT changes it (REFUNDS_MANAGE)
  *   PUT  /devoluciones/:id/authorize       authorize (REFUNDS_MANAGE: Owner, Admin)
  *   PUT  /devoluciones/:id/receive         receive + inspect each product (REFUNDS_MANAGE)
  *   PUT  /devoluciones/:id/process-refund  refund, full or partial, by the original method (PAYMENTS_REFUND)
@@ -70,10 +72,14 @@ export class DevolucionClienteController {
     @Body() dto: CreateDevolucionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const companyId = await this.companyFor(user, 'SALES_CREATE');
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
     return this.devolucionesService.create(
-      await this.companyFor(user, 'SALES_CREATE'),
+      companyId,
       user.id,
       dto,
+      new Date(),
+      hasCanonicalPermission(context.role, 'REFUNDS_MANAGE'),
     );
   }
 
@@ -91,6 +97,25 @@ export class DevolucionClienteController {
       limit,
       offset,
     });
+  }
+
+  @CanonicalPermission('RETURNS_VIEW')
+  @Get('ajustes')
+  @ApiOperation({ summary: 'The Business return window (OR-B4-035 rule 4)' })
+  async getSettings(@CurrentUser() user: AuthenticatedUser) {
+    return this.devolucionesService.settings(await this.companyFor(user, 'RETURNS_VIEW'));
+  }
+
+  @RequirePermission('orders.authorize_returns')
+  @CanonicalPermission('REFUNDS_MANAGE')
+  @Put('ajustes')
+  @ApiOperation({ summary: 'Change the Business return window (OR-B4-035 rule 4)' })
+  async updateSettings(@Body() dto: ReturnSettingsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.devolucionesService.updateSettings(
+      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      user.id,
+      dto.plazoDias,
+    );
   }
 
   @CanonicalPermission('RETURNS_VIEW')
