@@ -1047,3 +1047,16 @@ canonical permission `RETURNS_RECEIVE` (Authorization spec v0.4). Rules 8 and 13
 open: Mercado Pago payments exist only on store orders, which are not returnable (rule 1 amendment), and no sale or
 delivery records a shipping cost. Rule 7 (several payment methods) delivered after them (PR #212): the refund is split
 by method, pre-filled in proportion to what each paid; cash leaves the register, the rest is returned by hand.
+
+### OR-B4-036 — What Reportes counts as sold — 2026-11-13
+
+**Status:** APPROVED — OWNER RULING. Owner answer (verbatim) to three options: "Todo, neto (Recommended)".
+
+**Context:** the existing `/metrics/*` mixed sources: revenue and top products from counter sales (`Venta`), orders, average
+ticket and channels from store orders (`Pedido`), and returns were never subtracted.
+
+**Decision:** on Reportes, «sold» = counter sales not cancelled + store orders paid (an approved payment) or delivered, not
+cancelled, by their stored total (already net of discounts). Returns = refunds made or left to make by hand, including the
+credit used on exchanges (whose new sale counts as sold). Net = sold − returns. Average ticket, channels, payment methods (exchange
+credit aside) and products are computed over that same set. Days are Argentina days; the comparison is the previous period
+of the same length. Implemented as `GET /reportes/resumen` (REPORTS_VIEW: Owner, Admin); `/metrics/*` is left unchanged.

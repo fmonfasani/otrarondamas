@@ -6,13 +6,14 @@ const labels = (role?: string) => navItems('es', role).map((item) => item.label)
 describe('panel menu by role (mirrors the API role matrix)', () => {
   it('shows the Owner every section', () => {
     expect(labels('OWNER')).toEqual([
-      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Equipo', 'Cobros',
+      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Reportes', 'Equipo', 'Cobros',
     ]);
   });
 
   it('hides from the Admin only the payment account', () => {
     expect(labels('ADMIN')).not.toContain('Cobros');
     expect(labels('ADMIN')).toContain('Equipo');
+    expect(labels('ADMIN')).toContain('Reportes'); // OR-B4-036: REPORTS_VIEW
   });
 
   it('shows the Vendedor selling sections, not purchases, team or payments', () => {
@@ -25,6 +26,6 @@ describe('panel menu by role (mirrors the API role matrix)', () => {
   });
 
   it('keeps every section when the role is unknown to the caller', () => {
-    expect(labels()).toHaveLength(12);
+    expect(labels()).toHaveLength(13);
   });
 });
