@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,15 +11,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DevolucionesService } from './devoluciones.service';
 import {
-  CreateDevolucionDto,
   AuthorizeDevolucionDto,
-  ReceiveDevolucionDto,
+  CreateDevolucionDto,
   ProcessRefundDto,
-  DevolucionDto,
-  RefundDto,
+  ReceiveDevolucionDto,
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
@@ -26,10 +25,18 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import { hasCanonicalPermission, type Permission } from '../authorization/canonical-permissions';
 
-/* eslint-disable indent -- known false positive of the base `indent` rule
-   with decorators on class properties */
-
+/**
+ * Customer returns (OR-B4-034), registered by the team from the original sale.
+ *   POST /devoluciones                     register (SALES_CREATE: Owner, Admin, Vendedor)
+ *   GET  /devoluciones[/:id]               view (RETURNS_VIEW)
+ *   PUT  /devoluciones/:id/authorize       authorize (REFUNDS_MANAGE: Owner, Admin)
+ *   PUT  /devoluciones/:id/receive         receive + inspect each product (REFUNDS_MANAGE)
+ *   PUT  /devoluciones/:id/process-refund  refund by the original method (PAYMENTS_REFUND)
+ * Each permission is also checked against the role matrix here, so it holds in every
+ * authorization mode (in `shadow` the legacy guard decides).
+ */
 @ApiTags('devoluciones')
 @ApiBearerAuth()
 @Controller('devoluciones')
@@ -40,44 +47,41 @@ export class DevolucionClienteController {
     private readonly businessContext: BusinessContextService,
   ) {}
 
-  /**
-   * Single context → empresaId translation point for this surface.
-   */
-  private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
+  /** The caller's company, after checking the role holds `permission`. */
+  private async companyFor(user: AuthenticatedUser, permission: Permission): Promise<string> {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (!hasCanonicalPermission(context.role, permission)) {
+      throw new ForbiddenException(`Requiere el permiso ${permission}`);
+    }
     return this.businessContext.resolveCompanyId(context.businessId);
   }
 
-  @RequirePermission('customers.request_return')
-  @CanonicalPermission('CUSTOMER_POLICY')
+  @RequirePermission('ventas.crear')
+  @CanonicalPermission('SALES_CREATE')
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create customer return request' })
-  @ApiResponse({ status: 201, type: DevolucionDto })
-  @ApiResponse({ status: 400, description: 'Validation failed' })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
-  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiOperation({ summary: 'Register a customer return from a sale' })
   async createDevolucione(
     @Body() dto: CreateDevolucionDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<DevolucionDto> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.createDevolucione(businessId, user.id, dto);
+  ) {
+    return this.devolucionesService.create(
+      await this.companyFor(user, 'SALES_CREATE'),
+      user.id,
+      dto,
+    );
   }
 
   @CanonicalPermission('RETURNS_VIEW')
   @Get()
   @ApiOperation({ summary: 'List returns' })
-  @ApiResponse({ status: 200, type: [DevolucionDto] })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
   async listDevoluciones(
     @CurrentUser() user: AuthenticatedUser,
     @Query('estado') estado?: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-  ): Promise<{ items: DevolucionDto[]; total: number }> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.listDevoluciones(businessId, user, {
+  ) {
+    return this.devolucionesService.list(await this.companyFor(user, 'RETURNS_VIEW'), {
       estado,
       limit,
       offset,
@@ -86,79 +90,59 @@ export class DevolucionClienteController {
 
   @CanonicalPermission('RETURNS_VIEW')
   @Get(':id')
-  @ApiOperation({ summary: 'Get return details' })
-  @ApiResponse({ status: 200, type: DevolucionDto })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
-  @ApiResponse({ status: 404, description: 'Not found' })
-  async getDevolucione(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ): Promise<DevolucionDto> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.getDevolucione(businessId, user, id);
+  @ApiOperation({ summary: 'Get a return' })
+  async getDevolucione(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.devolucionesService.get(await this.companyFor(user, 'RETURNS_VIEW'), id);
   }
 
   @RequirePermission('orders.authorize_returns')
   @CanonicalPermission('REFUNDS_MANAGE')
   @Put(':id/authorize')
-  @ApiOperation({ summary: 'Authorize return request' })
-  @ApiResponse({ status: 200, type: DevolucionDto })
-  @ApiResponse({ status: 400, description: 'Validation failed or invalid state transition' })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
-  @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiResponse({ status: 409, description: 'Conflict (state already transitioned)' })
+  @ApiOperation({ summary: 'Authorize a return' })
   async authorizeDevolucione(
     @Param('id') id: string,
     @Body() dto: AuthorizeDevolucionDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<DevolucionDto> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.authorizeDevolucione(businessId, id, user.id, dto);
+  ) {
+    return this.devolucionesService.authorize(
+      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      id,
+      user.id,
+      dto.notes,
+    );
   }
 
   @RequirePermission('orders.process_returns')
   @CanonicalPermission('REFUNDS_MANAGE')
   @Put(':id/receive')
-  @ApiOperation({ summary: 'Mark return as received' })
-  @ApiResponse({ status: 200, type: DevolucionDto })
-  @ApiResponse({ status: 400, description: 'Validation failed or invalid state transition' })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
-  @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiResponse({ status: 409, description: 'Conflict (state already transitioned)' })
+  @ApiOperation({ summary: 'Receive the returned products and inspect each one' })
   async receiveDevolucione(
     @Param('id') id: string,
     @Body() dto: ReceiveDevolucionDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<DevolucionDto> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.receiveDevolucione(businessId, id, user.id, dto);
+  ) {
+    return this.devolucionesService.receive(
+      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      id,
+      user.id,
+      dto,
+    );
   }
 
   @RequirePermission('payments.process_refunds')
   @CanonicalPermission('PAYMENTS_REFUND')
   @Put(':id/process-refund')
-  @ApiOperation({ summary: 'Trigger refund processing' })
-  @ApiResponse({
-    status: 200,
-    description: 'Refund triggered',
-    schema: {
-      type: 'object',
-      properties: {
-        devoluccion: { type: 'object', $ref: '#/components/schemas/DevolucionDto' },
-        refund: { type: 'object', $ref: '#/components/schemas/RefundDto' },
-      },
-    },
-  })
-  @ApiResponse({ status: 400, description: 'Validation failed or invalid state transition' })
-  @ApiResponse({ status: 403, description: 'Permission denied' })
-  @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiResponse({ status: 409, description: 'Conflict (state already transitioned)' })
+  @ApiOperation({ summary: 'Refund by the method the sale was paid with' })
   async processRefund(
     @Param('id') id: string,
     @Body() dto: ProcessRefundDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ devoluccion: DevolucionDto; refund: RefundDto }> {
-    const businessId = await this.resolveCompanyIdFromContext(user);
-    return this.devolucionesService.processRefund(businessId, id, user.id, dto);
+  ) {
+    return this.devolucionesService.processRefund(
+      await this.companyFor(user, 'PAYMENTS_REFUND'),
+      id,
+      user.id,
+      dto,
+    );
   }
 }

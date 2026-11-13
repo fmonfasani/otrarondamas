@@ -186,11 +186,13 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
   }, [query, lang]);
 
   useEffect(() => {
-    if (!lines.length) return;
+    // No quote while the sale is being charged: its revalidation could interrupt the
+    // redirect to the receipt, leaving the seller on this screen after a recorded sale.
+    if (!lines.length || sell.state !== 'idle') return;
     const timer = window.setTimeout(() => quote.submit({ intent: 'quote', items, clienteId }, { method: 'post' }), 300);
     return () => window.clearTimeout(timer);
     // Re-quote when the lines or the customer change.
-  }, [items, clienteId]);
+  }, [items, clienteId, sell.state]);
 
   const results = search.data?.kind === 'search' && query.trim().length >= 2 ? search.data.results : [];
   const total = lines.length && quote.data?.ok && quote.data.total ? Number(quote.data.total) : previewTotal(lines);

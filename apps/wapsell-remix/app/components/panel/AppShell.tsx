@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Form, Link, NavLink, useLocation } from '@remix-run/react';
 import type { LucideIcon } from 'lucide-react';
-import { Boxes, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
+import { Boxes, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, RotateCcw, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { Logo } from '~/components/brand/Logo';
 
 export interface NavItem {
@@ -31,6 +31,7 @@ export function navItems(lang: string, role?: string): NavItem[] {
     { to: `${base}/mensajes`, label: 'Mensajes', icon: MessagesSquare },
     { to: `${base}/pedidos`, label: 'Pedidos', icon: ShoppingBag },
     { to: `${base}/ventas`, label: 'Ventas', icon: Receipt, roles: SELLING },
+    { to: `${base}/devoluciones`, label: 'Devoluciones', icon: RotateCcw },
     { to: `${base}/clientes`, label: 'Clientes', icon: Users, roles: SELLING },
     { to: `${base}/caja`, label: 'Caja', icon: Wallet, roles: SELLING },
     { to: `${base}/productos`, label: 'Catálogo', icon: Package },

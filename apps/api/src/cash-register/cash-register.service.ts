@@ -145,7 +145,14 @@ export class CashRegisterService {
     // value is invented.
     const cashSales = sumByType(movements, ['Venta']);
     const debtsCash = sumByType(movements, ['DeudaCobro']); // TODO: no debts module yet, always 0
-    const expensesAndWithdrawals = sumByType(movements, ['Gasto', 'Retiro']);
+    // 'Egreso' (a manual cash-out offered in Caja) was missing here, so the count came out
+    // short; 'Devolucion' is a cash refund of a customer return (OR-B4-034).
+    const expensesAndWithdrawals = sumByType(movements, [
+      'Gasto',
+      'Retiro',
+      'Egreso',
+      'Devolucion',
+    ]);
     const manualIncome = sumByType(movements, ['Ingreso']);
 
     const expectedCash =

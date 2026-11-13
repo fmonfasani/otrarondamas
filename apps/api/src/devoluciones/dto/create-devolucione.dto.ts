@@ -48,4 +48,12 @@ export class CreateDevolucionDto {
   @IsString()
   @MaxLength(1000)
   motivo_general?: string;
+
+  /**
+   * OR-B4-034: the customer the return belongs to, only when the sale has none
+   * (a counter sale to "Consumidor final"). Ignored when the sale has a customer.
+   */
+  @IsOptional()
+  @IsUUID()
+  clienteId?: string;
 }
