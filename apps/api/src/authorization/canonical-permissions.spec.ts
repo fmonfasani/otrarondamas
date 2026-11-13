@@ -136,7 +136,9 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
     it('reading returns and purchases uses the new view permissions', () => {
       const returns = read('devoluciones/devoluciones.controller.ts');
       const purchases = read('purchases/purchases.controller.ts');
-      expect(returns.match(/@CanonicalPermission\('RETURNS_VIEW'\)\s*@Get\(/g)).toHaveLength(2);
+      // list, detail and (OR-B4-035 rule 4) the return window: every read is RETURNS_VIEW.
+      expect(returns.match(/@CanonicalPermission\('RETURNS_VIEW'\)\s*@Get\(/g)).toHaveLength(3);
+      expect(returns.match(/@Get\(/g)).toHaveLength(3);
       expect(purchases.match(/@CanonicalPermission\('PURCHASES_VIEW'\)\s*@Get\(/g)).toHaveLength(5);
       expect(purchases).not.toMatch(/@CanonicalPermission\('PURCHASES_MANAGE'\)\s*@Get\(/);
     });
