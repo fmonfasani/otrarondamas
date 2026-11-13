@@ -9,24 +9,39 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  /** Roles that can use the section (mirrors the API role matrix); absent = every staff role. */
+  roles?: readonly string[];
 }
 
-/** Sections of the business panel. New sections are added here as they ship. */
-export function navItems(lang: string): NavItem[] {
+const SELLING = ['OWNER', 'ADMIN', 'VENDEDOR'] as const;
+const MANAGERS = ['OWNER', 'ADMIN'] as const;
+
+/** AS-IS role names the panel may receive, as canonical roles (OR-B4-027 alias). */
+const CANONICAL_ROLE: Record<string, string> = { ASISTENTE_LOCAL: 'VENDEDOR' };
+
+/**
+ * Sections of the business panel, only the ones the person's role can use (the API still
+ * authorizes every call; this only avoids offering screens that would answer "no access").
+ * New sections are added here as they ship.
+ */
+export function navItems(lang: string, role?: string): NavItem[] {
   const base = `/${lang}/dashboard`;
-  return [
+  const all: NavItem[] = [
     { to: base, label: 'Inicio', icon: House, end: true },
     { to: `${base}/mensajes`, label: 'Mensajes', icon: MessagesSquare },
     { to: `${base}/pedidos`, label: 'Pedidos', icon: ShoppingBag },
-    { to: `${base}/ventas`, label: 'Ventas', icon: Receipt },
-    { to: `${base}/clientes`, label: 'Clientes', icon: Users },
-    { to: `${base}/caja`, label: 'Caja', icon: Wallet },
+    { to: `${base}/ventas`, label: 'Ventas', icon: Receipt, roles: SELLING },
+    { to: `${base}/clientes`, label: 'Clientes', icon: Users, roles: SELLING },
+    { to: `${base}/caja`, label: 'Caja', icon: Wallet, roles: SELLING },
     { to: `${base}/productos`, label: 'Catálogo', icon: Package },
     { to: `${base}/inventario`, label: 'Inventario', icon: Boxes },
-    { to: `${base}/compras`, label: 'Compras', icon: Truck },
-    { to: `${base}/equipo`, label: 'Equipo', icon: UserCog },
-    { to: `${base}/cobros`, label: 'Cobros', icon: CreditCard },
+    { to: `${base}/compras`, label: 'Compras', icon: Truck, roles: ['OWNER', 'ADMIN', 'GESTOR_DE_STOCK'] },
+    { to: `${base}/equipo`, label: 'Equipo', icon: UserCog, roles: MANAGERS },
+    { to: `${base}/cobros`, label: 'Cobros', icon: CreditCard, roles: ['OWNER'] },
   ];
+  if (role === undefined) return all;
+  const canonical = CANONICAL_ROLE[role] ?? role;
+  return all.filter((item) => !item.roles || item.roles.includes(canonical));
 }
 
 export interface ShellUser {
@@ -56,7 +71,7 @@ export function initials(name: string): string {
  * the rail becomes a bottom tab bar.
  */
 export function AppShell({ user, lang, children }: { user: ShellUser; lang: string; children: ReactNode }) {
-  const items = navItems(lang);
+  const items = navItems(lang, user.rol);
   const { pathname } = useLocation();
   const current =
     [...items].sort((a, b) => b.to.length - a.to.length).find((item) => pathname.startsWith(item.to)) ?? items[0];
