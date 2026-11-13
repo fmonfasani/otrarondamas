@@ -1041,3 +1041,8 @@ rejected return is stored as PROCESADA with a `Reembolso` in state RECHAZADO and
 Amendment 2026-11-13 (Owner answer "Mis compras (Recommended)"): store orders (`Pedido`) never become sales, and returns
 are tied to sales, so rule 1 works from **«Mis compras»** in the store account: the sales made to that customer. Store
 orders join once a delivered order becomes a sale (not designed yet).
+
+Implementation status 2026-11-13: rules 1, 2, 3, 4, 5, 6, 10, 11 and 12 delivered (PRs #207-#211). Rule 11 adds the
+canonical permission `RETURNS_RECEIVE` (Authorization spec v0.4). Rules 8 and 13 have nothing to act on yet and stay
+open: Mercado Pago payments exist only on store orders, which are not returnable (rule 1 amendment), and no sale or
+delivery records a shipping cost. Rule 7 (several payment methods) is next.
