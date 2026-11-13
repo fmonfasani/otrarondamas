@@ -9,6 +9,7 @@ import {
   refundAmountFrom,
   refundDescription,
   returnState,
+  canReceiveReturns,
   returnItemsFrom,
   returnWindow,
   windowDaysFrom,
@@ -60,6 +61,11 @@ describe('returns helpers (OR-B4-034)', () => {
       'v-1',
     );
     expect(withCancelled.get('vi-1')).toBe(2);
+  });
+
+  it('lets the Gestor de stock receive returns (OR-B4-035 rule 11)', () => {
+    expect(['OWNER', 'ADMIN', 'GESTOR_DE_STOCK'].every(canReceiveReturns)).toBe(true);
+    expect(canReceiveReturns('VENDEDOR')).toBe(false);
   });
 
   it('shows cancelled and rejected returns as such', () => {

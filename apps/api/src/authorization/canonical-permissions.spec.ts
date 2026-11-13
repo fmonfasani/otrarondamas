@@ -23,8 +23,8 @@ import {
 describe('canonical authorization model (Authorization spec v0.2)', () => {
   const sorted = (xs: Iterable<string>) => [...xs].sort();
 
-  it('has 39 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025 + PAYMENTS_CONFIGURE of OR-B4-033)', () => {
-    expect(PERMISSIONS).toHaveLength(39);
+  it('has 40 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025 + PAYMENTS_CONFIGURE of OR-B4-033 + RETURNS_RECEIVE of OR-B4-035)', () => {
+    expect(PERMISSIONS).toHaveLength(40);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
   });
 
@@ -95,13 +95,19 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
 
     it('pins the exact rows of the two delegated roles', () => {
       expect(ROLE_PERMISSIONS.VENDEDOR).toHaveLength(19);
-      expect(ROLE_PERMISSIONS.GESTOR_DE_STOCK).toHaveLength(12);
+      expect(ROLE_PERMISSIONS.GESTOR_DE_STOCK).toHaveLength(13);
     });
 
     it('applies OR-B4-025: read access to returns and purchases', () => {
       expect(roleHasPermission('VENDEDOR', 'RETURNS_VIEW')).toBe(true);
       expect(roleHasPermission('VENDEDOR', 'PURCHASES_VIEW')).toBe(false);
       expect(roleHasPermission('GESTOR_DE_STOCK', 'RETURNS_VIEW')).toBe(true);
+      // OR-B4-035 rule 11: the Gestor receives and inspects returns; money stays with Owner/Admin.
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'RETURNS_RECEIVE')).toBe(true);
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'REFUNDS_MANAGE')).toBe(false);
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'PAYMENTS_REFUND')).toBe(false);
+      expect(roleHasPermission('VENDEDOR', 'RETURNS_RECEIVE')).toBe(false);
+      expect(roleHasPermission('ADMIN', 'RETURNS_RECEIVE')).toBe(true);
       expect(roleHasPermission('GESTOR_DE_STOCK', 'PURCHASES_VIEW')).toBe(true);
       expect(roleHasPermission('ADMIN', 'RETURNS_VIEW')).toBe(true);
       expect(roleHasPermission('ADMIN', 'PURCHASES_VIEW')).toBe(true);

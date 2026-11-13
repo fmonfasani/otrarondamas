@@ -8,6 +8,7 @@ import { PAYMENT_METHODS, type SearchProduct } from '~/utils/sales';
 import {
   DESTINATIONS,
   canManageReturns,
+  canReceiveReturns,
   destinationsFrom,
   exchangeItemsFrom,
   exchangeSummary,
@@ -124,6 +125,7 @@ export default function ReturnPage() {
   const state = returnState(found);
   const closed = isClosedWithoutRefund(found);
   const manage = canManageReturns(role);
+  const receive = canReceiveReturns(role);
   const busy = navigation.state !== 'idle';
   const steps = closed ? [...STEPS.slice(0, 3).filter((s) => found[s.key]), { key: 'fechaProcesada', label: state.label } as const] : STEPS;
 
@@ -172,7 +174,7 @@ export default function ReturnPage() {
       <div className="ws-columns">
         <section className="ws-card" aria-labelledby="items-title">
           <h2 id="items-title" className="ws-card__title">Productos</h2>
-          {found.estado === 'AUTORIZADA' && manage ? (
+          {found.estado === 'AUTORIZADA' && receive ? (
             <Form method="post" className="ws-pos__checkout">
               <input type="hidden" name="intent" value="receive" />
               <p className="ws-meta">Revisá cada producto y elegí qué pasa con él.</p>
@@ -301,7 +303,7 @@ export default function ReturnPage() {
                 )}
               </details>
             )}
-            {manage && found.estado === 'AUTORIZADA' && (
+            {receive && found.estado === 'AUTORIZADA' && (
               <details className="ws-return-close">
                 <summary>Rechazar tras revisar</summary>
                 <Form method="post" className="ws-pos__checkout">
@@ -328,7 +330,9 @@ export default function ReturnPage() {
                 </Form>
               </details>
             )}
-            {!manage && found.estado !== 'PROCESADA' && <p className="ws-meta">Lo continúa el Owner o un administrador.</p>}
+            {!manage && found.estado !== 'PROCESADA' && !(receive && found.estado === 'AUTORIZADA') && (
+              <p className="ws-meta">Lo continúa el Owner o un administrador.</p>
+            )}
           </section>
         </aside>
       </div>
