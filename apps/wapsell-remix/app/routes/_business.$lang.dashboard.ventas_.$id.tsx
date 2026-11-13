@@ -23,7 +23,12 @@ interface SaleDetail {
   Pago: Array<{ id: string; medio: string; monto: string; montoRecibido: string | null; vuelto: string | null; referencia: string | null; estado: string; createdAt: string }>;
 }
 
-const METHOD_LABELS: Record<string, string> = Object.fromEntries(PAYMENT_METHODS.map((m) => [m.value, m.label]));
+const METHOD_LABELS: Record<string, string> = {
+  ...Object.fromEntries(PAYMENT_METHODS.map((m) => [m.value, m.label])),
+  MERCADOPAGO: 'Mercado Pago',
+  // OR-B4-035 rule 2 — credit from a return exchanged for this sale.
+  cambio: 'Crédito de una devolución',
+};
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
