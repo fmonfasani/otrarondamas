@@ -128,3 +128,17 @@ export async function requireAuth(request: Request) {
 
   return token;
 }
+
+/**
+ * The dossier state written in the session token when it was issued (the API's
+ * ApprovedDossierGuard reads it from there, not from the database). Decoded only to explain
+ * the panel to the person; never used to authorize anything.
+ */
+export function sessionDossierState(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as { estadoLegajo?: unknown };
+    return typeof payload.estadoLegajo === 'string' ? payload.estadoLegajo : null;
+  } catch {
+    return null;
+  }
+}

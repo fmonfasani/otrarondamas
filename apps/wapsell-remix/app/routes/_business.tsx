@@ -2,7 +2,8 @@ import { json, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/no
 import { Outlet, useLoaderData, useParams } from '@remix-run/react';
 import panelStyles from '../styles/panel.css?url';
 import { AppShell, type ShellUser } from '~/components/panel/AppShell';
-import { requireAuth, getCurrentUser } from '~/services/auth.server';
+import { requireAuth, getCurrentUser, sessionDossierState } from '~/services/auth.server';
+import { dossierStanding } from '~/utils/team';
 
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: panelStyles }];
 
@@ -19,6 +20,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     nombre: user.nombre ?? user.email,
     empresaNombre: user.empresaNombre ?? '',
     rol: user.rol ?? '',
+    dossier: dossierStanding(user.rol ?? '', user.estadoLegajo, sessionDossierState(token)),
   };
   return json({ user: shellUser });
 }

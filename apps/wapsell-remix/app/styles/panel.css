@@ -643,3 +643,10 @@
   .ws-table--team th:nth-child(2), .ws-table--team td:nth-child(2) { display: none; }
   .ws-team__actions { justify-content: flex-start; }
 }
+
+/* ---------------------------------------------- Legajo (RF-17) */
+.ws-dossier-notice { margin: var(--space-16) var(--space-16) 0; }
+.ws-dossier-notice__form { display: inline; }
+.ws-dossier-notice__form button { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+.ws-panel__menu-link { display: block; padding: var(--space-8) 0; color: inherit; font-size: 14px; text-decoration: none; }
+.ws-panel__menu-link:hover { text-decoration: underline; }

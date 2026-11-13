@@ -58,6 +58,26 @@ export async function apiRequest<T>(token: string, path: string, init: RequestIn
   return (await response.json()) as T;
 }
 
+/**
+ * Authenticated multipart upload (a file plus text fields) to the API. fetch sets the
+ * multipart boundary itself, so no Content-Type is given here. Same errors as apiRequest.
+ */
+export async function apiUpload<T>(token: string, path: string, body: FormData): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      body,
+    });
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    throw new ApiError(503, 'No pudimos conectarnos. Intenta de nuevo en unos minutos.');
+  }
+  if (!response.ok) throw new ApiError(response.status, await messageFrom(response));
+  return (await response.json()) as T;
+}
+
 /** Runs several reads; a failed one yields `null` instead of failing the whole page. */
 export async function settle<T>(promise: Promise<T>): Promise<T | null> {
   try {
