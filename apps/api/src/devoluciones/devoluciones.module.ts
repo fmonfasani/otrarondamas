@@ -12,5 +12,6 @@ import { BusinessContextModule } from '../business-context/business-context.modu
   imports: [PrismaModule, AuthModule, BusinessContextModule],
   controllers: [DevolucionClienteController],
   providers: [DevolucionesService, ReturnNotifierService],
+  exports: [DevolucionesService],
 })
 export class DevolucionesModule {}

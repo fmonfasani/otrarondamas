@@ -74,3 +74,37 @@ export const sendCustomerMessage = (jwt: string, slug: string, clientMessageId: 
     method: 'POST',
     body: JSON.stringify({ clientMessageId, content }),
   });
+
+/** OR-B4-035 rule 1 — a sale made to the customer, what is still returnable and its returns. */
+export type CustomerPurchase = {
+  id: string;
+  numero: number | null;
+  fecha: string;
+  total: string;
+  diasParaDevolver: number;
+  devolvible: boolean;
+  items: Array<{ ventaItemId: string; producto: string; cantidad: number; disponible: number; precio: string }>;
+  devoluciones: Array<{
+    id: string;
+    numero: number | null;
+    estado: string;
+    reembolso: { estado: string; metodo: string | null; monto: string; resultado: string | null } | null;
+    fechaSolicitud: string;
+    montoReembolsable: string;
+    items: Array<{ producto: string; cantidad: number }>;
+  }>;
+};
+
+export const fetchCustomerPurchases = (jwt: string, slug: string) =>
+  apiRequest<CustomerPurchase[]>(jwt, storePath(slug, '/mis-compras'));
+
+export const requestCustomerReturn = (
+  jwt: string,
+  slug: string,
+  saleId: string,
+  body: { items: Array<{ ventaItemId: string; cantidad: number; motivoCodigo: string; motivo?: string }>; motivo_general?: string },
+) =>
+  apiRequest<{ id: string; numero: number | null }>(jwt, storePath(slug, `/mis-compras/${encodeURIComponent(saleId)}/devolucion`), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });

@@ -10,6 +10,7 @@ import { LoyaltyModule } from '../loyalty/loyalty.module';
 import { CustomersModule } from '../customers/customers.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { MercadoPagoModule } from '../payments/mercadopago/mercadopago.module';
+import { DevolucionesModule } from '../devoluciones/devoluciones.module';
 
 @Module({
   // LoyaltyModule/CustomersModule: Phase 5 of the Loyalty roadmap, extended
@@ -23,6 +24,7 @@ import { MercadoPagoModule } from '../payments/mercadopago/mercadopago.module';
     CustomersModule,
     BusinessContextModule,
     MercadoPagoModule,
+    DevolucionesModule,
   ],
   controllers: [StoreController, PublicStoreController, StoreOrderController, StoreApiController],
   providers: [StoreService],

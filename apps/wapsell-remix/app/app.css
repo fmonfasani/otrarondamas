@@ -267,3 +267,13 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .account-order__paid { justify-self: start; }
 .account-order__hint { color: #77736d; font-size: 12px; }
 .account-section output.form-success, .account-section output.form-error { display: block; margin-bottom: 12px; }
+
+/* OR-B4-035 rule 1 — returns from «Mis compras» */
+.account-return { margin: 8px 0 0; font-size: 0.9rem; }
+.account-order__return { display: inline-block; margin-top: 10px; font-weight: 600; text-decoration: underline; }
+.account-return-form { max-width: 640px; }
+.account-return-line { border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; display: grid; gap: 8px; }
+.account-return-line legend { float: left; width: 100%; font-weight: 700; padding: 0; margin-bottom: 4px; }
+.account-return-line legend + * { clear: both; }
+.account-return-line select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 8px; background: #fff; font: inherit; }
+.account-return-line legend span { font-weight: 400; }

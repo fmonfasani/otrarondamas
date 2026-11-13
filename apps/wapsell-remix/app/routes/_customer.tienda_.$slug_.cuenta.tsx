@@ -3,14 +3,23 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParam
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signInCookie, signOutCookie, storeAuth } from '~/services/customer-session.server';
-import { fetchCustomerOrders, fetchStore, payOrder, type CustomerOrder } from '~/services/store.server';
+import {
+  fetchCustomerOrders,
+  fetchCustomerPurchases,
+  fetchStore,
+  payOrder,
+  type CustomerOrder,
+  type CustomerPurchase,
+} from '~/services/store.server';
+import { returnState } from '~/utils/returns';
 import { PAYMENT_RETURN, paymentOf } from '~/utils/store';
 import { formatDateTime, formatMoney, orderState } from '~/utils/format';
 
 /**
  * Customer account of one Business store — /tienda/:slug/cuenta (STORE-V1-03).
  * Signed out: sign in or create an account (accounts are per Business). Signed in: the
- * customer's orders in this store and sign out.
+ * customer's orders in this store, their purchases with the returns they asked for
+ * (OR-B4-035 rule 1) and sign out.
  */
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
@@ -24,18 +33,25 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   });
   if (!store) throw new Response('Tienda no encontrada', { status: 404 });
   const customer = await getStoreCustomer(request, slug);
-  if (!customer) return json({ store, customer: null, orders: [] as CustomerOrder[], ordersError: null });
+  const purchasesOf = (jwt: string) => fetchCustomerPurchases(jwt, slug).catch(() => [] as CustomerPurchase[]);
+  if (!customer) return json({ store, customer: null, orders: [] as CustomerOrder[], purchases: [] as CustomerPurchase[], ordersError: null });
   try {
-    const orders = await fetchCustomerOrders(customer.jwt, slug);
-    return json({ store, customer: { nombre: customer.nombre, email: customer.email }, orders, ordersError: null as string | null });
+    const [orders, purchases] = await Promise.all([fetchCustomerOrders(customer.jwt, slug), purchasesOf(customer.jwt)]);
+    return json({ store, customer: { nombre: customer.nombre, email: customer.email }, orders, purchases, ordersError: null as string | null });
   } catch (error) {
     if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
       return json(
-        { store, customer: null, orders: [] as CustomerOrder[], ordersError: null },
+        { store, customer: null, orders: [] as CustomerOrder[], purchases: [] as CustomerPurchase[], ordersError: null },
         { headers: { 'Set-Cookie': await signOutCookie(request) } },
       );
     }
-    return json({ store, customer: { nombre: customer.nombre, email: customer.email }, orders: [] as CustomerOrder[], ordersError: 'No pudimos cargar tus pedidos.' });
+    return json({
+      store,
+      customer: { nombre: customer.nombre, email: customer.email },
+      orders: [] as CustomerOrder[],
+      purchases: [] as CustomerPurchase[],
+      ordersError: 'No pudimos cargar tus pedidos.',
+    });
   }
 }
 
@@ -94,7 +110,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function Account() {
-  const { store, customer, orders, ordersError } = useLoaderData<typeof loader>();
+  const { store, customer, orders, purchases, ordersError } = useLoaderData<typeof loader>();
 
   return (
     <main className="store-shell">
@@ -103,7 +119,10 @@ export default function Account() {
       </StoreHeader>
       <section className="account-section">
         {customer ? (
-          <Orders customer={customer} orders={orders} error={ordersError} slug={store.slug} pagosOnline={Boolean(store.pagosOnline)} />
+          <>
+            <Orders customer={customer} orders={orders} error={ordersError} slug={store.slug} pagosOnline={Boolean(store.pagosOnline)} />
+            <Purchases purchases={purchases} slug={store.slug} />
+          </>
         ) : (
           <SignIn store={store} />
         )}
@@ -221,5 +240,49 @@ function OrderPayment({ order, pagosOnline, busy }: Readonly<{ order: CustomerOr
         Pagar con Mercado Pago · {formatMoney(payment.remaining)}
       </button>
     </Form>
+  );
+}
+
+/** OR-B4-035 rule 1 — purchases made at the counter to this customer, and their returns. */
+function Purchases({ purchases, slug }: Readonly<{ purchases: CustomerPurchase[]; slug: string }>) {
+  const [params] = useSearchParams();
+  const requested = params.get('devolucion');
+  if (purchases.length === 0 && !requested) return null;
+  return (
+    <>
+      <h2 className="account-subtitle">Mis compras</h2>
+      {requested ? (
+        <output className="form-success">Pediste la devolución #{requested}. Te avisamos por el chat cuando la revisemos.</output>
+      ) : null}
+      <ul className="account-orders">
+        {purchases.map((purchase) => {
+          const returnable = purchase.devolvible && purchase.items.some((i) => i.disponible > 0);
+          return (
+            <li key={purchase.id} className="account-order">
+              <div className="account-order__head">
+                <strong>{formatDateTime(purchase.fecha)}</strong>
+                {purchase.numero ? <span className="account-order__hint">Compra #{purchase.numero}</span> : null}
+              </div>
+              <p>{purchase.items.map((item) => `${item.cantidad} × ${item.producto}`).join(' · ')}</p>
+              <strong className="account-order__total">{formatMoney(purchase.total)}</strong>
+              {purchase.devoluciones.map((r) => {
+                const state = returnState(r);
+                return (
+                  <p key={r.id} className="account-return">
+                    Devolución {r.numero ? `#${r.numero}` : ''}: {r.items.map((i) => `${i.cantidad} × ${i.producto}`).join(', ')}{' '}
+                    <span className={`account-chip account-chip--${state.tone === 'success' ? 'success' : 'muted'}`}>{state.label}</span>
+                  </p>
+                );
+              })}
+              {returnable ? (
+                <Link className="account-order__return" to={`/tienda/${slug}/cuenta/devolucion/${purchase.id}`}>
+                  Pedir devolución · quedan {purchase.diasParaDevolver} {purchase.diasParaDevolver === 1 ? 'día' : 'días'}
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

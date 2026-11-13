@@ -133,7 +133,94 @@ export class DevolucionesService {
     return qty > 0 ? lineTotal / qty : 0;
   }
 
+  /** Registered by the team (OR-B4-034). */
   async create(companyId: string, userId: string, dto: CreateDevolucionDto, now = new Date()) {
+    return this.register(companyId, { userId }, dto, now);
+  }
+
+  /**
+   * OR-B4-035 rule 1 — the store customer asks for it from «Mis compras». Only a sale made to
+   * that customer; it arrives «Por autorizar» like any other.
+   */
+  async createForCustomer(
+    companyId: string,
+    customerId: string,
+    dto: Omit<CreateDevolucionDto, 'clienteId'>,
+    now = new Date(),
+  ) {
+    const sale = await this.prisma.venta.findFirst({
+      where: { id: dto.ventaId, empresaId: companyId, clienteId: customerId },
+      select: { id: true },
+    });
+    if (!sale) throw new NotFoundException('Compra no encontrada');
+    return this.register(companyId, { customerId }, { ...dto, clienteId: undefined }, now);
+  }
+
+  /**
+   * OR-B4-035 rule 1 — the store customer's purchases (sales made to them) with what can still
+   * be returned of each line and the returns they already have.
+   */
+  async customerPurchases(companyId: string, customerId: string, now = new Date()) {
+    const sales = await this.prisma.venta.findMany({
+      where: { empresaId: companyId, clienteId: customerId, estado: { not: 'ANULADA' } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: { VentaItem: { include: { Producto: { select: { nombre: true } } } } },
+    });
+    const returns = await this.prisma.devolucionCliente.findMany({
+      where: { empresaId: companyId, ventaId: { in: sales.map((s) => s.id) } },
+      include: this.include,
+      orderBy: { createdAt: 'asc' },
+    });
+    return sales.map((sale) => {
+      const own = returns.filter((r) => r.ventaId === sale.id);
+      const returned = new Map<string, number>();
+      for (const r of own.filter((x) => x.Reembolso?.estado !== 'RECHAZADO')) {
+        for (const item of r.DevolucionClienteItem) {
+          returned.set(
+            item.ventaItemId,
+            (returned.get(item.ventaItemId) ?? 0) + Number(item.cantidad),
+          );
+        }
+      }
+      const days = Math.floor((now.getTime() - sale.createdAt.getTime()) / DAY_MS);
+      return {
+        id: sale.id,
+        numero: sale.numero,
+        fecha: sale.createdAt,
+        total: sale.total.toString(),
+        diasParaDevolver: Math.max(0, RETURN_WINDOW_DAYS - days),
+        devolvible: days <= RETURN_WINDOW_DAYS,
+        items: sale.VentaItem.map((item) => ({
+          ventaItemId: item.id,
+          producto: item.Producto.nombre,
+          cantidad: Number(item.cantidad),
+          disponible: Number(item.cantidad) - (returned.get(item.id) ?? 0),
+          precio: round2(this.unitNet(item)).toFixed(2),
+        })),
+        devoluciones: own.map((r) => {
+          const v = this.view(r);
+          return {
+            id: v.id,
+            numero: v.numero,
+            estado: v.estado,
+            reembolso: v.reembolso,
+            fechaSolicitud: v.fechaSolicitud,
+            montoReembolsable: v.montoReembolsable,
+            items: v.items.map((i) => ({ producto: i.producto, cantidad: i.cantidad })),
+          };
+        }),
+      };
+    });
+  }
+
+  private async register(
+    companyId: string,
+    actor: { userId?: string; customerId?: string },
+    dto: CreateDevolucionDto,
+    now: Date,
+  ) {
+    const userId = actor.userId ?? null;
     const sale = await this.prisma.venta.findFirst({
       where: { id: dto.ventaId, empresaId: companyId },
       include: { VentaItem: true },
@@ -214,8 +301,11 @@ export class DevolucionesService {
             empresaId: companyId,
             clienteId,
             ventaId: sale.id,
-            creadoPorId: userId,
+            // A customer request has no team member behind it: creadoPorId (no FK) keeps the
+            // Customer and createdBy (FK to Usuario) stays empty.
+            creadoPorId: userId ?? (actor.customerId as string),
             createdBy: userId,
+            ...(actor.customerId ? { observaciones: 'Pedida por el cliente desde la tienda' } : {}),
             numeroDevolucion: (last._max.numeroDevolucion ?? 0) + 1,
             ventaFecha: sale.createdAt,
             diasDesdeVenta: days,
@@ -232,7 +322,12 @@ export class DevolucionesService {
             accion: 'CREATE',
             entidadAfectada: 'DevolucionCliente',
             entidadId: row.id,
-            valoresPosteriores: { ventaId: sale.id, total, items: lines.length },
+            valoresPosteriores: {
+              ventaId: sale.id,
+              total,
+              items: lines.length,
+              ...(actor.customerId ? { origen: 'tienda', clienteId: actor.customerId } : {}),
+            },
             ventaId: sale.id,
           },
         });

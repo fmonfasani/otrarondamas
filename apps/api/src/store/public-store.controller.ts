@@ -25,6 +25,8 @@ import { CustomerOrderDto } from './dto/customer-order.dto';
 import { StoreService } from './store.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
+import { DevolucionesService } from '../devoluciones/devoluciones.service';
+import { CustomerReturnDto } from '../devoluciones/dto';
 
 /**
  * STORE-V1-02 — slug-scoped public Store surface.
@@ -45,6 +47,7 @@ export class PublicStoreController {
     private readonly prisma: PrismaService,
     private readonly mercadoPago: MercadoPagoAccountService,
     private readonly checkout: MercadoPagoCheckoutService,
+    private readonly returns: DevolucionesService,
   ) {}
 
   private async companyId(businessSlug: string): Promise<string> {
@@ -149,5 +152,31 @@ export class PublicStoreController {
   ) {
     const { businessId, customerId } = await this.customerOf(user, businessSlug);
     return this.checkout.checkoutUrl({ businessId, customerId, orderId, storeSlug: businessSlug });
+  }
+
+  /** GET /:slug/tienda/mis-compras — OR-B4-035 rule 1: the customer's purchases and their returns. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Get('mis-compras')
+  async customerPurchases(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.returns.customerPurchases(businessId, customerId);
+  }
+
+  /** POST /:slug/tienda/mis-compras/:ventaId/devolucion — the customer asks for a return. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('mis-compras/:ventaId/devolucion')
+  async requestReturn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('ventaId') ventaId: string,
+    @Body() dto: CustomerReturnDto,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.returns.createForCustomer(businessId, customerId, { ...dto, ventaId });
   }
 }
