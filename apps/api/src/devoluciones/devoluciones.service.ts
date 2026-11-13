@@ -636,7 +636,10 @@ export class DevolucionesService {
           : 'Primero hay que recibir los productos',
       );
     }
-    const { maximum, method } = await this.refundBasis(companyId, row);
+    const { maximum, method, paidBy } = await this.refundBasis(companyId, row);
+    if (dto.splits) {
+      return this.splitRefund(companyId, row, userId, dto, maximum, paidBy);
+    }
     if (dto.amount !== undefined && round2(dto.amount) > maximum) {
       throw new BadRequestException(`Se pueden devolver como máximo ${money(maximum)}.`);
     }
@@ -741,7 +744,116 @@ export class DevolucionesService {
       ),
     );
     const method = payments.find((p) => p.medio !== EXCHANGE_METHOD)?.medio ?? null;
-    return { maximum, method };
+    const paidBy = new Map<string, number>();
+    for (const p of payments.filter((x) => x.medio !== EXCHANGE_METHOD)) {
+      paidBy.set(p.medio, round2((paidBy.get(p.medio) ?? 0) + Number(p.monto)));
+    }
+    return { maximum, method, paidBy };
+  }
+
+  /**
+   * OR-B4-035 rule 7 — refund by several methods: cash leaves the register, the rest is left
+   * for the team to return by hand. One refund record (method `mixto` when more than one) with
+   * the detail in its result.
+   */
+  private async splitRefund(
+    companyId: string,
+    row: Awaited<ReturnType<DevolucionesService['load']>>,
+    userId: string,
+    dto: ProcessRefundDto,
+    maximum: number,
+    paidBy: Map<string, number>,
+  ) {
+    const splits = new Map<string, number>();
+    for (const split of dto.splits ?? []) {
+      splits.set(split.metodo, round2((splits.get(split.metodo) ?? 0) + split.monto));
+    }
+    for (const [metodo, monto] of splits) {
+      const paid = paidBy.get(metodo);
+      if (paid === undefined) throw new BadRequestException(`La venta no se pagó con ${metodo}.`);
+      if (monto > paid) {
+        throw new BadRequestException(
+          `Con ${metodo} se pagaron ${money(paid)}: no se puede devolver más.`,
+        );
+      }
+    }
+    const amount = round2([...splits.values()].reduce((sum, m) => sum + m, 0));
+    if (amount > maximum) {
+      throw new BadRequestException(`Se pueden devolver como máximo ${money(maximum)}.`);
+    }
+    const cash = splits.get('efectivo') ?? 0;
+    const manual = [...splits].filter(([metodo]) => metodo !== 'efectivo');
+    const detail = [...splits]
+      .map(([metodo, monto]) => `${money(monto)} por ${metodo}`)
+      .join(' + ');
+    const estado: 'EXITO' | 'PENDIENTE_MANUAL' = manual.length > 0 ? 'PENDIENTE_MANUAL' : 'EXITO';
+    const notes = dto.notes?.trim();
+    const resultado =
+      `Devuelto ${amount < maximum ? 'en parte ' : ''}por varios medios: ${detail}` +
+      (manual.length > 0 ? ' (lo que no es efectivo, fuera de Wapsell)' : '') +
+      (notes ? ` · ${notes}` : '');
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (cash > 0) {
+          const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
+          await tx.movimientoCaja.create({
+            data: {
+              cajaId,
+              aperturaCajaId,
+              usuarioId: userId,
+              tipo: 'Devolucion',
+              monto: new Prisma.Decimal(cash),
+              descripcion: `Devolución #${row.numeroDevolucion} de la venta ${row.Venta.numero ?? row.ventaId} (parte en efectivo)`,
+              referenciaId: row.id,
+            },
+          });
+        }
+        await tx.reembolso.create({
+          data: {
+            devolucionClienteId: row.id,
+            empresaId: companyId,
+            estado,
+            montoReembolsable: row.montoReembolsable,
+            montoActual: new Prisma.Decimal(amount),
+            metodoReembolso: splits.size === 1 ? [...splits.keys()][0] : 'mixto',
+            resultado,
+            procesadoEn: estado === 'EXITO' ? new Date() : null,
+          },
+        });
+        const updated = await tx.devolucionCliente.updateMany({
+          where: { id: row.id, empresaId: companyId, estado: 'RECIBIDA' },
+          data: { estado: 'PROCESADA', fechaProcesada: new Date() },
+        });
+        if (updated.count !== 1)
+          throw new ConflictException('La devolución cambió mientras se reembolsaba');
+        await tx.auditLog.create({
+          data: {
+            empresaId: companyId,
+            usuarioId: userId,
+            accion: 'REEMBOLSO',
+            entidadAfectada: 'DevolucionCliente',
+            entidadId: row.id,
+            valoresPosteriores: {
+              monto: amount,
+              maximo: maximum,
+              medios: Object.fromEntries(splits),
+              estado,
+            },
+            ventaId: row.ventaId,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    await this.notifier.notify(
+      companyId,
+      row.clienteId,
+      row.id,
+      'reembolsada',
+      `Tu devolución #${row.numeroDevolucion} terminó: te devolvemos ${detail}.`,
+    );
+    return this.view(await this.load(companyId, row.id));
   }
 
   /** The open register's opening, or CAJA_CERRADA. */

@@ -835,4 +835,73 @@ describe('P3-2 — devoluciones', () => {
       .send({ items: [{ productoId: product.id, cantidad: 1 }] })
       .expect(403);
   });
+
+  it('refunds a sale paid with several methods by the amounts chosen for each (OR-B4-035 rule 7)', async () => {
+    const created = await request(BASE)
+      .post('/ventas')
+      .set('Authorization', people.owner.auth)
+      .send({
+        canal: 'presencial',
+        clienteId: customer.id,
+        items: [{ productoId: product.id, cantidad: 3 }],
+      })
+      .expect(201);
+    for (const [medio, monto] of [
+      ['efectivo', 10],
+      ['transferencia', 20],
+    ] as const) {
+      await request(BASE)
+        .post(`/ventas/${created.body.id}/pagos`)
+        .set('Authorization', people.owner.auth)
+        .send({ medio, monto })
+        .expect(201);
+    }
+    const ret = await request(BASE)
+      .post('/devoluciones')
+      .set('Authorization', people.vendedor.auth)
+      .send({
+        ventaId: created.body.id,
+        items: [
+          { ventaItemId: created.body.VentaItem[0].id, cantidad: 3, motivoCodigo: 'VENCIDO' },
+        ],
+      })
+      .expect(201);
+    const id = ret.body.id;
+    await request(BASE)
+      .put(`/devoluciones/${id}/authorize`)
+      .set('Authorization', people.owner.auth)
+      .send({ condition: 'accepted' })
+      .expect(200);
+    await request(BASE)
+      .put(`/devoluciones/${id}/receive`)
+      .set('Authorization', people.owner.auth)
+      .send({ items: [{ itemId: ret.body.items[0].id, destino: 'DESCARTE' }] })
+      .expect(200);
+    const refund = (splits: unknown) =>
+      request(BASE)
+        .put(`/devoluciones/${id}/process-refund`)
+        .set('Authorization', people.owner.auth)
+        .send({ splits });
+
+    const tooMuch = await refund([{ metodo: 'transferencia', monto: 25 }]);
+    expect(tooMuch.status).toBe(400);
+    expect(tooMuch.body.message).toContain('se pagaron $ 20,00');
+    expect((await refund([{ metodo: 'QR', monto: 5 }])).status).toBe(400);
+
+    const res = await refund([
+      { metodo: 'efectivo', monto: 10 },
+      { metodo: 'transferencia', monto: 20 },
+    ]).expect(200);
+    expect(res.body).toMatchObject({
+      estado: 'PROCESADA',
+      reembolso: { estado: 'PENDIENTE_MANUAL', metodo: 'mixto', monto: '30' },
+    });
+    expect(res.body.reembolso.resultado).toContain(
+      '$ 10,00 por efectivo + $ 20,00 por transferencia',
+    );
+    const cash = await prisma.movimientoCaja.findFirst({
+      where: { referenciaId: id, tipo: 'Devolucion' },
+    });
+    expect(Number(cash?.monto)).toBe(10);
+  });
 });

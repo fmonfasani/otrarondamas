@@ -5,6 +5,9 @@ import { action as detailAction } from '../app/routes/_business.$lang.dashboard.
 import {
   destinationsFrom,
   exchangeItemsFrom,
+  paidByMethod,
+  proportionalSplits,
+  splitsFrom,
   exchangeSummary,
   refundAmountFrom,
   refundDescription,
@@ -88,6 +91,26 @@ describe('returns helpers (OR-B4-034)', () => {
     expect(exchangeSummary({ ...base, resto: '5' })).toMatch(/devolvieron \$\s5,00/);
     expect(exchangeSummary({ ...base, diferencia: '20', pendiente: '20' })).toContain('Falta cobrar');
     expect(exchangeSummary(base)).toBe('Cambio hecho con la venta #9.');
+  });
+
+  it('splits a refund among the methods the sale was paid with (OR-B4-035 rule 7)', () => {
+    const paidBy = paidByMethod([
+      { medio: 'transferencia', monto: '20', estado: 'APROBADO' },
+      { medio: 'efectivo', monto: '10', estado: 'APROBADO' },
+      { medio: 'cambio', monto: '5', estado: 'APROBADO' },
+      { medio: 'QR', monto: '99', estado: 'RECHAZADO' },
+    ]);
+    expect(paidBy).toEqual([{ metodo: 'transferencia', pagado: 20 }, { metodo: 'efectivo', pagado: 10 }]);
+    expect(proportionalSplits(paidBy, 10).map((s) => s.monto)).toEqual([6.67, 3.33]);
+    expect(proportionalSplits(paidBy, 30).map((s) => s.monto)).toEqual([20, 10]);
+    expect(splitsFrom(formOf([['split-transferencia', '6,67'], ['split-efectivo', '3,33']]), paidBy)).toEqual({
+      ok: true,
+      splits: [{ metodo: 'transferencia', monto: 6.67 }, { metodo: 'efectivo', monto: 3.33 }],
+    });
+    expect(splitsFrom(formOf([['split-efectivo', '11']]), paidBy)).toMatchObject({ ok: false, message: expect.stringContaining('se pagaron') });
+    expect(splitsFrom(formOf([['split-efectivo', '0']]), paidBy)).toMatchObject({ ok: false });
+    const mixed = { estado: 'PENDIENTE_MANUAL', metodo: 'mixto', monto: '30', resultado: 'Devuelto por varios medios: $ 10,00 por efectivo + $ 20,00 por transferencia' };
+    expect(refundDescription({ reembolso: mixed, montoReembolsable: '30' }, 'transferencia')).toBe(mixed.resultado);
   });
 
   it('reads the refund amount: all of it by default, a part when lower, never more', () => {

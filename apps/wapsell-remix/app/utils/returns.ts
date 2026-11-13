@@ -169,11 +169,58 @@ export function exchangeSummary(n: { numero: number | null; diferencia: string; 
   return `Cambio hecho con ${sale}.`;
 }
 
+/**
+ * OR-B4-035 rule 7 — the refund split proportionally to what each method paid. Cents are
+ * rounded and the remainder goes to the method that paid the most, so the parts add up.
+ */
+export function proportionalSplits(paidBy: Array<{ metodo: string; pagado: number }>, total: number) {
+  const paid = paidBy.reduce((sum, p) => sum + p.pagado, 0);
+  if (paid <= 0) return paidBy.map((p) => ({ ...p, monto: 0 }));
+  const cents = Math.round(total * 100);
+  const parts = paidBy.map((p) => ({ ...p, cents: Math.floor((cents * p.pagado) / paid) }));
+  const rest = cents - parts.reduce((sum, p) => sum + p.cents, 0);
+  const largest = parts.reduce((top, p, i) => (p.pagado > parts[top].pagado ? i : top), 0);
+  parts[largest].cents += rest;
+  return parts.map(({ cents: c, ...p }) => ({ ...p, monto: c / 100 }));
+}
+
+/** The amounts typed for each method (`split-<metodo>`); at least one above 0, none above what it paid. */
+export function splitsFrom(form: FormData, paidBy: Array<{ metodo: string; pagado: number }>):
+  | { ok: true; splits: Array<{ metodo: string; monto: number }> }
+  | { ok: false; message: string } {
+  const splits: Array<{ metodo: string; monto: number }> = [];
+  for (const { metodo, pagado } of paidBy) {
+    const value = parseArsNumber(form.get(`split-${metodo}`));
+    if (value === null || value === 0) continue;
+    if (!Number.isFinite(value) || value < 0) return { ok: false, message: `Revisá el monto de ${METHOD_LABELS[metodo] ?? metodo}.` };
+    if (Math.round(value * 100) > Math.round(pagado * 100)) {
+      return { ok: false, message: `Con ${METHOD_LABELS[metodo] ?? metodo} se pagaron ${formatMoney(pagado)}: no se puede devolver más.` };
+    }
+    splits.push({ metodo, monto: Math.round(value * 100) / 100 });
+  }
+  if (splits.length === 0) return { ok: false, message: 'Escribí cuánto se devuelve por cada medio.' };
+  return { ok: true, splits };
+}
+
+/** What each method paid for the sale, leaving aside credit from an exchange. */
+export function paidByMethod(payments: Array<{ medio: string; monto: string; estado: string }>) {
+  const map = new Map<string, number>();
+  for (const p of payments) {
+    if (p.estado !== 'APROBADO' || p.medio === 'cambio') continue;
+    map.set(p.medio, Math.round(((map.get(p.medio) ?? 0) + Number(p.monto)) * 100) / 100);
+  }
+  return [...map].map(([metodo, pagado]) => ({ metodo, pagado })).sort((a, b) => b.pagado - a.pagado);
+}
+
+export const methodLabel = (metodo: string) => METHOD_LABELS[metodo] ?? metodo;
+
 const METHOD_LABELS: Record<string, string> = { efectivo: 'efectivo', transferencia: 'transferencia', QR: 'QR / billetera', MERCADOPAGO: 'Mercado Pago', cambio: 'cambio' };
 
 /** How the refund will be (before) or was (after) made, in words. */
 export function refundDescription(r: Pick<CustomerReturn, 'reembolso' | 'montoReembolsable'>, method: string | null) {
   if (r.reembolso) {
+    // OR-B4-035 rule 7 — split among methods: the result already says how much by each.
+    if (r.reembolso.metodo === 'mixto') return r.reembolso.resultado ?? 'Reembolso registrado.';
     if (r.reembolso.estado === 'PENDIENTE_MANUAL') {
       return `Registrado: devolvé ${formatMoney(r.reembolso.monto)} por ${METHOD_LABELS[r.reembolso.metodo ?? ''] ?? 'el medio original'} desde el banco o la billetera. Wapsell no mueve ese dinero.`;
     }
