@@ -64,6 +64,14 @@ describe('Invitation activation (real PostgreSQL)', () => {
     if (prisma && empresaId) {
       await prisma.invitacion.deleteMany({ where: { empresaId } });
       await prisma.cliente.deleteMany({ where: { empresaId } });
+      // Activation also creates the canonical User + Membership + UserEmpresa (S-V1-02).
+      const usuarios = await prisma.usuario.findMany({
+        where: { empresaId },
+        select: { id: true },
+      });
+      await prisma.membership.deleteMany({ where: { businessId: empresaId } });
+      await prisma.user.deleteMany({ where: { usuarioId: { in: usuarios.map((u) => u.id) } } });
+      await prisma.userEmpresa.deleteMany({ where: { empresaId } });
       await prisma.usuario.deleteMany({ where: { empresaId } });
       await prisma.empresa.deleteMany({ where: { id: empresaId } });
     }
