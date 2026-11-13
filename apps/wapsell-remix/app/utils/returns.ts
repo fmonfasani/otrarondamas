@@ -37,7 +37,7 @@ export const RETURN_WINDOW_DAYS = 10;
 
 export const RETURN_STATES: Record<string, { label: string; tone: string; next: string }> = {
   SOLICITADA: { label: 'Por autorizar', tone: 'warning', next: 'El Owner o un administrador la autoriza.' },
-  AUTORIZADA: { label: 'Por recibir', tone: 'warning', next: 'Cuando vuelvan los productos, revisalos y elegí su destino.' },
+  AUTORIZADA: { label: 'Por recibir', tone: 'warning', next: 'Cuando vuelvan los productos, el equipo (o el gestor de stock) los revisa y elige su destino.' },
   RECIBIDA: { label: 'Por reembolsar', tone: 'secondary', next: 'Devolvé el dinero por el mismo medio con que pagó.' },
   PROCESADA: { label: 'Terminada', tone: 'success', next: '' },
 };
@@ -185,4 +185,6 @@ export function refundDescription(r: Pick<CustomerReturn, 'reembolso' | 'montoRe
 }
 
 export const canManageReturns = (role: string) => role === 'OWNER' || role === 'ADMIN';
+/** OR-B4-035 rule 11 — receiving and inspecting also belongs to the Gestor de stock. */
+export const canReceiveReturns = (role: string) => canManageReturns(role) || role === 'GESTOR_DE_STOCK';
 export const canRegisterReturns = (role: string) => ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role);

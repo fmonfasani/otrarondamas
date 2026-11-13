@@ -74,6 +74,7 @@ Naming: `DOMAIN_ACTION`, upper snake case, English, matching the identifiers alr
 | sales | `SALES_CANCEL` ★ | Cancel or revert a sale |
 | sales | `REFUNDS_MANAGE` ★ | Authorise, process and refund returns |
 | sales | `RETURNS_VIEW` | See returns (`OR-B4-025`) |
+| sales | `RETURNS_RECEIVE` | Receive and inspect returned products, or reject them after inspection; no money (`OR-B4-035` rule 11) |
 | inventory | `INVENTORY_VIEW` | See stock and lots |
 | inventory | `INVENTORY_MOVE` | Receive stock and register stock-outs |
 | inventory | `INVENTORY_ADJUST` ★ | Manual stock adjustments |
@@ -141,6 +142,7 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 | `SALES_CANCEL` | ● | ● | — | — |
 | `REFUNDS_MANAGE` | ● | ● | — | — |
 | `RETURNS_VIEW` | ● | ● | ● | ● |
+| `RETURNS_RECEIVE` | ● | ● | — | ● |
 | `INVENTORY_VIEW` | ● | ● | ● | ● |
 | `INVENTORY_MOVE` | ● | ● | — | ● |
 | `INVENTORY_ADJUST` | ● | ● | — | ● |
@@ -276,6 +278,7 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | catalogue reads, `GET /ventas/productos` | `CATALOG_VIEW` | — |
 | `GET /clientes*` | `CUSTOMERS_VIEW` | Gestor de Stock denied |
 | `GET /devoluciones*` | `RETURNS_VIEW` (`OR-B4-025`) | — |
+| `PUT /devoluciones/:id/receive`, `PUT /devoluciones/:id/reject` | `RETURNS_RECEIVE` (`OR-B4-035`) | Vendedor denied; authorize, cancel and window stay `REFUNDS_MANAGE`, refund and exchange `PAYMENTS_REFUND` |
 | `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
 | `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
 | `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |
@@ -318,3 +321,4 @@ divergences and an activation with immediate rollback — which the Owner approv
 | 0.1 | 2026-11-10 | First draft: AS-IS inventory and defects, canonical catalogue, platform scope, proposed matrix, legacy mapping, stages. |
 | 0.2 | 2026-11-10 | APPROVED (OR-B4-024): the Owner accepted the four matrix decisions as proposed. |
 | **0.3** | **2026-11-10** | **OR-B4-025:** `RETURNS_VIEW` and `PURCHASES_VIEW` added (38 permissions); product creation needs `PRICING_CHANGE`; pending-payment cancel is `PAYMENTS_REGISTER`; cash `Ingreso`/`Egreso` and `arqueo` accepted as declared; cut-over authorised subject to a prior plan. Stage status in §5.4. |
+| **0.4** | **2026-11-13** | **OR-B4-035 rule 11:** `RETURNS_RECEIVE` added (40 permissions with `PAYMENTS_CONFIGURE` of OR-B4-033): Owner, Admin and Gestor de Stock receive and inspect returns; legacy `orders.process_returns` maps to it. |

@@ -36,11 +36,11 @@ import { hasCanonicalPermission, type Permission } from '../authorization/canoni
  *   GET  /devoluciones[/:id]               view (RETURNS_VIEW)
  *   GET  /devoluciones/ajustes             the return window (RETURNS_VIEW); PUT changes it (REFUNDS_MANAGE)
  *   PUT  /devoluciones/:id/authorize       authorize (REFUNDS_MANAGE: Owner, Admin)
- *   PUT  /devoluciones/:id/receive         receive + inspect each product (REFUNDS_MANAGE)
+ *   PUT  /devoluciones/:id/receive         receive + inspect each product (RETURNS_RECEIVE: Owner, Admin, Gestor de stock)
  *   PUT  /devoluciones/:id/process-refund  refund, full or partial, by the original method (PAYMENTS_REFUND)
  *   PUT  /devoluciones/:id/exchange        exchange for other products instead of a refund (PAYMENTS_REFUND)
  *   PUT  /devoluciones/:id/cancel          cancel before receiving, with a reason (REFUNDS_MANAGE)
- *   PUT  /devoluciones/:id/reject          reject after inspection, with a reason (REFUNDS_MANAGE)
+ *   PUT  /devoluciones/:id/reject          reject after inspection, with a reason (RETURNS_RECEIVE)
  * Each permission is also checked against the role matrix here, so it holds in every
  * authorization mode (in `shadow` the legacy guard decides).
  */
@@ -143,7 +143,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('orders.process_returns')
-  @CanonicalPermission('REFUNDS_MANAGE')
+  @CanonicalPermission('RETURNS_RECEIVE')
   @Put(':id/receive')
   @ApiOperation({ summary: 'Receive the returned products and inspect each one' })
   async receiveDevolucione(
@@ -152,7 +152,7 @@ export class DevolucionClienteController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.devolucionesService.receive(
-      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      await this.companyFor(user, 'RETURNS_RECEIVE'),
       id,
       user.id,
       dto,
@@ -194,7 +194,7 @@ export class DevolucionClienteController {
   }
 
   @RequirePermission('orders.process_returns')
-  @CanonicalPermission('REFUNDS_MANAGE')
+  @CanonicalPermission('RETURNS_RECEIVE')
   @Put(':id/reject')
   @ApiOperation({ summary: 'Reject a return after inspecting its products (OR-B4-035)' })
   async rejectDevolucion(
@@ -203,7 +203,7 @@ export class DevolucionClienteController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.devolucionesService.reject(
-      await this.companyFor(user, 'REFUNDS_MANAGE'),
+      await this.companyFor(user, 'RETURNS_RECEIVE'),
       id,
       user.id,
       dto.motivo,

@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   'SALES_CANCEL',
   'REFUNDS_MANAGE',
   'RETURNS_VIEW', // OR-B4-025
+  'RETURNS_RECEIVE', // OR-B4-035 rule 11: receive and inspect returned products (no money)
   'INVENTORY_VIEW',
   'INVENTORY_MOVE',
   'INVENTORY_ADJUST',
@@ -132,6 +133,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'PURCHASES_VIEW',
     'PURCHASES_MANAGE',
     'RETURNS_VIEW',
+    'RETURNS_RECEIVE', // OR-B4-035 rule 11
     'MESSAGING_USE',
     'AUDIT_VIEW_OWN',
   ],
@@ -196,7 +198,7 @@ export const LEGACY_PERMISSION_MAP: Readonly<
   'ventas.editar': ['PAYMENTS_REGISTER'],
   'ventas.reembolsar': ['REFUNDS_MANAGE', 'PAYMENTS_REFUND'],
   'payments.process_refunds': ['REFUNDS_MANAGE', 'PAYMENTS_REFUND'],
-  'orders.process_returns': ['REFUNDS_MANAGE'],
+  'orders.process_returns': ['RETURNS_RECEIVE'],
   'orders.authorize_returns': ['REFUNDS_MANAGE'],
   'customers.request_return': CUSTOMER_POLICY,
   'inventario.ajustes': ['INVENTORY_ADJUST'],

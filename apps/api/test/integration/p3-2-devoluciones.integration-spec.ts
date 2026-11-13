@@ -64,7 +64,7 @@ describe('P3-2 — devoluciones', () => {
           ]
         : role === 'VENDEDOR'
           ? ['ventas.crear', 'ventas.ver']
-          : [];
+          : ['orders.process_returns']; // Gestor: receives and inspects (OR-B4-035 rule 11)
     await seedUsuarioPermissions(prisma, [usuario.id], legacy);
     people[key] = {
       usuarioId: usuario.id,
@@ -788,5 +788,51 @@ describe('P3-2 — devoluciones', () => {
       });
       expect(audit?.valoresPosteriores).toMatchObject({ fueraDePlazo: { dias: 13, plazo: 10 } });
     });
+  });
+
+  it('lets the Gestor de stock receive and inspect, never authorize or refund (OR-B4-035 rule 11)', async () => {
+    const bought = await sale(customer.id, 'efectivo', 1);
+    const created = await request(BASE)
+      .post('/devoluciones')
+      .set('Authorization', people.vendedor.auth)
+      .send({
+        ventaId: bought.id,
+        items: [{ ventaItemId: bought.itemId, cantidad: 1, motivoCodigo: 'ROTO' }],
+      })
+      .expect(201);
+    const id = created.body.id;
+    await request(BASE)
+      .put(`/devoluciones/${id}/authorize`)
+      .set('Authorization', people.gestor.auth)
+      .send({ condition: 'accepted' })
+      .expect(403);
+    await request(BASE)
+      .put(`/devoluciones/${id}/authorize`)
+      .set('Authorization', people.owner.auth)
+      .send({ condition: 'accepted' })
+      .expect(200);
+    await request(BASE)
+      .put(`/devoluciones/${id}/receive`)
+      .set('Authorization', people.vendedor.auth)
+      .send({ items: [{ itemId: created.body.items[0].id, destino: 'REINGRESO' }] })
+      .expect(403);
+    await request(BASE)
+      .put(`/devoluciones/${id}/receive`)
+      .set('Authorization', people.gestor.auth)
+      .send({
+        items: [{ itemId: created.body.items[0].id, destino: 'REINGRESO' }],
+        condition_check: 'Revisado por depósito',
+      })
+      .expect(200);
+    await request(BASE)
+      .put(`/devoluciones/${id}/process-refund`)
+      .set('Authorization', people.gestor.auth)
+      .send({})
+      .expect(403);
+    await request(BASE)
+      .put(`/devoluciones/${id}/exchange`)
+      .set('Authorization', people.gestor.auth)
+      .send({ items: [{ productoId: product.id, cantidad: 1 }] })
+      .expect(403);
   });
 });
