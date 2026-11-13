@@ -13,6 +13,10 @@ import {
   exchangeItemsFrom,
   exchangeSummary,
   isClosedWithoutRefund,
+  methodLabel,
+  paidByMethod,
+  proportionalSplits,
+  splitsFrom,
   refundAmountFrom,
   refundDescription,
   returnNumber,
@@ -37,13 +41,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const paid = (sale?.Pago ?? [])
       .filter((p) => p.estado === 'APROBADO' && p.medio !== 'cambio')
       .sort((a, b) => Number(b.monto) - Number(a.monto));
+    const paidBy = paidByMethod(sale?.Pago ?? []);
     // OR-B4-035 rule 2 — products to take in exchange, searched like in Ventas.
     const search = new URL(request.url).searchParams.get('buscar')?.trim() ?? '';
     const products =
       found.estado === 'RECIBIDA' && search.length >= 2
         ? ((await settle(apiRequest<SearchProduct[]>(token, `/ventas/productos?search=${encodeURIComponent(search)}`))) ?? [])
         : [];
-    return json({ found, role: String(user?.rol ?? ''), method: paid[0]?.medio ?? null, search, products });
+    return json({ found, role: String(user?.rol ?? ''), method: paid[0]?.medio ?? null, paidBy, search, products });
   } catch (error) {
     if (error instanceof ApiError) throw new Response(error.message, { status: error.status });
     throw error;
@@ -73,6 +78,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
         body: JSON.stringify({ items: parsed.items, ...(note ? { condition_check: note } : {}) }),
       });
       return json({ ok: true, message: 'Productos recibidos.' });
+    }
+    if (intent === 'refund-split') {
+      const found = await apiRequest<CustomerReturn>(token, `/devoluciones/${id}`);
+      const sale = await apiRequest<{ Pago: Array<{ medio: string; monto: string; estado: string }> }>(token, `/ventas/${encodeURIComponent(found.ventaId)}`);
+      const parsed = splitsFrom(form, paidByMethod(sale.Pago));
+      if (!parsed.ok) return json({ ok: false, message: parsed.message }, { status: 400 });
+      await apiRequest(token, `/devoluciones/${id}/process-refund`, { method: 'PUT', body: JSON.stringify({ splits: parsed.splits }) });
+      return json({ ok: true, message: 'Reembolso registrado. La devolución terminó.' });
     }
     if (intent === 'refund') {
       const found = await apiRequest<CustomerReturn>(token, `/devoluciones/${id}`);
@@ -117,7 +130,8 @@ const STEPS = [
 ] as const;
 
 export default function ReturnPage() {
-  const { found, role, method, search, products } = useLoaderData<typeof loader>();
+  const { found, role, method, paidBy, search, products } = useLoaderData<typeof loader>();
+  const splitDefaults = proportionalSplits(paidBy, Number(found.montoReembolsable));
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
@@ -238,7 +252,28 @@ export default function ReturnPage() {
                 <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Autorizar</button>
               </Form>
             )}
-            {manage && found.estado === 'RECIBIDA' && (
+            {manage && found.estado === 'RECIBIDA' && paidBy.length > 1 && (
+              <Form method="post" className="ws-pos__checkout">
+                <input type="hidden" name="intent" value="refund-split" />
+                <p className="ws-meta">
+                  La venta se pagó con varios medios. Elegí cuánto vuelve por cada uno (está repartido en proporción a lo que pagó;
+                  podés devolver menos). El efectivo sale de la caja; el resto lo devolvés fuera de Wapsell.
+                </p>
+                {splitDefaults.map((s) => (
+                  <label key={s.metodo} className="ws-field">
+                    <span className="ws-field__label">
+                      {methodLabel(s.metodo)} <small>(pagó {formatMoney(s.pagado)})</small>
+                    </span>
+                    <span className="ws-field__control">
+                      <input name={`split-${s.metodo}`} inputMode="decimal" defaultValue={s.monto.toLocaleString('es-AR')} />
+                    </span>
+                  </label>
+                ))}
+                <small className="ws-meta">En total, como máximo {formatMoney(found.montoReembolsable)}.</small>
+                <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Reembolsar</button>
+              </Form>
+            )}
+            {manage && found.estado === 'RECIBIDA' && paidBy.length <= 1 && (
               <Form method="post" className="ws-pos__checkout">
                 <input type="hidden" name="intent" value="refund" />
                 <p className="ws-meta">{refundDescription(found, method)}</p>
