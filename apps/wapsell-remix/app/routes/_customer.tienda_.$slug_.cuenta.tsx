@@ -3,7 +3,8 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParam
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signInCookie, signOutCookie, storeAuth } from '~/services/customer-session.server';
-import { fetchCustomerOrders, fetchStore, type CustomerOrder } from '~/services/store.server';
+import { fetchCustomerOrders, fetchStore, payOrder, type CustomerOrder } from '~/services/store.server';
+import { PAYMENT_RETURN, paymentOf } from '~/utils/store';
 import { formatDateTime, formatMoney, orderState } from '~/utils/format';
 
 /**
@@ -58,6 +59,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect(`/tienda/${slug}`, { headers: { 'Set-Cookie': await signOutCookie(request) } });
   }
 
+  if (intent === 'pay') {
+    const customer = await getStoreCustomer(request, slug);
+    if (!customer) return redirect(`/tienda/${slug}/cuenta`);
+    try {
+      const { url } = await payOrder(customer.jwt, slug, text('orderId'));
+      return redirect(url);
+    } catch (error) {
+      if (error instanceof ApiError) return json({ intent, message: error.message }, { status: error.status });
+      throw error;
+    }
+  }
+
   const email = text('email');
   const password = String(form.get('password') ?? '');
   if (!email || !password) return json({ intent, message: 'Completá tu email y tu contraseña.' }, { status: 400 });
@@ -89,7 +102,11 @@ export default function Account() {
         <Link className="cart-trigger" to={`/tienda/${store.slug}?carrito=1`}>Mi pedido</Link>
       </StoreHeader>
       <section className="account-section">
-        {customer ? <Orders customer={customer} orders={orders} error={ordersError} slug={store.slug} /> : <SignIn store={store} />}
+        {customer ? (
+          <Orders customer={customer} orders={orders} error={ordersError} slug={store.slug} pagosOnline={Boolean(store.pagosOnline)} />
+        ) : (
+          <SignIn store={store} />
+        )}
       </section>
     </main>
   );
@@ -139,12 +156,18 @@ function Orders({
   orders,
   error,
   slug,
+  pagosOnline,
 }: Readonly<{
   customer: { nombre: string; email: string };
   orders: CustomerOrder[];
   error: string | null;
   slug: string;
+  pagosOnline: boolean;
 }>) {
+  const result = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const [params] = useSearchParams();
+  const returned = PAYMENT_RETURN[params.get('pago') ?? ''];
   return (
     <>
       <div className="account-intro account-intro--row">
@@ -159,6 +182,8 @@ function Orders({
         </Form>
       </div>
       <h2 className="account-subtitle">Mis pedidos</h2>
+      {returned ? <output className={returned.ok ? 'form-success' : 'form-error'}>{returned.text}</output> : null}
+      {result?.intent === 'pay' ? <output className="form-error">{result.message}</output> : null}
       {error ? <output className="form-error">{error}</output> : null}
       {!error && orders.length === 0 ? (
         <div className="catalog-state"><span>○</span><p>Todavía no hiciste pedidos. <a href={`/tienda/${slug}#catalogo`}>Ver el catálogo</a></p></div>
@@ -174,10 +199,27 @@ function Orders({
               </div>
               <p>{order.items.map((item) => `${item.cantidad} × ${item.producto}`).join(' · ')}</p>
               <strong className="account-order__total">{formatMoney(order.total)}</strong>
+              <OrderPayment order={order} pagosOnline={pagosOnline} busy={navigation.state !== 'idle'} />
             </li>
           );
         })}
       </ul>
     </>
+  );
+}
+
+function OrderPayment({ order, pagosOnline, busy }: Readonly<{ order: CustomerOrder; pagosOnline: boolean; busy: boolean }>) {
+  const payment = paymentOf(order, pagosOnline);
+  if (payment.kind === 'paid') return <span className="account-chip account-chip--success account-order__paid">Pagado</span>;
+  if (payment.kind === 'wait') return <small className="account-order__hint">Vas a poder pagarlo online cuando el comercio lo confirme.</small>;
+  if (payment.kind === 'none') return null;
+  return (
+    <Form method="post" className="account-order__pay">
+      <input type="hidden" name="intent" value="pay" />
+      <input type="hidden" name="orderId" value={order.id} />
+      <button className="submit-order" type="submit" disabled={busy}>
+        Pagar con Mercado Pago · {formatMoney(payment.remaining)}
+      </button>
+    </Form>
   );
 }

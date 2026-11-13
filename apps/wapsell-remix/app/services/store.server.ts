@@ -16,7 +16,8 @@ async function publicGet<T>(path: string): Promise<T | null> {
 }
 
 /** The store's public name; null when no Business has that slug. */
-export const fetchStore = (slug: string) => publicGet<{ nombre: string; slug: string }>(storePath(slug));
+export const fetchStore = (slug: string) =>
+  publicGet<{ nombre: string; slug: string; pagosOnline?: boolean }>(storePath(slug));
 
 export async function fetchCatalog(slug: string, search: string) {
   const query = search ? `?search=${encodeURIComponent(search)}` : '';
@@ -49,9 +50,15 @@ export type CustomerOrder = {
   id: string;
   estado: string;
   total: string;
+  /** Approved online payments so far (OR-B4-032). */
+  pagado?: string;
   createdAt: string;
   items: Array<{ producto: string; cantidad: number }>;
 };
+
+/** Mercado Pago checkout for a confirmed order: the URL to send the customer to. */
+export const payOrder = (jwt: string, slug: string, orderId: string) =>
+  apiRequest<{ url: string }>(jwt, storePath(slug, `/mis-pedidos/${encodeURIComponent(orderId)}/pagar`), { method: 'POST' });
 
 export const fetchCustomerOrders = (jwt: string, slug: string) =>
   apiRequest<CustomerOrder[]>(jwt, storePath(slug, '/mis-pedidos'));

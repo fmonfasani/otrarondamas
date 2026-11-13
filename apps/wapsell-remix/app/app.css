@@ -260,3 +260,10 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
   .store-chat { max-height: 55vh; }
   .chat-fab { right: 14px; bottom: 14px; padding: 12px 15px; }
 }
+
+/* Paying a confirmed order with Mercado Pago (OR-B4-032) */
+.account-order__pay { margin-top: 6px; }
+.account-order__pay .submit-order { width: 100%; padding: 0 16px; }
+.account-order__paid { justify-self: start; }
+.account-order__hint { color: #77736d; font-size: 12px; }
+.account-section output.form-success, .account-section output.form-error { display: block; margin-bottom: 12px; }
