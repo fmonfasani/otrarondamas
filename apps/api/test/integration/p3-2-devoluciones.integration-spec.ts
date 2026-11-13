@@ -9,6 +9,7 @@ import {
   waitPort,
 } from './helpers/store-catalog.fixture';
 import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
 
 /**
  * P3-2 — customer returns (OR-B4-034), end to end against the real API and database:
@@ -555,5 +556,68 @@ describe('P3-2 — devoluciones', () => {
       monto: '5',
       resultado: 'Devolver en parte por transferencia fuera de Wapsell',
     });
+  });
+
+  it('lets the store customer ask for a return from «Mis compras» (OR-B4-035 rule 1)', async () => {
+    const slug = `p3-2-a-${suffix}`;
+    const auth = `Bearer ${signCustomerToken(customer.id, company.id)}`;
+    const bought = await sale(customer.id, 'efectivo', 2);
+
+    const list = await request(BASE)
+      .get(`/${slug}/tienda/mis-compras`)
+      .set('Authorization', auth)
+      .expect(200);
+    const mine = list.body.find((s: { id: string }) => s.id === bought.id);
+    expect(mine).toMatchObject({ devolvible: true, diasParaDevolver: 10 });
+    expect(mine.items[0]).toMatchObject({
+      ventaItemId: bought.itemId,
+      cantidad: 2,
+      disponible: 2,
+      precio: '10.00',
+    });
+    const first = list.body.find((s: { id: string }) => s.id === cashSale.id);
+    expect(first.devoluciones.map((r: { numero: number }) => r.numero)).toContain(1);
+
+    const stranger = await prisma.cliente.create({
+      data: {
+        empresaId: company.id,
+        nombre: 'Otro cliente',
+        email: `p3-2-otro-${suffix}@example.test`,
+      },
+      select: { id: true },
+    });
+    const body = { items: [{ ventaItemId: bought.itemId, cantidad: 1, motivoCodigo: 'ROTO' }] };
+    await request(BASE)
+      .post(`/${slug}/tienda/mis-compras/${bought.id}/devolucion`)
+      .set('Authorization', `Bearer ${signCustomerToken(stranger.id, company.id)}`)
+      .send(body)
+      .expect(404);
+    await request(BASE)
+      .post(`/p3-2-b-${suffix}/tienda/mis-compras/${bought.id}/devolucion`)
+      .set('Authorization', auth)
+      .send(body)
+      .expect(403);
+
+    const res = await request(BASE)
+      .post(`/${slug}/tienda/mis-compras/${bought.id}/devolucion`)
+      .set('Authorization', auth)
+      .send(body)
+      .expect(201);
+    expect(res.body).toMatchObject({
+      estado: 'SOLICITADA',
+      observaciones: 'Pedida por el cliente desde la tienda',
+      cliente: { id: customer.id },
+      montoReembolsable: '10',
+    });
+    const after = await request(BASE)
+      .get(`/${slug}/tienda/mis-compras`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(after.body.find((s: { id: string }) => s.id === bought.id).items[0].disponible).toBe(1);
+    const notice = (await customerMessages()).find(
+      (m) => m.clientMessageId === `devolucion-${res.body.id}-solicitada`,
+    );
+    expect(notice?.content).toContain('Registramos tu devolución');
+    await prisma.cliente.delete({ where: { id: stranger.id } });
   });
 });

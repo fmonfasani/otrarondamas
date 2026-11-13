@@ -74,3 +74,17 @@ export class CreateDevolucionDto {
   @IsUUID()
   clienteId?: string;
 }
+
+/** OR-B4-035 rule 1 — a return asked for by the store customer; the sale comes from the URL. */
+export class CustomerReturnDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateDevolucionItemDto)
+  @ArrayMinSize(1)
+  items: CreateDevolucionItemDto[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  motivo_general?: string;
+}

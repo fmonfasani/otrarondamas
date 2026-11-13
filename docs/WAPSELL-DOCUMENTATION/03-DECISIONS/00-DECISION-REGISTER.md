@@ -1037,3 +1037,7 @@ Effects:
 Implementation note: `EstadoDevolucion` has no CANCELADA/RECHAZADA value and the migration history is broken, so a cancelled or
 rejected return is stored as PROCESADA with a `Reembolso` in state RECHAZADO and its reason; the panel shows it as
 "Cancelada" / "Rechazada". Delivered in batches: 6, 10, 3, 12 first; then 1, 2; then 4, 5, 7, 8, 11, 13.
+
+Amendment 2026-11-13 (Owner answer "Mis compras (Recommended)"): store orders (`Pedido`) never become sales, and returns
+are tied to sales, so rule 1 works from **«Mis compras»** in the store account: the sales made to that customer. Store
+orders join once a delivered order becomes a sale (not designed yet).
