@@ -3,7 +3,7 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, use
 import { AlertTriangle, CalendarClock, Search, Truck, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
-import { formatDateTime } from '~/utils/format';
+import { formatDateTime, parseArsNumber } from '~/utils/format';
 import {
   ADJUSTMENT_REASONS,
   adjustmentFrom,
@@ -73,7 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     if (intent === 'minimum') {
       const productId = String(form.get('productId') ?? '');
-      const value = Number(String(form.get('stockMinimo') ?? '').replace(',', '.'));
+      const value = parseArsNumber(form.get('stockMinimo')) ?? Number.NaN;
       if (!(value >= 0)) return fail('El stock mínimo tiene que ser 0 o más.');
       await apiRequest(token, `/catalogo/productos/${encodeURIComponent(productId)}`, {
         method: 'PATCH',

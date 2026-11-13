@@ -586,3 +586,46 @@
 .ws-payments li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); font-size: 13px; }
 .ws-payments li > span:first-child { display: flex; flex-direction: column; gap: 2px; }
 .ws-payments small { font-size: 11px; }
+
+/* ---------------------------------------------- Ventas / mostrador */
+.ws-pos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-24); align-items: start; }
+.ws-pos__sale { display: flex; flex-direction: column; gap: var(--space-16); }
+.ws-pos__search input { border: 0; outline: 0; background: transparent; font: inherit; }
+.ws-pos__results, .ws-pos__lines { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.ws-pos__results { max-height: 280px; overflow-y: auto; border: 1px solid var(--text-muted); border-radius: var(--radius-control); }
+.ws-pos__results button { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); width: 100%; padding: var(--space-12); border: 0; border-bottom: 1px solid var(--text-muted); background: var(--surface-card); text-align: left; font: inherit; cursor: pointer; }
+.ws-pos__results li:last-child button { border-bottom: 0; }
+.ws-pos__results button:hover:not(:disabled) { background: var(--background-default); }
+.ws-pos__results button > span:first-child, .ws-pos__line-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-pos__results small, .ws-pos__line-name small { font-size: 12px; }
+.ws-pos__lines li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--space-12); padding: var(--space-12) 0; border-bottom: 1px solid var(--text-muted); }
+.ws-pos__qty { display: inline-flex; align-items: center; gap: var(--space-8); }
+.ws-pos__qty button { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--text-muted); border-radius: 50%; background: var(--surface-card); cursor: pointer; }
+.ws-pos__qty span { min-width: 20px; text-align: center; }
+.ws-pos__line-total { min-width: 90px; text-align: right; }
+.ws-pos__checkout { display: flex; flex-direction: column; gap: var(--space-16); }
+.ws-pos__methods { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: 0; padding: 0; border: 0; }
+.ws-pos__methods legend { margin-bottom: var(--space-8); font-size: 14px; font-weight: 500; }
+.ws-pos__methods label { cursor: pointer; }
+.ws-pos__methods input { position: absolute; opacity: 0; pointer-events: none; }
+.ws-pos__change { font-size: 14px; }
+.ws-pos__total { display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--space-12); border-top: 1px solid var(--text-muted); }
+.ws-pos__total b { font-size: 24px; }
+@media (min-width: 1100px) { .ws-pos { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); } }
+@media (max-width: 639px) {
+  .ws-pos__lines li { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .ws-pos__line-total { display: none; }
+  .ws-table--sales th:nth-child(2), .ws-table--sales td:nth-child(2),
+  .ws-table--sales th:nth-child(3), .ws-table--sales td:nth-child(3) { display: none; }
+}
+
+/* Comprobante de venta: imprime solo la tarjeta */
+.ws-receipt { display: flex; flex-direction: column; gap: var(--space-16); }
+.ws-receipt__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-12); }
+.ws-receipt__actions { display: flex; gap: var(--space-12); }
+@media print {
+  body * { visibility: hidden; }
+  .ws-receipt, .ws-receipt * { visibility: visible; }
+  .ws-receipt { position: absolute; inset: 0 auto auto 0; width: 100%; border: 0; box-shadow: none; }
+  .ws-no-print { display: none !important; }
+}

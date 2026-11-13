@@ -2,7 +2,7 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFuncti
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
-import { formatDateTime, formatMoney } from '~/utils/format';
+import { formatDateTime, formatMoney, parseArsNumber } from '~/utils/format';
 
 export const meta: MetaFunction = () => [{ title: 'Caja · Wapsell' }];
 
@@ -49,7 +49,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { ok: boolean; message: string; count?: CashCount };
 
-const amount = (value: FormDataEntryValue | null) => Number(String(value ?? '').replace(',', '.'));
+const amount = (value: FormDataEntryValue | null) => parseArsNumber(value) ?? Number.NaN;
 
 export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);

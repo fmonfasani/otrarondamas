@@ -3,6 +3,7 @@
  * Catálogo screen uses (OR-B4-028: the panel shows category + subcategory; the Tipo and
  * Subtipo the model requires are the "General" ones of each subcategory).
  */
+import { parseArsNumber } from './format';
 
 export interface Product {
   id: string;
@@ -52,10 +53,7 @@ export function catalogAbilities(role: string) {
 
 /** "1.234,50", "1234.5", "$ 900" → number; empty → null; garbage → NaN. */
 export function parseAmount(value: FormDataEntryValue | null): number | null {
-  const raw = String(value ?? '').replace(/[$\s]/g, '');
-  if (!raw) return null;
-  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-  return /^-?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : Number.NaN;
+  return parseArsNumber(value);
 }
 
 /** Subcategory options grouped by category, "General" shown as the category itself. */
