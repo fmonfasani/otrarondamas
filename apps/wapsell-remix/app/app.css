@@ -284,3 +284,7 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .store-contact ul { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding: 0; list-style: none; }
 .store-contact b { margin-right: 6px; color: #141413; }
 
+/* OR-B4-037 — product card in the customer's chat */
+.store-product-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid #e9e6df; border-radius: 12px; background: #fff; color: #141413; min-width: 200px; }
+.store-product-card .submit-order { margin: 4px 0 0; padding: 10px 14px; font-size: 13px; }
+.store-product-card a { font-weight: 600; text-decoration: underline; }

@@ -1060,3 +1060,26 @@ cancelled, by their stored total (already net of discounts). Returns = refunds m
 credit used on exchanges (whose new sale counts as sold). Net = sold − returns. Average ticket, channels, payment methods (exchange
 credit aside) and products are computed over that same set. Days are Argentina days; the comparison is the previous period
 of the same length. Implemented as `GET /reportes/resumen` (REPORTS_VIEW: Owner, Admin); `/metrics/*` is left unchanged.
+
+### OR-B4-037 — Selling in the conversation — 2026-11-14
+
+**Status:** APPROVED — OWNER RULING. The Owner asked to add, to messaging, sharing the catalogue, loading the customer's
+cart from the chat, photos and files, quick replies and automatic order notices (not WhatsApp nor notifications outside
+the panel), and chose the recommended option of each question:
+
+1. Photos and files: a new Docker volume on the server (like the legajo documents; not backed up until a backup exists);
+   up to 10 MB; images and PDF.
+2. Loading the customer's cart from the chat: Owner, Admin and Vendedor (SALES_CREATE). The customer confirms from the
+   store, or the team uses «Crear pedido».
+3. Order notices: every change (received, confirmed — with the pay link when online payments are on —, in preparation,
+   ready, on the way, delivered, cancelled with reason, payment approved).
+4. Quick replies: one list per Business; Owner and Admin edit it, everyone uses it.
+
+A product shared in the chat is a message plus an `Attachment` with media type `application/vnd.wapsell.product+json`
+(product id, name and price at the time); no schema change. Products have no image field, so the card shows name and price.
+
+**Open conflict (decision owner: Owner):** OR-B4-031 says the Owner receives the customer's first store message "and can add
+teammates", but that conversation is DIRECT and the messaging contract (P2, invariant I-2) refuses a third participant in a
+DIRECT conversation. Today the team can only work a customer together in a conversation started as a group (from Clientes or
+Mensajes). Options: open store chats as groups; or convert a DIRECT customer chat into a group when a teammate is added (needs
+amending I-2); or keep it as is.

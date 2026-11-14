@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Delete, Get, Param, Post, Patch, Logger } from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Param, Post, Patch, Put, Logger } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -13,6 +13,7 @@ import {
   DeactivateConversationAssociationDto,
 } from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
+import { ConversationCartItemDto, ShareProductDto } from './dto/chat-commerce.dto';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
@@ -107,6 +108,35 @@ export class MessagingController {
   @Get(':id/cart')
   getCart(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.messagingService.getConversationCart(user, id);
+  }
+
+  /** OR-B4-037 — the team loads a product into the customer's cart (0 removes it). */
+  @CanonicalPermission(['MESSAGING_USE', 'SALES_CREATE'])
+  @Put(':id/cart/items')
+  setCartItem(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ConversationCartItemDto,
+  ) {
+    return this.messagingService.setCustomerCartItem(user, id, dto.productoId, dto.cantidad);
+  }
+
+  /** OR-B4-037 — share a catalogue product as a card in the conversation. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Post(':id/products')
+  shareProduct(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ShareProductDto,
+  ) {
+    return this.messagingService
+      .sendProductCard(user, id, dto.clientMessageId, dto.productoId)
+      .then((message) => {
+        this.publishSafely('conversation.message.created', message.conversationId, () =>
+          this.messagingGateway.publishMessageCreated(message),
+        );
+        return serializeMessageSequence(message);
+      });
   }
 
   @CanonicalPermission(['MESSAGING_USE', 'ORDERS_MANAGE'])

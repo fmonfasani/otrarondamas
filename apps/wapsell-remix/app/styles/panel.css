@@ -696,3 +696,18 @@
 .ws-stat--static .ws-stat__value { font-size: clamp(20px, 5.4vw, 28px); overflow-wrap: anywhere; }
 .ws-settings-fields { display: grid; gap: var(--space-16); border: 0; margin: 0; padding: 0; min-width: 0; }
 .ws-link--inline { display: inline; }
+
+/* OR-B4-037 — products in the conversation */
+.ws-product-card { display: flex; gap: 10px; align-items: center; padding: 10px 12px; margin: 2px 0 4px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); }
+.ws-product-card > span { display: flex; flex-direction: column; }
+.ws-product-card small { font-size: 12px; }
+.ws-picker { border-top: 1px solid var(--text-muted); padding: 8px 16px; }
+.ws-picker summary { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+.ws-picker__search { display: flex; gap: 8px; margin: 8px 0; }
+.ws-picker__search input { flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); font: inherit; }
+.ws-picker__results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.ws-picker__results li { display: flex; gap: 8px; align-items: center; }
+.ws-picker__results li > span { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ws-picker__results small { font-size: 12px; }
+.ws-orderbar__qty { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.ws-orderbar__qty .ws-icon-button { width: 26px; height: 26px; }

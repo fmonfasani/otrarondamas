@@ -165,6 +165,7 @@ describe('STORE-V1-04 — customer chat in a Business store', () => {
     ]);
     for (const message of res.body.messages) {
       expect(Object.keys(message).sort((a, b) => a.localeCompare(b))).toEqual([
+        'adjuntos', // OR-B4-037: product cards and files the team shares
         'clientMessageId',
         'content',
         'createdAt',
