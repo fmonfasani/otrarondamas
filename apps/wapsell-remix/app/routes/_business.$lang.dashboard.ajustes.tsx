@@ -4,6 +4,7 @@ import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { CONTACT_FIELDS, businessFrom, storeUrl, type Business } from '~/utils/settings';
 import { RETURN_WINDOW_DAYS, canManageReturns, windowDaysFrom } from '~/utils/returns';
+import { quickRepliesFrom, type QuickReply } from '~/utils/messaging';
 
 export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
 
@@ -13,10 +14,11 @@ export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [business, returns, user] = await Promise.all([
+  const [business, returns, user, quick] = await Promise.all([
     apiRequest<Business>(token, '/negocio'),
     settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
     getCurrentUser(token),
+    settle(apiRequest<{ items: QuickReply[]; puedeEditar: boolean }>(token, '/messaging/conversations/quick-replies')),
   ]);
   const role = String(user?.rol ?? '');
   return json({
@@ -24,6 +26,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     plazoDias: returns?.plazoDias ?? RETURN_WINDOW_DAYS,
     manageReturns: canManageReturns(role),
     owner: role === 'OWNER',
+    quickReplies: quick?.items ?? [],
+    editQuickReplies: Boolean(quick?.puedeEditar),
     origin: new URL(request.url).origin,
   });
 }
@@ -45,6 +49,12 @@ export async function action({ request }: ActionFunctionArgs) {
       await apiRequest(token, '/devoluciones/ajustes', { method: 'PUT', body: JSON.stringify({ plazoDias: days }) });
       return json({ intent, ok: true, message: `Listo: se aceptan devoluciones hasta ${days} días después de la venta.` });
     }
+    if (intent === 'quick-replies') {
+      const parsed = quickRepliesFrom(form);
+      if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
+      await apiRequest(token, '/messaging/conversations/quick-replies', { method: 'PUT', body: JSON.stringify({ items: parsed.items }) });
+      return json({ intent, ok: true, message: `Listo: ${parsed.items.length} respuestas rápidas guardadas.` });
+    }
     return json({ intent, ok: false, message: 'Acción desconocida.' }, { status: 400 });
   } catch (error) {
     if (error instanceof ApiError) return json({ intent, ok: false, message: error.message }, { status: error.status });
@@ -53,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin } = useLoaderData<typeof loader>();
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
   const { lang = 'es' } = useParams();
@@ -103,6 +113,41 @@ export default function Ajustes() {
           )}
         </Form>
       </section>
+
+      {editQuickReplies && (
+        <section className="ws-card" aria-labelledby="quick-title">
+          <h2 id="quick-title" className="ws-card__title">Respuestas rápidas</h2>
+          <p className="ws-meta">
+            Mensajes que el equipo manda con un clic desde Mensajes. Escribí <code>{'{cliente}'}</code> para poner el nombre del cliente.
+          </p>
+          <Form method="post" className="ws-pos__checkout">
+            <input type="hidden" name="intent" value="quick-replies" />
+            <ol className="ws-quick-list">
+              {[...quickReplies, { titulo: '', texto: '' }, { titulo: '', texto: '' }].map((r, n) => (
+                <li key={`${n}-${r.titulo}`}>
+                  <label className="ws-field">
+                    <span className="ws-field__label">Título</span>
+                    <span className="ws-field__control">
+                      <input name={`titulo-${n}`} defaultValue={r.titulo} maxLength={60} placeholder="Ej.: Saludo" />
+                    </span>
+                  </label>
+                  <label className="ws-field">
+                    <span className="ws-field__label">Texto</span>
+                    <span className="ws-field__control">
+                      <textarea name={`texto-${n}`} defaultValue={r.texto} maxLength={1000} rows={2} placeholder="Ej.: Hola {cliente}, ¿en qué te ayudo?" />
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ol>
+            <small className="ws-meta">Para borrar una, dejá vacíos su título y su texto. Se guardan hasta 50.</small>
+            {notice('quick-replies')}
+            <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>
+              Guardar respuestas
+            </button>
+          </Form>
+        </section>
+      )}
 
       <div className="ws-columns ws-columns--even">
         <section className="ws-card" aria-labelledby="returns-title">
