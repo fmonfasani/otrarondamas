@@ -277,3 +277,10 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .account-return-line legend + * { clear: both; }
 .account-return-line select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 8px; background: #fff; font: inherit; }
 .account-return-line legend span { font-weight: 400; }
+
+/* Ajustes del negocio — contact details in the store */
+.store-contact { padding: 24px clamp(22px, 7vw, 112px); border-top: 1px solid #e9e6df; background: #fff; color: #4b4740; font-size: 14px; }
+.store-contact p { margin: 0 0 10px; }
+.store-contact ul { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding: 0; list-style: none; }
+.store-contact b { margin-right: 6px; color: #141413; }
+

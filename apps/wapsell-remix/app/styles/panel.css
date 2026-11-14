@@ -694,3 +694,5 @@
 .ws-bars + .ws-return-close { margin-top: 32px; }
 
 .ws-stat--static .ws-stat__value { font-size: clamp(20px, 5.4vw, 28px); overflow-wrap: anywhere; }
+.ws-settings-fields { display: grid; gap: var(--space-16); border: 0; margin: 0; padding: 0; min-width: 0; }
+.ws-link--inline { display: inline; }

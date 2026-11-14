@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Form, Link, NavLink, useLocation } from '@remix-run/react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Boxes, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, RotateCcw, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
+import { BarChart3, Boxes, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, RotateCcw, Settings, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { Logo } from '~/components/brand/Logo';
 
 export interface NavItem {
@@ -40,6 +40,7 @@ export function navItems(lang: string, role?: string): NavItem[] {
     { to: `${base}/reportes`, label: 'Reportes', icon: BarChart3, roles: MANAGERS },
     { to: `${base}/equipo`, label: 'Equipo', icon: UserCog, roles: MANAGERS },
     { to: `${base}/cobros`, label: 'Cobros', icon: CreditCard, roles: ['OWNER'] },
+    { to: `${base}/ajustes`, label: 'Ajustes', icon: Settings, roles: MANAGERS },
   ];
   if (role === undefined) return all;
   const canonical = CANONICAL_ROLE[role] ?? role;
@@ -88,7 +89,8 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
         </span>
         <div className="ws-panel__account">
           <span className="ws-chip ws-chip--success">{ROLE_LABELS[user.rol] ?? user.rol}</span>
-          <details className="ws-panel__menu">
+          {/* Keyed by the path so it closes after choosing a link. */}
+          <details className="ws-panel__menu" key={pathname}>
             <summary className="ws-avatar" aria-label={`Cuenta de ${user.nombre}`}>
               {initials(user.nombre)}
             </summary>
@@ -97,6 +99,9 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
                 <b>{user.nombre}</b>
                 <span>{user.empresaNombre}</span>
               </p>
+              <Link to={`/${lang}/dashboard/perfil`} className="ws-panel__menu-link">
+                Mi perfil
+              </Link>
               <Link to={`/${lang}/dashboard/mi-legajo`} className="ws-panel__menu-link">
                 Mi legajo
               </Link>

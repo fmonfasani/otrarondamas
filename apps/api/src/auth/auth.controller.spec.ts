@@ -4,6 +4,7 @@ import type { AuthGoogleService } from './auth.google.service';
 import type { MembershipService } from '../membership/membership.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { PasswordResetService } from './password-reset.service';
+import type { AccountService } from './account.service';
 
 // Register ESM mocks before loading the controller under test.
 await jest.unstable_mockModule('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
@@ -42,6 +43,7 @@ describe('AuthController GET /auth/me', () => {
       {} as MembershipService,
       prisma,
       {} as PasswordResetService,
+      {} as AccountService,
     );
     const auth = {
       id: 'usuario-1',
@@ -89,6 +91,7 @@ describe('AuthController GET /auth/me', () => {
       {} as MembershipService,
       { usuario: { findUnique } } as unknown as PrismaService,
       {} as PasswordResetService,
+      {} as AccountService,
     );
 
     const profile = await controller.me({

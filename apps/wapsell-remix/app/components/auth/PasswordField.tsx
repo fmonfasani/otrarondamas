@@ -3,7 +3,12 @@ import { useState } from 'react';
 export const MIN_PASSWORD_LENGTH = 8;
 
 /** Password input with show/hide, as in the Figma auth screens. */
-export function PasswordField({ name, label, autoFocus }: Readonly<{ name: string; label: string; autoFocus?: boolean }>) {
+export function PasswordField({
+  name,
+  label,
+  autoFocus,
+  autoComplete = 'new-password',
+}: Readonly<{ name: string; label: string; autoFocus?: boolean; autoComplete?: 'new-password' | 'current-password' }>) {
   const [visible, setVisible] = useState(false);
   return (
     <label className="ws-field">
@@ -15,7 +20,7 @@ export function PasswordField({ name, label, autoFocus }: Readonly<{ name: strin
           required
           minLength={MIN_PASSWORD_LENGTH}
           maxLength={72}
-          autoComplete="new-password"
+          autoComplete={autoComplete}
           autoFocus={autoFocus}
         />
         <button

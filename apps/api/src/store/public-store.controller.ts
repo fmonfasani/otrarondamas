@@ -26,6 +26,7 @@ import { StoreService } from './store.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
+import { contactOf } from '../negocio/negocio.service';
 import { CustomerReturnDto } from '../devoluciones/dto';
 
 /**
@@ -64,21 +65,26 @@ export class PublicStoreController {
     return { businessId, customerId: context.customerId as string };
   }
 
-  /** GET /:slug/tienda — the store's public name, for its header. */
+  /** GET /:slug/tienda — the store's public name and contact details (Ajustes), for its header. */
   @Public()
   @Get()
   async info(@Param('businessSlug') businessSlug: string) {
     const businessId = await this.companyId(businessSlug);
     const business = await this.prisma.empresa.findUnique({
       where: { id: businessId },
-      select: { nombre: true, slug: true },
+      select: { nombre: true, slug: true, configuracion: true },
     });
     if (!business) throw new NotFoundException('Business no encontrado');
     // OR-B4-032: whether customers can pay confirmed orders online in this store.
     const mp = await this.mercadoPago.status(businessId);
     const pagosOnline =
       mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
-    return { ...business, pagosOnline };
+    return {
+      nombre: business.nombre,
+      slug: business.slug,
+      contacto: contactOf(business.configuracion),
+      pagosOnline,
+    };
   }
 
   @Public()

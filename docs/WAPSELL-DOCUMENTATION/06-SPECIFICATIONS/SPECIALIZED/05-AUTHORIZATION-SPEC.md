@@ -279,6 +279,9 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `GET /clientes*` | `CUSTOMERS_VIEW` | Gestor de Stock denied |
 | `GET /devoluciones*` | `RETURNS_VIEW` (`OR-B4-025`) | — |
 | `PUT /devoluciones/:id/receive`, `PUT /devoluciones/:id/reject` | `RETURNS_RECEIVE` (`OR-B4-035`) | Vendedor denied; authorize, cancel and window stay `REFUNDS_MANAGE`, refund and exchange `PAYMENTS_REFUND` |
+| `PATCH /auth/me`, `POST /auth/password/change` (own name and password; current password required) | `AUTHENTICATED` | the session's Usuario only |
+| `GET /negocio` · `PATCH /negocio` (name and store contact details) | team member · `BRAND_MANAGE` | Admin, Vendedor and Gestor read only |
+| `GET /reportes/resumen` (`OR-B4-036`) | `REPORTS_VIEW` | Vendedor and Gestor denied |
 | `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
 | `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
 | `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |
