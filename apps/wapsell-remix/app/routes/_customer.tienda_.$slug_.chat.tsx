@@ -79,6 +79,8 @@ export default function CustomerChat() {
   const send = useFetcher<typeof action>();
   const cart = useFetcher<typeof action>();
   const upload = useFetcher<{ ok: boolean; message: string }>();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const revalidator = useRevalidator();
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
@@ -189,38 +191,63 @@ export default function CustomerChat() {
             submit();
           }}
         >
+          <div className="store-plus">
+            <button
+              type="button"
+              className={`store-plus__button${menuOpen ? ' is-open' : ''}`}
+              aria-label="Más opciones"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              +
+            </button>
+            {menuOpen ? (
+              <div className="store-plus__menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={upload.state !== 'idle'}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    fileRef.current?.click();
+                  }}
+                >
+                  📎 {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
+                </button>
+              </div>
+            ) : null}
+          </div>
           <label className="sr-only" htmlFor="chat-content">Tu mensaje</label>
           <textarea
             id="chat-content"
             name="content"
-            rows={2}
+            rows={1}
             maxLength={MAX_LENGTH}
-            placeholder="Escribí tu mensaje…"
+            placeholder="Escribí un mensaje"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
           />
-          <button type="submit" className="submit-order" disabled={sending || !draft.trim()}>
-            {sending ? 'Enviando…' : 'Enviar'}
+          <button type="submit" className="store-send" aria-label="Enviar" disabled={sending || !draft.trim()}>
+            ↑
           </button>
         </send.Form>
         {send.data && !send.data.ok ? <output className="form-error">{send.data.message}</output> : null}
         {cart.data && !cart.data.ok ? <output className="form-error">{cart.data.message}</output> : null}
-        <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} className="store-chat__attach">
-          <label>
-            📎 {upload.state !== 'idle' ? 'Enviando…' : 'Mandar una foto o un PDF'}
-            <input
-              type="file"
-              name="archivo"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="sr-only"
-              disabled={upload.state !== 'idle'}
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                if (file) upload.submit(event.currentTarget.form);
-              }}
-            />
-          </label>
+        <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} hidden>
+          <input
+            ref={fileRef}
+            type="file"
+            name="archivo"
+            aria-label="Foto o PDF"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) upload.submit(event.currentTarget.form);
+              event.currentTarget.value = '';
+            }}
+          />
         </upload.Form>
         {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="form-error">{upload.data.message}</output> : null}
       </section>

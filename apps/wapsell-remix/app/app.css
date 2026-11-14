@@ -292,3 +292,16 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .store-chat-file { display: inline-block; padding: 8px 10px; border: 1px solid #e9e6df; border-radius: 10px; background: #fff; color: #141413; }
 .store-chat__attach { margin-top: 8px; }
 .store-chat__attach label { cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: underline; }
+
+/* Simple store composer: «+» | text | send arrow */
+.store-chat__composer { align-items: flex-end; gap: 8px; }
+.store-chat__composer textarea { min-height: 42px; max-height: 140px; border-radius: 21px; padding: 10px 14px; field-sizing: content; }
+.store-plus { position: relative; flex: 0 0 42px; }
+.store-plus__button, .store-send { width: 42px; height: 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; cursor: pointer; }
+.store-plus__button { border: 1px solid #e5e2dc; background: #fff; color: #141413; transition: transform 0.15s ease; }
+.store-plus__button.is-open { transform: rotate(45deg); background: #141413; color: #fff; }
+.store-send { flex: 0 0 42px; border: 0; background: #f07848; color: #fff; font-weight: 700; }
+.store-send:disabled { opacity: 0.45; cursor: default; }
+.store-plus__menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 5; min-width: 180px; padding: 6px; border: 1px solid #e9e6df; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(20, 20, 19, 0.12); }
+.store-plus__menu button { width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.store-plus__menu button:hover:not(:disabled) { background: #f6f4ef; }

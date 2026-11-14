@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useRevalidator, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Eye, FileText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
@@ -451,63 +451,17 @@ function Thread({
         <p className="ws-alert ws-chat__error" role="alert">{sender.data.message}</p>
       )}
 
-      {cart && customerOf(conversation) ? (
-        <OrderBar conversation={conversation} cart={cart} lang={lang} canEdit={canEditCart && canSend} />
-      ) : null}
-      {canSend ? <AttachFile conversation={conversation} lang={lang} /> : null}
       {canSend ? (
-        <ProductPicker conversation={conversation} lang={lang} canEditCart={canEditCart && Boolean(cart && customerOf(conversation))} cart={cart} />
-      ) : null}
-
-      {canSend ? (
-        <sender.Form method="post" className="ws-composer" ref={formRef}>
-          <input type="hidden" name="intent" value="send" />
-          <input type="hidden" name="conversationId" value={conversation.id} />
-          <textarea
-            name="content"
-            rows={2}
-            required
-            placeholder="Escribe tu respuesta…"
-            aria-label="Mensaje"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          <div className="ws-composer__tools">
-            {quickReplies.length > 0 ? (
-              <select
-                className="ws-composer__quick"
-                aria-label="Respuestas rápidas"
-                value=""
-                onChange={(event) => {
-                  const reply = quickReplies[Number(event.target.value)];
-                  const box = formRef.current?.querySelector('textarea');
-                  if (reply && box) {
-                    const text = fillQuickReply(reply.texto, customerName);
-                    box.value = box.value.trim() ? `${box.value.trim()} ${text}` : text;
-                    box.focus();
-                  }
-                }}
-              >
-                <option value="" disabled>
-                  Respuestas rápidas
-                </option>
-                {quickReplies.map((r, i) => (
-                  <option key={`${r.titulo}-${i}`} value={i}>
-                    {r.titulo}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <span className="ws-composer__hint">Enter envía · Shift+Enter, nueva línea</span>
-            <button className="ws-composer__send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle'}>
-              <ArrowUp size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </sender.Form>
+        <Composer
+          conversation={conversation}
+          sender={sender}
+          formRef={formRef}
+          cart={cart && customerOf(conversation) ? cart : null}
+          canEditCart={canEditCart}
+          quickReplies={quickReplies}
+          customerName={customerName}
+          lang={lang}
+        />
       ) : (
         <p className="ws-composer ws-composer--readonly">
           <Eye size={16} aria-hidden="true" /> Estás viendo esta conversación sin participar en ella. Solo lectura.
@@ -517,9 +471,187 @@ function Thread({
   );
 }
 
+type ComposerPanel = 'productos' | 'carrito' | 'respuestas' | null;
+
 /**
- * The customer's cart (built by them in the store) and, for whoever may create orders,
- * the button that turns it into an order. Shown at every screen size, above the composer.
+ * The conversation's composer, kept simple: «+» on the left with every messaging tool
+ * (products, the customer's cart and checkout, photo or PDF, quick replies — audio later),
+ * the text in the middle and the arrow to send on the right. A tool opens in a small panel
+ * just above it.
+ */
+function Composer({
+  conversation,
+  sender,
+  formRef,
+  cart,
+  canEditCart,
+  quickReplies,
+  customerName,
+  lang,
+}: Readonly<{
+  conversation: Conversation;
+  sender: ReturnType<typeof useFetcher<ActionData>>;
+  formRef: React.RefObject<HTMLFormElement>;
+  cart: ConversationCart | null;
+  canEditCart: boolean;
+  quickReplies: QuickReply[];
+  customerName: string | null;
+  lang: string;
+}>) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [panel, setPanel] = useState<ComposerPanel>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const upload = useFetcher<{ ok: boolean; message: string }>();
+  const [tooBig, setTooBig] = useState(false);
+  const units = cart?.items.reduce((sum, item) => sum + item.cantidad, 0) ?? 0;
+  const open = (next: ComposerPanel) => {
+    setPanel(next);
+    setMenuOpen(false);
+  };
+  const insert = (text: string) => {
+    const box = formRef.current?.querySelector('textarea');
+    if (!box) return;
+    box.value = box.value.trim() ? `${box.value.trim()} ${text}` : text;
+    box.focus();
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && setMenuOpen(false);
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [menuOpen]);
+
+  return (
+    <div className="ws-composer-wrap">
+      {panel ? (
+        <div className="ws-tool" role="region" aria-label={PANEL_TITLES[panel]}>
+          <div className="ws-tool__head">
+            <b>{PANEL_TITLES[panel]}</b>
+            <button type="button" className="ws-icon-button" aria-label="Cerrar" onClick={() => setPanel(null)}>
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+          {panel === 'productos' ? (
+            <ProductPicker conversation={conversation} lang={lang} canEditCart={canEditCart && Boolean(cart)} cart={cart} />
+          ) : panel === 'carrito' && cart ? (
+            <OrderBar conversation={conversation} cart={cart} lang={lang} canEdit={canEditCart} />
+          ) : panel === 'respuestas' ? (
+            <ul className="ws-tool__list">
+              {quickReplies.map((r, i) => (
+                <li key={`${r.titulo}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      insert(fillQuickReply(r.texto, customerName));
+                      setPanel(null);
+                    }}
+                  >
+                    <b>{r.titulo}</b>
+                    <span>{fillQuickReply(r.texto, customerName)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tooBig ? <output className="ws-alert ws-chat__error">El archivo puede pesar hasta 10 MB.</output> : null}
+      {upload.state === 'idle' && upload.data && !upload.data.ok ? (
+        <output className="ws-alert ws-chat__error">{upload.data.message}</output>
+      ) : null}
+      <upload.Form method="post" encType="multipart/form-data" action={`/${lang}/dashboard/mensajes/adjuntar`} hidden>
+        <input type="hidden" name="conversationId" value={conversation.id} />
+        <input
+          ref={fileRef}
+          type="file"
+          name="archivo"
+          accept={CHAT_FILE_ACCEPT}
+          aria-label="Foto o PDF"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            setTooBig(Boolean(file && file.size > CHAT_FILE_MAX_BYTES));
+            if (file && file.size <= CHAT_FILE_MAX_BYTES) upload.submit(event.currentTarget.form);
+            event.currentTarget.value = '';
+          }}
+        />
+      </upload.Form>
+
+      <sender.Form method="post" className="ws-composer ws-composer--simple" ref={formRef}>
+        <input type="hidden" name="intent" value="send" />
+        <input type="hidden" name="conversationId" value={conversation.id} />
+        <div className="ws-plus">
+          <button
+            type="button"
+            className={`ws-plus__button${menuOpen ? ' is-open' : ''}`}
+            aria-label="Más opciones"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <Plus size={20} aria-hidden="true" />
+            {units > 0 ? <span className="ws-plus__badge" aria-label={`${units} en el carrito`}>{units}</span> : null}
+          </button>
+          {menuOpen ? (
+            <div className="ws-plus__menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => open('productos')}>
+                <Search size={16} aria-hidden="true" /> Buscar y mostrar un producto
+              </button>
+              {cart ? (
+                <button type="button" role="menuitem" onClick={() => open('carrito')}>
+                  <ShoppingBag size={16} aria-hidden="true" /> Carrito y crear pedido{units > 0 ? ` · ${units}` : ''}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                disabled={upload.state !== 'idle'}
+                onClick={() => {
+                  setMenuOpen(false);
+                  fileRef.current?.click();
+                }}
+              >
+                <Paperclip size={16} aria-hidden="true" /> {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
+              </button>
+              {quickReplies.length > 0 ? (
+                <button type="button" role="menuitem" onClick={() => open('respuestas')}>
+                  <MessageSquareText size={16} aria-hidden="true" /> Respuestas rápidas
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        <textarea
+          name="content"
+          rows={1}
+          required
+          placeholder="Escribe un mensaje"
+          aria-label="Mensaje"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+        />
+        <button className="ws-composer__send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle'}>
+          <ArrowUp size={18} aria-hidden="true" />
+        </button>
+      </sender.Form>
+    </div>
+  );
+}
+
+const PANEL_TITLES: Record<Exclude<ComposerPanel, null>, string> = {
+  productos: 'Productos',
+  carrito: 'Carrito del cliente',
+  respuestas: 'Respuestas rápidas',
+};
+
+/**
+ * The customer's cart (built by them in the store or by the team) and, for whoever may
+ * create orders, the checkout: «Crear pedido».
  */
 function OrderBar({
   conversation,
@@ -538,13 +670,13 @@ function OrderBar({
         <ShoppingBag size={16} aria-hidden="true" />
         {cart.items.length === 0 ? (
           <span>
-            El carrito del cliente está vacío. Lo arma desde la tienda{canEdit ? ' o lo cargás vos con «Productos»' : ''}.
+            El carrito del cliente está vacío. Lo arma desde la tienda{canEdit ? ' o lo cargás vos desde «Buscar y mostrar un producto»' : ''}.
           </span>
         ) : (
-          <details>
-            <summary>
-              Carrito del cliente: {units} {units === 1 ? 'unidad' : 'unidades'} · <b>{formatMoney(cart.total)}</b>
-            </summary>
+          <div>
+            <p>
+              {units} {units === 1 ? 'unidad' : 'unidades'} · <b>{formatMoney(cart.total)}</b>
+            </p>
             <ul>
               {cart.items.map((item) => (
                 <li key={item.productoId}>
@@ -572,7 +704,7 @@ function OrderBar({
                 </li>
               ))}
             </ul>
-          </details>
+          </div>
         )}
       </div>
       {created ? (
@@ -594,35 +726,6 @@ function OrderBar({
   );
 }
 
-/** OR-B4-037 — send a photo or a PDF (up to 10 MB) to the conversation. */
-function AttachFile({ conversation, lang }: Readonly<{ conversation: Conversation; lang: string }>) {
-  const upload = useFetcher<{ ok: boolean; message: string }>();
-  const [tooBig, setTooBig] = useState(false);
-  return (
-    <upload.Form method="post" encType="multipart/form-data" action={`/${lang}/dashboard/mensajes/adjuntar`} className="ws-attach">
-      <input type="hidden" name="conversationId" value={conversation.id} />
-      <label className="ws-attach__button">
-        <Paperclip size={16} aria-hidden="true" />
-        {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
-        <input
-          type="file"
-          name="archivo"
-          accept={CHAT_FILE_ACCEPT}
-          className="sr-only"
-          disabled={upload.state !== 'idle'}
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            setTooBig(Boolean(file && file.size > CHAT_FILE_MAX_BYTES));
-            if (file && file.size <= CHAT_FILE_MAX_BYTES) upload.submit(event.currentTarget.form);
-          }}
-        />
-      </label>
-      {tooBig ? <output className="ws-alert">El archivo puede pesar hasta 10 MB.</output> : null}
-      {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="ws-alert">{upload.data.message}</output> : null}
-    </upload.Form>
-  );
-}
-
 /**
  * OR-B4-037 — find a product of the catalogue and share it as a card, or (Owner, Admin,
  * Vendedor, in a conversation with a customer) put it in the customer's cart.
@@ -637,12 +740,9 @@ function ProductPicker({
   const act = useFetcher<ActionData>();
   const inCart = (productoId: string) => cart?.items.find((i) => i.productoId === productoId)?.cantidad ?? 0;
   return (
-    <details className="ws-picker">
-      <summary>
-        <Package size={16} aria-hidden="true" /> Productos
-      </summary>
+    <div className="ws-picker">
       <search.Form method="get" action={`/${lang}/dashboard/mensajes/productos`} className="ws-picker__search" role="search">
-        <input name="q" placeholder="Buscar en el catálogo" aria-label="Buscar en el catálogo" minLength={2} required />
+        <input name="q" placeholder="Buscar en el catálogo" aria-label="Buscar en el catálogo" minLength={2} required autoFocus />
         <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={search.state !== 'idle'}>
           Buscar
         </button>
@@ -684,7 +784,7 @@ function ProductPicker({
       {act.state === 'idle' && act.data ? (
         <output className={act.data.ok ? 'ws-meta' : 'ws-alert'}>{act.data.message}</output>
       ) : null}
-    </details>
+    </div>
   );
 }
 
