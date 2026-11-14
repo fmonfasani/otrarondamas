@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SalesModule } from '../sales/sales.module';
+import { CustomerNoticesModule } from '../customer-notices/customer-notices.module';
 import { DevolucionesService } from './devoluciones.service';
 import { ReturnNotifierService } from './return-notifier.service';
 
@@ -11,7 +12,7 @@ import { ReturnNotifierService } from './return-notifier.service';
  * OR-B4-035 rule 1) can use it without pulling in the auth module graph.
  */
 @Module({
-  imports: [PrismaModule, SalesModule],
+  imports: [PrismaModule, SalesModule, CustomerNoticesModule],
   providers: [DevolucionesService, ReturnNotifierService],
   exports: [DevolucionesService],
 })

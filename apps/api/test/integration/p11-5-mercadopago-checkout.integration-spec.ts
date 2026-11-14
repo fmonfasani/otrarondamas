@@ -285,6 +285,12 @@ describe('P11-5 — paying a confirmed order with Mercado Pago', () => {
       empresaId: company.id,
     });
     expect(Number(recorded[0].monto)).toBe(total);
+    // OR-B4-037: the customer reads it in their chat, once.
+    const notices = await prisma.message.findMany({
+      where: { businessId: company.id, clientMessageId: `pedido-${orderId}-pago-5001` },
+    });
+    expect(notices).toHaveLength(1);
+    expect(notices[0].content).toContain('Recibimos tu pago');
   });
 
   it('shows the customer the order as paid and does not charge it again', async () => {

@@ -1,3 +1,4 @@
+import { deleteMessagingOf } from './helpers/store-catalog.fixture';
 import { createHmac } from 'crypto';
 import type { ChildProcess } from 'child_process';
 import * as net from 'net';
@@ -305,6 +306,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    await deleteMessagingOf(prisma, companies);
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();

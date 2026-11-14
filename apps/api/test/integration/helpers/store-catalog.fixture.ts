@@ -86,8 +86,23 @@ export async function createStoreProduct(
 }
 
 /** Removes everything the store suites create in these companies, then the companies. */
+/**
+ * Conversations of the test Businesses: placing or changing an order posts a notice in the
+ * customer's chat (OR-B4-037), so any suite that orders leaves messaging rows behind.
+ */
+export async function deleteMessagingOf(prisma: PrismaService, companies: string[]) {
+  const scope = { where: { businessId: { in: companies } } };
+  await prisma.attachment.deleteMany({ where: { Message: { businessId: { in: companies } } } });
+  await prisma.messageReadReceipt.deleteMany(scope);
+  await prisma.message.deleteMany(scope);
+  await prisma.conversationAssociation.deleteMany(scope);
+  await prisma.conversationParticipant.deleteMany(scope);
+  await prisma.conversation.deleteMany(scope);
+}
+
 export async function deleteStoreCompanies(prisma: PrismaService, companies: string[]) {
   const scope = { where: { empresaId: { in: companies } } };
+  await deleteMessagingOf(prisma, companies);
   await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
   await prisma.pedido.deleteMany(scope);
   await prisma.cliente.deleteMany(scope);

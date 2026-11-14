@@ -1,3 +1,4 @@
+import { deleteMessagingOf } from './helpers/store-catalog.fixture';
 import { createHmac } from 'crypto';
 import type { ChildProcess } from 'child_process';
 import * as net from 'net';
@@ -284,7 +285,12 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       data: { userId: userB.id, businessId: companyB.id, role: 'OWNER', status: 'ACTIVE' },
     });
     await prisma.membership.create({
-      data: { userId: userNoPerms.id, businessId: companyA.id, role: 'PROVEEDOR', status: 'ACTIVE' },
+      data: {
+        userId: userNoPerms.id,
+        businessId: companyA.id,
+        role: 'PROVEEDOR',
+        status: 'ACTIVE',
+      },
     });
 
     hierA = await mkHierarchy(companyA.id, 'A');
@@ -320,6 +326,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    await deleteMessagingOf(prisma, companies);
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();

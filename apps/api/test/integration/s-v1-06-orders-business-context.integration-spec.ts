@@ -1,3 +1,4 @@
+import { deleteMessagingOf } from './helpers/store-catalog.fixture';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -254,6 +255,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.usuario.deleteMany({ where: { id: { in: usuarioIds } } });
+    await deleteMessagingOf(prisma, companies);
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
   });

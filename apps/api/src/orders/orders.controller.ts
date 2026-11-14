@@ -9,9 +9,12 @@ import {
   Post,
   Query,
   UseGuards,
+  Optional,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
+import { OrderNoticeService } from '../customer-notices/order-notice.service';
+import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -42,7 +45,16 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly businessContext: BusinessContextService,
+    @Optional() private readonly orderNotices?: OrderNoticeService,
+    @Optional() private readonly mercadoPago?: MercadoPagoAccountService,
   ) {}
+
+  /** OR-B4-037 — the store takes online payments (same rule as the store's own header). */
+  private async takesOnlinePayments(companyId: string) {
+    if (!this.mercadoPago) return false;
+    const mp = await this.mercadoPago.status(companyId);
+    return mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
+  }
 
   private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
     const context = await this.businessContext.resolveForAuthenticatedUser(user);
@@ -71,12 +83,19 @@ export class OrdersController {
     @Body() dto: UpdateOrderStatusDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.ordersService.updateStatus(
-      id,
-      await this.resolveCompanyIdFromContext(user),
-      dto,
-      user.id,
-    );
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    const order = await this.ordersService.updateStatus(id, companyId, dto, user.id);
+    // OR-B4-037: tell the customer in their chat.
+    if (order.estado === 'CONFIRMADO') {
+      await this.orderNotices?.confirmed(
+        companyId,
+        order,
+        await this.takesOnlinePayments(companyId),
+      );
+    } else if (order.estado === 'CANCELADO') {
+      await this.orderNotices?.cancelled(companyId, order);
+    }
+    return order;
   }
 
   /**
@@ -98,11 +117,9 @@ export class OrdersController {
     @Body() dto: CancelOrderDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.ordersService.cancelOrder(
-      id,
-      await this.resolveCompanyIdFromContext(user),
-      user.id,
-      dto.motivo,
-    );
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    const order = await this.ordersService.cancelOrder(id, companyId, user.id, dto.motivo);
+    await this.orderNotices?.cancelled(companyId, order, dto.motivo);
+    return order;
   }
 }
