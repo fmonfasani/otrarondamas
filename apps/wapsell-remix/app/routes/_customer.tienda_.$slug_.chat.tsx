@@ -78,6 +78,7 @@ export default function CustomerChat() {
   const { store, customer, chat, error } = useLoaderData<typeof loader>();
   const send = useFetcher<typeof action>();
   const cart = useFetcher<typeof action>();
+  const upload = useFetcher<{ ok: boolean; message: string }>();
   const revalidator = useRevalidator();
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
@@ -135,7 +136,24 @@ export default function CustomerChat() {
           {chat.messages.map((message) => (
             <div key={message.id} className={`store-bubble ${message.mine ? 'store-bubble--mine' : ''}`}>
               {message.mine ? null : <span className="store-bubble__from">{store.nombre}</span>}
-              {message.adjuntos?.some((a) => a.tipo === 'producto') ? (
+              {message.adjuntos?.some((a) => a.tipo === 'imagen' || a.tipo === 'archivo') ? (
+                <>
+                  {message.adjuntos
+                    .filter((a) => a.tipo === 'imagen' || a.tipo === 'archivo')
+                    .map((a) =>
+                      a.tipo === 'imagen' ? (
+                        <a key={a.id} href={`/tienda/${store.slug}/chat/adjunto/${a.id}`} target="_blank" rel="noreferrer" className="store-chat-photo">
+                          <img src={`/tienda/${store.slug}/chat/adjunto/${a.id}`} alt={a.nombre} loading="lazy" />
+                        </a>
+                      ) : (
+                        <a key={a.id} href={`/tienda/${store.slug}/chat/adjunto/${a.id}`} className="store-chat-file">
+                          📄 {a.nombre}
+                        </a>
+                      ),
+                    )}
+                  {message.content && !message.adjuntos.some((a) => a.nombre === message.content) ? <p>{message.content}</p> : null}
+                </>
+              ) : message.adjuntos?.some((a) => a.tipo === 'producto') ? (
                 message.adjuntos
                   .filter((a) => a.tipo === 'producto' && a.productoId)
                   .map((a) => (
@@ -188,6 +206,23 @@ export default function CustomerChat() {
         </send.Form>
         {send.data && !send.data.ok ? <output className="form-error">{send.data.message}</output> : null}
         {cart.data && !cart.data.ok ? <output className="form-error">{cart.data.message}</output> : null}
+        <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} className="store-chat__attach">
+          <label>
+            📎 {upload.state !== 'idle' ? 'Enviando…' : 'Mandar una foto o un PDF'}
+            <input
+              type="file"
+              name="archivo"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="sr-only"
+              disabled={upload.state !== 'idle'}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) upload.submit(event.currentTarget.form);
+              }}
+            />
+          </label>
+        </upload.Form>
+        {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="form-error">{upload.data.message}</output> : null}
       </section>
     </main>
   );

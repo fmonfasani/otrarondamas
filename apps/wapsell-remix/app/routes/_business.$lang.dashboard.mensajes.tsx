@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useRevalidator, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Eye, Minus, Package, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Eye, FileText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
@@ -10,6 +10,10 @@ import {
   authorOf,
   canCreateOrder,
   canEditCustomerCart,
+  CHAT_FILE_ACCEPT,
+  CHAT_FILE_MAX_BYTES,
+  fileAttachments,
+  fileSize,
   fillQuickReply,
   productCards,
   conversationSubtitle,
@@ -408,6 +412,21 @@ function Thread({
                         </span>
                       </span>
                     ))
+                  ) : fileAttachments(message).length > 0 ? (
+                    <>
+                      {fileAttachments(message).map((file) =>
+                        file.tipo === 'imagen' ? (
+                          <a key={file.id} href={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="ws-chat-photo">
+                            <img src={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
+                          </a>
+                        ) : (
+                          <a key={file.id} href={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} className="ws-chat-file">
+                            <FileText size={18} aria-hidden="true" /> {file.nombre} <small>{fileSize(file.tamano)}</small>
+                          </a>
+                        ),
+                      )}
+                      {message.content && !fileAttachments(message).some((f) => f.nombre === message.content) ? <p>{message.content}</p> : null}
+                    </>
                   ) : (
                     <p>{message.content}</p>
                   )}
@@ -435,6 +454,7 @@ function Thread({
       {cart && customerOf(conversation) ? (
         <OrderBar conversation={conversation} cart={cart} lang={lang} canEdit={canEditCart && canSend} />
       ) : null}
+      {canSend ? <AttachFile conversation={conversation} lang={lang} /> : null}
       {canSend ? (
         <ProductPicker conversation={conversation} lang={lang} canEditCart={canEditCart && Boolean(cart && customerOf(conversation))} cart={cart} />
       ) : null}
@@ -571,6 +591,35 @@ function OrderBar({
         <output className="ws-alert ws-orderbar__error">{order.data.message}</output>
       ) : null}
     </div>
+  );
+}
+
+/** OR-B4-037 — send a photo or a PDF (up to 10 MB) to the conversation. */
+function AttachFile({ conversation, lang }: Readonly<{ conversation: Conversation; lang: string }>) {
+  const upload = useFetcher<{ ok: boolean; message: string }>();
+  const [tooBig, setTooBig] = useState(false);
+  return (
+    <upload.Form method="post" encType="multipart/form-data" action={`/${lang}/dashboard/mensajes/adjuntar`} className="ws-attach">
+      <input type="hidden" name="conversationId" value={conversation.id} />
+      <label className="ws-attach__button">
+        <Paperclip size={16} aria-hidden="true" />
+        {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
+        <input
+          type="file"
+          name="archivo"
+          accept={CHAT_FILE_ACCEPT}
+          className="sr-only"
+          disabled={upload.state !== 'idle'}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            setTooBig(Boolean(file && file.size > CHAT_FILE_MAX_BYTES));
+            if (file && file.size <= CHAT_FILE_MAX_BYTES) upload.submit(event.currentTarget.form);
+          }}
+        />
+      </label>
+      {tooBig ? <output className="ws-alert">El archivo puede pesar hasta 10 MB.</output> : null}
+      {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="ws-alert">{upload.data.message}</output> : null}
+    </upload.Form>
   );
 }
 

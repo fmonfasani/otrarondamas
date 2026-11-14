@@ -1,4 +1,21 @@
-import { Body, Controller, ForbiddenException, Get, Logger, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { ChatFileDto } from './dto/chat-file.dto';
+import { sendChatFile } from './send-chat-file';
+import { CHAT_FILE_MAX_BYTES } from './chat-files';
+import { toMessageWire } from './message-serializer';
 import { ApiTags } from '@nestjs/swagger';
 import { AllowCustomer } from '../auth/decorators/allow-customer.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -83,5 +100,47 @@ export class CustomerChatController {
         mine: true,
       },
     };
+  }
+
+  /** OR-B4-037 — the customer sends a photo or PDF (opens the chat if needed). */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('adjuntos')
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
+  async sendFile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: ChatFileDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    const message = await this.messagingService.sendAttachment(
+      user,
+      null,
+      dto.clientMessageId,
+      file,
+      dto.caption,
+    );
+    try {
+      this.messagingGateway.publishMessageCreated(message);
+    } catch {
+      // Realtime is best-effort; HTTP stays the recovery path.
+    }
+    return {
+      conversationId: message.conversationId,
+      adjuntos: toMessageWire(message).adjuntos ?? [],
+    };
+  }
+
+  /** OR-B4-037 — a photo or PDF of the customer's own conversation. */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Get('adjuntos/:attachmentId')
+  async file(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    sendChatFile(res, await this.messagingService.getAttachmentFile(user, attachmentId));
   }
 }

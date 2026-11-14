@@ -76,7 +76,7 @@ export type ChatMessage = {
   createdAt: string;
   mine: boolean;
   /** OR-B4-037: product cards (and photos) the team shared. */
-  adjuntos?: Array<{ tipo: string; id: string; productoId?: string; nombre: string; precio?: string }>;
+  adjuntos?: Array<{ tipo: string; id: string; productoId?: string; nombre: string; precio?: string; mimeType?: string; tamano?: number }>;
 };
 
 /** OR-B4-037 — the customer adds a product shared in the chat to their saved cart. */

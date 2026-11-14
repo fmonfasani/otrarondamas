@@ -78,6 +78,27 @@ export async function apiUpload<T>(token: string, path: string, body: FormData):
   return (await response.json()) as T;
 }
 
+/**
+ * OR-B4-037 — passes a chat file from the API to the browser, which never holds the token.
+ * Keeps the API's safe headers (type, nosniff, disposition, private cache).
+ */
+export async function proxyFile(token: string, path: string): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  } catch {
+    return new Response('No pudimos traer el archivo.', { status: 503 });
+  }
+  if (!response.ok) return new Response('Archivo no encontrado', { status: response.status === 403 ? 404 : response.status });
+  const headers = new Headers();
+  for (const name of ['content-type', 'content-disposition', 'x-content-type-options', 'cache-control', 'content-length']) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  headers.set('X-Content-Type-Options', 'nosniff');
+  return new Response(response.body, { status: 200, headers });
+}
+
 /** Runs several reads; a failed one yields `null` instead of failing the whole page. */
 export async function settle<T>(promise: Promise<T>): Promise<T | null> {
   try {

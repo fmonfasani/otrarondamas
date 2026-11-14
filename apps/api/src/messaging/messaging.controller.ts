@@ -1,4 +1,17 @@
-﻿import { Body, Controller, Delete, Get, Param, Post, Patch, Put, Logger } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Patch,
+  Put,
+  Logger,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MessagingService } from './messaging.service';
@@ -14,6 +27,12 @@ import {
 } from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
 import { ConversationCartItemDto, ShareProductDto } from './dto/chat-commerce.dto';
+import { ChatFileDto } from './dto/chat-file.dto';
+import { sendChatFile } from './send-chat-file';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { CHAT_FILE_MAX_BYTES } from './chat-files';
+
 import { QuickRepliesDto } from './dto/quick-replies.dto';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
@@ -62,6 +81,17 @@ export class MessagingController {
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
+  }
+
+  /** OR-B4-037 — a photo or PDF of a conversation, for whoever may read it. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('attachments/:attachmentId')
+  async attachment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    sendChatFile(res, await this.messagingService.getAttachmentFile(user, attachmentId));
   }
 
   /** OR-B4-037 — the Business's quick replies (everyone reads; Owner/Admin replace). */
@@ -133,6 +163,29 @@ export class MessagingController {
     @Body() dto: ConversationCartItemDto,
   ) {
     return this.messagingService.setCustomerCartItem(user, id, dto.productoId, dto.cantidad);
+  }
+
+  /** OR-B4-037 — send a photo (JPG, PNG, WebP) or a PDF, up to 10 MB, field `archivo`. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Post(':id/attachments')
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
+  async sendAttachment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ChatFileDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const message = await this.messagingService.sendAttachment(
+      user,
+      id,
+      dto.clientMessageId,
+      file,
+      dto.caption,
+    );
+    this.publishSafely('conversation.message.created', message.conversationId, () =>
+      this.messagingGateway.publishMessageCreated(message),
+    );
+    return serializeMessageSequence(message);
   }
 
   /** OR-B4-037 — share a catalogue product as a card in the conversation. */
