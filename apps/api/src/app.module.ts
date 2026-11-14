@@ -27,6 +27,7 @@ import { MembershipRevocationModule } from './membership/membership-revocation.m
 import { BusinessContextModule } from './business-context/business-context.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { DevolucionesModule } from './devoluciones/devoluciones.module';
+import { ReportsModule } from './reports/reports.module';
 import { AuditModule } from './audit/audit.module';
 import { EmailModule } from './email/email.module';
 import { TenantsModule } from './tenants/tenants.module';
@@ -74,6 +75,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     MessagingModule,
     // P3-2: Devoluciones (Returns) API
     DevolucionesModule,
+    ReportsModule,
     // P3-3: Refund Queue & Async Execution
     // RefundQueueModule, // DEFERRED: schema mismatch - post-MVP
     // P4-3: Audit Log Reporting API
