@@ -1,8 +1,10 @@
+import { OrderNoticeService } from '../customer-notices/order-notice.service';
 import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
@@ -38,6 +40,7 @@ export class StoreService {
     private readonly inventoryService: InventoryService,
     private readonly loyaltyService: LoyaltyService,
     private readonly customersService: CustomersService,
+    @Optional() private readonly orderNotices?: OrderNoticeService,
   ) {}
 
   private companyId(explicitCompanyId?: string): string {
@@ -246,7 +249,7 @@ export class StoreService {
       return acc + net;
     }, 0);
 
-    return db.$transaction(async (tx: CompanyScopedTx) => {
+    const placed = await db.$transaction(async (tx: CompanyScopedTx) => {
       // Confirmed decision: an online store order ALWAYS creates/reuses a
       // Cliente by email (within the company), it never stores loose contact
       // data in Pedido — it avoids duplicating what Cliente already models and
@@ -346,6 +349,9 @@ export class StoreService {
 
       return order;
     });
+    // OR-B4-037: the customer reads in their chat that the order arrived (once per order).
+    await this.orderNotices?.received(resolvedCompanyId, placed);
+    return placed;
   }
 
   /**

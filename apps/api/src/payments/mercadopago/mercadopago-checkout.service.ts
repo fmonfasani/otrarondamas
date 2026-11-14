@@ -1,3 +1,4 @@
+import { OrderNoticeService } from '../../customer-notices/order-notice.service';
 import {
   BadRequestException,
   ConflictException,
@@ -6,6 +7,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { EstadoPago, Prisma } from '@prisma/client';
@@ -95,6 +97,7 @@ export class MercadoPagoCheckoutService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: MercadoPagoAccountService,
+    @Optional() private readonly orderNotices?: OrderNoticeService,
   ) {}
 
   private apiUrl() {
@@ -290,6 +293,9 @@ export class MercadoPagoCheckoutService {
       estado: pagoStateFor(payment.status),
       monto: new Prisma.Decimal(payment.transaction_amount),
     };
+    const wasApproved = await this.prisma.pago.count({
+      where: { empresaId: businessId, referencia, estado: 'APROBADO' },
+    });
     await this.prisma.$transaction(
       async (tx) => {
         const existing = await tx.pago.findFirst({
@@ -319,5 +325,21 @@ export class MercadoPagoCheckoutService {
         status: payment.status,
       }),
     );
+    // OR-B4-037: the customer reads in their chat that the payment arrived (once).
+    if (data.estado === 'APROBADO' && !wasApproved && this.orderNotices) {
+      const order = await this.prisma.pedido.findFirst({
+        where: { id: orderId, empresaId: businessId },
+        select: { id: true, clienteId: true, total: true },
+      });
+      if (order) {
+        await this.orderNotices.paid(
+          businessId,
+          order,
+          String(payment.id),
+          payment.transaction_amount,
+          'MERCADOPAGO',
+        );
+      }
+    }
   }
 }
