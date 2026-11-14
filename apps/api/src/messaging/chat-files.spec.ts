@@ -19,7 +19,7 @@ describe('chat files (OR-B4-037)', () => {
   it('keeps a safe file name with the real extension', () => {
     expect(cleanFileName('foto de la caja.png', 'jpg')).toBe('foto de la caja.jpg');
     const traversal = cleanFileName('../../etc/passwd', 'pdf');
-    expect(traversal).not.toMatch(/[\/]/);
+    expect(traversal).not.toMatch(/[\\/]/);
     expect(traversal.endsWith('.pdf')).toBe(true);
     expect(cleanFileName('"><img>.jpg', 'jpg')).toBe('img.jpg');
     expect(cleanFileName('', 'png')).toBe('archivo.png');
