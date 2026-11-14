@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   MembershipStatus,
@@ -12,7 +13,7 @@ import {
   MessagingConversationType,
   Prisma,
 } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,6 +23,9 @@ import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 import { PRODUCT_CARD_MIME, toMessageWire } from './message-serializer';
+import { CHAT_FILE_MAX_BYTES, cleanFileName, sniffChatFile } from './chat-files';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
 
 /**
  * Read-only access to every conversation of the Business without being a participant
@@ -454,8 +458,14 @@ export class MessagingService {
   async sendCustomerMessage(auth: AuthenticatedUser, clientMessageId: string, content: string) {
     const context = await this.resolveContext(auth);
     if (!context.customerId) throw new ForbiddenException('Solo para clientes');
-    const customerId = context.customerId;
-    const conversationId =
+    const conversationId = await this.ensureCustomerConversation(context);
+    return this.createTextMessage(auth, conversationId, clientMessageId, content);
+  }
+
+  /** The store customer's conversation; without one, it is opened DIRECT with the Owner. */
+  private async ensureCustomerConversation(context: BusinessContext): Promise<string> {
+    const customerId = context.customerId as string;
+    return (
       (await this.findCustomerConversationId(this.prisma, context)) ??
       (await this.prisma.$transaction(
         async (tx) => {
@@ -505,8 +515,112 @@ export class MessagingService {
           return conversation.id;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      ));
-    return this.createTextMessage(auth, conversationId, clientMessageId, content);
+      ))
+    );
+  }
+
+  /** Where chat files live (a server volume, OR-B4-037); without it uploads are off. */
+  private chatStorageDir() {
+    const dir = process.env.MESSAGING_STORAGE_DIR;
+    if (!dir)
+      throw new ServiceUnavailableException(
+        'Los archivos en el chat todavía no están habilitados.',
+      );
+    return dir;
+  }
+
+  /**
+   * OR-B4-037 — a photo (JPG, PNG, WebP) or a PDF in the conversation, up to 10 MB, from the
+   * team or from the store customer (who gets their conversation opened if needed). The file
+   * is checked by its content, stored outside any web root, and served only through the API
+   * to whoever may read the conversation. Idempotent by clientMessageId.
+   */
+  async sendAttachment(
+    auth: AuthenticatedUser,
+    conversationId: string | null,
+    clientMessageId: string,
+    file: { buffer: Buffer; originalname: string; size: number } | undefined,
+    caption?: string,
+  ) {
+    if (!file?.buffer?.length) throw new BadRequestException('Elegí un archivo.');
+    if (file.size > CHAT_FILE_MAX_BYTES)
+      throw new BadRequestException('El archivo puede pesar hasta 10 MB.');
+    const kind = sniffChatFile(file.buffer);
+    if (!kind) throw new BadRequestException('Solo se pueden mandar fotos (JPG, PNG, WebP) o PDF.');
+    const dir = this.chatStorageDir();
+    const context = await this.resolveContext(auth);
+    const target =
+      conversationId ??
+      (context.customerId ? await this.ensureCustomerConversation(context) : null);
+    if (!target) throw new BadRequestException('Falta la conversación');
+    const filename = cleanFileName(file.originalname || 'archivo', kind.ext);
+    const message = await this.createTextMessage(
+      auth,
+      target,
+      clientMessageId,
+      caption?.trim() || filename,
+    );
+    const existing = await this.prisma.attachment.findFirst({ where: { messageId: message.id } });
+    if (!existing) {
+      const storageKey = `${context.businessId}/${randomUUID()}.${kind.ext}`;
+      await fs.mkdir(path.join(dir, context.businessId), { recursive: true });
+      await fs.writeFile(path.join(dir, storageKey), file.buffer);
+      await this.prisma.$transaction([
+        this.prisma.message.update({ where: { id: message.id }, data: { type: kind.type } }),
+        this.prisma.attachment.create({
+          data: {
+            messageId: message.id,
+            storageKey,
+            filename,
+            mimeType: kind.mimeType,
+            sizeBytes: BigInt(file.size),
+          },
+        }),
+      ]);
+    }
+    return this.prisma.message.findUniqueOrThrow({
+      where: { id: message.id },
+      include: { Attachment: true },
+    });
+  }
+
+  /** The file behind an attachment, for whoever may read its conversation. */
+  async getAttachmentFile(auth: AuthenticatedUser, attachmentId: string) {
+    const context = await this.resolveContext(auth);
+    const attachment = await this.prisma.attachment.findFirst({
+      where: {
+        id: attachmentId,
+        deletedAt: null,
+        Message: { businessId: context.businessId, deletedAt: null },
+      },
+      include: { Message: { select: { conversationId: true, createdAt: true } } },
+    });
+    if (!attachment || attachment.mimeType === PRODUCT_CARD_MIME) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+    const conversationId = attachment.Message.conversationId;
+    if (context.customerId) {
+      const participant = await this.prisma.conversationParticipant.findFirst({
+        where: {
+          conversationId,
+          businessId: context.businessId,
+          customerId: context.customerId,
+          leftAt: null,
+          removedAt: null,
+        },
+      });
+      if (!participant) throw new NotFoundException('Archivo no encontrado');
+    } else if (!canReadAllConversations(context)) {
+      const participant = await this.assertActiveParticipant(this.prisma, conversationId, context);
+      if (attachment.Message.createdAt < participant.joinedAt)
+        throw new NotFoundException('Archivo no encontrado');
+    }
+    return {
+      // Absolute: res.sendFile refuses relative paths (a relative MESSAGING_STORAGE_DIR is fine).
+      path: path.resolve(this.chatStorageDir(), attachment.storageKey),
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+    };
   }
 
   private async findCustomerConversationId(

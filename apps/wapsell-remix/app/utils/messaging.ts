@@ -43,6 +43,20 @@ export type ProductCard = Extract<Attachment, { tipo: 'producto' }>;
 export const productCards = (m: { adjuntos?: Attachment[] }) =>
   (m.adjuntos ?? []).filter((a): a is ProductCard => a.tipo === 'producto');
 
+/** OR-B4-037 — the photos and files of a message (not product cards). */
+export const fileAttachments = (m: { adjuntos?: Attachment[] }) =>
+  (m.adjuntos ?? []).filter((a): a is Exclude<Attachment, ProductCard> => a.tipo !== 'producto');
+
+/** "1,2 MB" / "350 KB". */
+export function fileSize(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toLocaleString('es-AR', { maximumFractionDigits: 1 })} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** Same limits the API applies (OR-B4-037): photos or PDF, up to 10 MB. */
+export const CHAT_FILE_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
+export const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+
 /** OR-B4-037 — who may load the customer's cart from the chat (SALES_CREATE). */
 export const canEditCustomerCart = (role: string) => ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role);
 
