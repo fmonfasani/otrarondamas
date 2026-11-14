@@ -200,4 +200,31 @@ describe('P13-1 — productos y carrito en la conversación', () => {
       });
     await setItem(staff.vendedor.auth, product.id, 1).expect(403);
   });
+
+  it('keeps one list of quick replies per Business: everyone reads it, Owner/Admin replace it', async () => {
+    const get = (auth: string) =>
+      request(BASE).get('/messaging/conversations/quick-replies').set('Authorization', auth);
+    const put = (auth: string, items: unknown[]) =>
+      request(BASE)
+        .put('/messaging/conversations/quick-replies')
+        .set('Authorization', auth)
+        .send({ items });
+    await get(staff.vendedor.auth).expect(200, { items: [], puedeEditar: false });
+    const items = [
+      { titulo: 'Saludo', texto: 'Hola {cliente}, ¿en qué te ayudo?' },
+      { titulo: 'Horario', texto: 'Abrimos de lunes a sábado de 9 a 20.' },
+    ];
+    await put(staff.vendedor.auth, items).expect(403);
+    await put(staff.gestor.auth, items).expect(403);
+    await put(staff.owner.auth, [...items, { titulo: ' ', texto: 'vacío' }]).expect(200);
+    await get(staff.vendedor.auth).expect(200, { items, puedeEditar: false });
+    await put(
+      staff.owner.auth,
+      Array.from({ length: 51 }, () => items[0]),
+    ).expect(400);
+    // Another Business does not see it.
+    const config = (await prisma.empresa.findUnique({ where: { id: other.id } }))
+      ?.configuracion as Record<string, unknown>;
+    expect(config.respuestasRapidas).toBeUndefined();
+  });
 });

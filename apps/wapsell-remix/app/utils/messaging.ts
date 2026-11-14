@@ -57,6 +57,35 @@ export function fileSize(bytes: number) {
 export const CHAT_FILE_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 export const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
 
+export type QuickReply = { titulo: string; texto: string };
+
+/**
+ * OR-B4-037 — a quick reply ready to send: `{cliente}` becomes the customer's first name
+ * (or disappears cleanly when the conversation is not with a customer).
+ */
+export function fillQuickReply(texto: string, customerName?: string | null) {
+  const first = customerName?.trim().split(/\s+/)[0] ?? '';
+  return texto
+    .replace(/\{cliente\}/gi, first)
+    .replace(/ +([,.!?;:])/g, '$1')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
+
+/** The quick replies typed in Ajustes: `titulo-<n>` / `texto-<n>` pairs, empty rows skipped. */
+export function quickRepliesFrom(form: FormData): { ok: true; items: QuickReply[] } | { ok: false; message: string } {
+  const items: QuickReply[] = [];
+  for (let n = 0; n < 60; n += 1) {
+    const titulo = String(form.get(`titulo-${n}`) ?? '').trim();
+    const texto = String(form.get(`texto-${n}`) ?? '').trim();
+    if (!titulo && !texto) continue;
+    if (!titulo || !texto) return { ok: false, message: 'Cada respuesta necesita un título y un texto.' };
+    items.push({ titulo: titulo.slice(0, 60), texto: texto.slice(0, 1000) });
+  }
+  if (items.length > 50) return { ok: false, message: 'Puede haber hasta 50 respuestas rápidas.' };
+  return { ok: true, items };
+}
+
 /** OR-B4-037 — who may load the customer's cart from the chat (SALES_CREATE). */
 export const canEditCustomerCart = (role: string) => ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role);
 

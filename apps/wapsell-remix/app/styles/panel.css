@@ -716,3 +716,8 @@
 .ws-chat-file { display: inline-flex; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); text-decoration: none; }
 .ws-attach { padding: 6px 16px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ws-attach__button { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 13px; font-weight: 600; }
+.ws-composer__quick { max-width: 190px; padding: 6px 8px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); font: inherit; font-size: 13px; }
+.ws-quick-list { display: grid; gap: var(--space-16); margin: 0; padding-left: 20px; }
+.ws-quick-list li { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: var(--space-12); align-items: start; }
+@media (max-width: 640px) { .ws-quick-list li { grid-template-columns: 1fr; } }
+.ws-quick-list textarea { width: 100%; resize: vertical; font: inherit; border: 0; background: transparent; }

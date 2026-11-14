@@ -32,6 +32,8 @@ import { sendChatFile } from './send-chat-file';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { CHAT_FILE_MAX_BYTES } from './chat-files';
+
+import { QuickRepliesDto } from './dto/quick-replies.dto';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
@@ -90,6 +92,19 @@ export class MessagingController {
     @Res() res: Response,
   ) {
     sendChatFile(res, await this.messagingService.getAttachmentFile(user, attachmentId));
+  }
+
+  /** OR-B4-037 — the Business's quick replies (everyone reads; Owner/Admin replace). */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('quick-replies')
+  quickReplies(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.getQuickReplies(user);
+  }
+
+  @CanonicalPermission('MESSAGING_MANAGE')
+  @Put('quick-replies')
+  setQuickReplies(@CurrentUser() user: AuthenticatedUser, @Body() dto: QuickRepliesDto) {
+    return this.messagingService.setQuickReplies(user, dto.items);
   }
 
   @CanonicalPermission('MESSAGING_USE')
