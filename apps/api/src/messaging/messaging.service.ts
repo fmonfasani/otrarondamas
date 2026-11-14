@@ -21,6 +21,7 @@ import { StoreService } from '../store/store.service';
 import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
+import { PRODUCT_CARD_MIME, toMessageWire } from './message-serializer';
 
 /**
  * Read-only access to every conversation of the Business without being a participant
@@ -345,7 +346,7 @@ export class MessagingService {
         ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
       },
       orderBy: { sequence: 'asc' },
-      include: { Reaction: true },
+      include: { Reaction: true, Attachment: true },
     });
   }
 
@@ -439,6 +440,8 @@ export class MessagingService {
         content: m.content,
         createdAt: m.createdAt,
         mine: m.authorCustomerId === context.customerId,
+        // OR-B4-037: product cards (and later photos) the team shared.
+        adjuntos: toMessageWire(m).adjuntos ?? [],
       })),
     };
   }
@@ -758,6 +761,103 @@ export class MessagingService {
    * What "Crear pedido" would order: the cart of the conversation's associated Customer,
    * at current catalog prices. Readable by whoever can read the conversation.
    */
+  /**
+   * OR-B4-037 — share a product of the catalogue in the conversation: a message with the
+   * product's name and price plus a product-card attachment the customer can add to the cart.
+   * Staff only; idempotent by clientMessageId like any message.
+   */
+  async sendProductCard(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    clientMessageId: string,
+    productoId: string,
+  ) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo comparte productos');
+    const product = await this.prisma.producto.findFirst({
+      where: { id: productoId, empresaId: context.businessId, activo: true },
+      select: { id: true, nombre: true, precioMinorista: true },
+    });
+    if (!product) throw new NotFoundException('Producto no encontrado');
+    const precio = String(product.precioMinorista);
+    const message = await this.createTextMessage(
+      auth,
+      conversationId,
+      clientMessageId,
+      `${product.nombre} · $ ${Number(precio).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    );
+    const existing = await this.prisma.attachment.findFirst({
+      where: { messageId: message.id, mimeType: PRODUCT_CARD_MIME },
+    });
+    if (!existing) {
+      await this.prisma.attachment.create({
+        data: {
+          messageId: message.id,
+          storageKey: `producto:${product.id}`,
+          filename: product.nombre,
+          mimeType: PRODUCT_CARD_MIME,
+          sizeBytes: BigInt(0),
+          metadata: { productoId: product.id, nombre: product.nombre, precio },
+        },
+      });
+    }
+    return this.prisma.message.findUniqueOrThrow({
+      where: { id: message.id },
+      include: { Attachment: true },
+    });
+  }
+
+  /** The Customer a conversation is about (its single active CUSTOMER association). */
+  private async conversationCustomer(context: BusinessContext, conversationId: string) {
+    const associations = await this.prisma.conversationAssociation.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        entityType: MessagingAssociationType.CUSTOMER,
+        active: true,
+      },
+      select: { entityId: true },
+    });
+    return associations.length === 1 ? associations[0].entityId : null;
+  }
+
+  /**
+   * OR-B4-037 — the team loads products into the customer's cart from the conversation
+   * (Owner, Admin, Vendedor: SALES_CREATE). `cantidad` 0 takes the product out. The customer
+   * then confirms from the store, or the team uses «Crear pedido».
+   */
+  async setCustomerCartItem(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    productoId: string,
+    cantidad: number,
+  ) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId || !hasCanonicalPermission(context.role, 'SALES_CREATE')) {
+      throw new ForbiddenException('Requiere el permiso SALES_CREATE');
+    }
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+    await this.assertActiveParticipant(this.prisma, conversationId, context);
+    const customerId = await this.conversationCustomer(context, conversationId);
+    if (!customerId || !this.cartService) {
+      throw new ConflictException('Esta conversación no es con un cliente');
+    }
+    const cart = await this.cartService.getOrCreateCart(customerId, context.businessId);
+    const line = cart.CartItem.find((item) => item.productoId === productoId);
+    if (cantidad <= 0) {
+      if (line) await this.cartService.removeItem(cart.id, line.id, context.businessId);
+    } else if (line) {
+      await this.cartService.updateItemQuantity(cart.id, line.id, cantidad, context.businessId);
+    } else {
+      await this.cartService.addItem(cart.id, productoId, cantidad, context.businessId);
+    }
+    return this.getConversationCart(auth, conversationId);
+  }
+
   async getConversationCart(auth: AuthenticatedUser, conversationId: string) {
     const context = await this.resolveContext(auth);
     const conversation = await this.prisma.conversation.findFirst({

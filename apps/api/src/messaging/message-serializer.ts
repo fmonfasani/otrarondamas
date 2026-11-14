@@ -40,7 +40,25 @@ export interface SerializableMessage {
   deliveredAt?: Date | string | null;
   readAt?: Date | string | null;
   reactions?: unknown[];
+  /** Loaded with the message when the caller included it (`Attachment`). */
+  Attachment?: SerializableAttachment[];
 }
+
+export interface SerializableAttachment {
+  id: string;
+  mimeType: string;
+  filename: string;
+  sizeBytes: bigint | number;
+  metadata: unknown;
+  deletedAt?: Date | string | null;
+}
+
+/** A product shared in the chat (OR-B4-037): an Attachment with this media type. */
+export const PRODUCT_CARD_MIME = 'application/vnd.wapsell.product+json';
+
+export type AttachmentWire =
+  | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string }
+  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number };
 
 /** The wire shape. Explicit allowlist: a new Prisma column does not reach the
  *  API until it is added here deliberately. */
@@ -60,6 +78,27 @@ export interface MessageWire {
   deliveredAt: string | null;
   readAt: string | null;
   reactions?: unknown[];
+  adjuntos?: AttachmentWire[];
+}
+
+function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
+  if (a.mimeType === PRODUCT_CARD_MIME) {
+    const meta = (a.metadata ?? {}) as { productoId?: string; nombre?: string; precio?: string };
+    return {
+      tipo: 'producto',
+      id: a.id,
+      productoId: String(meta.productoId ?? ''),
+      nombre: String(meta.nombre ?? a.filename),
+      precio: String(meta.precio ?? '0'),
+    };
+  }
+  return {
+    tipo: a.mimeType.startsWith('image/') ? 'imagen' : 'archivo',
+    id: a.id,
+    nombre: a.filename,
+    mimeType: a.mimeType,
+    tamano: Number(a.sizeBytes),
+  };
 }
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -94,6 +133,9 @@ export function toMessageWire(message: SerializableMessage): MessageWire {
 
   if (message.reactions !== undefined) {
     wire.reactions = message.reactions;
+  }
+  if (message.Attachment !== undefined) {
+    wire.adjuntos = message.Attachment.filter((a) => !a.deletedAt).map(toAttachmentWire);
   }
 
   return wire;
