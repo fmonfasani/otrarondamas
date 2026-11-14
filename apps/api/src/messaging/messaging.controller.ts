@@ -14,6 +14,7 @@ import {
 } from './dto/conversation-association.dto';
 import { CreateConversationOrderDto } from './dto/create-conversation-order.dto';
 import { ConversationCartItemDto, ShareProductDto } from './dto/chat-commerce.dto';
+import { QuickRepliesDto } from './dto/quick-replies.dto';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
@@ -61,6 +62,19 @@ export class MessagingController {
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
+  }
+
+  /** OR-B4-037 — the Business's quick replies (everyone reads; Owner/Admin replace). */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('quick-replies')
+  quickReplies(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.getQuickReplies(user);
+  }
+
+  @CanonicalPermission('MESSAGING_MANAGE')
+  @Put('quick-replies')
+  setQuickReplies(@CurrentUser() user: AuthenticatedUser, @Body() dto: QuickRepliesDto) {
+    return this.messagingService.setQuickReplies(user, dto.items);
   }
 
   @CanonicalPermission('MESSAGING_USE')

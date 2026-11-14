@@ -404,6 +404,58 @@ export class MessagingService {
    * ids, the ones `participantUserIds` expects. Customers are not listed here; they come
    * from /clientes under its own permission.
    */
+  /**
+   * OR-B4-037 — the Business's quick replies (Empresa.configuracion.respuestasRapidas): one
+   * list for the whole team; Owner and Admin (MESSAGING_MANAGE) replace it.
+   */
+  async getQuickReplies(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo del negocio');
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: context.businessId },
+      select: { configuracion: true },
+    });
+    const raw = ((business?.configuracion ?? {}) as { respuestasRapidas?: unknown })
+      .respuestasRapidas;
+    const items = Array.isArray(raw)
+      ? raw
+          .filter(
+            (r): r is { titulo: string; texto: string } =>
+              typeof r === 'object' &&
+              r !== null &&
+              typeof (r as { titulo?: unknown }).titulo === 'string' &&
+              typeof (r as { texto?: unknown }).texto === 'string',
+          )
+          .map((r) => ({ titulo: r.titulo, texto: r.texto }))
+      : [];
+    return { items, puedeEditar: hasCanonicalPermission(context.role, 'MESSAGING_MANAGE') };
+  }
+
+  async setQuickReplies(auth: AuthenticatedUser, items: Array<{ titulo: string; texto: string }>) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId || !hasCanonicalPermission(context.role, 'MESSAGING_MANAGE')) {
+      throw new ForbiddenException('Requiere el permiso MESSAGING_MANAGE');
+    }
+    const clean = items
+      .map((r) => ({ titulo: r.titulo.trim(), texto: r.texto.trim() }))
+      .filter((r) => r.titulo && r.texto);
+    await this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUniqueOrThrow({
+        where: { id: context.businessId },
+        select: { configuracion: true },
+      });
+      const config = {
+        ...((business.configuracion ?? {}) as Record<string, unknown>),
+        respuestasRapidas: clean,
+      };
+      await tx.empresa.update({
+        where: { id: context.businessId },
+        data: { configuracion: config as Prisma.InputJsonValue },
+      });
+    });
+    return this.getQuickReplies(auth);
+  }
+
   async listContacts(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
     if (!context.userId)

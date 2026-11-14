@@ -3,7 +3,7 @@ import { formBody, ok, sessionCookie, stubApi } from './helpers/route';
 import { action as messagesAction } from '../app/routes/_business.$lang.dashboard.mensajes';
 import { action as chatAction } from '../app/routes/_customer.tienda_.$slug_.chat';
 import { signInCookie } from '../app/services/customer-session.server';
-import { canEditCustomerCart, productCards } from '../app/utils/messaging';
+import { canEditCustomerCart, fillQuickReply, productCards, quickRepliesFrom } from '../app/utils/messaging';
 
 /** OR-B4-037 — products and the customer's cart in the conversation. */
 describe('chat commerce helpers', () => {
@@ -78,5 +78,33 @@ describe('store chat: add a shared product to the cart', () => {
     await expect(response.json()).resolves.toEqual({ ok: true, message: '', added: 'p-1' });
     expect(api.mock.calls[1][0]).toBe('http://api.test/cart/cart-1/items');
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({ productoId: 'p-1', cantidad: 1 });
+  });
+});
+
+describe('quick replies (OR-B4-037)', () => {
+  it('puts the customer’s first name in place of {cliente}', () => {
+    expect(fillQuickReply('Hola {cliente}, ¿en qué te ayudo?', 'Rocío Pérez')).toBe('Hola Rocío, ¿en qué te ayudo?');
+    expect(fillQuickReply('Hola {cliente}, ¿en qué te ayudo?', null)).toBe('Hola, ¿en qué te ayudo?');
+    expect(fillQuickReply('Gracias {CLIENTE}!', 'Ana')).toBe('Gracias Ana!');
+  });
+
+  it('reads the list typed in Ajustes', () => {
+    const form = new FormData();
+    form.append('titulo-0', 'Saludo');
+    form.append('texto-0', ' Hola {cliente} ');
+    form.append('titulo-1', '');
+    form.append('texto-1', '');
+    form.append('titulo-2', 'Horario');
+    form.append('texto-2', 'De 9 a 20');
+    expect(quickRepliesFrom(form)).toEqual({
+      ok: true,
+      items: [
+        { titulo: 'Saludo', texto: 'Hola {cliente}' },
+        { titulo: 'Horario', texto: 'De 9 a 20' },
+      ],
+    });
+    const half = new FormData();
+    half.append('titulo-0', 'Solo título');
+    expect(quickRepliesFrom(half)).toMatchObject({ ok: false });
   });
 });

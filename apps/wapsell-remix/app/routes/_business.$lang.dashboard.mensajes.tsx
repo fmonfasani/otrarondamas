@@ -10,6 +10,7 @@ import {
   authorOf,
   canCreateOrder,
   canEditCustomerCart,
+  fillQuickReply,
   productCards,
   conversationSubtitle,
   conversationTitle,
@@ -25,6 +26,7 @@ import {
   type Conversation,
   type ConversationCart,
   type Message,
+  type QuickReply,
 } from '~/utils/messaging';
 import type { SearchProduct } from '~/utils/sales';
 
@@ -55,9 +57,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const selectedId = url.searchParams.get('c');
   const composing = url.searchParams.get('nueva') === '1';
 
-  const [conversations, me] = await Promise.all([
+  const [conversations, me, quick] = await Promise.all([
     settle(apiRequest<Conversation[]>(token, '/messaging/conversations')),
     getCurrentUser(token),
+    settle(apiRequest<{ items: QuickReply[] }>(token, '/messaging/conversations/quick-replies')),
   ]);
 
   let selected: Conversation | null = null;
@@ -114,6 +117,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     contacts: contacts ?? [],
     customers: customers ?? [],
     canEditCart: canEditCustomerCart(String(me?.rol ?? '')),
+    quickReplies: quick?.items ?? [],
   });
 }
 
@@ -311,6 +315,8 @@ export default function MessagesPage() {
             cart={data.cart}
             lang={lang}
             canEditCart={data.canEditCart}
+            quickReplies={data.quickReplies}
+            customerName={data.customer?.nombre ?? null}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -338,6 +344,8 @@ function Thread({
   cart,
   lang,
   canEditCart,
+  quickReplies,
+  customerName,
 }: Readonly<{
   conversation: Conversation;
   messages: Message[];
@@ -346,6 +354,8 @@ function Thread({
   cart: ConversationCart | null;
   lang: string;
   canEditCart: boolean;
+  quickReplies: QuickReply[];
+  customerName: string | null;
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -447,6 +457,31 @@ function Thread({
             }}
           />
           <div className="ws-composer__tools">
+            {quickReplies.length > 0 ? (
+              <select
+                className="ws-composer__quick"
+                aria-label="Respuestas rápidas"
+                value=""
+                onChange={(event) => {
+                  const reply = quickReplies[Number(event.target.value)];
+                  const box = formRef.current?.querySelector('textarea');
+                  if (reply && box) {
+                    const text = fillQuickReply(reply.texto, customerName);
+                    box.value = box.value.trim() ? `${box.value.trim()} ${text}` : text;
+                    box.focus();
+                  }
+                }}
+              >
+                <option value="" disabled>
+                  Respuestas rápidas
+                </option>
+                {quickReplies.map((r, i) => (
+                  <option key={`${r.titulo}-${i}`} value={i}>
+                    {r.titulo}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <span className="ws-composer__hint">Enter envía · Shift+Enter, nueva línea</span>
             <button className="ws-composer__send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle'}>
               <ArrowUp size={16} aria-hidden="true" />

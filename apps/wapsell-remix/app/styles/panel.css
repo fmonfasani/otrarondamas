@@ -711,3 +711,8 @@
 .ws-picker__results small { font-size: 12px; }
 .ws-orderbar__qty { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
 .ws-orderbar__qty .ws-icon-button { width: 26px; height: 26px; }
+.ws-composer__quick { max-width: 190px; padding: 6px 8px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); font: inherit; font-size: 13px; }
+.ws-quick-list { display: grid; gap: var(--space-16); margin: 0; padding-left: 20px; }
+.ws-quick-list li { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: var(--space-12); align-items: start; }
+@media (max-width: 640px) { .ws-quick-list li { grid-template-columns: 1fr; } }
+.ws-quick-list textarea { width: 100%; resize: vertical; font: inherit; border: 0; background: transparent; }
