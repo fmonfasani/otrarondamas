@@ -14,6 +14,7 @@ import { MembershipModule } from '../membership/membership.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { EmailModule } from '../email/email.module';
 import { PasswordResetService } from './password-reset.service';
+import { AccountService } from './account.service';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PasswordResetService } from './password-reset.service';
   providers: [
     AuthService,
     PasswordResetService,
+    AccountService,
     AuthGoogleService,
     AuthCustomerService,
     GoogleStrategy,

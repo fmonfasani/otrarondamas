@@ -6,7 +6,7 @@ const labels = (role?: string) => navItems('es', role).map((item) => item.label)
 describe('panel menu by role (mirrors the API role matrix)', () => {
   it('shows the Owner every section', () => {
     expect(labels('OWNER')).toEqual([
-      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Reportes', 'Equipo', 'Cobros',
+      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Reportes', 'Equipo', 'Cobros', 'Ajustes',
     ]);
   });
 
@@ -26,6 +26,6 @@ describe('panel menu by role (mirrors the API role matrix)', () => {
   });
 
   it('keeps every section when the role is unknown to the caller', () => {
-    expect(labels()).toHaveLength(13);
+    expect(labels()).toHaveLength(14);
   });
 });

@@ -17,7 +17,13 @@ async function publicGet<T>(path: string): Promise<T | null> {
 
 /** The store's public name; null when no Business has that slug. */
 export const fetchStore = (slug: string) =>
-  publicGet<{ nombre: string; slug: string; pagosOnline?: boolean }>(storePath(slug));
+  publicGet<{
+    nombre: string;
+    slug: string;
+    pagosOnline?: boolean;
+    /** Ajustes del negocio: what customers can see; empty strings when not set. */
+    contacto?: { telefono: string; direccion: string; horario: string; descripcion: string };
+  }>(storePath(slug));
 
 export async function fetchCatalog(slug: string, search: string) {
   const query = search ? `?search=${encodeURIComponent(search)}` : '';

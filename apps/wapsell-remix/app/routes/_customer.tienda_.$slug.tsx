@@ -42,7 +42,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ formData, defaultSh
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const slug = params.slug ?? '';
   const search = new URL(request.url).searchParams.get('search') ?? '';
-  let store: { nombre: string; slug: string } | null;
+  let store: Awaited<ReturnType<typeof fetchStore>>;
   try {
     store = await fetchStore(slug);
   } catch {
@@ -169,6 +169,17 @@ export default function Store() {
       <a className="chat-fab" href={`/tienda/${store.slug}/chat`}>
         <span aria-hidden="true">💬</span> Escribinos
       </a>
+
+      {store.contacto && Object.values(store.contacto).some(Boolean) ? (
+        <section className="store-contact" aria-label={`Contacto de ${store.nombre}`}>
+          {store.contacto.descripcion ? <p>{store.contacto.descripcion}</p> : null}
+          <ul>
+            {store.contacto.direccion ? <li><b>Dirección</b> {store.contacto.direccion}</li> : null}
+            {store.contacto.horario ? <li><b>Horario</b> {store.contacto.horario}</li> : null}
+            {store.contacto.telefono ? <li><b>Teléfono</b> {store.contacto.telefono}</li> : null}
+          </ul>
+        </section>
+      ) : null}
 
       <footer className="store-footer">
         <span>{store.nombre}</span>

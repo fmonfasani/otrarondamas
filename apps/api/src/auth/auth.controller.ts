@@ -6,6 +6,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -21,6 +22,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
 import { PasswordResetService } from './password-reset.service';
+import { AccountService } from './account.service';
+import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser, UserProfile } from './auth.types';
@@ -39,6 +42,7 @@ export class AuthController {
     private readonly membershipService: MembershipService,
     private readonly prisma: PrismaService,
     private readonly passwordReset: PasswordResetService,
+    private readonly account: AccountService,
   ) {}
 
   @Public()
@@ -119,6 +123,23 @@ export class AuthController {
       estadoLegajo: userRecord.estadoLegajo,
       type: 'usuario' as const,
     };
+  }
+
+  /** Mi perfil — change your own name. */
+  @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
+  @Patch('me')
+  updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateProfileDto) {
+    return this.account.updateProfile(user.id, dto.nombre);
+  }
+
+  /** Mi perfil — change your password, confirming the current one. */
+  @ApiBearerAuth()
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('password/change')
+  @HttpCode(HttpStatus.OK)
+  changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto) {
+    return this.account.changePassword(user.id, dto.actual, dto.nueva);
   }
 
   // S-V1-01: memberships of the authenticated user (read-only). Uses the
