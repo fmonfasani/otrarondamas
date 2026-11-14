@@ -69,7 +69,21 @@ export const payOrder = (jwt: string, slug: string, orderId: string) =>
 export const fetchCustomerOrders = (jwt: string, slug: string) =>
   apiRequest<CustomerOrder[]>(jwt, storePath(slug, '/mis-pedidos'));
 
-export type ChatMessage = { id: string; clientMessageId: string; content: string | null; createdAt: string; mine: boolean };
+export type ChatMessage = {
+  id: string;
+  clientMessageId: string;
+  content: string | null;
+  createdAt: string;
+  mine: boolean;
+  /** OR-B4-037: product cards (and photos) the team shared. */
+  adjuntos?: Array<{ tipo: string; id: string; productoId?: string; nombre: string; precio?: string }>;
+};
+
+/** OR-B4-037 — the customer adds a product shared in the chat to their saved cart. */
+export async function addToServerCart(jwt: string, productoId: string, cantidad = 1) {
+  const cart = await loadServerCart(jwt);
+  await apiRequest(jwt, `/cart/${cart.id}/items`, { method: 'POST', body: JSON.stringify({ productoId, cantidad }) });
+}
 export type CustomerChat = { conversationId: string | null; messages: ChatMessage[] };
 
 /** The signed-in customer's conversation with the store (empty until they write). */

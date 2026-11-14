@@ -123,7 +123,7 @@ describe('store routes', () => {
   it('sends a chat message with its retry key as the signed-in customer', async () => {
     api.mockResolvedValueOnce(ok({ conversationId: 'conv-1', message: { id: 'm-1' } }));
     const response = await post(chatAction, '/tienda/demo/chat', [['content', '  ¿Hacen envíos?  '], ['clientMessageId', 'k-1']], await customerCookie());
-    await expect(response.json()).resolves.toEqual({ ok: true, message: '' });
+    await expect(response.json()).resolves.toEqual({ ok: true, message: '', added: '' });
     expect(api.mock.calls[0][0]).toBe('http://api.test/demo/tienda/chat/mensajes');
     expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ clientMessageId: 'k-1', content: '¿Hacen envíos?' });
   });

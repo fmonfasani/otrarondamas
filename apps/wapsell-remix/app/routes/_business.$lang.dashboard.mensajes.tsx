@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useRevalidator, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Eye, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Eye, Minus, Package, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
-import { requireAuth } from '~/services/auth.server';
+import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import {
   authorOf,
   canCreateOrder,
+  canEditCustomerCart,
+  productCards,
   conversationSubtitle,
   conversationTitle,
   customerOf,
@@ -24,6 +26,7 @@ import {
   type ConversationCart,
   type Message,
 } from '~/utils/messaging';
+import type { SearchProduct } from '~/utils/sales';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
 
@@ -52,7 +55,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const selectedId = url.searchParams.get('c');
   const composing = url.searchParams.get('nueva') === '1';
 
-  const conversations = await settle(apiRequest<Conversation[]>(token, '/messaging/conversations'));
+  const [conversations, me] = await Promise.all([
+    settle(apiRequest<Conversation[]>(token, '/messaging/conversations')),
+    getCurrentUser(token),
+  ]);
 
   let selected: Conversation | null = null;
   let messages: Message[] = [];
@@ -107,6 +113,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     composing,
     contacts: contacts ?? [],
     customers: customers ?? [],
+    canEditCart: canEditCustomerCart(String(me?.rol ?? '')),
   });
 }
 
@@ -126,6 +133,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
         body: JSON.stringify({ clientMessageId: crypto.randomUUID(), content }),
       });
       return json<ActionData>({ ok: true });
+    }
+    if (intent === 'share-product') {
+      const conversationId = String(form.get('conversationId') ?? '');
+      const productoId = String(form.get('productoId') ?? '');
+      await apiRequest(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/products`, {
+        method: 'POST',
+        body: JSON.stringify({ clientMessageId: crypto.randomUUID(), productoId }),
+      });
+      return json<ActionData>({ ok: true, message: 'Producto compartido.' });
+    }
+    if (intent === 'cart-set') {
+      const conversationId = String(form.get('conversationId') ?? '');
+      const productoId = String(form.get('productoId') ?? '');
+      const cantidad = Math.max(0, Math.round(Number(form.get('cantidad') ?? 0)));
+      await apiRequest(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/cart/items`, {
+        method: 'PUT',
+        body: JSON.stringify({ productoId, cantidad }),
+      });
+      return json<ActionData>({ ok: true, message: cantidad > 0 ? 'Carrito actualizado.' : 'Producto sacado del carrito.' });
     }
     if (intent === 'order') {
       const conversationId = String(form.get('conversationId') ?? '');
@@ -284,6 +310,7 @@ export default function MessagesPage() {
             sender={sender}
             cart={data.cart}
             lang={lang}
+            canEditCart={data.canEditCart}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -310,6 +337,7 @@ function Thread({
   sender,
   cart,
   lang,
+  canEditCart,
 }: Readonly<{
   conversation: Conversation;
   messages: Message[];
@@ -317,6 +345,7 @@ function Thread({
   sender: ReturnType<typeof useFetcher<ActionData>>;
   cart: ConversationCart | null;
   lang: string;
+  canEditCart: boolean;
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -359,7 +388,19 @@ function Thread({
               return (
                 <div key={message.id} className={`ws-bubble${own ? ' ws-bubble--team' : ''}`}>
                   {showAuthor && <span className="ws-bubble__author">{author?.name ?? 'Ex participante'}</span>}
-                  <p>{message.content}</p>
+                  {productCards(message).length > 0 ? (
+                    productCards(message).map((card) => (
+                      <span key={card.id} className="ws-product-card">
+                        <Package size={18} aria-hidden="true" />
+                        <span>
+                          <b>{card.nombre}</b>
+                          <small>{formatMoney(card.precio)}</small>
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    <p>{message.content}</p>
+                  )}
                   <small>
                     {messageTime(message.createdAt)}
                     {message.editedAt ? ' · editado' : ''}
@@ -381,7 +422,12 @@ function Thread({
         <p className="ws-alert ws-chat__error" role="alert">{sender.data.message}</p>
       )}
 
-      {cart && customerOf(conversation) ? <OrderBar conversation={conversation} cart={cart} lang={lang} /> : null}
+      {cart && customerOf(conversation) ? (
+        <OrderBar conversation={conversation} cart={cart} lang={lang} canEdit={canEditCart && canSend} />
+      ) : null}
+      {canSend ? (
+        <ProductPicker conversation={conversation} lang={lang} canEditCart={canEditCart && Boolean(cart && customerOf(conversation))} cart={cart} />
+      ) : null}
 
       {canSend ? (
         <sender.Form method="post" className="ws-composer" ref={formRef}>
@@ -420,8 +466,14 @@ function Thread({
  * The customer's cart (built by them in the store) and, for whoever may create orders,
  * the button that turns it into an order. Shown at every screen size, above the composer.
  */
-function OrderBar({ conversation, cart, lang }: Readonly<{ conversation: Conversation; cart: ConversationCart; lang: string }>) {
+function OrderBar({
+  conversation,
+  cart,
+  lang,
+  canEdit,
+}: Readonly<{ conversation: Conversation; cart: ConversationCart; lang: string; canEdit: boolean }>) {
   const order = useFetcher<ActionData>();
+  const edit = useFetcher<ActionData>();
   const busy = order.state !== 'idle';
   const created = order.state === 'idle' && order.data?.ok ? order.data.orderId : undefined;
   const units = cart.items.reduce((sum, item) => sum + item.cantidad, 0);
@@ -430,7 +482,9 @@ function OrderBar({ conversation, cart, lang }: Readonly<{ conversation: Convers
       <div className="ws-orderbar__summary">
         <ShoppingBag size={16} aria-hidden="true" />
         {cart.items.length === 0 ? (
-          <span>El carrito del cliente está vacío. Lo arma desde la tienda.</span>
+          <span>
+            El carrito del cliente está vacío. Lo arma desde la tienda{canEdit ? ' o lo cargás vos con «Productos»' : ''}.
+          </span>
         ) : (
           <details>
             <summary>
@@ -440,6 +494,26 @@ function OrderBar({ conversation, cart, lang }: Readonly<{ conversation: Convers
               {cart.items.map((item) => (
                 <li key={item.productoId}>
                   {item.cantidad} × {item.nombre} <small>{formatMoney(item.precio)}</small>
+                  {canEdit ? (
+                    <span className="ws-orderbar__qty">
+                      {[item.cantidad - 1, item.cantidad + 1].map((cantidad, i) => (
+                        <edit.Form key={cantidad} method="post">
+                          <input type="hidden" name="intent" value="cart-set" />
+                          <input type="hidden" name="conversationId" value={conversation.id} />
+                          <input type="hidden" name="productoId" value={item.productoId} />
+                          <input type="hidden" name="cantidad" value={cantidad} />
+                          <button
+                            type="submit"
+                            className="ws-icon-button"
+                            disabled={edit.state !== 'idle'}
+                            aria-label={i === 0 ? `Uno menos de ${item.nombre}` : `Uno más de ${item.nombre}`}
+                          >
+                            {i === 0 ? <Minus size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+                          </button>
+                        </edit.Form>
+                      ))}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -462,6 +536,71 @@ function OrderBar({ conversation, cart, lang }: Readonly<{ conversation: Convers
         <output className="ws-alert ws-orderbar__error">{order.data.message}</output>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * OR-B4-037 — find a product of the catalogue and share it as a card, or (Owner, Admin,
+ * Vendedor, in a conversation with a customer) put it in the customer's cart.
+ */
+function ProductPicker({
+  conversation,
+  lang,
+  canEditCart,
+  cart,
+}: Readonly<{ conversation: Conversation; lang: string; canEditCart: boolean; cart: ConversationCart | null }>) {
+  const search = useFetcher<{ q: string; products: SearchProduct[] }>();
+  const act = useFetcher<ActionData>();
+  const inCart = (productoId: string) => cart?.items.find((i) => i.productoId === productoId)?.cantidad ?? 0;
+  return (
+    <details className="ws-picker">
+      <summary>
+        <Package size={16} aria-hidden="true" /> Productos
+      </summary>
+      <search.Form method="get" action={`/${lang}/dashboard/mensajes/productos`} className="ws-picker__search" role="search">
+        <input name="q" placeholder="Buscar en el catálogo" aria-label="Buscar en el catálogo" minLength={2} required />
+        <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={search.state !== 'idle'}>
+          Buscar
+        </button>
+      </search.Form>
+      {search.data && search.data.products.length === 0 ? <p className="ws-meta">No hay productos con «{search.data.q}».</p> : null}
+      {search.data && search.data.products.length > 0 ? (
+        <ul className="ws-picker__results">
+          {search.data.products.map((p) => (
+            <li key={p.id}>
+              <span>
+                <b>{p.nombre}</b>
+                <small>
+                  {formatMoney(p.precioMinorista)} · stock {p.stockDisponible}
+                </small>
+              </span>
+              <act.Form method="post">
+                <input type="hidden" name="intent" value="share-product" />
+                <input type="hidden" name="conversationId" value={conversation.id} />
+                <input type="hidden" name="productoId" value={p.id} />
+                <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={act.state !== 'idle'}>
+                  Compartir
+                </button>
+              </act.Form>
+              {canEditCart ? (
+                <act.Form method="post">
+                  <input type="hidden" name="intent" value="cart-set" />
+                  <input type="hidden" name="conversationId" value={conversation.id} />
+                  <input type="hidden" name="productoId" value={p.id} />
+                  <input type="hidden" name="cantidad" value={inCart(p.id) + 1} />
+                  <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={act.state !== 'idle' || p.stockDisponible <= inCart(p.id)}>
+                    Al carrito
+                  </button>
+                </act.Form>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {act.state === 'idle' && act.data ? (
+        <output className={act.data.ok ? 'ws-meta' : 'ws-alert'}>{act.data.message}</output>
+      ) : null}
+    </details>
   );
 }
 

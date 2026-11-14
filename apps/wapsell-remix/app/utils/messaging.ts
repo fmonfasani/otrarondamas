@@ -32,7 +32,22 @@ export interface Conversation {
   lastMessage: MessagePreview | null;
 }
 
+/** OR-B4-037 — what a message carries besides its text: a product card, or a photo or file. */
+export type Attachment =
+  | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string }
+  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number };
+
+export type ProductCard = Extract<Attachment, { tipo: 'producto' }>;
+
+/** The product cards of a message. */
+export const productCards = (m: { adjuntos?: Attachment[] }) =>
+  (m.adjuntos ?? []).filter((a): a is ProductCard => a.tipo === 'producto');
+
+/** OR-B4-037 — who may load the customer's cart from the chat (SALES_CREATE). */
+export const canEditCustomerCart = (role: string) => ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role);
+
 export interface Message extends MessagePreview {
+  adjuntos?: Attachment[];
   conversationId: string;
   clientMessageId: string;
   sequence: string;

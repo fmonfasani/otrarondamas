@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
-import { fetchCustomerChat, fetchStore, sendCustomerMessage } from '~/services/store.server';
-import { formatTime } from '~/utils/format';
+import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage } from '~/services/store.server';
+import { formatMoney, formatTime } from '~/utils/format';
 
 /**
  * Chat of the store customer with the Business — /tienda/:slug/chat (STORE-V1-04).
@@ -49,16 +49,27 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const customer = await getStoreCustomer(request, slug);
   if (!customer) throw redirect(`/tienda/${slug}/cuenta?volver=chat`);
   const form = await request.formData();
+  if (form.get('intent') === 'cart-add') {
+    try {
+      await addToServerCart(customer.jwt, String(form.get('productoId') ?? ''));
+      return json({ ok: true, message: '', added: String(form.get('productoId') ?? '') });
+    } catch (error) {
+      if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
+      throw error;
+    }
+  }
   const content = String(form.get('content') ?? '').trim();
   const clientMessageId = String(form.get('clientMessageId') ?? '');
-  if (!content) return json({ ok: false, message: 'Escribí un mensaje.' }, { status: 400 });
-  if (content.length > MAX_LENGTH) return json({ ok: false, message: `El mensaje puede tener hasta ${MAX_LENGTH} caracteres.` }, { status: 400 });
-  if (!clientMessageId) return json({ ok: false, message: 'No pudimos enviar el mensaje.' }, { status: 400 });
+  if (!content) return json({ ok: false, message: 'Escribí un mensaje.', added: '' }, { status: 400 });
+  if (content.length > MAX_LENGTH) {
+    return json({ ok: false, message: `El mensaje puede tener hasta ${MAX_LENGTH} caracteres.`, added: '' }, { status: 400 });
+  }
+  if (!clientMessageId) return json({ ok: false, message: 'No pudimos enviar el mensaje.', added: '' }, { status: 400 });
   try {
     await sendCustomerMessage(customer.jwt, slug, clientMessageId, content);
-    return json({ ok: true, message: '' });
+    return json({ ok: true, message: '', added: '' });
   } catch (error) {
-    if (error instanceof ApiError) return json({ ok: false, message: error.message }, { status: error.status });
+    if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
     throw error;
   }
 }
@@ -66,6 +77,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function CustomerChat() {
   const { store, customer, chat, error } = useLoaderData<typeof loader>();
   const send = useFetcher<typeof action>();
+  const cart = useFetcher<typeof action>();
   const revalidator = useRevalidator();
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
@@ -123,7 +135,29 @@ export default function CustomerChat() {
           {chat.messages.map((message) => (
             <div key={message.id} className={`store-bubble ${message.mine ? 'store-bubble--mine' : ''}`}>
               {message.mine ? null : <span className="store-bubble__from">{store.nombre}</span>}
-              <p>{message.content ?? 'Mensaje eliminado'}</p>
+              {message.adjuntos?.some((a) => a.tipo === 'producto') ? (
+                message.adjuntos
+                  .filter((a) => a.tipo === 'producto' && a.productoId)
+                  .map((a) => (
+                    <span key={a.id} className="store-product-card">
+                      <b>{a.nombre}</b>
+                      <span>{formatMoney(a.precio ?? '0')}</span>
+                      {cart.state === 'idle' && cart.data?.ok && cart.data.added === a.productoId ? (
+                        <Link to={`/tienda/${store.slug}?carrito=1`}>Agregado · Ver mi pedido</Link>
+                      ) : (
+                        <cart.Form method="post">
+                          <input type="hidden" name="intent" value="cart-add" />
+                          <input type="hidden" name="productoId" value={a.productoId} />
+                          <button type="submit" className="submit-order" disabled={cart.state !== 'idle'}>
+                            Agregar a mi pedido
+                          </button>
+                        </cart.Form>
+                      )}
+                    </span>
+                  ))
+              ) : (
+                <p>{message.content ?? 'Mensaje eliminado'}</p>
+              )}
               <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
             </div>
           ))}
@@ -153,6 +187,7 @@ export default function CustomerChat() {
           </button>
         </send.Form>
         {send.data && !send.data.ok ? <output className="form-error">{send.data.message}</output> : null}
+        {cart.data && !cart.data.ok ? <output className="form-error">{cart.data.message}</output> : null}
       </section>
     </main>
   );
