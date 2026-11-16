@@ -80,15 +80,17 @@ export const numberText = (n: number) => new Intl.NumberFormat('es-AR').format(n
 
 /** A store address from a name: «Otra Ronda Más» → «otra-ronda-mas». */
 export function slugFrom(name: string) {
-  return name
-    .normalize('NFD')
-    // Accents (combining marks U+0300–U+036F) go: «Más» → «Mas».
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-    .replace(/-+$/g, '');
+  return (
+    name
+      .normalize('NFD')
+      // Accents (combining marks U+0300–U+036F) go: «Más» → «Mas».
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40)
+      .replace(/-+$/g, '')
+  );
 }
 
 /** OR-B4-039 — the new Business form, checked like the API does. */
@@ -117,3 +119,96 @@ export function newBusinessFrom(
     return { ok: false, message: 'Revisá el email del Owner.' };
   return { ok: true, data: { nombre, slug, ownerNombre, ownerEmail } };
 }
+
+/* ---- OR-B4-040: platform insights ---- */
+
+export type Severity = 'alta' | 'media' | 'baja';
+
+export type HealthReport = {
+  negocios: number;
+  conAlertas: number;
+  resumen: Record<Severity, number>;
+  items: Array<{
+    id: string;
+    nombre: string;
+    slug: string;
+    alertas: Array<{ tipo: string; severidad: Severity; detalle: string; accion: string }>;
+  }>;
+};
+
+export type ActivityMonth = {
+  mes: string;
+  negociosNuevos: number;
+  negociosActivos: number;
+  vendido: number;
+  ventas: number;
+  pedidos: number;
+  mensajes: number;
+};
+
+export type AdoptionReport = {
+  negocios: number;
+  funciones: Array<{
+    clave: string;
+    nombre: string;
+    periodo: string;
+    negocios: number;
+    porcentaje: number;
+  }>;
+};
+
+export type PlatformAudit = {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: Array<{
+    id: string;
+    fecha: string;
+    accion: string;
+    negocio: { id: string; nombre: string };
+    quien: { nombre: string; email: string } | null;
+  }>;
+};
+
+export const SEVERITY_NAMES: Record<Severity, string> = {
+  alta: 'Urgente',
+  media: 'Atender',
+  baja: 'Sugerencia',
+};
+
+/** Which alerts to show: all, or only one severity. */
+export function filterHealth(items: HealthReport['items'], severity: Severity | null) {
+  if (!severity) return items;
+  return items
+    .map((b) => ({ ...b, alertas: b.alertas.filter((a) => a.severidad === severity) }))
+    .filter((b) => b.alertas.length > 0);
+}
+
+export const parseSeverity = (value: string | null): Severity | null =>
+  value === 'alta' || value === 'media' || value === 'baja' ? value : null;
+
+/** «2026-11» → «nov 2026». */
+export function monthLabel(key: string) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 15))
+    .toLocaleDateString('es-AR', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .replace('.', '');
+}
+
+/** Bar heights in % of the highest value; a non-zero value never disappears. */
+export function monthBarHeights(values: number[]) {
+  const max = Math.max(0, ...values);
+  return values.map((v) => (max <= 0 || v <= 0 ? 0 : Math.max(3, Math.round((v / max) * 100))));
+}
+
+/** «+25 % vs. el mes anterior», or null when there is nothing to compare with. */
+export function monthChange(current: number, previous: number) {
+  if (previous <= 0) return null;
+  const pct = Math.round(((current - previous) / previous) * 100);
+  return `${pct > 0 ? '+' : ''}${pct} % vs. el mes anterior`;
+}
+
+export const AUDIT_ACTIONS: Record<string, string> = {
+  PLATFORM_VIEW: 'Abrió el negocio',
+  PLATFORM_CREATE: 'Creó el negocio',
+};
