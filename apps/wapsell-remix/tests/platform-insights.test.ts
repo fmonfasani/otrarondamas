@@ -10,6 +10,7 @@ import {
   monthChange,
   monthLabel,
   parseSeverity,
+  tooltipSide,
   type HealthReport,
 } from '../app/utils/platform';
 
@@ -48,6 +49,17 @@ describe('platform insight helpers', () => {
     expect(monthChange(150, 100)).toBe('+50 % vs. el mes anterior');
     expect(monthChange(50, 100)).toBe('-50 % vs. el mes anterior');
     expect(monthChange(10, 0)).toBeNull();
+  });
+
+  it('keeps the edge tooltips inside the chart', () => {
+    expect([0, 1, 2, 3, 4, 5].map((i) => tooltipSide(i, 6))).toEqual([
+      'left-0',
+      'left-0',
+      'left-1/2 -translate-x-1/2',
+      'left-1/2 -translate-x-1/2',
+      'right-0',
+      'right-0',
+    ]);
   });
 
   it('scales bars to the highest month without hiding small ones', () => {

@@ -86,10 +86,12 @@ export function slugFrom(name: string) {
       // Accents (combining marks U+0300–U+036F) go: «Más» → «Mas».
       .replace(/\p{Diacritic}/gu, '')
       .toLowerCase()
+      // Runs of other characters were already collapsed to one dash, so at most one per end.
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/^-/, '')
+      .replace(/-$/, '')
       .slice(0, 40)
-      .replace(/-+$/g, '')
+      .replace(/-$/, '')
   );
 }
 
@@ -193,6 +195,13 @@ export function monthLabel(key: string) {
   return new Date(Date.UTC(y, m - 1, 15))
     .toLocaleDateString('es-AR', { month: 'short', year: 'numeric', timeZone: 'UTC' })
     .replace('.', '');
+}
+
+/** Where a bar's tooltip sits so it never leaves the chart: edges align, the rest centre. */
+export function tooltipSide(index: number, count: number) {
+  if (index >= count - 2) return 'right-0';
+  if (index <= 1) return 'left-0';
+  return 'left-1/2 -translate-x-1/2';
 }
 
 /** Bar heights in % of the highest value; a non-zero value never disappears. */

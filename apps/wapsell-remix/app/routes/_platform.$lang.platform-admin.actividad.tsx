@@ -8,6 +8,7 @@ import {
   monthLabel,
   numberText,
   platformRequest,
+  tooltipSide,
   type ActivityMonth,
 } from '~/utils/platform';
 import { formatMoney } from '~/utils/format';
@@ -91,24 +92,19 @@ export default function PlatformActivity() {
         </p>
         <div
           className="mt-6 flex h-48 items-end gap-2 border-b border-[#e8e4dc]"
-          role="img"
-          aria-label="Vendido por mes; los valores están en la tabla debajo"
+          role="group"
+          aria-label="Vendido por mes; también en la tabla debajo"
         >
           {meses.map((m, i) => (
-            <div
+            <button
+              type="button"
               key={m.mes}
-              className="group relative flex h-full flex-1 flex-col justify-end"
-              tabIndex={0}
+              aria-label={`${monthLabel(m.mes)}: ${formatMoney(m.vendido)}`}
+              className="group relative flex h-full flex-1 cursor-default flex-col justify-end focus:outline-none"
             >
               <span
                 role="tooltip"
-                className={`pointer-events-none absolute bottom-full z-10 mb-2 hidden whitespace-nowrap rounded-lg bg-[#211f1b] px-3 py-2 text-xs text-white shadow group-hover:block group-focus:block ${
-                  i >= meses.length - 2
-                    ? 'right-0'
-                    : i <= 1
-                      ? 'left-0'
-                      : 'left-1/2 -translate-x-1/2'
-                }`}
+                className={`pointer-events-none absolute bottom-full z-10 mb-2 hidden whitespace-nowrap rounded-lg bg-[#211f1b] px-3 py-2 text-xs text-white shadow group-hover:block group-focus:block ${tooltipSide(i, meses.length)}`}
               >
                 <strong className="block">{monthLabel(m.mes)}</strong>
                 {formatMoney(m.vendido)} · {numberText(m.ventas + m.pedidos)} operaciones
@@ -117,7 +113,7 @@ export default function PlatformActivity() {
                 className="mx-auto w-full max-w-12 rounded-t bg-[#d97757] group-hover:bg-[#b85c4a]"
                 style={{ height: `${heights[i]}%` }}
               />
-            </div>
+            </button>
           ))}
         </div>
         <div className="mt-2 flex gap-2 text-center text-xs text-[#96918a]" aria-hidden="true">

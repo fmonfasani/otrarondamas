@@ -45,14 +45,8 @@ export default function PlatformAdoption() {
                     {numberText(f.negocios)} {f.negocios === 1 ? 'negocio' : 'negocios'}
                   </span>
                 </div>
-                <div
-                  className="mt-2 h-2 rounded-full bg-[#f0ede7]"
-                  role="meter"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={f.porcentaje}
-                  aria-label={f.nombre}
-                >
+                {/* The % is already in the text above; the bar is only visual. */}
+                <div className="mt-2 h-2 rounded-full bg-[#f0ede7]" aria-hidden="true" data-uso-bar>
                   <div
                     className="h-2 rounded-full bg-[#d97757]"
                     style={{ width: `${f.porcentaje > 0 ? Math.max(2, f.porcentaje) : 0}%` }}

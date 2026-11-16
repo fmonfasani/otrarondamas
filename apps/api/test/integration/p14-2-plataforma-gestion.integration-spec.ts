@@ -151,11 +151,14 @@ describe('P14-2 — gestión de la plataforma', () => {
   });
 
   it('keeps everyone else out: no session, a store customer and a Business Owner', async () => {
-    for (const path of ['/health', '/activity', '/adoption', '/audit']) {
-      await get(path).expect(401);
-      await get(path, people.ownerSano.auth).expect(403);
-      await get(path, `Bearer ${signCustomerToken(customerId, shops.sano.id)}`).expect(403);
-    }
+    const customer = `Bearer ${signCustomerToken(customerId, shops.sano.id)}`;
+    await Promise.all(
+      ['/health', '/activity', '/adoption', '/audit'].flatMap((path) => [
+        get(path).expect(401),
+        get(path, people.ownerSano.auth).expect(403),
+        get(path, customer).expect(403),
+      ]),
+    );
   });
 
   it('lists what each Business needs, most urgent first, with what to do', async () => {
@@ -184,10 +187,8 @@ describe('P14-2 — gestión de la plataforma', () => {
     const firstSeverity = (res.body.items as Array<{ alertas: Array<{ severidad: string }> }>).map(
       (b) => b.alertas[0].severidad,
     );
-    expect(
-      firstSeverity.indexOf('media') === -1 ||
-        firstSeverity.lastIndexOf('alta') < firstSeverity.indexOf('media'),
-    ).toBe(true);
+    const ranks = firstSeverity.map((s) => (s === 'alta' ? 0 : 1));
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
     // Aggregates only: no customer data and no emails in the report.
     expect(JSON.stringify(res.body)).not.toContain('@example.test');
   });
@@ -212,8 +213,11 @@ describe('P14-2 — gestión de la plataforma', () => {
         (f) => [f.clave, f],
       ),
     );
-    expect(Object.keys(use).sort()).toEqual(
-      ['chat', 'cobros', 'contacto', 'devoluciones', 'mostrador', 'respuestas', 'tienda'].sort(),
+    const byName = (a: string, b: string) => a.localeCompare(b);
+    expect(Object.keys(use).sort(byName)).toEqual(
+      ['chat', 'cobros', 'contacto', 'devoluciones', 'mostrador', 'respuestas', 'tienda'].sort(
+        byName,
+      ),
     );
     expect(use.mostrador.negocios).toBeGreaterThanOrEqual(1);
     expect(use.cobros.negocios).toBeGreaterThanOrEqual(1);
