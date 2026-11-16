@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 import { PlatformAdminService } from './platform-admin.service';
+import { PlatformInsightsService } from './platform-insights.service';
 
 /* eslint-disable indent */
 export class CreatePlatformBusinessDto {
@@ -38,7 +39,38 @@ export class CreatePlatformBusinessDto {
 @Controller('platform-admin')
 @UseGuards(PlatformAdminGuard)
 export class PlatformAdminController {
-  constructor(private readonly platform: PlatformAdminService) {}
+  constructor(
+    private readonly platform: PlatformAdminService,
+    private readonly insights: PlatformInsightsService,
+  ) {}
+
+  /** OR-B4-040 — Businesses that need attention, most urgent first. */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('health')
+  getHealth() {
+    return this.insights.health();
+  }
+
+  /** OR-B4-040 — month by month: new and active Businesses, sold, orders, messages. */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('activity')
+  getActivity(@Query('months') months?: string) {
+    return this.insights.activity(Number(months) || 6);
+  }
+
+  /** OR-B4-040 — how many Businesses use each part of Wapsell. */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('adoption')
+  getAdoption() {
+    return this.insights.adoption();
+  }
+
+  /** OR-B4-040 — what the Wapsell team did in the platform. */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('audit')
+  getAudit(@Query('page') page?: string) {
+    return this.insights.audit(Number(page) || 1);
+  }
 
   @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
   @Get('overview')

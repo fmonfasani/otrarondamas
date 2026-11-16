@@ -1116,3 +1116,26 @@ as the `business:create` script. Strict: an existing store address, name or Owne
 welcome email with a single-use link to create the password, valid 7 days; the link is also shown once to the platform
 administrator to pass on if the email does not arrive. Recorded in the new Business's audit log (`PLATFORM_CREATE`). The
 store address is not editable afterwards. Still open: suspend/reactivate, support access, plans, MFA.
+
+### OR-B4-040 — Platform insights: health, activity, feature use, platform audit — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Owner request (verbatim): "comenza a agregar toda alas vistas necesarias para la gestión
+inteligente de wapseel"; views chosen: "Actividad y crecimiento,Uso de funciones,Auditoría de la plataforma,Salud de negocios".
+
+**Decision:** four read-only platform views inside the OR-B4-038 boundary (`PLATFORM_BUSINESSES_VIEW`, `PLATFORM_ADMIN_EMAILS`
+only; aggregates, never the Businesses' customers' data):
+
+- **Health** (`GET /platform-admin/health`): per Business, alerts with severity and what to do — urgent: no active Owner, or
+  the Owner never created a password (no password and no Google); attention: no sales, orders or messages in 14 days (only
+  for Businesses older than 7 days), no active products, dossiers waiting for approval, returns stuck more than 2 days;
+  suggestion: Mercado Pago not connected. Most urgent first.
+- **Activity** (`GET /platform-admin/activity?months=6|12`, max 24): per month in Argentina time, new Businesses, active
+  Businesses (with a sale, order or message), sold (counter sales not cancelled + orders delivered or paid and not
+  cancelled, the OR-B4-036 definition), counter sales, orders and messages.
+- **Feature use** (`GET /platform-admin/adoption`): how many Businesses (and %) used counter sales, orders, messages and
+  returns in the last 30 days, and have online payments, quick replies and store contact data configured.
+- **Platform audit** (`GET /platform-admin/audit`): the `PLATFORM_*` audit entries (views and creations) with Business and
+  who, newest first. Viewing these four pages is not itself audited (they show no single Business's detail).
+
+Thresholds (14 days, 7 days, 2 days) are product defaults, adjustable without a new decision. Still open: suspend/
+reactivate, support access, plans, MFA, and acting on alerts from the platform (e.g. resending the Owner's link).
