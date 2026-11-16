@@ -38,6 +38,13 @@ import { AccountService } from './account.service';
   ],
   // AuthService exported: AuthorizationsService (D-06) injects it to
   // reuse verifyCredentials() without duplicating the bcrypt logic.
-  exports: [AuthJwtModule, PermissionsGuard, AuthorizationGuard, AuthService, AuthCustomerService],
+  exports: [
+    AuthJwtModule,
+    PermissionsGuard,
+    AuthorizationGuard,
+    AuthService,
+    AuthCustomerService,
+    PasswordResetService,
+  ],
 })
 export class AuthModule {}

@@ -1104,3 +1104,15 @@ nobody); in production, only the Owner's account.
 Still open, each needing its own decision: suspend/reactivate a Business (`PLATFORM_BUSINESSES_MANAGE`; `Empresa` has
 no status field), time-boxed support access (`PLATFORM_SUPPORT_ACCESS`), subscriptions/plans, and the Security spec's
 rules for who holds platform permissions and with which MFA.
+
+### OR-B4-039 — Creating Businesses from the platform — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Owner answers (verbatim): next platform feature "Crear negocios (Recomendado)"; how the new
+Owner sets the password "Mail de bienvenida (Recomendado)".
+
+**Decision:** platform administrators (`PLATFORM_BUSINESSES_MANAGE`, same `PLATFORM_ADMIN_EMAILS` allowlist) create a Business
+with its Owner: Business, cash register, Owner account (dossier approved, no password), membership and link — the same code
+as the `business:create` script. Strict: an existing store address, name or Owner email creates nothing. The Owner gets a
+welcome email with a single-use link to create the password, valid 7 days; the link is also shown once to the platform
+administrator to pass on if the email does not arrive. Recorded in the new Business's audit log (`PLATFORM_CREATE`). The
+store address is not editable afterwards. Still open: suspend/reactivate, support access, plans, MFA.

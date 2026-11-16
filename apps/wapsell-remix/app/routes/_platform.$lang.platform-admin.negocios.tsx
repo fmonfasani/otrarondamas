@@ -22,24 +22,41 @@ export default function PlatformBusinesses() {
   const { list, search } = useLoaderData<typeof loader>();
   const { lang = 'es' } = useParams();
   const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
-  const pageHref = (page: number) => `?${new URLSearchParams({ page: String(page), ...(search ? { q: search } : {}) })}`;
+  const pageHref = (page: number) =>
+    `?${new URLSearchParams({ page: String(page), ...(search ? { q: search } : {}) })}`;
   return (
-    <PlatformShell title="Negocios" subtitle={`${numberText(list.total)} ${list.total === 1 ? 'negocio' : 'negocios'}${search ? ` con «${search}»` : ''}`}>
-      <Form method="get" role="search" className="flex max-w-xl gap-2">
-        <input
-          name="q"
-          defaultValue={search}
-          placeholder="Buscar por nombre o tienda"
-          aria-label="Buscar negocios"
-          className="min-w-0 flex-1 rounded-xl border border-[#e2ded6] bg-white px-4 py-2.5 text-sm"
-        />
-        <button type="submit" className="rounded-xl bg-[#211f1b] px-5 py-2.5 text-sm font-medium text-white">
-          Buscar
-        </button>
-      </Form>
+    <PlatformShell
+      title="Negocios"
+      subtitle={`${numberText(list.total)} ${list.total === 1 ? 'negocio' : 'negocios'}${search ? ` con «${search}»` : ''}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Form method="get" role="search" className="flex w-full max-w-xl gap-2">
+          <input
+            name="q"
+            defaultValue={search}
+            placeholder="Buscar por nombre o tienda"
+            aria-label="Buscar negocios"
+            className="min-w-0 flex-1 rounded-xl border border-[#e2ded6] bg-white px-4 py-2.5 text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-[#211f1b] px-5 py-2.5 text-sm font-medium text-white"
+          >
+            Buscar
+          </button>
+        </Form>
+        <Link
+          to={`/${lang}/platform-admin/negocios/nuevo`}
+          className="rounded-xl bg-[#d97757] px-5 py-2.5 text-sm font-semibold text-[#211f1b]"
+        >
+          Nuevo negocio
+        </Link>
+      </div>
       <section className="overflow-hidden rounded-2xl border border-[#e8e4dc] bg-white shadow-sm">
         {list.items.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-[#96918a]">No hay negocios{search ? ' con esa búsqueda' : ''}.</p>
+          <p className="px-6 py-10 text-center text-sm text-[#96918a]">
+            No hay negocios{search ? ' con esa búsqueda' : ''}.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
@@ -58,7 +75,10 @@ export default function PlatformBusinesses() {
                 {list.items.map((b) => (
                   <tr key={b.id} className="hover:bg-[#fcfbf8]">
                     <td className="px-6 py-4">
-                      <Link to={`/${lang}/platform-admin/negocios/${b.id}`} className="font-medium text-[#34312c] underline-offset-2 hover:underline">
+                      <Link
+                        to={`/${lang}/platform-admin/negocios/${b.id}`}
+                        className="font-medium text-[#34312c] underline-offset-2 hover:underline"
+                      >
                         {b.nombre}
                       </Link>
                       <span className="block text-xs text-[#96918a]">
@@ -79,7 +99,9 @@ export default function PlatformBusinesses() {
                     <td className="px-4 py-4 text-right tabular-nums">{b.equipo}</td>
                     <td className="px-4 py-4 text-right tabular-nums">{numberText(b.productos)}</td>
                     <td className="px-4 py-4 text-right tabular-nums">{numberText(b.clientes)}</td>
-                    <td className="px-4 py-4 text-right tabular-nums">{formatMoney(b.vendido30)}</td>
+                    <td className="px-4 py-4 text-right tabular-nums">
+                      {formatMoney(b.vendido30)}
+                    </td>
                     <td className="px-6 py-4 text-[#77736d]">{activityLabel(b.ultimaActividad)}</td>
                   </tr>
                 ))}
@@ -90,11 +112,19 @@ export default function PlatformBusinesses() {
       </section>
       {pages > 1 ? (
         <nav className="flex items-center gap-3 text-sm" aria-label="Páginas">
-          {list.page > 1 ? <Link to={pageHref(list.page - 1)} className="underline">Anterior</Link> : null}
+          {list.page > 1 ? (
+            <Link to={pageHref(list.page - 1)} className="underline">
+              Anterior
+            </Link>
+          ) : null}
           <span className="text-[#77736d]">
             Página {list.page} de {pages}
           </span>
-          {list.page < pages ? <Link to={pageHref(list.page + 1)} className="underline">Siguiente</Link> : null}
+          {list.page < pages ? (
+            <Link to={pageHref(list.page + 1)} className="underline">
+              Siguiente
+            </Link>
+          ) : null}
         </nav>
       ) : null}
     </PlatformShell>
