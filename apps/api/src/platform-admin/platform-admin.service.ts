@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { MembershipStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PasswordResetService } from '../auth/password-reset.service';
+import { SLUG_PATTERN, createBusinessWithOwner } from './create-business';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
@@ -25,7 +32,68 @@ const mercadoPagoConnected = (configuracion: Prisma.JsonValue | null) => {
  */
 @Injectable()
 export class PlatformAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwords: PasswordResetService,
+  ) {}
+
+  /**
+   * OR-B4-039 — a new Business with its Owner, from the platform. Strict: if the store
+   * address, the name or the Owner's email already exist, nothing is created. The Owner gets
+   * a welcome email with a 7-day single-use link to create their password; the link is also
+   * returned so it can be passed on if the email does not arrive. Written to the new
+   * Business's audit log.
+   */
+  async createBusiness(
+    input: { nombre: string; slug: string; ownerNombre: string; ownerEmail: string },
+    viewerUsuarioId: string,
+  ) {
+    const nombre = input.nombre.trim();
+    const slug = input.slug.trim().toLowerCase();
+    const ownerNombre = input.ownerNombre.trim();
+    const ownerEmail = input.ownerEmail.trim().toLowerCase();
+    if (!SLUG_PATTERN.test(slug) || slug.length < 3 || slug.length > 40) {
+      throw new BadRequestException(
+        'La dirección de la tienda va en minúsculas, números y guiones (3 a 40).',
+      );
+    }
+    const [bySlug, byName, byEmail] = await Promise.all([
+      this.prisma.empresa.findUnique({ where: { slug }, select: { id: true } }),
+      this.prisma.empresa.findUnique({ where: { nombre }, select: { id: true } }),
+      this.prisma.usuario.findFirst({
+        where: { email: { equals: ownerEmail, mode: 'insensitive' } },
+        select: { id: true },
+      }),
+    ]);
+    if (bySlug) throw new ConflictException('Ya hay un negocio con esa dirección de tienda.');
+    if (byName) throw new ConflictException('Ya hay un negocio con ese nombre.');
+    if (byEmail) throw new ConflictException('Ese email ya tiene una cuenta en Wapsell.');
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const result = await createBusinessWithOwner(tx, { nombre, slug, ownerNombre, ownerEmail });
+      await tx.auditLog.create({
+        data: {
+          empresaId: result.empresaId,
+          usuarioId: viewerUsuarioId,
+          accion: 'PLATFORM_CREATE',
+          entidadAfectada: 'Empresa',
+          entidadId: result.empresaId,
+          valoresPosteriores: { nombre, slug, ownerNombre, ownerEmail },
+        },
+      });
+      return result;
+    });
+    const welcome = await this.passwords.issueWelcomeLink(created.usuarioId, nombre);
+    return {
+      id: created.empresaId,
+      nombre,
+      slug,
+      owner: { nombre: ownerNombre, email: ownerEmail },
+      enlace: welcome.link,
+      mailEnviado: welcome.sent,
+      venceEl: welcome.expiresAt,
+    };
+  }
 
   async overview(now = new Date()) {
     const from30 = new Date(now.getTime() - 30 * DAY_MS);
