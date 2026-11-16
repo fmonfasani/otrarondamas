@@ -1,32 +1,35 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import { PlatformAdminService } from './platform-admin.service';
 
+/**
+ * Wapsell platform administration (OR-B4-020, first stage OR-B4-038: read-only, aggregates).
+ * Every route needs PLATFORM_BUSINESSES_VIEW, held only by the emails in
+ * PLATFORM_ADMIN_EMAILS (PlatformAdminGuard; empty list = nobody). Never a Business role.
+ */
 @Controller('platform-admin')
 @UseGuards(PlatformAdminGuard)
 export class PlatformAdminController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly platform: PlatformAdminService) {}
 
   @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
   @Get('overview')
-  async getOverview() {
-    const [businesses, users, customers, orders, recentBusinesses] = await Promise.all([
-      this.prisma.empresa.count(),
-      this.prisma.usuario.count(),
-      this.prisma.cliente.count(),
-      this.prisma.pedido.count(),
-      this.prisma.empresa.findMany({
-        select: { id: true, nombre: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-      }),
-    ]);
+  getOverview() {
+    return this.platform.overview();
+  }
 
-    return {
-      generatedAt: new Date().toISOString(),
-      metrics: { businesses, users, customers, orders },
-      recentBusinesses,
-    };
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('businesses')
+  listBusinesses(@Query('search') search?: string, @Query('page') page?: string) {
+    return this.platform.listBusinesses({ search, page: Number(page) || 1 });
+  }
+
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('businesses/:id')
+  businessDetail(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.platform.businessDetail(id, user.id);
   }
 }

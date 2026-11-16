@@ -293,6 +293,7 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `GET /proveedores`, `GET /compras*` | `PURCHASES_VIEW` (`OR-B4-025`) | Vendedor denied |
 | `GET /usuarios` | `USERS_VIEW` | Vendedor and Gestor denied |
 | `GET /platform-admin/overview` | `PLATFORM_BUSINESSES_VIEW` | not a Membership permission |
+| `GET /platform-admin/businesses`, `GET /platform-admin/businesses/:id` (aggregates only; detail audited, `OR-B4-038`) | `PLATFORM_BUSINESSES_VIEW` | not a Membership permission; only `PLATFORM_ADMIN_EMAILS` |
 
 4. `RETURNS_VIEW` and `PURCHASES_VIEW` are added to the catalogue (38 permissions); see §4 (`OR-B4-025`).
 5. `POST /caja/arqueo` (cash count) is `CASH_CLOSE`, part of the closing procedure (accepted as declared).
