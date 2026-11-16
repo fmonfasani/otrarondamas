@@ -1083,3 +1083,24 @@ teammates", but that conversation is DIRECT and the messaging contract (P2, inva
 DIRECT conversation. Today the team can only work a customer together in a conversation started as a group (from Clientes or
 Mensajes). Options: open store chats as groups; or convert a DIRECT customer chat into a group when a teammate is added (needs
 amending I-2); or keep it as is.
+
+### OR-B4-038 — Wapsell platform administration, first stage — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Owner answers (verbatim) to three questions:
+
+| Question | Owner answer |
+|---|---|
+| What does this first stage include? | "Solo ver (Recomendado)" |
+| What can a platform administrator see of each Business? | "Solo agregados (Recomendado)" |
+| Who is enabled in production? | "Solo mi cuenta (Recomendado)" |
+
+**Decision:** within OR-B4-020, the platform area is read-only: overview, list of Businesses (search, pages) and the
+detail of one Business, with `PLATFORM_BUSINESSES_VIEW` only. Per Business: name, store, dates, Owner name and email,
+contact details, team size and roles, counts (products, customers, orders, conversations, returns), sold in the last
+30 days (OR-B4-036 definition) and last activity; never its customers' personal data. Opening a Business's detail is
+written to that Business's audit log (`PLATFORM_VIEW`). Access: only the emails in `PLATFORM_ADMIN_EMAILS` (empty list =
+nobody); in production, only the Owner's account.
+
+Still open, each needing its own decision: suspend/reactivate a Business (`PLATFORM_BUSINESSES_MANAGE`; `Empresa` has
+no status field), time-boxed support access (`PLATFORM_SUPPORT_ACCESS`), subscriptions/plans, and the Security spec's
+rules for who holds platform permissions and with which MFA.
