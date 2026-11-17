@@ -153,7 +153,7 @@ describe('second factor at sign-in', () => {
       context: {},
     })) as Response;
     const body = await first.json();
-    expect(body.qr).toMatch(/^data:image/png;base64,/);
+    expect(body.qr.startsWith('data:image/png;base64,')).toBe(true);
     expect(body.clave).toBe('ABCD EFGH IJKL MNOP');
     const again = (await enrolLoader({
       request: new Request('http://app.test/es/auth/activar-mfa', {
