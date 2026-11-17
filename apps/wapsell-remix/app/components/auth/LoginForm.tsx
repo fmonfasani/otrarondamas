@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Form, Link, useActionData, useNavigation, useParams } from '@remix-run/react';
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useParams,
+  useSearchParams,
+} from '@remix-run/react';
 
 interface ActionData {
   error?: string;
@@ -13,6 +21,9 @@ export function LoginForm() {
   const { lang = 'es' } = useParams();
   const [showPassword, setShowPassword] = useState(false);
   const isSubmitting = navigation.state === 'submitting';
+  const loaded = useLoaderData<{ google?: boolean } | undefined>();
+  const [search] = useSearchParams();
+  const googleError = search.get('error') === 'google';
 
   return (
     <>
@@ -87,6 +98,23 @@ export function LoginForm() {
           <img src="/brand/arrow-right.svg" alt="" width={16} height={16} />
         </button>
       </Form>
+
+      {loaded?.google && (
+        <>
+          <p className="ws-or" aria-hidden="true">
+            o
+          </p>
+          <a className="ws-button ws-button--outline" href="/auth/google">
+            Ingresar con Google
+          </a>
+        </>
+      )}
+      {googleError && (
+        <p className="ws-alert" role="alert">
+          No pudimos ingresar con Google. Tu cuenta tiene que estar invitada por el Owner del
+          negocio.
+        </p>
+      )}
 
       <p className="ws-switch-account">
         ¿Aún no tienes una cuenta? <Link to={`/${lang}/auth/register`}>Crear cuenta</Link>

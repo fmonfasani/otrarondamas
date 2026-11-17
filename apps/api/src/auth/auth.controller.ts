@@ -25,6 +25,7 @@ import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
 import { PasswordResetService } from './password-reset.service';
 import { AccountService } from './account.service';
 import { MfaPolicyService } from './mfa/mfa-policy.service';
+import { MfaService } from './mfa/mfa.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -46,6 +47,7 @@ export class AuthController {
     private readonly passwordReset: PasswordResetService,
     private readonly account: AccountService,
     @Optional() private readonly mfaPolicy?: MfaPolicyService,
+    @Optional() private readonly mfa?: MfaService,
   ) {}
 
   @Public()
@@ -193,31 +195,27 @@ export class AuthController {
   @Get('google/callback')
   @ApiExcludeEndpoint()
   async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
-    const frontendUrl = process.env.FRONTEND_URL;
-    if (!frontendUrl) {
-      throw new Error('FRONTEND_URL no configurado (ver apps/api/.env)');
-    }
-
+    // The panel (Remix). FRONTEND_URL can override it; it is never taken from the request.
+    const web = process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'https://app.wapsell.com';
+    const back = (path: string, params: Record<string, string>) => {
+      const url = new URL(path, web);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      res.redirect(url.toString());
+    };
     try {
       const session = await this.authGoogleService.loginWithGoogle(req.user);
-      // OR-B4-044: Google is only the first factor; an account that needs a second one signs
-      // in with email and password, where the second step is asked.
-      if (await this.mfaPolicy?.requiresMfa(session.usuario.id)) {
-        const back = new URL('/login', frontendUrl);
-        back.searchParams.set('error', 'mfa');
-        res.redirect(back.toString());
+      // OR-B4-044: Google is only the first factor. An account that needs a second one gets the
+      // 10-minute ticket (it only allows the second step), never a session.
+      const usuarioId = session.usuario.id;
+      if (this.mfa && (await this.mfaPolicy?.requiresMfa(usuarioId))) {
+        const step = (await this.mfa.isActive(usuarioId)) ? 'verificar' : 'activar';
+        back('/auth/google/callback', { mfa: step, ticket: await this.mfa.issueTicket(usuarioId) });
         return;
       }
-      const redirectUrl = new URL('/auth/google/callback', frontendUrl);
-      redirectUrl.searchParams.set('token', session.accessToken);
-      res.redirect(redirectUrl.toString());
+      back('/auth/google/callback', { token: session.accessToken });
     } catch {
-      // The exact reason is not leaked to the browser (same criterion as
-      // password login): the frontend login screen interprets ?error=google
-      // and shows a generic message.
-      const redirectUrl = new URL('/login', frontendUrl);
-      redirectUrl.searchParams.set('error', 'google');
-      res.redirect(redirectUrl.toString());
+      // The exact reason is not leaked to the browser (same criterion as password login).
+      back('/es/auth/login', { error: 'google' });
     }
   }
 }

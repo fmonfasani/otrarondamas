@@ -27,7 +27,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const redirectTo = new URL(request.url).searchParams.get('redirectTo');
     return redirect(safeRedirectPath(redirectTo, `/${params.lang ?? 'es'}/dashboard`));
   }
-  return json({});
+  // «Ingresar con Google» only once Google OAuth is configured for this deployment.
+  return json({ google: process.env.GOOGLE_LOGIN_ENABLED === '1' });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
