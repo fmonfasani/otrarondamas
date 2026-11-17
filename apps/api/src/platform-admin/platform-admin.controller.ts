@@ -6,6 +6,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 import { PlatformAdminService } from './platform-admin.service';
 import { PlatformInsightsService } from './platform-insights.service';
+import { businessCreationStatus } from './business-creation-gate';
 
 /* eslint-disable indent */
 export class CreatePlatformBusinessDto {
@@ -82,6 +83,13 @@ export class PlatformAdminController {
   @Get('businesses')
   listBusinesses(@Query('search') search?: string, @Query('page') page?: string) {
     return this.platform.listBusinesses({ search, page: Number(page) || 1 });
+  }
+
+  /** OR-B4-042 — whether creating Businesses is open (closed until MFA, OR-B4-009). */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('businesses/creation-status')
+  getCreationStatus() {
+    return businessCreationStatus();
   }
 
   /** OR-B4-039 — create a Business with its Owner (welcome email with the password link). */

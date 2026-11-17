@@ -1162,3 +1162,28 @@ who sees the whole Business "Solo el Owner"; retention "5 años (Recomendado)"; 
   still not scheduled.
 
 Still open: recording stock adjustments, discounts, Mercado Pago connect/disconnect and failed sign-ins; alerts on the trail.
+
+### OR-B4-042 — Creating Businesses closed until MFA; production backups — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Context: general audit `13-AUDIT/38-AUDITORIA-GENERAL-DOCS-SPEC-GAP-2026-11-16.md`.
+Owner answers (verbatim): MFA vs second Business "Bloquear altas hasta MFA (Recomendado)"; backups "Arreglar ya (Recomendado)".
+
+**Decision:**
+
+- **Creating Businesses is closed until MFA exists**, as OR-B4-009 requires ("before incorporating a second Business").
+  `POST /platform-admin/businesses` answers 423 with the reason; `GET /platform-admin/businesses/creation-status` tells the
+  platform screen, which shows the reason instead of the form; the `business:create` script refuses in production when another
+  Business exists. When MFA ships (#163) the check becomes "the requesting administrator has MFA active". OR-B4-039 stays
+  approved; it is paused, not revoked.
+- **Production backups:** every 6 hours, the database (`pg_dump` custom format, checked with `pg_restore --list`) and the chat
+  and dossier volumes; kept 7 days on the server; restore tested on 2026-11-16 into a temporary database (same counts). Still
+  open: an off-site copy.
+
+### OR-B4-043 — General SPEC v0.6, TO-BE by domain, fiscal after the MVP — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING (direction; the v0.6 text itself needs the Owner's approval). Owner answers (verbatim):
+"v0.6 + TO-BE por dominio (Recomendado)"; fiscal "Después del MVP (Recomendado)".
+
+**Decision:** the General SPEC v0.6 incorporates OR-B4-024 … OR-B4-043 and replaces §21 with the gap table verified on
+2026-11-16, adding no new rule of its own. The TO-BE is reorganised into one document per domain (15), without duplicates.
+Electronic invoicing (AFIP/ARCA) stays out of the MVP: a TO-BE domain marked OPEN, to decide with the Business's accountant.
