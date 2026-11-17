@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signCustomerToken } from './helpers/customer-token.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
+import { MFA_AVAILABLE } from '../../src/platform-admin/business-creation-gate';
 import {
   createStoreProduct,
   deleteStoreCompanies,
@@ -240,7 +241,22 @@ describe('P14-1 — administración de la plataforma', () => {
       ownerEmail: `p14-1-duena-${suffix}@example.test`,
     });
 
-    it('is refused to a Business Owner and checks the data', async () => {
+    // OR-B4-042: closed until MFA (OR-B4-009). The two tests below run again by themselves
+    // when MFA_AVAILABLE turns true.
+    const whenOpen = MFA_AVAILABLE ? it : it.skip;
+
+    it('is closed until MFA exists, and says why (OR-B4-042)', async () => {
+      const status = await get('/businesses/creation-status', people.platform.auth).expect(200);
+      expect(status.body).toEqual({ permitido: false, motivo: expect.stringContaining('MFA') });
+      await get('/businesses/creation-status', people.ownerA.auth).expect(403);
+      await post(valid(), people.ownerA.auth).expect(403);
+      const res = await post(valid()).expect(423);
+      expect(res.body.message).toContain('verificación en dos pasos');
+      expect(await prisma.empresa.count({ where: { slug: valid().slug } })).toBe(0);
+      expect(await prisma.usuario.count({ where: { email: valid().ownerEmail } })).toBe(0);
+    });
+
+    whenOpen('is refused to a Business Owner and checks the data', async () => {
       await post(valid(), people.ownerA.auth).expect(403);
       expect((await post({ ...valid(), slug: 'Con Espacios' })).status).toBe(400);
       expect((await post({ ...valid(), slug: shopA.slug })).status).toBe(409);
@@ -250,57 +266,62 @@ describe('P14-1 — administración de la plataforma', () => {
       expect(await prisma.empresa.count({ where: { slug: valid().slug } })).toBe(0);
     });
 
-    it('creates the Business with its Owner, audited, with a link that lets the Owner in', async () => {
-      const res = await post(valid()).expect(201);
-      expect(res.body).toMatchObject({
-        nombre: valid().nombre,
-        slug: valid().slug,
-        owner: { nombre: 'Dueña Nueva', email: valid().ownerEmail },
-        mailEnviado: false, // no email provider in tests: the link is shown instead
-      });
-      const owner = await prisma.usuario.findFirstOrThrow({ where: { email: valid().ownerEmail } });
-      expect(owner).toMatchObject({
-        empresaId: res.body.id,
-        rol: 'OWNER',
-        estadoLegajo: 'APROBADO',
-        passwordHash: null,
-      });
-      expect(await prisma.caja.count({ where: { empresaId: res.body.id } })).toBe(1);
-      expect(
-        await prisma.membership.count({
-          where: { businessId: res.body.id, role: 'OWNER', status: 'ACTIVE' },
-        }),
-      ).toBe(1);
-      expect(
-        await prisma.auditLog.findFirst({
-          where: { empresaId: res.body.id, accion: 'PLATFORM_CREATE' },
-        }),
-      ).toMatchObject({ usuarioId: people.platform.usuarioId });
-      const expires = new Date(res.body.venceEl).getTime() - Date.now();
-      expect(expires).toBeGreaterThan(6.9 * 24 * 60 * 60 * 1000);
+    whenOpen(
+      'creates the Business with its Owner, audited, with a link that lets the Owner in',
+      async () => {
+        const res = await post(valid()).expect(201);
+        expect(res.body).toMatchObject({
+          nombre: valid().nombre,
+          slug: valid().slug,
+          owner: { nombre: 'Dueña Nueva', email: valid().ownerEmail },
+          mailEnviado: false, // no email provider in tests: the link is shown instead
+        });
+        const owner = await prisma.usuario.findFirstOrThrow({
+          where: { email: valid().ownerEmail },
+        });
+        expect(owner).toMatchObject({
+          empresaId: res.body.id,
+          rol: 'OWNER',
+          estadoLegajo: 'APROBADO',
+          passwordHash: null,
+        });
+        expect(await prisma.caja.count({ where: { empresaId: res.body.id } })).toBe(1);
+        expect(
+          await prisma.membership.count({
+            where: { businessId: res.body.id, role: 'OWNER', status: 'ACTIVE' },
+          }),
+        ).toBe(1);
+        expect(
+          await prisma.auditLog.findFirst({
+            where: { empresaId: res.body.id, accion: 'PLATFORM_CREATE' },
+          }),
+        ).toMatchObject({ usuarioId: people.platform.usuarioId });
+        const expires = new Date(res.body.venceEl).getTime() - Date.now();
+        expect(expires).toBeGreaterThan(6.9 * 24 * 60 * 60 * 1000);
 
-      const token = new URL(res.body.enlace).searchParams.get('token') as string;
-      const password = `Nueva-${suffix}-clave`;
-      await request(BASE).post('/auth/password/reset').send({ token, password }).expect(200);
-      await request(BASE)
-        .post('/auth/login')
-        .send({ email: valid().ownerEmail, password })
-        .expect(200);
-      // Single use.
-      await request(BASE)
-        .post('/auth/password/reset')
-        .send({ token, password: `${password}-2` })
-        .expect(400);
-      // It appears in the platform list.
-      const list = await get(
-        `/businesses?search=${encodeURIComponent(valid().nombre)}`,
-        people.platform.auth,
-      ).expect(200);
-      expect(list.body.items[0]).toMatchObject({
-        id: res.body.id,
-        owner: { nombre: 'Dueña Nueva' },
-        equipo: 1,
-      });
-    });
+        const token = new URL(res.body.enlace).searchParams.get('token') as string;
+        const password = `Nueva-${suffix}-clave`;
+        await request(BASE).post('/auth/password/reset').send({ token, password }).expect(200);
+        await request(BASE)
+          .post('/auth/login')
+          .send({ email: valid().ownerEmail, password })
+          .expect(200);
+        // Single use.
+        await request(BASE)
+          .post('/auth/password/reset')
+          .send({ token, password: `${password}-2` })
+          .expect(400);
+        // It appears in the platform list.
+        const list = await get(
+          `/businesses?search=${encodeURIComponent(valid().nombre)}`,
+          people.platform.auth,
+        ).expect(200);
+        expect(list.body.items[0]).toMatchObject({
+          id: res.body.id,
+          owner: { nombre: 'Dueña Nueva' },
+          equipo: 1,
+        });
+      },
+    );
   });
 });

@@ -1,10 +1,22 @@
-import { json, type ActionFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useNavigation, useParams } from '@remix-run/react';
+import {
+  json,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+} from '@remix-run/node';
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useParams,
+} from '@remix-run/react';
 import { useState } from 'react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { PlatformShell } from '~/components/platform/PlatformShell';
-import { newBusinessFrom, slugFrom } from '~/utils/platform';
+import { newBusinessFrom, platformRequest, slugFrom } from '~/utils/platform';
 
 export const meta: MetaFunction = () => [{ title: 'Nuevo negocio · Plataforma · Wapsell' }];
 
@@ -17,6 +29,16 @@ type Created = {
   mailEnviado: boolean;
   venceEl: string;
 };
+
+/** OR-B4-042 — creating Businesses is closed until MFA exists (OR-B4-009). */
+export async function loader({ request }: LoaderFunctionArgs) {
+  const token = await requireAuth(request);
+  const status = await platformRequest<{ permitido: boolean; motivo: string | null }>(
+    token,
+    '/businesses/creation-status',
+  );
+  return json({ status });
+}
 
 /**
  * OR-B4-039 — create a Business with its Owner from the platform. The Owner gets a welcome
@@ -35,7 +57,10 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ ok: true as const, created });
   } catch (error) {
     if (error instanceof ApiError) {
-      const message = error.status === 403 ? 'Esta sección es solo para el equipo administrador de Wapsell.' : error.message;
+      const message =
+        error.status === 403
+          ? 'Esta sección es solo para el equipo administrador de Wapsell.'
+          : error.message;
       return json({ ok: false as const, message }, { status: error.status });
     }
     throw error;
@@ -45,6 +70,7 @@ export async function action({ request }: ActionFunctionArgs) {
 const field = 'w-full rounded-xl border border-[#e2ded6] bg-white px-4 py-2.5 text-sm';
 
 export default function NewBusiness() {
+  const { status } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
   const { lang = 'es' } = useParams();
@@ -59,7 +85,8 @@ export default function NewBusiness() {
       <PlatformShell title="Negocio creado" subtitle={c.nombre}>
         <section className="max-w-2xl space-y-4 rounded-2xl border border-[#e8e4dc] bg-white p-6 shadow-sm">
           <p className="text-sm">
-            Creamos <b>{c.nombre}</b> (tienda <code>/tienda/{c.slug}</code>) con <b>{c.owner.nombre}</b> como Owner.
+            Creamos <b>{c.nombre}</b> (tienda <code>/tienda/{c.slug}</code>) con{' '}
+            <b>{c.owner.nombre}</b> como Owner.
           </p>
           <p className="text-sm">
             {c.mailEnviado
@@ -68,7 +95,8 @@ export default function NewBusiness() {
           </p>
           <div className="rounded-xl bg-[#f7f6f2] p-4">
             <p className="text-xs text-[#77736d]">
-              Enlace para crear la contraseña · sirve una vez · vence el {new Date(c.venceEl).toLocaleDateString('es-AR')}
+              Enlace para crear la contraseña · sirve una vez · vence el{' '}
+              {new Date(c.venceEl).toLocaleDateString('es-AR')}
             </p>
             <p className="mt-2 break-all font-mono text-xs">{c.enlace}</p>
             <button
@@ -81,11 +109,42 @@ export default function NewBusiness() {
               {copied ? 'Copiado' : 'Copiar enlace'}
             </button>
           </div>
-          <p className="text-xs text-[#96918a]">Este enlace se muestra solo ahora. Si se pierde, el Owner puede usar «Olvidé mi contraseña».</p>
+          <p className="text-xs text-[#96918a]">
+            Este enlace se muestra solo ahora. Si se pierde, el Owner puede usar «Olvidé mi
+            contraseña».
+          </p>
           <div className="flex gap-3 text-sm">
-            <Link to={`/${lang}/platform-admin/negocios/${c.id}`} className="font-medium text-[#b85c4a] underline">Ver el negocio</Link>
-            <Link to={`/${lang}/platform-admin/negocios`} className="underline">Volver a Negocios</Link>
+            <Link
+              to={`/${lang}/platform-admin/negocios/${c.id}`}
+              className="font-medium text-[#b85c4a] underline"
+            >
+              Ver el negocio
+            </Link>
+            <Link to={`/${lang}/platform-admin/negocios`} className="underline">
+              Volver a Negocios
+            </Link>
           </div>
+        </section>
+      </PlatformShell>
+    );
+  }
+
+  if (!status.permitido) {
+    return (
+      <PlatformShell title="Nuevo negocio" subtitle="Alta de negocios en pausa">
+        <section
+          className="max-w-2xl space-y-3 rounded-2xl border border-[#ecd9a8] bg-[#fbf5e4] p-6 text-[#5c4510]"
+          role="status"
+        >
+          <p className="font-semibold">Todavía no se pueden crear negocios.</p>
+          <p className="text-sm">{status.motivo}</p>
+          <p className="text-sm">
+            Cuando el MFA esté activo para Owners y administradores, esta pantalla vuelve a
+            habilitarse sola.
+          </p>
+          <Link to={`/${lang}/platform-admin/negocios`} className="inline-block text-sm underline">
+            Volver a Negocios
+          </Link>
         </section>
       </PlatformShell>
     );
@@ -93,8 +152,13 @@ export default function NewBusiness() {
 
   return (
     <PlatformShell title="Nuevo negocio" subtitle="Da de alta un negocio con su Owner">
-      <Link to={`/${lang}/platform-admin/negocios`} className="text-sm text-[#77736d] underline">← Negocios</Link>
-      <Form method="post" className="max-w-2xl space-y-5 rounded-2xl border border-[#e8e4dc] bg-white p-6 shadow-sm">
+      <Link to={`/${lang}/platform-admin/negocios`} className="text-sm text-[#77736d] underline">
+        ← Negocios
+      </Link>
+      <Form
+        method="post"
+        className="max-w-2xl space-y-5 rounded-2xl border border-[#e8e4dc] bg-white p-6 shadow-sm"
+      >
         <fieldset className="space-y-4">
           <legend className="font-semibold">El negocio</legend>
           <label className="block text-sm">
@@ -131,25 +195,48 @@ export default function NewBusiness() {
                 }}
               />
             </span>
-            <small className="text-xs text-[#96918a]">Minúsculas, números y guiones. Después no se cambia: los enlaces compartidos dependen de ella.</small>
+            <small className="text-xs text-[#96918a]">
+              Minúsculas, números y guiones. Después no se cambia: los enlaces compartidos dependen
+              de ella.
+            </small>
           </label>
         </fieldset>
         <fieldset className="space-y-4">
           <legend className="font-semibold">El Owner</legend>
           <label className="block text-sm">
             Nombre y apellido
-            <input name="ownerNombre" required minLength={2} maxLength={120} className={`${field} mt-1`} />
+            <input
+              name="ownerNombre"
+              required
+              minLength={2}
+              maxLength={120}
+              className={`${field} mt-1`}
+            />
           </label>
           <label className="block text-sm">
             Email
-            <input name="ownerEmail" type="email" required maxLength={200} className={`${field} mt-1`} />
-            <small className="text-xs text-[#96918a]">Le llega un mail para crear su contraseña (vence en 7 días).</small>
+            <input
+              name="ownerEmail"
+              type="email"
+              required
+              maxLength={200}
+              className={`${field} mt-1`}
+            />
+            <small className="text-xs text-[#96918a]">
+              Le llega un mail para crear su contraseña (vence en 7 días).
+            </small>
           </label>
         </fieldset>
         {result && !result.ok ? (
-          <p role="alert" className="rounded-xl bg-[#fdecea] px-4 py-3 text-sm text-[#8a2c1d]">{result.message}</p>
+          <p role="alert" className="rounded-xl bg-[#fdecea] px-4 py-3 text-sm text-[#8a2c1d]">
+            {result.message}
+          </p>
         ) : null}
-        <button type="submit" disabled={busy} className="rounded-xl bg-[#211f1b] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-xl bg-[#211f1b] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+        >
           {busy ? 'Creando…' : 'Crear negocio'}
         </button>
       </Form>
