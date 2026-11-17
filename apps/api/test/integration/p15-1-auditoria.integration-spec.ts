@@ -14,6 +14,9 @@ import {
  * changed; the Owner sees the whole Business, everyone else (the Admin included) only their
  * own entries; secrets never show; the CSV download is Owner-only and is itself recorded.
  */
+/** A field the audit must never show (as older code could have stored it). */
+const SECRET_FIELD = 'passwordHash';
+
 describe('P15-1 — auditoría del negocio', () => {
   const PORT = '3373';
   const BASE = `http://127.0.0.1:${PORT}`;
@@ -101,8 +104,8 @@ describe('P15-1 — auditoría del negocio', () => {
         accion: 'UPDATE',
         entidadAfectada: 'Usuario',
         entidadId: people.owner.usuarioId,
-        valoresAnteriores: { nombre: 'Viejo', passwordHash: 'hash-viejo' },
-        valoresPosteriores: { nombre: 'Nuevo', passwordHash: 'hash-nuevo' },
+        valoresAnteriores: { nombre: 'Viejo', [SECRET_FIELD]: 'hash-viejo' },
+        valoresPosteriores: { nombre: 'Nuevo', [SECRET_FIELD]: 'hash-nuevo' },
       },
     });
     server = spawnApi({ PORT });
@@ -229,7 +232,7 @@ describe('P15-1 — auditoría del negocio', () => {
     const res = await api('get', `/auditoria/${entry!.id}`, 'owner').expect(200);
     expect(res.body.cambios).toEqual([{ campo: 'nombre', antes: 'Viejo', despues: 'Nuevo' }]);
     expect(JSON.stringify(res.body)).not.toContain('hash-');
-    expect(res.body.antes.passwordHash).toBe('••••');
+    expect(res.body.antes[SECRET_FIELD]).toBe('••••');
   });
 
   it('lets the Owner download the CSV, and records the download', async () => {
@@ -237,7 +240,7 @@ describe('P15-1 — auditoría del negocio', () => {
     expect(res.headers['content-type']).toContain('text/csv');
     expect(res.headers['content-disposition']).toContain('auditoria.csv');
     const text: string = res.text;
-    expect(text.charCodeAt(0)).toBe(0xfeff);
+    expect(text.codePointAt(0)).toBe(0xfeff);
     const lines = text.trim().split('\r\n');
     expect(lines[0]).toContain('"Fecha y hora";"Persona"');
     expect(lines).toHaveLength(3); // header + opening + movement

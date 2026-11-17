@@ -117,10 +117,10 @@ export default function Auditoria() {
           {error}
         </p>
       )}
-      {list && list.items.length === 0 && (
+      {list?.items.length === 0 && (
         <div className="ws-empty">
-          <b>No hay movimientos{hasFilters(search) ? ' con esos filtros' : ' todavía'}.</b>
-          Acá van a aparecer las ventas, los cambios de precio, la caja, el equipo y más.
+          <b>No hay movimientos{hasFilters(search) ? ' con esos filtros' : ' todavía'}.</b> Acá van
+          a aparecer las ventas, los cambios de precio, la caja, el equipo y más.
         </div>
       )}
       {list && list.items.length > 0 && (

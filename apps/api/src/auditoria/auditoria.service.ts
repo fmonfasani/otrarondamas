@@ -15,7 +15,7 @@ const PAGE_SIZE = 50;
 const EXPORT_LIMIT = 5000;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** UTF-8 byte order mark, so Excel opens accents right. */
-const BOM = String.fromCharCode(0xfeff);
+const BOM = String.fromCodePoint(0xfeff);
 
 export type AuditViewer = { usuarioId: string; todo: boolean };
 export type AuditFilters = {
@@ -39,6 +39,35 @@ function isCalendarDay(value: string) {
 
 /** A day in Argentina (UTC-3, no DST) → its start in UTC. */
 const dayStart = (d: string) => new Date(`${d}T03:00:00.000Z`);
+
+/** Dates are real calendar days and in order; the topic is a known one. */
+function checkFilters(f: AuditFilters) {
+  for (const [name, value] of [
+    ['desde', f.desde],
+    ['hasta', f.hasta],
+  ] as const) {
+    // The shape and a real calendar day (2026-13-45 is refused, not a server error).
+    if (value && !isCalendarDay(value)) {
+      throw new BadRequestException(`${name} va como AAAA-MM-DD`);
+    }
+  }
+  if (f.desde && f.hasta && f.desde > f.hasta) {
+    throw new BadRequestException('«desde» tiene que ser anterior a «hasta»');
+  }
+  if (f.tema && !isTopic(f.tema)) throw new BadRequestException('Tema desconocido');
+}
+
+/** Not the Owner: only their own entries, whatever the filter says. */
+function whoseEntries(viewer: AuditViewer, f: AuditFilters): Prisma.AuditLogWhereInput {
+  if (!viewer.todo) return { usuarioId: viewer.usuarioId };
+  return f.usuarioId ? { usuarioId: f.usuarioId } : {};
+}
+
+/** One CSV cell, always quoted; a leading = + - @ is neutralised so a spreadsheet never runs it. */
+function csvCell(text: string) {
+  const safe = /^[=+\-@]/.test(text) ? "'" + text : text;
+  return '"' + safe.replaceAll('"', '""') + '"';
+}
 
 /** What a row is about, in a few words: the product or person's name when there is one. */
 function subjectOf(row: Row) {
@@ -67,30 +96,13 @@ export class AuditoriaService {
     viewer: AuditViewer,
     f: AuditFilters,
   ): Prisma.AuditLogWhereInput {
-    for (const [name, value] of [
-      ['desde', f.desde],
-      ['hasta', f.hasta],
-    ] as const) {
-      // The shape and a real calendar day (2026-13-45 is refused, not a server error).
-      if (value && !isCalendarDay(value)) {
-        throw new BadRequestException(`${name} va como AAAA-MM-DD`);
-      }
-    }
-    if (f.desde && f.hasta && f.desde > f.hasta) {
-      throw new BadRequestException('«desde» tiene que ser anterior a «hasta»');
-    }
-    if (f.tema && !isTopic(f.tema)) throw new BadRequestException('Tema desconocido');
+    checkFilters(f);
     const fecha: Prisma.DateTimeFilter = {};
     if (f.desde) fecha.gte = dayStart(f.desde);
     if (f.hasta) fecha.lt = new Date(dayStart(f.hasta).getTime() + 24 * 60 * 60 * 1000);
     return {
       empresaId: companyId,
-      // Not the Owner: only their own entries, whatever the filter says.
-      ...(viewer.todo
-        ? f.usuarioId
-          ? { usuarioId: f.usuarioId }
-          : {}
-        : { usuarioId: viewer.usuarioId }),
+      ...whoseEntries(viewer, f),
       ...(f.desde || f.hasta ? { fechaHora: fecha } : {}),
       ...(f.tema && isTopic(f.tema) ? topicWhere(f.tema) : {}),
     };
@@ -175,11 +187,6 @@ export class AuditoriaService {
       orderBy: { fechaHora: 'desc' },
       take: EXPORT_LIMIT,
     });
-    const cell = (v: unknown) => {
-      const s = v === null || v === undefined ? '' : String(v);
-      // Quote always; a leading = + - @ is neutralised so a spreadsheet never runs it.
-      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-    };
     const fmt = new Intl.DateTimeFormat('es-AR', {
       timeZone: 'America/Argentina/Buenos_Aires',
       dateStyle: 'short',
@@ -210,7 +217,7 @@ export class AuditoriaService {
         r.motivo ?? '',
         cambios,
       ]
-        .map(cell)
+        .map(csvCell)
         .join(';');
     });
     await recordAudit(this.prisma, companyId, viewer.usuarioId, {
@@ -219,7 +226,7 @@ export class AuditoriaService {
       despues: { filtros: { ...f, page: undefined }, filas: rows.length },
     });
     return {
-      csv: `${BOM}${[header.map(cell).join(';'), ...lines].join('\r\n')}\r\n`,
+      csv: BOM + [header.map(csvCell).join(';'), ...lines].join('\r\n') + '\r\n',
       filas: rows.length,
       recortado: rows.length === EXPORT_LIMIT,
     };

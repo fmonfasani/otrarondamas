@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { AuditAction } from './audit-catalog';
 
 export { recordAudit } from './audit-catalog';
@@ -21,13 +22,12 @@ const OTHER_FIELDS = [
   'stockMinimo',
 ] as const;
 
-/** Decimals and dates compare and store as plain values. */
-const plain = (v: unknown) =>
-  v === null || v === undefined
-    ? null
-    : typeof v === 'object' && 'toString' in (v as object) && !(v instanceof Date)
-      ? Number(String(v))
-      : v;
+/** Prisma Decimals compare and store as plain numbers; empty is null. */
+function plain(v: unknown): unknown {
+  if (v === null || v === undefined) return null;
+  if (Prisma.Decimal.isDecimal(v)) return (v as Prisma.Decimal).toNumber();
+  return v;
+}
 
 /**
  * OR-B4-041 — what a product edit means for the audit trail: a (de)activation, a price
@@ -57,7 +57,7 @@ export function productAuditEntry(
   return {
     accion,
     entidad: 'Producto',
-    entidadId: String(after.id),
+    entidadId: typeof after.id === 'string' ? after.id : '',
     // The name rides along so the trail says which product, even when it did not change.
     antes: { nombre: before.nombre, ...pick(before) },
     despues: { nombre: after.nombre, ...pick(after) },
