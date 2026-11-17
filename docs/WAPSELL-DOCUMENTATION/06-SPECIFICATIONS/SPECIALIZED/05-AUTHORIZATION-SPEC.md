@@ -1,6 +1,6 @@
 # Wapsell — Authorization Specification
 
-**Version:** 0.3 | **Status:** APPROVED — Owner Rulings OR-B4-024, OR-B4-025 (2026-11-10) | **Date:** 2026-11-10
+**Version:** 0.5 | **Status:** APPROVED — Owner Rulings OR-B4-024, OR-B4-025, amended by OR-B4-033, OR-B4-035, OR-B4-041 | **Date:** 2026-11-16
 
 > Specialized spec required by the General SPEC v0.5 §6.1 (`OR-B4-007`). It defines the canonical Permission
 > catalogue, the Role → Permission matrix and the transition from the two AS-IS mechanisms. Backlog: #161.
