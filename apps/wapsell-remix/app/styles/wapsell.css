@@ -561,3 +561,19 @@
 .ws-mfa-codes__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 
 .ws-or { margin: 16px 0 12px; text-align: center; font-size: 13px; color: var(--text-secondary, #77736d); }
+
+/* ------------------------------------------------------- Legal pages */
+
+.ws-legal { min-height: 100vh; background: var(--background-default); color: var(--text-primary); font-family: var(--font-sans); }
+.ws-legal__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 760px; margin: 0 auto; padding: 20px 16px; }
+.ws-legal__brand { font-size: 22px; font-weight: 700; letter-spacing: -1px; color: var(--text-primary); text-decoration: none; }
+.ws-legal__brand span { color: var(--action-primary); }
+.ws-legal__head nav { display: flex; gap: 16px; font-size: 14px; }
+.ws-legal__head nav a { color: var(--text-primary); }
+.ws-legal__body { max-width: 760px; margin: 0 auto; padding: 8px 16px 64px; font-size: 15px; line-height: 1.65; }
+.ws-legal__body h1 { font-size: 30px; line-height: 1.2; margin: 8px 0 4px; }
+.ws-legal__body h2 { font-size: 18px; margin: 28px 0 8px; }
+.ws-legal__body ul { padding-left: 20px; }
+.ws-legal__body li { margin-bottom: 6px; }
+.ws-legal__body a { color: inherit; }
+.ws-legal__updated { color: #77736d; font-size: 13px; margin: 0 0 20px; }
