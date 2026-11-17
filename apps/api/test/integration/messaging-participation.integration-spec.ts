@@ -42,7 +42,11 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
   const b64url = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url');
   const sign = (payload: Record<string, unknown>) => {
     const header = b64url({ alg: 'HS256', typ: 'JWT' });
-    const body = b64url({ ...payload, exp: Math.floor(Date.now() / 1000) + 3600 });
+    const body = b64url({
+      ...payload,
+      mfa: true, // OR-B4-044: a session that passed the second factor
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
     const signature = createHmac('sha256', process.env.JWT_SECRET as string)
       .update(`${header}.${body}`)
       .digest('base64url');

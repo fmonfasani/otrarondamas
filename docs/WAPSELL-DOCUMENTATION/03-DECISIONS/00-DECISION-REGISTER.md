@@ -1187,3 +1187,29 @@ Owner answers (verbatim): MFA vs second Business "Bloquear altas hasta MFA (Reco
 **Decision:** the General SPEC v0.6 incorporates OR-B4-024 … OR-B4-043 and replaces §21 with the gap table verified on
 2026-11-16, adding no new rule of its own. The TO-BE is reorganised into one document per domain (15), without duplicates.
 Electronic invoicing (AFIP/ARCA) stays out of the MVP: a TO-BE domain marked OPEN, to decide with the Business's accountant.
+
+### OR-B4-044 — Second factor (MFA) with an authenticator app — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Owner answers (verbatim): "Si dale i.plementalo" to the proposal (authenticator app,
+mandatory at sign-in for Owner/Admin, recovery codes); schema change "Sí, autorizo (Recomendado)"; remember device
+"Sí, 30 días (Recomendado)".
+
+**Decision (implements OR-B3-014 / OR-B4-009, closes #163):**
+
+- **Method:** time-based codes from an authenticator app (TOTP, RFC 6238: Google Authenticator, Microsoft Authenticator,
+  Authy). No SMS.
+- **Who:** mandatory for an Owner or Admin of any Business and for Wapsell platform administrators; optional for Vendedor
+  and Gestor de stock (they turn it on and off from Mi perfil). Mandatory = the API refuses any session of that account
+  that did not pass the second factor, whatever issued it (password, invitation, business switch, Google, older tokens).
+- **Enrolment:** at the next sign-in after the password (a 10-minute ticket that only allows the second step): scan a QR,
+  type a code, get 10 single-use recovery codes shown once.
+- **Every sign-in:** password + code (or a recovery code). «Remember this device» skips the code for 30 days in that
+  browser; resetting or re-enrolling the factor invalidates every remembered device.
+- **Protection:** the secret is encrypted (`MFA_SECRET_KEY`, AES-256-GCM); recovery codes stored as hashes; a code is
+  never accepted twice; 5 wrong codes lock it for 15 minutes.
+- **Lost phone:** the Owner resets the factor of someone in their Business (never another Owner, never themselves);
+  an Owner who lost phone and codes is helped by Wapsell from the server.
+- **Audit (OR-B4-041):** activation, deactivation, reset, use of a recovery code, new recovery codes and lockouts.
+- **Platform:** creating Businesses is open to a Wapsell administrator whose account has MFA active (lifts the pause of
+  OR-B4-042); the `business:create` script keeps refusing a second Business in production.
+- **Schema:** new table `MfaFactor` (additive; applied by the deploy's non-destructive `prisma db push`).

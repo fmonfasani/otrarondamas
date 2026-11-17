@@ -88,8 +88,8 @@ export class PlatformAdminController {
   /** OR-B4-042 — whether creating Businesses is open (closed until MFA, OR-B4-009). */
   @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
   @Get('businesses/creation-status')
-  getCreationStatus() {
-    return businessCreationStatus();
+  async getCreationStatus(@CurrentUser() user: AuthenticatedUser) {
+    return businessCreationStatus(await this.platform.viewerHasMfa(user.id));
   }
 
   /** OR-B4-039 — create a Business with its Owner (welcome email with the password link). */

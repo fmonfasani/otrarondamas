@@ -15,6 +15,8 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 import { EmailModule } from '../email/email.module';
 import { PasswordResetService } from './password-reset.service';
 import { AccountService } from './account.service';
+import { MfaService } from './mfa/mfa.service';
+import { MfaController } from './mfa/mfa.controller';
 
 @Module({
   imports: [
@@ -25,11 +27,12 @@ import { AccountService } from './account.service';
     AuthJwtModule,
     EmailModule,
   ],
-  controllers: [AuthController, AuthCustomerController],
+  controllers: [AuthController, AuthCustomerController, MfaController],
   providers: [
     AuthService,
     PasswordResetService,
     AccountService,
+    MfaService,
     AuthGoogleService,
     AuthCustomerService,
     GoogleStrategy,
@@ -45,6 +48,7 @@ import { AccountService } from './account.service';
     AuthService,
     AuthCustomerService,
     PasswordResetService,
+    MfaService,
   ],
 })
 export class AuthModule {}

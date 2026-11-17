@@ -594,9 +594,9 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
       const payment = await createOwnPayment('pi_isolation', 'PENDING');
 
       try {
-        await expect(
-          paymentService.getPaymentDetail(otherEmpresa.id, payment.id),
-        ).rejects.toThrow('Payment not found');
+        await expect(paymentService.getPaymentDetail(otherEmpresa.id, payment.id)).rejects.toThrow(
+          'Payment not found',
+        );
       } finally {
         await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
       }

@@ -38,6 +38,15 @@ export class PlatformAdminService {
     private readonly passwords: PasswordResetService,
   ) {}
 
+  /** OR-B4-044 — whether this administrator's account has the second factor active. */
+  async viewerHasMfa(usuarioId: string): Promise<boolean> {
+    const factor = await this.prisma.mfaFactor.findUnique({
+      where: { usuarioId },
+      select: { confirmedAt: true },
+    });
+    return Boolean(factor?.confirmedAt);
+  }
+
   /**
    * OR-B4-039 — a new Business with its Owner, from the platform. Strict: if the store
    * address, the name or the Owner's email already exist, nothing is created. The Owner gets
@@ -49,8 +58,8 @@ export class PlatformAdminService {
     input: { nombre: string; slug: string; ownerNombre: string; ownerEmail: string },
     viewerUsuarioId: string,
   ) {
-    // OR-B4-042: closed until MFA exists (OR-B4-009).
-    assertBusinessCreationAllowed();
+    // OR-B4-044: only an administrator with MFA active (OR-B4-009).
+    assertBusinessCreationAllowed(await this.viewerHasMfa(viewerUsuarioId));
     const nombre = input.nombre.trim();
     const slug = input.slug.trim().toLowerCase();
     const ownerNombre = input.ownerNombre.trim();

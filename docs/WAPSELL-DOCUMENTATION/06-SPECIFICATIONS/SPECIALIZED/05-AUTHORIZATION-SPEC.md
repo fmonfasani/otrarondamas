@@ -284,6 +284,9 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `GET /reportes/resumen` (`OR-B4-036`) | `REPORTS_VIEW` | Vendedor and Gestor denied |
 | `GET /auditoria`, `GET /auditoria/:id` (`OR-B4-041`) | `AUDIT_VIEW_OWN` | the Owner (`AUDIT_VIEW_ALL`) sees the whole Business; everyone else, the Admin included, only their own entries |
 | `GET /auditoria/exportar` (CSV, recorded as `AUDITORIA_EXPORTADA`, `OR-B4-041`) | `AUDIT_VIEW_ALL` | Owner only |
+| `POST /auth/mfa/activar/iniciar`, `/activar/confirmar`, `/verificar` (`OR-B4-044`) | public with the sign-in ticket | the ticket only allows the second step; it is not a session |
+| `GET /auth/mfa`, `POST /auth/mfa/iniciar`, `/confirmar`, `/codigos`, `/desactivar` (`OR-B4-044`) | `AUTHENTICATED` | one's own factor; turning it off only when it is optional |
+| `PATCH /auth/mfa/equipo/:membershipId/resetear` (`OR-B4-044`) | `USERS_MANAGE` + Owner | never on an Owner, never on oneself |
 | `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
 | `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
 | `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |

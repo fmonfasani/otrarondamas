@@ -39,6 +39,7 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       rol: 'OWNER',
       estadoLegajo: 'APROBADO',
       type: 'usuario',
+      mfa: true, // OR-B4-044: a session that passed the second factor
       exp: Math.floor(Date.now() / 1000) + 3600,
     });
     const signature = createHmac('sha256', process.env.JWT_SECRET as string)

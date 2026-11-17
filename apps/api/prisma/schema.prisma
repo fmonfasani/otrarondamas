@@ -1200,6 +1200,7 @@ model Usuario {
   DevolucionProveedor                              DevolucionProveedor[]
   Entrega_Entrega_preparadorIdToUsuario            Entrega[]             @relation("Entrega_preparadorIdToUsuario")
   Entrega_Entrega_repartidorIdToUsuario            Entrega[]             @relation("Entrega_repartidorIdToUsuario")
+  MfaFactor                                        MfaFactor?
   Invitacion                                       Invitacion[]
   Legajo                                           Legajo?
   MovimientoCaja                                   MovimientoCaja[]
@@ -1834,3 +1835,20 @@ model Refund {
   @@index([paymentId])
 }
 
+/// OR-B4-044 — second factor (TOTP app) of a staff account. One row per account that started
+/// enrolling; `confirmedAt` null = not active yet. The secret is encrypted (MFA_SECRET_KEY,
+/// AES-256-GCM); recovery codes are stored as SHA-256 hashes; `lastStep` stops a code from being
+/// used twice; 5 failed attempts lock it for 15 minutes.
+model MfaFactor {
+  id             String    @id @default(uuid())
+  usuarioId      String    @unique
+  secretEnc      String
+  confirmedAt    DateTime?
+  recoveryHashes Json      @default("[]")
+  lastStep       Int       @default(0)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  Usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}

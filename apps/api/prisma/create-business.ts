@@ -1,10 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { createBusinessWithOwner } from '../src/platform-admin/create-business.js';
-import {
-  CREATION_BLOCKED_MESSAGE,
-  MFA_AVAILABLE,
-} from '../src/platform-admin/business-creation-gate.js';
+import { SCRIPT_BLOCKED_MESSAGE } from '../src/platform-admin/business-creation-gate.js';
 
 /**
  * Creates (or completes) a Business with its Owner, idempotently (same code as Wapsell
@@ -44,11 +41,11 @@ async function main() {
 
   const prisma = new PrismaClient();
   try {
-    // OR-B4-042: in production, no second Business until MFA exists (OR-B4-009). Completing
-    // the existing Business (same store address) is still allowed.
-    if (process.env.NODE_ENV === 'production' && !MFA_AVAILABLE) {
+    // OR-B4-042: in production a second Business is created from the platform (with MFA), not
+    // here. Completing the existing Business (same store address) is still allowed.
+    if (process.env.NODE_ENV === 'production') {
       const others = await prisma.empresa.count({ where: { slug: { not: slug } } });
-      if (others > 0) throw new Error(CREATION_BLOCKED_MESSAGE);
+      if (others > 0) throw new Error(SCRIPT_BLOCKED_MESSAGE);
     }
     const passwordHash = password ? await bcrypt.hash(password, 10) : null;
     const result = await prisma.$transaction((tx) =>

@@ -1,4 +1,5 @@
 import {
+  Optional,
   Body,
   Controller,
   Get,
@@ -23,6 +24,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
 import { PasswordResetService } from './password-reset.service';
 import { AccountService } from './account.service';
+import { MfaPolicyService } from './mfa/mfa-policy.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -43,13 +45,14 @@ export class AuthController {
     private readonly prisma: PrismaService,
     private readonly passwordReset: PasswordResetService,
     private readonly account: AccountService,
+    @Optional() private readonly mfaPolicy?: MfaPolicyService,
   ) {}
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+    return this.authService.login(dto.email, dto.password, dto.dispositivo);
   }
 
   /**
@@ -165,7 +168,7 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('empresaId') empresaId: string,
   ) {
-    return this.authService.switchEmpresa(user.id, empresaId);
+    return this.authService.switchEmpresa(user.id, empresaId, user.mfa === true);
   }
 
   // Triggers the redirect to the Google consent screen. AuthGuard('google')
@@ -197,6 +200,14 @@ export class AuthController {
 
     try {
       const session = await this.authGoogleService.loginWithGoogle(req.user);
+      // OR-B4-044: Google is only the first factor; an account that needs a second one signs
+      // in with email and password, where the second step is asked.
+      if (await this.mfaPolicy?.requiresMfa(session.usuario.id)) {
+        const back = new URL('/login', frontendUrl);
+        back.searchParams.set('error', 'mfa');
+        res.redirect(back.toString());
+        return;
+      }
       const redirectUrl = new URL('/auth/google/callback', frontendUrl);
       redirectUrl.searchParams.set('token', session.accessToken);
       res.redirect(redirectUrl.toString());

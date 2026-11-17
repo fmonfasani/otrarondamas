@@ -28,6 +28,8 @@ export interface EmpresaInJwt {
 
 export interface JwtPayload {
   sub: string; // Usuario.id or Cliente.id depending on `type`
+  // OR-B4-044: true when this session passed the second factor (or a remembered device).
+  mfa?: boolean;
   email: string;
   nombre: string;
   empresaId: string;
@@ -60,6 +62,8 @@ export interface AuthenticatedUser {
   estadoLegajo: DossierStatus;
   // RF-17 cliente
   type: 'usuario' | 'cliente';
+  // OR-B4-044: the session passed the second factor.
+  mfa?: boolean;
   esMayorista?: boolean;
   // Multi-business: list of companies the user has access to
   empresas?: EmpresaInJwt[];

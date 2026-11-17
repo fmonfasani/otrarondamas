@@ -943,7 +943,10 @@ describe('B3 tenant isolation — execution candidates', () => {
       await expect(
         db.$transaction(async (tx) => {
           await tx.compra.create({
-            data: { ...basePurchase('g64-tx-negative'), CompraItem: { create: [itemOf(productB.id)] } },
+            data: {
+              ...basePurchase('g64-tx-negative'),
+              CompraItem: { create: [itemOf(productB.id)] },
+            },
           });
         }),
       ).rejects.toThrow();
@@ -951,7 +954,10 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await db.$transaction(async (tx) => {
         await tx.compra.create({
-          data: { ...basePurchase('g64-tx-positive'), CompraItem: { create: [itemOf(productA.id)] } },
+          data: {
+            ...basePurchase('g64-tx-positive'),
+            CompraItem: { create: [itemOf(productA.id)] },
+          },
         });
       });
       expect(await countPurchases('g64-tx-positive')).toBe(1);
