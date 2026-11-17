@@ -20,10 +20,15 @@ export async function deviceFrom(request: Request): Promise<string | undefined> 
 }
 
 /** A call to the API's public second-factor endpoints (they take the sign-in ticket). */
-export async function mfaPublicPost<T>(path: string, body: unknown): Promise<T> {
+export function mfaPublicPost<T>(path: string, body: unknown): Promise<T> {
+  return authPublicPost<T>(`/mfa${path}`, body);
+}
+
+/** A POST to a public /auth endpoint (sign-up, second factor); errors as ApiError. */
+export async function authPublicPost<T>(path: string, body: unknown): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${getApiBaseUrl()}/auth/mfa${path}`, {
+    response = await fetch(`${getApiBaseUrl()}/auth${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
@@ -34,7 +39,7 @@ export async function mfaPublicPost<T>(path: string, body: unknown): Promise<T> 
   const data = (await response.json().catch(() => ({}))) as { message?: string | string[] };
   if (!response.ok) {
     const message = Array.isArray(data.message) ? data.message.join(' ') : data.message;
-    throw new ApiError(response.status, message || 'No pudimos verificar el código.');
+    throw new ApiError(response.status, message || 'No pudimos completar la operación.');
   }
   return data as T;
 }

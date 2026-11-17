@@ -1,7 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
-import { AuthGoogleService } from './auth.google.service';
+import { AuthGoogleService, GoogleAccountNotFound } from './auth.google.service';
 
 // Prevent the Jest unit test from loading the ESM-only JwtService dependency.
 jest.mock('@nestjs/jwt', () => ({ JwtService: class JwtService {} }));
@@ -47,7 +47,9 @@ describe('AuthGoogleService verified email boundary', () => {
         nombre: 'Uninvited User',
         fotoUrl: null,
       }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+      // OR-B4-045: no account is created or joined here; the callback offers registering a NEW
+      // Business instead (the Google identity travels in the error).
+    ).rejects.toBeInstanceOf(GoogleAccountNotFound);
 
     expect(findUnique).toHaveBeenCalledTimes(2);
     expect(prisma.usuario.create).not.toHaveBeenCalled();

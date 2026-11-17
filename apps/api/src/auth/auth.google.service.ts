@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { GoogleProfile } from './google.strategy';
 
+/** A verified Google identity with no Wapsell account (OR-B4-045 offers to register a Business). */
+export class GoogleAccountNotFound extends Error {
+  constructor(readonly profile: GoogleProfile) {
+    super('No existe una cuenta asociada a este Google');
+  }
+}
+
 @Injectable()
 export class AuthGoogleService {
   constructor(
@@ -62,12 +69,10 @@ export class AuthGoogleService {
           include: { UsuarioPermiso: { include: { Permiso: true } }, Empresa: true },
         });
       } else {
-        // RF-17 / approved access invariant: internal staff accounts are
-        // created through an owner-controlled invitation, never by public
-        // self-registration through Google OAuth.
-        throw new UnauthorizedException(
-          'No existe una cuenta interna asociada. Solicita una invitación al dueño.',
-        );
+        // RF-17: nobody joins an existing Business through Google; staff accounts come from an
+        // invitation. OR-B4-045: a verified Google identity without an account may instead
+        // register a NEW Business of their own — the callback offers that.
+        throw new GoogleAccountNotFound(profile);
       }
     }
 

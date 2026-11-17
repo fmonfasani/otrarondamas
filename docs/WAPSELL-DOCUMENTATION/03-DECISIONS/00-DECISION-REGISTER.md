@@ -1213,3 +1213,22 @@ mandatory at sign-in for Owner/Admin, recovery codes); schema change "Sí, autor
 - **Platform:** creating Businesses is open to a Wapsell administrator whose account has MFA active (lifts the pause of
   OR-B4-042); the `business:create` script keeps refusing a second Business in production.
 - **Schema:** new table `MfaFactor` (additive; applied by the deploy's non-destructive `prisma db push`).
+
+### OR-B4-045 — Public sign-up of a new Business — 2026-11-17
+
+**Status:** APPROVED — OWNER RULING. Owner request (verbatim): "Quiero que el view register sea similar al login, y que tena la
+posibilidad de registrarse con autenticacion de tercero al menos con google en un principio, como estaba en el frontend anterior";
+answer to what «Crear cuenta» creates: "Alta de negocio (Recomendado)". Amends OR-B4-039 (only Wapsell created Businesses).
+
+**Decision:**
+
+- Anyone can register **a new Business** and becomes its Owner. Nobody joins an existing Business this way: staff accounts still
+  come from the Owner's invitation (RF-17; the Google auto-signup into a Business stays disabled since `fecb387`).
+- **With email:** business name, name and email — no password on the form. A welcome email with a single-use link (7 days)
+  proves the address and lets the Owner create the password.
+- **With Google:** a Google sign-in with no account comes back to «Crear cuenta» with a 30-minute signed ticket (verified email,
+  name, Google id); the person only names the Business; the account is linked to Google.
+- In both cases the Owner enrols MFA at the first sign-in (OR-B4-044); the sign-up is recorded in the new Business's audit trail
+  (`NEGOCIO_REGISTRADO`); repeated email or business name is refused; the store address is derived and made unique.
+- Abuse limit: 20 sign-ups per hour platform-wide (sign-ups reach the API through the web server, so there is no visitor IP).
+  Still open: per-visitor limits / CAPTCHA, terms acceptance checkbox, plans or billing for self-registered Businesses.

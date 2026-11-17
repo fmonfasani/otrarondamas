@@ -17,6 +17,8 @@ import { PasswordResetService } from './password-reset.service';
 import { AccountService } from './account.service';
 import { MfaService } from './mfa/mfa.service';
 import { MfaController } from './mfa/mfa.controller';
+import { SignupService } from './signup.service';
+import { SignupController } from './signup.controller';
 
 @Module({
   imports: [
@@ -27,12 +29,13 @@ import { MfaController } from './mfa/mfa.controller';
     AuthJwtModule,
     EmailModule,
   ],
-  controllers: [AuthController, AuthCustomerController, MfaController],
+  controllers: [AuthController, AuthCustomerController, MfaController, SignupController],
   providers: [
     AuthService,
     PasswordResetService,
     AccountService,
     MfaService,
+    SignupService,
     AuthGoogleService,
     AuthCustomerService,
     GoogleStrategy,

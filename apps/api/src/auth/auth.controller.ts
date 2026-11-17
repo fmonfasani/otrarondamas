@@ -26,6 +26,8 @@ import { PasswordResetService } from './password-reset.service';
 import { AccountService } from './account.service';
 import { MfaPolicyService } from './mfa/mfa-policy.service';
 import { MfaService } from './mfa/mfa.service';
+import { SignupService } from './signup.service';
+import { GoogleAccountNotFound } from './auth.google.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -48,6 +50,7 @@ export class AuthController {
     private readonly account: AccountService,
     @Optional() private readonly mfaPolicy?: MfaPolicyService,
     @Optional() private readonly mfa?: MfaService,
+    @Optional() private readonly signup?: SignupService,
   ) {}
 
   @Public()
@@ -213,7 +216,12 @@ export class AuthController {
         return;
       }
       back('/auth/google/callback', { token: session.accessToken });
-    } catch {
+    } catch (error) {
+      // OR-B4-045: a verified Google identity without an account may register a Business.
+      if (error instanceof GoogleAccountNotFound && this.signup) {
+        back('/es/auth/register', { google: await this.signup.signupTicket(error.profile) });
+        return;
+      }
       // The exact reason is not leaked to the browser (same criterion as password login).
       back('/es/auth/login', { error: 'google' });
     }

@@ -111,8 +111,7 @@ export function LoginForm() {
       )}
       {googleError && (
         <p className="ws-alert" role="alert">
-          No pudimos ingresar con Google. Tu cuenta tiene que estar invitada por el Owner del
-          negocio.
+          No pudimos ingresar con Google. Probá de nuevo o ingresá con tu email.
         </p>
       )}
 

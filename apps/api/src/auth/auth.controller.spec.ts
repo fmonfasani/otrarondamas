@@ -11,6 +11,7 @@ await jest.unstable_mockModule('@nestjs/jwt', () => ({ JwtService: class JwtServ
 await jest.unstable_mockModule('./auth.service', () => ({ AuthService: class AuthService {} }));
 await jest.unstable_mockModule('./auth.google.service', () => ({
   AuthGoogleService: class AuthGoogleService {},
+  GoogleAccountNotFound: class GoogleAccountNotFound extends Error {},
 }));
 await jest.unstable_mockModule('../membership/membership.service', () => ({
   MembershipService: class MembershipService {},

@@ -43,7 +43,8 @@ export type AuditAction =
   | 'MFA_RESETEADO'
   | 'MFA_CODIGO_RECUPERACION'
   | 'MFA_CODIGOS_NUEVOS'
-  | 'MFA_BLOQUEADO';
+  | 'MFA_BLOQUEADO'
+  | 'NEGOCIO_REGISTRADO';
 
 const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_CREADO: { tema: 'precios', nombre: 'Creó un producto' },
@@ -67,6 +68,7 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   MFA_RESETEADO: { tema: 'accesos', nombre: 'Reseteó la verificación en dos pasos de alguien' },
   MFA_CODIGO_RECUPERACION: { tema: 'accesos', nombre: 'Entró con un código de recuperación' },
   MFA_CODIGOS_NUEVOS: { tema: 'accesos', nombre: 'Generó códigos de recuperación nuevos' },
+  NEGOCIO_REGISTRADO: { tema: 'negocio', nombre: 'Registró el negocio' },
   MFA_BLOQUEADO: { tema: 'accesos', nombre: 'Verificación bloqueada por intentos fallidos' },
   // Older names, still in the data.
   CREAR_VENTA: { tema: 'ventas', nombre: 'Registró una venta' },
