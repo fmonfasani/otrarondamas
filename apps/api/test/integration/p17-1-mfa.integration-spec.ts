@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -15,7 +16,7 @@ import { deleteStoreCompanies, waitPort } from './helpers/store-catalog.fixture'
 describe('P17-1 — verificación en dos pasos (MFA)', () => {
   const PORT = '3372';
   const BASE = `http://127.0.0.1:${PORT}`;
-  const password = 'Clave-de-prueba-123';
+  const password = `${randomUUID()}-Aa1`; // a fresh secret each run
   let prisma: PrismaService;
   let server: ChildProcess;
   let suffix: number;

@@ -88,7 +88,6 @@ export default function Verification() {
                 autoComplete="off"
                 autoCapitalize="none"
                 placeholder="abcd-efgh"
-                autoFocus
               />
             </span>
           </label>
@@ -104,7 +103,6 @@ export default function Verification() {
                 pattern="[0-9 ]{6,7}"
                 maxLength={7}
                 placeholder="123 456"
-                autoFocus
               />
             </span>
           </label>

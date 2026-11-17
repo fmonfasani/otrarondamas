@@ -46,7 +46,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     session.set('mfaEnroll', enrolment);
     headers.append('Set-Cookie', await commitSession(session));
   }
-  const qr = await QRCode.toString(enrolment.enlace, { type: 'svg', margin: 1, width: 200 });
+  const qr = await QRCode.toDataURL(enrolment.enlace, { margin: 1, width: 400 });
   return json({ qr, clave: enrolment.clave.replaceAll(/(.{4})/g, '$1 ').trim() }, { headers });
 }
 
@@ -133,11 +133,12 @@ export default function EnrolMfa() {
         </li>
         <li>
           En la app tocá <b>+</b> y escaneá este código.
-          <span
+          <img
             className="ws-mfa-qr"
-            role="img"
-            aria-label="Código QR para la app de autenticación"
-            dangerouslySetInnerHTML={{ __html: qr }}
+            src={qr}
+            alt="Código QR para la app de autenticación"
+            width={200}
+            height={200}
           />
           <button type="button" className="ws-link" onClick={() => setShowKey((v) => !v)}>
             {showKey ? 'Ocultar la clave' : '¿No podés escanear? Escribí la clave'}

@@ -554,7 +554,7 @@
 
 .ws-mfa-steps { margin: 0 0 var(--space-16, 16px); padding-left: 20px; display: grid; gap: 12px; font-size: 14px; line-height: 1.5; color: var(--text-primary); }
 .ws-mfa-qr { display: block; width: 200px; max-width: 100%; margin: 12px 0 8px; padding: 8px; background: #fff; border-radius: 12px; border: 1px solid rgba(176, 174, 165, 0.45); }
-.ws-mfa-qr svg { display: block; width: 100%; height: auto; }
+.ws-mfa-qr { height: auto; box-sizing: border-box; }
 .ws-mfa-key { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--background-default); border: 1px solid rgba(176, 174, 165, 0.45); font-size: 14px; letter-spacing: 1px; overflow-wrap: anywhere; }
 .ws-mfa-codes ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 0 0 16px; padding: 16px 16px 16px 36px; border-radius: 12px; background: var(--background-default); border: 1px solid rgba(176, 174, 165, 0.45); }
 .ws-mfa-codes code { font-size: 15px; letter-spacing: 1px; }

@@ -84,7 +84,7 @@ export async function action({ request }: ActionFunctionArgs) {
         '/auth/mfa/iniciar',
         { method: 'POST' },
       );
-      const qr = await QRCode.toString(enlace, { type: 'svg', margin: 1, width: 200 });
+      const qr = await QRCode.toDataURL(enlace, { margin: 1, width: 400 });
       return json({
         intent,
         ok: true,
@@ -307,11 +307,12 @@ function MfaCard({
             Escaneá el código con tu app de autenticación (Google Authenticator, Microsoft
             Authenticator o Authy) y escribí el código que aparece.
           </p>
-          <span
+          <img
             className="ws-mfa-qr"
-            role="img"
-            aria-label="Código QR para la app de autenticación"
-            dangerouslySetInnerHTML={{ __html: r.qr }}
+            src={r.qr}
+            alt="Código QR para la app de autenticación"
+            width={200}
+            height={200}
           />
           <code className="ws-mfa-key">{r.clave}</code>
           <CodeForm intent="mfa-confirm" label="Activar" busy={busy} />
