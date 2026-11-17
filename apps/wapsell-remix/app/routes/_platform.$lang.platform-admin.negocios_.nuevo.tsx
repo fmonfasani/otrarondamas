@@ -131,16 +131,18 @@ export default function NewBusiness() {
 
   if (!status.permitido) {
     return (
-      <PlatformShell title="Nuevo negocio" subtitle="Alta de negocios en pausa">
+      <PlatformShell title="Nuevo negocio" subtitle="Necesita la verificación en dos pasos">
         <section
           className="max-w-2xl space-y-3 rounded-2xl border border-[#ecd9a8] bg-[#fbf5e4] p-6 text-[#5c4510]"
           role="status"
         >
-          <p className="font-semibold">Todavía no se pueden crear negocios.</p>
+          <p className="font-semibold">
+            Para crear negocios necesitás la verificación en dos pasos.
+          </p>
           <p className="text-sm">{status.motivo}</p>
           <p className="text-sm">
-            Cuando el MFA esté activo para Owners y administradores, esta pantalla vuelve a
-            habilitarse sola.
+            Activá la verificación en dos pasos (te la pide Wapsell al ingresar, o desde Mi perfil)
+            y esta pantalla se habilita.
           </p>
           <Link to={`/${lang}/platform-admin/negocios`} className="inline-block text-sm underline">
             Volver a Negocios

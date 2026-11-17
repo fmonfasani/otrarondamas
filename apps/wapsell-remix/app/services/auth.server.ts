@@ -6,7 +6,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET;
 if (process.env.NODE_ENV === 'production' && !SESSION_SECRET) {
   throw new Error(
     'SESSION_SECRET environment variable must be set in production. ' +
-    'Set a strong, randomly-generated secret and restart the application.'
+      'Set a strong, randomly-generated secret and restart the application.',
   );
 }
 
@@ -73,33 +73,76 @@ export async function getCurrentUser(token: string) {
   return response.json();
 }
 
-export async function loginWithNestJS(email: string, password: string) {
+/** A session from the API (AuthService.issueSession). */
+export type ApiSession = {
+  token: string;
+  user: { id?: string } | undefined;
+  empresas: Array<{ id: string }>;
+  empresaId: string | undefined;
+};
+
+/** OR-B4-044 — the password is right but a second factor is still missing. */
+export type MfaStep = { mfa: 'verificar' | 'activar'; ticket: string };
+
+export function sessionFrom(data: Record<string, unknown>): ApiSession {
+  if (typeof data?.accessToken !== 'string') throw new Error('Invalid credentials');
+  return {
+    token: data.accessToken,
+    user: data.usuario as ApiSession['user'],
+    empresas: Array.isArray(data.empresas) ? data.empresas : [],
+    empresaId: data.empresaId as string | undefined,
+  };
+}
+
+/**
+ * POST /auth/login. Returns the session, or the second-factor step (OR-B4-044). `device` is the
+ * «remember this device» token from an earlier verification, if this browser has one.
+ */
+export async function loginWithNestJS(
+  email: string,
+  password: string,
+  device?: string,
+): Promise<ApiSession | MfaStep> {
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, ...(device ? { dispositivo: device } : {}) }),
     });
   } catch (error) {
     if (error instanceof Response) throw error;
     throw new Response('Authentication service is unavailable.', { status: 503 });
   }
   if (!response.ok) throw new Error('Invalid credentials');
-  // API contract: AuthService.issueSession → { accessToken, usuario, empresas, empresaId }.
   const data = await response.json();
-  if (!data?.accessToken) throw new Error('Invalid credentials');
-  return {
-    token: data.accessToken as string,
-    user: data.usuario,
-    empresas: Array.isArray(data.empresas) ? data.empresas : [],
-    empresaId: data.empresaId as string | undefined,
-  };
+  if ((data?.mfa === 'verificar' || data?.mfa === 'activar') && typeof data.ticket === 'string') {
+    return { mfa: data.mfa, ticket: data.ticket };
+  }
+  return sessionFrom(data);
+}
+
+export const isMfaStep = (value: ApiSession | MfaStep): value is MfaStep => 'mfa' in value;
+
+/** "Recordarme": a persistent cookie; unchecked, the session ends with the browser. */
+export const REMEMBER_ME_MAX_AGE = 60 * 60 * 24 * 30;
+
+/** Writes an API session into the web session cookie. */
+export async function commitApiSession(request: Request, api: ApiSession, remember: boolean) {
+  const session = await getSession(request.headers.get('Cookie'));
+  for (const key of ['mfaTicket', 'mfaStep', 'mfaRemember', 'mfaEnroll', 'mfaRedirect'])
+    session.unset(key);
+  session.set('jwt', api.token);
+  session.set('userId', api.user?.id);
+  session.set('empresas', api.empresas);
+  session.set('empresaId', api.empresaId ?? api.empresas[0]?.id);
+  return commitSession(session, { maxAge: remember ? REMEMBER_ME_MAX_AGE : undefined });
 }
 
 /** Only same-site relative paths are accepted as a post-login destination. */
 export function safeRedirectPath(value: unknown, fallback = '/es/dashboard'): string {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//'))
+    return fallback;
   return value;
 }
 
@@ -136,7 +179,9 @@ export async function requireAuth(request: Request) {
  */
 export function sessionDossierState(token: string): string | null {
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as { estadoLegajo?: unknown };
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
+    ) as { estadoLegajo?: unknown };
     return typeof payload.estadoLegajo === 'string' ? payload.estadoLegajo : null;
   } catch {
     return null;

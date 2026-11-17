@@ -161,7 +161,8 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
         total: 100,
         totalPagado: 0,
         saldo: 100,
-        CompraItem: { create: [
+        CompraItem: {
+          create: [
             {
               productoId: productA.id,
               cantidadPedida: 10,

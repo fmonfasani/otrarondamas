@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 // ESLint's base `indent` rule does not correctly recognise class properties
 // preceded by a decorator (known false positive); it is disabled locally in
@@ -11,4 +11,10 @@ export class LoginDto {
   @IsString()
   @MinLength(1)
   password: string;
+
+  // OR-B4-044: the «remember this device» token from a previous second-factor check.
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  dispositivo?: string;
 }

@@ -1,8 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, UserRole, DossierStatus, EmpresaInJwt } from './auth.types';
+import { MfaPolicyService } from './mfa/mfa-policy.service';
+import { MfaService } from './mfa/mfa.service';
+
+/** OR-B4-044 — after the password, the second factor is still missing. */
+export type MfaChallenge = { mfa: 'verificar' | 'activar'; ticket: string };
 
 interface UserForSession {
   id: string;
@@ -23,13 +28,48 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly mfaPolicy?: MfaPolicyService,
+    @Optional() private readonly mfa?: MfaService,
   ) {}
 
-  async login(email: string, password: string) {
+  private readonly sessionInclude = {
+    UsuarioPermiso: { include: { Permiso: true } },
+    Empresa: true,
+    UserEmpresa: { include: { Empresa: true } },
+  } as const;
+
+  /**
+   * OR-B4-044 — the password is right; if the account needs a second factor the answer is a
+   * ticket (verify, or enrol first) instead of a session, unless this device is remembered.
+   */
+  async login(email: string, password: string, rememberedDevice?: string) {
     const user = await this.verifyCredentials(email, password);
+    const permissions = user.UsuarioPermiso.map((up) => up.Permiso.nombre);
+    if (this.mfaPolicy && this.mfa && (await this.mfaPolicy.requiresMfa(user.id))) {
+      const active = await this.mfa.isActive(user.id);
+      if (active && (await this.mfa.deviceIsRemembered(user.id, rememberedDevice))) {
+        return this.issueSession(user, permissions, { mfa: true });
+      }
+      const challenge: MfaChallenge = {
+        mfa: active ? 'verificar' : 'activar',
+        ticket: await this.mfa.issueTicket(user.id),
+      };
+      return challenge;
+    }
+    return this.issueSession(user, permissions);
+  }
+
+  /** OR-B4-044 — the session once the second factor is passed. */
+  async sessionAfterMfa(usuarioId: string) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      include: this.sessionInclude,
+    });
+    if (!user || !user.activo) throw new UnauthorizedException('Usuario no encontrado o inactivo');
     return this.issueSession(
       user,
       user.UsuarioPermiso.map((up) => up.Permiso.nombre),
+      { mfa: true },
     );
   }
 
@@ -38,7 +78,7 @@ export class AuthService {
    * Validates that the user has access to the requested empresa
    * before issuing a new JWT.
    */
-  async switchEmpresa(usuarioId: string, newEmpresaId: string) {
+  async switchEmpresa(usuarioId: string, newEmpresaId: string, mfa = false) {
     const user = await this.prisma.usuario.findUnique({
       where: { id: usuarioId },
       include: {
@@ -69,9 +109,11 @@ export class AuthService {
       },
     });
 
+    // The new session keeps the second factor already passed (OR-B4-044).
     return this.issueSession(
       updatedUser,
       updatedUser.UsuarioPermiso.map((up) => up.Permiso.nombre),
+      { mfa },
     );
   }
 
@@ -119,7 +161,7 @@ export class AuthService {
    * as GET /auth/me returns, so that the frontend does not need a second
    * call after logging in to have the full profile.
    */
-  async issueSession(user: UserForSession, permissions: string[]) {
+  async issueSession(user: UserForSession, permissions: string[], opts: { mfa?: boolean } = {}) {
     // Build empresas[] from UserEmpresa relationship
     const empresas: EmpresaInJwt[] = (user.UserEmpresa || []).map((ue) => ({
       id: ue.empresaId,
@@ -137,6 +179,7 @@ export class AuthService {
       estadoLegajo: user.estadoLegajo,
       type: 'usuario',
       empresas,
+      ...(opts.mfa ? { mfa: true } : {}),
     };
 
     return {

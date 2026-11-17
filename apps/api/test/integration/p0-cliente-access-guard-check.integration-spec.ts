@@ -77,6 +77,7 @@ describe('P0 SECURITY — Cliente Token Type Validation', () => {
       rol: 'OWNER' as UserRole,
       estadoLegajo: 'APROBADO' as DossierStatus,
       type: 'usuario',
+      mfa: true, // OR-B4-044: a session that passed the second factor
     });
 
     clienteToken = jwt.sign({

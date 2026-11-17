@@ -8,16 +8,18 @@ import {
 import { AuthShell } from '~/components/auth/AuthShell';
 import { LoginForm } from '~/components/auth/LoginForm';
 import {
+  commitApiSession,
   commitSession,
   getSession,
+  isMfaStep,
   loginWithNestJS,
   safeRedirectPath,
 } from '~/services/auth.server';
+import { deviceFrom } from '~/services/mfa.server';
 
 export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
 
-/** "Recordarme": a persistent cookie; unchecked, the session ends with the browser. */
-export const REMEMBER_ME_MAX_AGE = 60 * 60 * 24 * 30;
+export { REMEMBER_ME_MAX_AGE } from '~/services/auth.server';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const session = await getSession(request.headers.get('Cookie'));
@@ -36,25 +38,37 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return json(
-      { error: 'Completa tu correo y tu contraseña.', email: typeof email === 'string' ? email : '' },
+      {
+        error: 'Completa tu correo y tu contraseña.',
+        email: typeof email === 'string' ? email : '',
+      },
       { status: 400 },
     );
   }
 
   try {
-    const { token, user, empresas, empresaId } = await loginWithNestJS(email, password);
-    const session = await getSession();
-    session.set('jwt', token);
-    session.set('userId', user?.id);
-    session.set('empresas', empresas);
-    session.set('empresaId', empresaId ?? empresas[0]?.id);
-    const redirectTo = new URL(request.url).searchParams.get('redirectTo');
-    return redirect(safeRedirectPath(redirectTo, `/${params.lang ?? 'es'}/dashboard`), {
-      headers: {
-        'Set-Cookie': await commitSession(session, {
-          maxAge: remember ? REMEMBER_ME_MAX_AGE : undefined,
-        }),
-      },
+    const result = await loginWithNestJS(email, password, await deviceFrom(request));
+    const lang = params.lang ?? 'es';
+    const redirectTo = safeRedirectPath(
+      new URL(request.url).searchParams.get('redirectTo'),
+      `/${lang}/dashboard`,
+    );
+    if (isMfaStep(result)) {
+      // OR-B4-044: the password is right; the second factor comes next. The ticket stays on
+      // the web server (session cookie), never in the page.
+      const session = await getSession(request.headers.get('Cookie'));
+      session.set('mfaTicket', result.ticket);
+      session.set('mfaStep', result.mfa);
+      session.set('mfaRemember', remember);
+      session.set('mfaRedirect', redirectTo);
+      session.unset('mfaEnroll');
+      const next = result.mfa === 'activar' ? 'activar-mfa' : 'verificacion';
+      return redirect(`/${lang}/auth/${next}`, {
+        headers: { 'Set-Cookie': await commitSession(session) },
+      });
+    }
+    return redirect(redirectTo, {
+      headers: { 'Set-Cookie': await commitApiSession(request, result, remember) },
     });
   } catch (error) {
     if (error instanceof Response) {

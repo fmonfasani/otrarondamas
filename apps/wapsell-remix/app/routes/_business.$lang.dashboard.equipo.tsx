@@ -1,4 +1,9 @@
-import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
+import {
+  json,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+} from '@remix-run/node';
 import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { useState } from 'react';
 import { requireAuth } from '~/services/auth.server';
@@ -29,10 +34,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const team = await apiRequest<TeamMember[]>(token, '/memberships');
     const invitations = await settle(apiRequest<Invitation[]>(token, '/invitaciones'));
-    return json({ team, invitations: invitations ?? [], canManage: invitations !== null, denied: false });
+    return json({
+      team,
+      invitations: invitations ?? [],
+      canManage: invitations !== null,
+      denied: false,
+    });
   } catch (error) {
     if (error instanceof ApiError && error.status === 403) {
-      return json({ team: [] as TeamMember[], invitations: [] as Invitation[], canManage: false, denied: true });
+      return json({
+        team: [] as TeamMember[],
+        invitations: [] as Invitation[],
+        canManage: false,
+        denied: true,
+      });
     }
     throw error;
   }
@@ -49,16 +64,26 @@ export async function action({ request }: ActionFunctionArgs) {
   const id = (name: string) => encodeURIComponent(String(form.get(name) ?? ''));
   try {
     if (intent === 'invite') {
-      const email = String(form.get('email') ?? '').trim().toLowerCase();
+      const email = String(form.get('email') ?? '')
+        .trim()
+        .toLowerCase();
       const rol = String(form.get('rol') ?? '');
-      if (!looksLikeEmail(email)) return json<ActionData>({ ok: false, intent, message: 'Revisá el email.' }, { status: 400 });
+      if (!looksLikeEmail(email))
+        return json<ActionData>(
+          { ok: false, intent, message: 'Revisá el email.' },
+          { status: 400 },
+        );
       if (!INVITABLE_ROLES.some((r) => r.value === rol)) {
         return json<ActionData>({ ok: false, intent, message: 'Elegí un rol.' }, { status: 400 });
       }
-      const result = await apiRequest<{ linkActivacion: string; emailEnviado: boolean }>(token, '/invitaciones', {
-        method: 'POST',
-        body: JSON.stringify({ email, rol }),
-      });
+      const result = await apiRequest<{ linkActivacion: string; emailEnviado: boolean }>(
+        token,
+        '/invitaciones',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, rol }),
+        },
+      );
       return json<ActionData>({
         ok: true,
         intent: 'invite',
@@ -70,21 +95,56 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
     if (intent === 'approve') {
-      const result = await apiRequest<{ aprobado?: boolean; faltantes?: string[] }>(token, `/legajo/${id('usuarioId')}/aprobar`, {
-        method: 'PATCH',
-      });
+      const result = await apiRequest<{ aprobado?: boolean; faltantes?: string[] }>(
+        token,
+        `/legajo/${id('usuarioId')}/aprobar`,
+        {
+          method: 'PATCH',
+        },
+      );
       if (result.aprobado === false) {
-        return json<ActionData>({ ok: false, intent, message: missingSentence(result.faltantes ?? []) });
+        return json<ActionData>({
+          ok: false,
+          intent,
+          message: missingSentence(result.faltantes ?? []),
+        });
       }
-      return json<ActionData>({ ok: true, intent, message: 'Legajo aprobado. Ya puede operar (tiene que volver a ingresar).' });
+      return json<ActionData>({
+        ok: true,
+        intent,
+        message: 'Legajo aprobado. Ya puede operar (tiene que volver a ingresar).',
+      });
     }
     if (intent === 'suspend' || intent === 'reactivate') {
       await apiRequest(token, `/memberships/${id('membershipId')}/${intent}`, { method: 'PATCH' });
-      return json<ActionData>({ ok: true, intent, message: intent === 'suspend' ? 'Acceso suspendido.' : 'Acceso reactivado.' });
+      return json<ActionData>({
+        ok: true,
+        intent,
+        message: intent === 'suspend' ? 'Acceso suspendido.' : 'Acceso reactivado.',
+      });
+    }
+    if (intent === 'mfa-reset') {
+      // OR-B4-044 — the Owner resets a teammate's second factor (lost phone).
+      const done = await apiRequest<{ reseteado: boolean }>(
+        token,
+        `/auth/mfa/equipo/${id('membershipId')}/resetear`,
+        { method: 'PATCH' },
+      );
+      return json<ActionData>({
+        ok: true,
+        intent,
+        message: done.reseteado
+          ? 'Verificación reseteada: la próxima vez que ingrese la configura de nuevo.'
+          : 'No tenía la verificación activada; no hubo nada que resetear.',
+      });
     }
     return json<ActionData>({ ok: false, intent, message: 'Acción desconocida.' }, { status: 400 });
   } catch (error) {
-    if (error instanceof ApiError) return json<ActionData>({ ok: false, intent, message: error.message }, { status: error.status });
+    if (error instanceof ApiError)
+      return json<ActionData>(
+        { ok: false, intent, message: error.message },
+        { status: error.status },
+      );
     throw error;
   }
 }
@@ -98,7 +158,9 @@ export default function Equipo() {
     return (
       <div className="ws-page">
         <h1 className="ws-page__title">Equipo</h1>
-        <p className="ws-alert" role="alert">Solo el Owner y los administradores ven el equipo.</p>
+        <p className="ws-alert" role="alert">
+          Solo el Owner y los administradores ven el equipo.
+        </p>
       </div>
     );
   }
@@ -108,7 +170,9 @@ export default function Equipo() {
         <div className="ws-page__titles">
           <p className="ws-page__eyebrow">PERSONAS</p>
           <h1 className="ws-page__title">Equipo</h1>
-          <p className="ws-page__lead">Invitá a quienes trabajan con vos y elegí qué puede hacer cada uno.</p>
+          <p className="ws-page__lead">
+            Invitá a quienes trabajan con vos y elegí qué puede hacer cada uno.
+          </p>
         </div>
       </div>
       {result && (
@@ -130,7 +194,12 @@ function CopyLink({ link }: Readonly<{ link: string }>) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="ws-copy">
-      <input readOnly value={link} aria-label="Link de invitación" onFocus={(event) => event.currentTarget.select()} />
+      <input
+        readOnly
+        value={link}
+        aria-label="Link de invitación"
+        onFocus={(event) => event.currentTarget.select()}
+      />
       <button
         type="button"
         className="ws-button ws-button--outline ws-button--auto"
@@ -149,13 +218,21 @@ function InviteCard() {
   const help = INVITABLE_ROLES.find((r) => r.value === rol)?.help;
   return (
     <section className="ws-card" aria-labelledby="invite-title">
-      <h2 id="invite-title" className="ws-card__title">Invitar a alguien</h2>
+      <h2 id="invite-title" className="ws-card__title">
+        Invitar a alguien
+      </h2>
       <Form method="post" className="ws-team__invite">
         <input type="hidden" name="intent" value="invite" />
         <label className="ws-field">
           <span className="ws-field__label">Email</span>
           <span className="ws-field__control">
-            <input name="email" type="email" required placeholder="nombre@ejemplo.com" autoComplete="off" />
+            <input
+              name="email"
+              type="email"
+              required
+              placeholder="nombre@ejemplo.com"
+              autoComplete="off"
+            />
           </span>
         </label>
         <label className="ws-field">
@@ -163,27 +240,42 @@ function InviteCard() {
           <span className="ws-field__control">
             <select name="rol" value={rol} onChange={(event) => setRol(event.target.value)}>
               {INVITABLE_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
               ))}
             </select>
           </span>
           <small className="ws-meta">{help}</small>
         </label>
-        <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>
+        <button
+          className="ws-button ws-button--primary ws-button--auto"
+          type="submit"
+          disabled={busy}
+        >
           {busy ? 'Invitando…' : 'Mandar invitación'}
         </button>
       </Form>
-      <p className="ws-meta">La invitación vence en 7 días. Antes de operar, la persona completa su legajo y vos lo aprobás.</p>
+      <p className="ws-meta">
+        La invitación vence en 7 días. Antes de operar, la persona completa su legajo y vos lo
+        aprobás.
+      </p>
     </section>
   );
 }
 
-function TeamTable({ team, canManage, viewerRole }: Readonly<{ team: TeamMember[]; canManage: boolean; viewerRole: string | null }>) {
+function TeamTable({
+  team,
+  canManage,
+  viewerRole,
+}: Readonly<{ team: TeamMember[]; canManage: boolean; viewerRole: string | null }>) {
   const navigation = useNavigation();
   const busy = navigation.state !== 'idle';
   return (
     <section className="ws-card" aria-labelledby="team-title">
-      <h2 id="team-title" className="ws-card__title">{team.length} {team.length === 1 ? 'persona' : 'personas'}</h2>
+      <h2 id="team-title" className="ws-card__title">
+        {team.length} {team.length === 1 ? 'persona' : 'personas'}
+      </h2>
       <table className="ws-table ws-table--team">
         <thead>
           <tr>
@@ -207,7 +299,9 @@ function TeamTable({ team, canManage, viewerRole }: Readonly<{ team: TeamMember[
                 <td>
                   <span className="ws-team__chips">
                     <span className={`ws-chip ws-chip--${status.tone}`}>{status.label}</span>
-                    {member.role !== 'OWNER' && <span className={`ws-chip ws-chip--${dossier.tone}`}>{dossier.label}</span>}
+                    {member.role !== 'OWNER' && (
+                      <span className={`ws-chip ws-chip--${dossier.tone}`}>{dossier.label}</span>
+                    )}
                   </span>
                 </td>
                 {canManage && (
@@ -216,22 +310,65 @@ function TeamTable({ team, canManage, viewerRole }: Readonly<{ team: TeamMember[
                       <Form method="post">
                         <input type="hidden" name="intent" value="approve" />
                         <input type="hidden" name="usuarioId" value={member.usuarioId} />
-                        <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>Aprobar legajo</button>
+                        <button
+                          className="ws-button ws-button--outline ws-button--auto"
+                          type="submit"
+                          disabled={busy}
+                        >
+                          Aprobar legajo
+                        </button>
                       </Form>
                     )}
                     {canChangeStatus(member, viewerRole) && (
                       <Form
                         method="post"
                         onSubmit={(event) => {
-                          if (member.status === 'ACTIVE' && !window.confirm(`¿Suspender a ${member.nombre}? No va a poder ingresar hasta que lo reactives.`)) {
+                          if (
+                            member.status === 'ACTIVE' &&
+                            !window.confirm(
+                              `¿Suspender a ${member.nombre}? No va a poder ingresar hasta que lo reactives.`,
+                            )
+                          ) {
                             event.preventDefault();
                           }
                         }}
                       >
-                        <input type="hidden" name="intent" value={member.status === 'ACTIVE' ? 'suspend' : 'reactivate'} />
+                        <input
+                          type="hidden"
+                          name="intent"
+                          value={member.status === 'ACTIVE' ? 'suspend' : 'reactivate'}
+                        />
                         <input type="hidden" name="membershipId" value={member.membershipId} />
-                        <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>
+                        <button
+                          className="ws-button ws-button--outline ws-button--auto"
+                          type="submit"
+                          disabled={busy}
+                        >
                           {member.status === 'ACTIVE' ? 'Suspender' : 'Reactivar'}
+                        </button>
+                      </Form>
+                    )}
+                    {viewerRole === 'OWNER' && member.role !== 'OWNER' && !member.isViewer && (
+                      <Form
+                        method="post"
+                        onSubmit={(event) => {
+                          if (
+                            !window.confirm(
+                              `¿Resetear la verificación en dos pasos de ${member.nombre}? Va a tener que configurarla otra vez al ingresar.`,
+                            )
+                          ) {
+                            event.preventDefault();
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="intent" value="mfa-reset" />
+                        <input type="hidden" name="membershipId" value={member.membershipId} />
+                        <button
+                          className="ws-button ws-button--outline ws-button--auto"
+                          type="submit"
+                          disabled={busy}
+                        >
+                          Resetear verificación
                         </button>
                       </Form>
                     )}
@@ -249,7 +386,9 @@ function TeamTable({ team, canManage, viewerRole }: Readonly<{ team: TeamMember[
 function InvitationsCard({ invitations }: Readonly<{ invitations: Invitation[] }>) {
   return (
     <section className="ws-card" aria-labelledby="invitations-title">
-      <h2 id="invitations-title" className="ws-card__title">Invitaciones</h2>
+      <h2 id="invitations-title" className="ws-card__title">
+        Invitaciones
+      </h2>
       <ul className="ws-payments">
         {invitations.map((invitation) => {
           const state = invitationState(invitation);
@@ -258,7 +397,8 @@ function InvitationsCard({ invitations }: Readonly<{ invitations: Invitation[] }
               <span>
                 <b>{invitation.email}</b>
                 <small>
-                  {ROLE_LABELS[invitation.rol] ?? invitation.rol} · enviada {formatDateTime(invitation.createdAt)}
+                  {ROLE_LABELS[invitation.rol] ?? invitation.rol} · enviada{' '}
+                  {formatDateTime(invitation.createdAt)}
                 </small>
               </span>
               <span className={`ws-chip ws-chip--${state.tone}`}>{state.label}</span>
