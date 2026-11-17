@@ -4,7 +4,10 @@ import { loader as layoutLoader } from '../app/routes/_platform';
 import { loader as businessesLoader } from '../app/routes/_platform.$lang.platform-admin.negocios';
 import { loader as businessLoader } from '../app/routes/_platform.$lang.platform-admin.negocios_.$id';
 import { activityLabel, newBusinessFrom, slugFrom } from '../app/utils/platform';
-import { action as newBusinessAction } from '../app/routes/_platform.$lang.platform-admin.negocios_.nuevo';
+import {
+  action as newBusinessAction,
+  loader as newBusinessLoader,
+} from '../app/routes/_platform.$lang.platform-admin.negocios_.nuevo';
 
 /** OR-B4-038 — Wapsell platform administration, first stage (read-only). */
 describe('platform helpers', () => {
@@ -132,6 +135,40 @@ describe('creating a Business from the platform (OR-B4-039)', () => {
       ownerEmail: 'a@b.co',
     });
     await expect(response.json()).resolves.toMatchObject({ ok: true, created: { id: 'e-1' } });
+    vi.unstubAllGlobals();
+  });
+
+  it('knows when creating Businesses is closed, and shows why (OR-B4-042)', async () => {
+    const api = stubApi('OWNER');
+    const motivo = 'Crear negocios está en pausa hasta activar la verificación en dos pasos (MFA).';
+    api.mockResolvedValueOnce(ok({ permitido: false, motivo }));
+    const loaded = (await newBusinessLoader({
+      request: new Request('http://app.test/es/platform-admin/negocios/nuevo', {
+        headers: { Cookie: await sessionCookie() },
+      }),
+      params: { lang: 'es' },
+      context: {},
+    })) as Response;
+    expect(api.mock.calls[0][0]).toBe('http://api.test/platform-admin/businesses/creation-status');
+    await expect(loaded.json()).resolves.toEqual({ status: { permitido: false, motivo } });
+
+    api.mockResolvedValueOnce(new Response(JSON.stringify({ message: motivo }), { status: 423 }));
+    const refused = (await newBusinessAction({
+      request: new Request('http://app.test/es/platform-admin/negocios/nuevo', {
+        method: 'POST',
+        body: formBody([
+          ['nombre', 'Xy Negocio'],
+          ['slug', 'x-y'],
+          ['ownerNombre', 'A A'],
+          ['ownerEmail', 'a@b.co'],
+        ]),
+        headers: { Cookie: await sessionCookie() },
+      }),
+      params: { lang: 'es' },
+      context: {},
+    })) as Response;
+    expect(refused.status).toBe(423);
+    await expect(refused.json()).resolves.toEqual({ ok: false, message: motivo });
     vi.unstubAllGlobals();
   });
 });

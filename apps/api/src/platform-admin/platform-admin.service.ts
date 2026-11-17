@@ -8,6 +8,7 @@ import { MembershipStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { SLUG_PATTERN, createBusinessWithOwner } from './create-business';
+import { assertBusinessCreationAllowed } from './business-creation-gate';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
@@ -48,6 +49,8 @@ export class PlatformAdminService {
     input: { nombre: string; slug: string; ownerNombre: string; ownerEmail: string },
     viewerUsuarioId: string,
   ) {
+    // OR-B4-042: closed until MFA exists (OR-B4-009).
+    assertBusinessCreationAllowed();
     const nombre = input.nombre.trim();
     const slug = input.slug.trim().toLowerCase();
     const ownerNombre = input.ownerNombre.trim();
