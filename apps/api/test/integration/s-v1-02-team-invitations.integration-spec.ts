@@ -86,6 +86,8 @@ describe('S-V1-02 — team invitations end to end', () => {
     await prisma.legajo.deleteMany({ where: { usuarioId: { in: ids } } });
     await prisma.usuarioPermiso.deleteMany({ where: { usuarioId: { in: ids } } });
     await prisma.usuario.deleteMany({ where: { empresaId: company.id } });
+    // OR-B4-041: these operations now leave audit entries.
+    await prisma.auditLog.deleteMany({ where: { empresaId: company.id } });
     await prisma.empresa.deleteMany({ where: { id: company.id } });
     await prisma.$disconnect();
   });

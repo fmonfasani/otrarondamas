@@ -283,6 +283,8 @@ describe('S-V1-04 — Catálogo (HTTP, stack real)', () => {
     await prisma.user.deleteMany({ where: { email: { contains: `${suffix}` } } });
     await deleteUsuarioPermissionsForCompanies(prisma, companies);
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    // OR-B4-041: these operations now leave audit entries.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();

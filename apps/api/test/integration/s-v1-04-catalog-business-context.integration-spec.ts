@@ -264,6 +264,8 @@ describe('S-V1-04 — BusinessContext en Catálogo (integración, BD real)', () 
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { email: { contains: `${suffix}` } } });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    // OR-B4-041: these operations now leave audit entries.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
   });

@@ -62,6 +62,8 @@ describe('Invitation activation (real PostgreSQL)', () => {
 
   afterAll(async () => {
     if (prisma && empresaId) {
+      // OR-B4-041: these operations now leave audit entries.
+      await prisma.auditLog.deleteMany({ where: { empresaId } });
       await prisma.invitacion.deleteMany({ where: { empresaId } });
       await prisma.cliente.deleteMany({ where: { empresaId } });
       // Activation also creates the canonical User + Membership + UserEmpresa (S-V1-02).

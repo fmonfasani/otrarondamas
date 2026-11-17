@@ -100,7 +100,10 @@ const ALL: readonly Permission[] = PERMISSIONS;
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   OWNER: ALL,
   // OR-B4-033: where the Business's money goes (PAYMENTS_CONFIGURE) is the Owner's alone.
-  ADMIN: ALL.filter((p) => p !== 'BRAND_MANAGE' && p !== 'PAYMENTS_CONFIGURE'),
+  // OR-B4-041: so is the whole Business's audit trail (the Admin sees their own entries).
+  ADMIN: ALL.filter(
+    (p) => p !== 'BRAND_MANAGE' && p !== 'PAYMENTS_CONFIGURE' && p !== 'AUDIT_VIEW_ALL',
+  ),
   VENDEDOR: [
     'CUSTOMERS_VIEW',
     'CUSTOMERS_MANAGE',

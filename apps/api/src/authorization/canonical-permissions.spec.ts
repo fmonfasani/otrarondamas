@@ -37,11 +37,15 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
       expect(sorted(permissionsForRole('OWNER'))).toEqual(sorted(PERMISSIONS));
     });
 
-    it('gives the Admin everything except the Brand and the payment account (Owner-only)', () => {
+    it('gives the Admin everything except the Brand, the payment account and the whole audit trail (Owner-only)', () => {
       expect(roleHasPermission('ADMIN', 'BRAND_MANAGE')).toBe(false);
       expect(roleHasPermission('ADMIN', 'PAYMENTS_CONFIGURE')).toBe(false);
+      // OR-B4-041: the Admin sees only their own audit entries.
+      expect(roleHasPermission('ADMIN', 'AUDIT_VIEW_ALL')).toBe(false);
+      expect(roleHasPermission('ADMIN', 'AUDIT_VIEW_OWN')).toBe(true);
+      const ownerOnly = ['BRAND_MANAGE', 'PAYMENTS_CONFIGURE', 'AUDIT_VIEW_ALL'];
       expect(sorted(permissionsForRole('ADMIN'))).toEqual(
-        sorted(PERMISSIONS.filter((p) => p !== 'BRAND_MANAGE' && p !== 'PAYMENTS_CONFIGURE')),
+        sorted(PERMISSIONS.filter((p) => !ownerOnly.includes(p))),
       );
     });
 

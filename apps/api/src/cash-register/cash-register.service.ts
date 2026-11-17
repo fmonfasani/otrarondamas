@@ -10,6 +10,7 @@ import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
 import { RegisterMovementDto } from './dto/register-movement.dto';
 import { RegisterCashCountDto } from './dto/register-cash-count.dto';
 import { AuthorizeCashCountDto } from './dto/authorize-cash-count.dto';
+import { recordAudit } from '../auditoria/audit-catalog';
 
 // D-05 of the SDD: '$5,000 is an initial reference. The exact condition
 // (greater than / greater or equal than) and the treatment of differences
@@ -71,6 +72,12 @@ export class CashRegisterService {
         data: { cajaId: cashRegister.id, usuarioId: userId, montoInicial: dto.montoInicial },
       });
       await tx.caja.update({ where: { id: cashRegister.id }, data: { estado: 'ABIERTA' } });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'CAJA_ABIERTA',
+        entidad: 'AperturaCaja',
+        entidadId: opening.id,
+        despues: { montoInicial: Number(opening.montoInicial) },
+      });
       return opening;
     });
   }
@@ -85,15 +92,25 @@ export class CashRegisterService {
     }
 
     const db = this.prismaFactory.forCompany(companyId);
-    return db.movimientoCaja.create({
-      data: {
-        cajaId: cashRegister.id,
-        aperturaCajaId: opening.id,
-        usuarioId: userId,
-        tipo: dto.tipo,
-        monto: dto.monto,
-        descripcion: dto.descripcion,
-      },
+    return db.$transaction(async (tx) => {
+      const movement = await tx.movimientoCaja.create({
+        data: {
+          cajaId: cashRegister.id,
+          aperturaCajaId: opening.id,
+          usuarioId: userId,
+          tipo: dto.tipo,
+          monto: dto.monto,
+          descripcion: dto.descripcion,
+        },
+      });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'CAJA_MOVIMIENTO',
+        entidad: 'MovimientoCaja',
+        entidadId: movement.id,
+        despues: { tipo: movement.tipo, monto: Number(movement.monto) },
+        motivo: movement.descripcion ?? null,
+      });
+      return movement;
     });
   }
 
@@ -191,6 +208,18 @@ export class CashRegisterService {
         },
       });
       await tx.caja.update({ where: { id: cashRegister.id }, data: { estado: 'EN_ARQUEO' } });
+      await recordAudit(tx, companyId, outgoingUserId, {
+        accion: 'CAJA_ARQUEO',
+        entidad: 'ArqueoCaja',
+        entidadId: cashCount.id,
+        despues: {
+          persona: incomingUser.nombre,
+          efectivoEsperado: expectedCash,
+          efectivoContado: dto.efectivoContado,
+          diferencia: difference,
+          requiereAutorizacion: requiresAuthorization,
+        },
+      });
       return { arqueo: cashCount, requiereAutorizacion: requiresAuthorization };
     });
   }
@@ -234,9 +263,24 @@ export class CashRegisterService {
       requesterId,
     );
 
-    return db.arqueoCaja.update({
-      where: { id: cashCountId },
-      data: { autorizacionId: authorization.id },
+    return db.$transaction(async (tx) => {
+      const updated = await tx.arqueoCaja.update({
+        where: { id: cashCountId },
+        data: { autorizacionId: authorization.id },
+      });
+      await tx.auditLog.create({
+        data: {
+          empresaId: companyId,
+          usuarioId: requesterId,
+          accion: 'CAJA_ARQUEO_AUTORIZADO',
+          entidadAfectada: 'ArqueoCaja',
+          entidadId: cashCountId,
+          valoresPosteriores: { diferencia: Number(cashCount.diferencia) },
+          motivo: dto.motivo ?? null,
+          autorizacionId: authorization.id,
+        },
+      });
+      return updated;
     });
   }
 
@@ -280,6 +324,16 @@ export class CashRegisterService {
         data: { fechaCierre: new Date() },
       });
       await tx.caja.update({ where: { id: cashRegister.id }, data: { estado: 'CERRADA' } });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'CAJA_CERRADA',
+        entidad: 'CierreCaja',
+        entidadId: closing.id,
+        despues: {
+          montoInicial: Number(opening.montoInicial),
+          montoFinal: Number(closing.montoFinal),
+          diferencia: Number(lastCashCount.diferencia),
+        },
+      });
       return closing;
     });
   }

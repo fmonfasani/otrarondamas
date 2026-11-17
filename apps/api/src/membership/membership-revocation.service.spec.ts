@@ -4,6 +4,8 @@ import { MembershipRevocationService } from './membership-revocation.service';
 describe('MembershipRevocationService', () => {
   const prisma = {
     membership: { findFirst: jest.fn(), updateMany: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue({ nombre: 'Persona', email: 'p@x.test' }) },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const businessContext = { resolveForAuthenticatedUser: jest.fn() };
   let service: MembershipRevocationService;
@@ -54,6 +56,15 @@ describe('MembershipRevocationService', () => {
         occurredAt: expect.any(String),
       }),
     );
+    // OR-B4-041: who suspended whom goes to the audit trail.
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        empresaId: 'business-a',
+        usuarioId: 'legacy-owner',
+        accion: 'EQUIPO_SUSPENDIDO',
+        entidadId: 'membership-target',
+      }),
+    });
   });
 
   it('reactivates a SUSPENDED Membership', async () => {

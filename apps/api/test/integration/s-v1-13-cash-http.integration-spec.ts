@@ -353,6 +353,8 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     await prisma.membership.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.usuario.deleteMany({ where: { empresaId: { in: companies } } });
+    // OR-B4-041: these operations now leave audit entries.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();

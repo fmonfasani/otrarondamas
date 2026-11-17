@@ -9,6 +9,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
+import { recordAudit } from '../auditoria/audit-catalog';
 
 export type MembershipStatusChangedEvent = {
   membershipId: string;
@@ -139,6 +140,24 @@ export class MembershipRevocationService {
     }
 
     const updated = { ...target, status: newStatus };
+
+    // OR-B4-041: who suspended or reactivated whom.
+    const person = await this.prisma.user.findUnique({
+      where: { id: target.userId },
+      select: { nombre: true, email: true },
+    });
+    await recordAudit(this.prisma, context.businessId, auth.id, {
+      accion: newStatus === 'SUSPENDED' ? 'EQUIPO_SUSPENDIDO' : 'EQUIPO_REACTIVADO',
+      entidad: 'Membership',
+      entidadId: target.id,
+      antes: { nombre: person?.nombre, estado: expectedStatus },
+      despues: {
+        nombre: person?.nombre,
+        email: person?.email,
+        rol: target.role,
+        estado: newStatus,
+      },
+    });
 
     const event: MembershipStatusChangedEvent = {
       membershipId: updated.id,

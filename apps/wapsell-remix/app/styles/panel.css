@@ -742,3 +742,22 @@
 .ws-tool__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .ws-tool__list button { width: 100%; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); text-align: left; font: inherit; cursor: pointer; }
 .ws-tool__list button span { font-size: 13px; opacity: 0.8; }
+
+/* Auditoría (OR-B4-041) */
+.ws-audit-filters { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.ws-audit-filters .ws-field { flex: 1 1 160px; min-width: 0; }
+.ws-audit-filters__actions { display: flex; gap: 12px; align-items: center; padding-bottom: 2px; }
+.ws-audit-count { margin: 0 0 8px; }
+.ws-audit-pager { display: flex; gap: 16px; align-items: center; justify-content: center; }
+.ws-audit-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 14px; }
+.ws-audit-facts dt { font-weight: 600; color: var(--text-secondary, #615c55); }
+.ws-audit-facts dd { margin: 0; overflow-wrap: anywhere; }
+.ws-table--audit-changes td { overflow-wrap: anywhere; }
+.ws-table--audit .ws-link { display: inline; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .ws-table--audit th:nth-child(4), .ws-table--audit td:nth-child(4) { display: none; }
+  .ws-table--audit { table-layout: fixed; }
+  .ws-table--audit th:nth-child(1) { width: 30%; }
+  .ws-table--audit th:nth-child(2) { width: 26%; }
+  .ws-table--audit td { overflow-wrap: anywhere; }
+}

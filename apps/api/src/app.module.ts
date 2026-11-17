@@ -28,6 +28,7 @@ import { BusinessContextModule } from './business-context/business-context.modul
 import { MessagingModule } from './messaging/messaging.module';
 import { DevolucionesModule } from './devoluciones/devoluciones.module';
 import { ReportsModule } from './reports/reports.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
 import { NegocioModule } from './negocio/negocio.module';
 import { AuditModule } from './audit/audit.module';
 import { EmailModule } from './email/email.module';
@@ -77,6 +78,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     // P3-2: Devoluciones (Returns) API
     DevolucionesModule,
     ReportsModule,
+    AuditoriaModule,
     NegocioModule,
     // P3-3: Refund Queue & Async Execution
     // RefundQueueModule, // DEFERRED: schema mismatch - post-MVP

@@ -97,7 +97,7 @@ Naming: `DOMAIN_ACTION`, upper snake case, English, matching the identifiers alr
 | brand | `BRAND_MANAGE` ★ | Configure the Business Brand |
 | reports | `REPORTS_VIEW` | Dashboards and metrics |
 | reports | `AUDIT_VIEW_OWN` | See own audit trail |
-| reports | `AUDIT_VIEW_ALL` ★ | See the whole Business audit trail |
+| reports | `AUDIT_VIEW_ALL` ★ | See the whole Business audit trail and download it. Owner only — OR-B4-041 |
 
 Messaging participation rules (Owner read-only, participants write) stay as defined by the Messaging spec; the
 permissions above only gate access to the domain.
@@ -165,7 +165,7 @@ Vendedor runs the counter and conversations; Gestor de Stock runs the warehouse.
 | `BRAND_MANAGE` | ● | — | — | — |
 | `REPORTS_VIEW` | ● | ● | — | — |
 | `AUDIT_VIEW_OWN` | ● | ● | ● | ● |
-| `AUDIT_VIEW_ALL` | ● | ● | — | — |
+| `AUDIT_VIEW_ALL` | ● | — | — | — |
 
 ¹ An Admin cannot change, suspend or deactivate an Owner Membership, nor grant `OWNER` (Owner ≠ Admin, `OR-B2-009`).
 ² Fulfillment states only (preparation, ready, stock exit); not commercial confirmation or cancellation.
@@ -282,6 +282,8 @@ provider's signature) and `PLATFORM_*` (§3, enforced by the platform guard).
 | `PATCH /auth/me`, `POST /auth/password/change` (own name and password; current password required) | `AUTHENTICATED` | the session's Usuario only |
 | `GET /negocio` · `PATCH /negocio` (name and store contact details) | team member · `BRAND_MANAGE` | Admin, Vendedor and Gestor read only |
 | `GET /reportes/resumen` (`OR-B4-036`) | `REPORTS_VIEW` | Vendedor and Gestor denied |
+| `GET /auditoria`, `GET /auditoria/:id` (`OR-B4-041`) | `AUDIT_VIEW_OWN` | the Owner (`AUDIT_VIEW_ALL`) sees the whole Business; everyone else, the Admin included, only their own entries |
+| `GET /auditoria/exportar` (CSV, recorded as `AUDITORIA_EXPORTADA`, `OR-B4-041`) | `AUDIT_VIEW_ALL` | Owner only |
 | `GET /legajo/cliente/pendientes`, `PATCH /legajo/cliente/:id/aprobar` (service: Owner only) | `CUSTOMERS_MANAGE` | — |
 | `/legajo/cliente/mi-legajo*`, `GET /auth/cliente/me` | `CUSTOMER_POLICY` | — |
 | `/emails/templates*`, `/emails/logs`, `POST /emails/send-test` | `MESSAGING_MANAGE` | Vendedor and Gestor denied |
@@ -327,4 +329,5 @@ divergences and an activation with immediate rollback — which the Owner approv
 | 0.1 | 2026-11-10 | First draft: AS-IS inventory and defects, canonical catalogue, platform scope, proposed matrix, legacy mapping, stages. |
 | 0.2 | 2026-11-10 | APPROVED (OR-B4-024): the Owner accepted the four matrix decisions as proposed. |
 | **0.3** | **2026-11-10** | **OR-B4-025:** `RETURNS_VIEW` and `PURCHASES_VIEW` added (38 permissions); product creation needs `PRICING_CHANGE`; pending-payment cancel is `PAYMENTS_REGISTER`; cash `Ingreso`/`Egreso` and `arqueo` accepted as declared; cut-over authorised subject to a prior plan. Stage status in §5.4. |
+| **0.5** | **2026-11-16** | **OR-B4-041:** `AUDIT_VIEW_ALL` is the Owner's alone (the Admin keeps `AUDIT_VIEW_OWN`); business audit endpoints added. |
 | **0.4** | **2026-11-13** | **OR-B4-035 rule 11:** `RETURNS_RECEIVE` added (40 permissions with `PAYMENTS_CONFIGURE` of OR-B4-033): Owner, Admin and Gestor de Stock receive and inspect returns; legacy `orders.process_returns` maps to it. |
