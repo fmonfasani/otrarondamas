@@ -83,6 +83,10 @@ INTERNAL_API_URL="http://${API_CONTAINER}:3000" # NOSONAR (S5332) private Docker
   printf 'NODE_ENV=production\nPORT=3000\n'
   printf 'API_BASE_URL=%s\nVITE_API_URL=%s\n' "$INTERNAL_API_URL" "$INTERNAL_API_URL"
   printf 'SESSION_SECRET=%s\n' "$(cat "$SECRET_FILE")"
+  # «Ingresar con Google» shows only when the API has a real Google OAuth client (not a placeholder).
+  if docker exec "$API_CONTAINER" printenv GOOGLE_CLIENT_ID 2>/dev/null | grep -q '\.apps\.googleusercontent\.com$'; then
+    printf 'GOOGLE_LOGIN_ENABLED=1\n'
+  fi
 } > "$ENV_FILE"
 
 log "4/5 isolated boot test"
