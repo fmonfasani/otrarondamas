@@ -21,6 +21,17 @@ const isStatic = (url) =>
   url.origin === self.location.origin &&
   (url.pathname.startsWith('/build/') || url.pathname.startsWith('/icons/') || url.pathname.startsWith('/brand/'));
 
+async function cacheFirst(request) {
+  const hit = await caches.match(request);
+  if (hit) return hit;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(VERSION);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -32,20 +43,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Hashed build files and icons: cache first (they never change under the same name).
-  if (isStatic(url)) {
-    event.respondWith(
-      caches.match(request).then(
-        (hit) =>
-          hit ||
-          fetch(request).then((response) => {
-            if (response.ok) {
-              const copy = response.clone();
-              caches.open(VERSION).then((cache) => cache.put(request, copy));
-            }
-            return response;
-          }),
-      ),
-    );
-  }
+  if (isStatic(url)) event.respondWith(cacheFirst(request));
   // Everything else (data, API, session): straight to the network, untouched.
 });
