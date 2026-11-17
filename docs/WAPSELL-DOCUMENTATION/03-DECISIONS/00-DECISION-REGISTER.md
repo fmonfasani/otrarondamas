@@ -1139,3 +1139,26 @@ only; aggregates, never the Businesses' customers' data):
 
 Thresholds (14 days, 7 days, 2 days) are product defaults, adjustable without a new decision. Still open: suspend/
 reactivate, support access, plans, MFA, and acting on alerts from the platform (e.g. resending the Owner's link).
+
+### OR-B4-041 — Business audit trail — 2026-11-16
+
+**Status:** APPROVED — OWNER RULING. Owner answers (verbatim): first stage "Pantalla + precios, caja y equipo (Recomendado)";
+who sees the whole Business "Solo el Owner"; retention "5 años (Recomendado)"; download "CSV desde el principio (Recomendado)".
+
+**Decision:**
+
+- **Who sees:** the Owner sees the whole Business's trail (`AUDIT_VIEW_ALL` leaves the Admin's matrix). The Admin, Vendedor
+  and Gestor de stock see only their own entries (`AUDIT_VIEW_OWN`). Authorization spec v0.5.
+- **Screen** (`GET /auditoria`, `/auditoria/:id`): newest first, filters by dates (Argentina), person (Owner only) and topic
+  (sales, orders, returns, products and prices, cash, team, business settings, sign-ins, Wapsell); detail with what changed
+  field by field. Secrets (passwords, hashes, tokens, keys) are never shown, to anyone.
+- **What is recorded from now on**, in the same transaction as the change: product created, price changed, edited,
+  (de)activated; cash opened, manual movement, count (expected, counted, difference), difference authorized, closed; team
+  invitation, joined, suspended, reactivated, dossier approved. One catalog of action names; older entries keep their names
+  and are read through the same catalog.
+- **Download:** CSV of the filtered trail (max 5,000 rows, Excel in Spanish), Owner only; each download is itself recorded
+  (`AUDITORIA_EXPORTADA`).
+- **Immutable and kept 5 years:** the app never edits or deletes entries; the dormant cleanup routine now keeps 5 years and is
+  still not scheduled.
+
+Still open: recording stock adjustments, discounts, Mercado Pago connect/disconnect and failed sign-ins; alerts on the trail.

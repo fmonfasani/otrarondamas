@@ -21,6 +21,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CatalogStructureService } from './catalog-structure.service';
+import { productAuditEntry, recordAudit } from '../auditoria/product-audit';
 import {
   CanonicalPermission,
   PRODUCT_UPDATE,
@@ -172,7 +173,24 @@ export class CatalogController {
     for (let attempt = 0; ; attempt++) {
       if (generate) data.codigoInterno = await this.structure.nextProductCode(db, dto.familiaId);
       try {
-        return await db.producto.create({ data });
+        // OR-B4-041: the new product and its prices go to the audit trail with it.
+        return await db.$transaction(async (tx) => {
+          const product = await tx.producto.create({ data });
+          await recordAudit(tx, companyId, user.id, {
+            accion: 'PRODUCTO_CREADO',
+            entidad: 'Producto',
+            entidadId: product.id,
+            despues: {
+              nombre: product.nombre,
+              codigoInterno: product.codigoInterno,
+              costo: product.costo,
+              precioMinorista: product.precioMinorista,
+              precioMayorista: product.precioMayorista,
+              descuentoPorcentaje: product.descuentoPorcentaje,
+            },
+          });
+          return product;
+        });
       } catch (error) {
         const duplicate =
           error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
@@ -192,7 +210,8 @@ export class CatalogController {
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const db = this.prismaFactory.forCompany(await this.resolveCompanyIdFromContext(user));
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    const db = this.prismaFactory.forCompany(companyId);
     const existing = await db.producto.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Producto no encontrado');
@@ -210,7 +229,13 @@ export class CatalogController {
       });
     }
     const data: Prisma.ProductoUncheckedUpdateInput = { ...dto };
-    return db.producto.update({ where: { id }, data });
+    // OR-B4-041: price changes, (de)activations and edits, with before and after.
+    return db.$transaction(async (tx) => {
+      const updated = await tx.producto.update({ where: { id }, data });
+      const entry = productAuditEntry(existing, updated);
+      if (entry) await recordAudit(tx, companyId, user.id, entry);
+      return updated;
+    });
   }
 
   /**

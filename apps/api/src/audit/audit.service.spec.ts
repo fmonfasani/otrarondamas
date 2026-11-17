@@ -309,13 +309,17 @@ describe('AuditService', () => {
   });
 
   describe('cleanupOldLogs', () => {
-    it('should delete logs older than 1 year', async () => {
+    it('should delete only logs older than 5 years (OR-B4-041)', async () => {
       jest.spyOn(prisma.auditLog, 'deleteMany').mockResolvedValue({ count: 100 });
       jest.spyOn(console, 'log').mockImplementation();
 
       await service.cleanupOldLogs();
 
-      expect(prisma.auditLog.deleteMany).toHaveBeenCalled();
+      const cutoff = (prisma.auditLog.deleteMany as jest.Mock).mock.calls[0][0].where.fechaHora
+        .lt as Date;
+      const years = (Date.now() - cutoff.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      expect(years).toBeGreaterThan(4.99);
+      expect(years).toBeLessThan(5.01);
       expect(console.log).toHaveBeenCalled();
     });
 

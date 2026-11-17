@@ -147,7 +147,8 @@ export class AuditService {
 
   async cleanupOldLogs(): Promise<void> {
     const retentionDate = new Date();
-    retentionDate.setFullYear(retentionDate.getFullYear() - 1);
+    // OR-B4-041: entries are kept 5 years. Nothing schedules this yet.
+    retentionDate.setFullYear(retentionDate.getFullYear() - 5);
 
     const result = await this.prisma.auditLog.deleteMany({
       where: {

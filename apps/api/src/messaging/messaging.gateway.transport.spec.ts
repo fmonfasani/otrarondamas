@@ -117,7 +117,12 @@ describe('MessagingGateway — M4-03 transport ACK contract (real Socket.IO)', (
 
   // Real revocation service with stubbed persistence/context: the event bus
   // under test is real, only its inputs are doubled.
-  const revocationPrisma = { membership: { findFirst: jest.fn(), updateMany: jest.fn() } };
+  // OR-B4-041: a suspension is also written to the audit trail.
+  const revocationPrisma = {
+    membership: { findFirst: jest.fn(), updateMany: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue({ nombre: 'Persona', email: 'p@x.test' }) },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
+  };
   const revocationContext = { resolveForAuthenticatedUser: jest.fn() };
   const membershipRevocation = new MembershipRevocationService(
     revocationPrisma as unknown as PrismaService,

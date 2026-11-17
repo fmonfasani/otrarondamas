@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { MembershipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { recordAudit } from '../auditoria/audit-catalog';
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
 import { AuthCustomerService } from '../auth/auth.customer.service';
@@ -67,6 +68,13 @@ export class InvitationsService {
         invitadoPorId: invitedById,
         expiraEn: expiresIn,
       },
+    });
+    // OR-B4-041. The token never goes to the audit trail.
+    await recordAudit(this.prisma, companyId, invitedById, {
+      accion: 'EQUIPO_INVITACION',
+      entidad: 'Invitacion',
+      entidadId: invitation.id,
+      despues: { email: invitation.email, rol: invitation.rol },
     });
 
     // The panel's activation page. Same base URL as the password-reset link: FRONTEND_URL
@@ -172,6 +180,12 @@ export class InvitationsService {
         },
       });
       await tx.invitacion.update({ where: { id: invitation.id }, data: { usadaEn: new Date() } });
+      await recordAudit(tx, invitation.empresaId, usuario.id, {
+        accion: 'EQUIPO_ALTA',
+        entidad: 'Usuario',
+        entidadId: usuario.id,
+        despues: { nombre: usuario.nombre, email: usuario.email, rol: role },
+      });
       return usuario;
     });
 

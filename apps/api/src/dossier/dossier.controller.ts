@@ -24,6 +24,7 @@ import { BusinessContextGuard } from '../business-context/business-context.guard
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { recordAudit } from '../auditoria/audit-catalog';
 import {
   CanonicalPermission,
   AUTHENTICATED,
@@ -123,6 +124,7 @@ export class DossierController {
   async approve(
     @Param('usuarioId') userId: string,
     @ExtractBusinessContext() businessId: string,
+    @CurrentUser() approver?: AuthenticatedUser,
   ) {
     const userRecord = await this.prisma.usuario.findFirst({
       where: { id: userId, empresaId: businessId },
@@ -146,6 +148,14 @@ export class DossierController {
     if (updated.count !== 1) {
       throw new NotFoundException('Usuario no encontrado');
     }
+    // OR-B4-041.
+    await recordAudit(this.prisma, businessId, approver?.id ?? null, {
+      accion: 'LEGAJO_APROBADO',
+      entidad: 'Usuario',
+      entidadId: userId,
+      antes: { nombre: userRecord.nombre, estadoLegajo: userRecord.estadoLegajo },
+      despues: { nombre: userRecord.nombre, estadoLegajo: 'APROBADO' },
+    });
     return { aprobado: true, faltantes: [] };
   }
 

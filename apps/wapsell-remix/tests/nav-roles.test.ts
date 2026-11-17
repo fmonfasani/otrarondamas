@@ -6,7 +6,7 @@ const labels = (role?: string) => navItems('es', role).map((item) => item.label)
 describe('panel menu by role (mirrors the API role matrix)', () => {
   it('shows the Owner every section', () => {
     expect(labels('OWNER')).toEqual([
-      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Reportes', 'Equipo', 'Cobros', 'Ajustes',
+      'Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Compras', 'Reportes', 'Equipo', 'Auditoría', 'Cobros', 'Ajustes',
     ]);
   });
 
@@ -17,15 +17,16 @@ describe('panel menu by role (mirrors the API role matrix)', () => {
   });
 
   it('shows the Vendedor selling sections, not purchases, team or payments', () => {
-    expect(labels('VENDEDOR')).toEqual(['Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario']);
+    expect(labels('VENDEDOR')).toEqual(['Inicio', 'Mensajes', 'Pedidos', 'Ventas', 'Devoluciones', 'Clientes', 'Caja', 'Catálogo', 'Inventario', 'Auditoría']);
     expect(labels('ASISTENTE_LOCAL')).toEqual(labels('VENDEDOR'));
   });
 
   it('shows the Gestor de stock stock sections, not selling, customers or cash', () => {
-    expect(labels('GESTOR_DE_STOCK')).toEqual(['Inicio', 'Mensajes', 'Pedidos', 'Devoluciones', 'Catálogo', 'Inventario', 'Compras']);
+    expect(labels('GESTOR_DE_STOCK')).toEqual(['Inicio', 'Mensajes', 'Pedidos', 'Devoluciones', 'Catálogo', 'Inventario', 'Compras', 'Auditoría']);
   });
 
+  // OR-B4-041: everyone has an audit trail (their own; the Owner sees all of it).
   it('keeps every section when the role is unknown to the caller', () => {
-    expect(labels()).toHaveLength(14);
+    expect(labels()).toHaveLength(15);
   });
 });
