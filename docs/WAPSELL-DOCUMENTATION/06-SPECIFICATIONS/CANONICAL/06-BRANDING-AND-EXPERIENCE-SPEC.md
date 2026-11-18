@@ -243,7 +243,7 @@ No acceptance condition is considered PASS without a recorded test result or rev
 | `03-DECISIONS/02-MULTITENANCY.md` | `Business` is tenant; Brand belongs to Business. | Preserve as the identity/tenancy direction; do not redefine ownership here. |
 | `03-DECISIONS/09-BRANDING.md` | Branding decision record; currently notes `CON-012 OPEN`. | Reconcile its status and link this expanded spec after review. |
 | `04-ASIS/10-ASIS-BRANDING.md` or current renamed equivalent | Evidence of current hardcoded/competing tokens. | Re-run code inspection; do not treat historical AS-IS as current without verification. |
-| `06-SPECIFICATIONS/CANONICAL/00-WAPSELL-SPEC-GENERAL-v0.4.md` and current canonical baseline | Platform-level requirements and boundaries. | Check for contradictions and add a traceability reference; do not duplicate the whole spec. |
+| `15-HISTORY/00-WAPSELL-SPEC-GENERAL-v0.4.md` and current canonical baseline | Platform-level requirements and boundaries. | Check for contradictions and add a traceability reference; do not duplicate the whole spec. |
 | `06-SPECIFICATIONS/CANONICAL/01-IDENTITY-AND-TENANCY-SPEC.md` | Business ownership, Membership and authorization. | Keep Brand mutations behind the canonical authorization model. |
 | `07-DESIGN/ARCHITECTURE/BASELINE/00-R3-ARCHITECTURE-BASELINE-001-490.md` | Modular-monolith direction and Brand boundary. | Derive application/domain/infrastructure responsibilities without adding a new service. |
 | `07-DESIGN/CONTRACTS/DOMAIN/` | Domain API and persistence contracts. | Add/reconcile Brand contracts only after actual schema/routes are inspected. |

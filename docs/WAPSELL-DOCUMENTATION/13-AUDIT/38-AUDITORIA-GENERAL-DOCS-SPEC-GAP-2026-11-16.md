@@ -48,7 +48,7 @@
 | `07-WAPSELL-MVP-CONSOLIDATED-SPEC-BASELINE-v0.1.md` | DRAFT | 2026-10-04 | Comparte prefijo `07-` con otro doc; rol poco claro frente a la SPEC General |
 | `08-ACCOUNTING…`, `09-TAX…` | DRAFT — FOR OWNER REVIEW | 2026-11-13 | Sin decisión; nada implementado |
 | `05-AUTHORIZATION-SPEC.md` | APPROVED | 2026-11-16 | Vigente. **Defecto:** el encabezado dice v0.3; el changelog llega a v0.5 |
-| `05a-AUTHORIZATION-CUTOVER-PLAN.md` | sin estado | 2026-11-11 | Aprobado por OR-B4-026 pero el archivo no lo dice |
+| `05a-AUTHORIZATION-CUTOVER-PLAN.md` | APROBADO (OR-B4-026) | 2026-11-11 | Vigente |
 | `08-TOBE/*` (21 archivos) | mayormente sin estado o OPEN | 2026-10-03 | Ver §3.2 |
 | `00-WAPSELL-RELEVAMIENTO-ROADMAP-STATUS.md` | — | 2026-10-03 | Desactualizado 6 semanas (#171) |
 | `05-REQUIREMENTS/…-001-490.md` | DRAFT / PROCESS ARTIFACT | 2026-10-03 | Correcto como artefacto de proceso |
@@ -174,11 +174,10 @@ Se propone un TO-BE **por dominio**, cada uno con el mismo formato (Propósito �
 ## 8. Defectos documentales concretos (corregibles sin decisión)
 
 1. `05-AUTHORIZATION-SPEC.md`: el encabezado dice `0.3`; el changelog llega a `0.5`.
-2. `05a-AUTHORIZATION-CUTOVER-PLAN.md`: no declara su aprobación (OR-B4-026).
-3. `00-WAPSELL-SPEC-GENERAL-v0.4.md` está en `CANONICAL/`: moverlo a `15-HISTORY/`.
-4. `01-IDENTITY-AND-TENANCY-SPEC.md`: tiene codificación dañada.
-5. Issues #157, #158, #159 y #160: cerrar o reabrir con el alcance restante (ver §5.1).
-6. 52 documentos sin estado: rotularlos (`HISTORICAL`, `PROCESS ARTIFACT`, `AUDIT`, etc.).
+2. `00-WAPSELL-SPEC-GENERAL-v0.4.md` está en `CANONICAL/`: moverlo a `15-HISTORY/`.
+3. `01-IDENTITY-AND-TENANCY-SPEC.md`: tiene codificación dañada.
+4. Issues #157, #158, #159 y #160: cerrar o reabrir con el alcance restante (ver §5.1).
+5. 52 documentos sin estado: rotularlos (`HISTORICAL`, `PROCESS ARTIFACT`, `AUDIT`, etc.).
 
 ---
 
