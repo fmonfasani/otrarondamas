@@ -249,7 +249,8 @@ export class AuthController {
     } catch (error) {
       // OR-B4-045: a verified Google identity without an account may register a Business.
       if (error instanceof GoogleAccountNotFound && this.signup) {
-        back('/es/auth/register', { google: await this.signup.signupTicket(error.profile) });
+        // ADR-IDN-008: «Vendé en Wapsell» (2 steps) continues with the Google identity.
+        back('/vender', { google: await this.signup.signupTicket(error.profile) });
         return;
       }
       // The exact reason is not leaked to the browser (same criterion as password login).

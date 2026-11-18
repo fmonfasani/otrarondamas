@@ -1,8 +1,9 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Public } from './decorators/public.decorator';
 import { SignupService } from './signup.service';
+import { PROVINCIAS, RUBROS } from './signup-catalog';
 
 /* eslint-disable indent */
 export class SignupDto {
@@ -19,6 +20,17 @@ export class SignupDto {
   @IsEmail()
   @MaxLength(200)
   email: string;
+
+  @IsOptional() @IsString() @MaxLength(80) apellido?: string;
+
+  // «Vendé en Wapsell» (ADR-IDN-008): checked in profileFrom (signup.service.ts).
+  @IsOptional() @IsString() @MaxLength(20) cuit?: string;
+  @IsOptional() @IsString() @MaxLength(160) direccion?: string;
+  @IsOptional() @IsString() @MaxLength(80) ciudad?: string;
+  @IsOptional() @IsString() @MaxLength(60) provincia?: string;
+  @IsOptional() @IsString() @MaxLength(10) codigoPostal?: string;
+  @IsOptional() @IsString() @MaxLength(60) rubro?: string;
+  @IsOptional() @IsString() @MaxLength(60) subrubro?: string;
 }
 
 export class GoogleSignupTicketDto {
@@ -32,6 +44,15 @@ export class GoogleSignupDto extends GoogleSignupTicketDto {
   @MinLength(2)
   @MaxLength(120)
   nombreNegocio: string;
+
+  // «Vendé en Wapsell» (ADR-IDN-008): checked in profileFrom (signup.service.ts).
+  @IsOptional() @IsString() @MaxLength(20) cuit?: string;
+  @IsOptional() @IsString() @MaxLength(160) direccion?: string;
+  @IsOptional() @IsString() @MaxLength(80) ciudad?: string;
+  @IsOptional() @IsString() @MaxLength(60) provincia?: string;
+  @IsOptional() @IsString() @MaxLength(10) codigoPostal?: string;
+  @IsOptional() @IsString() @MaxLength(60) rubro?: string;
+  @IsOptional() @IsString() @MaxLength(60) subrubro?: string;
 }
 /* eslint-enable indent */
 
@@ -40,6 +61,7 @@ export class GoogleSignupDto extends GoogleSignupTicketDto {
  *   POST /auth/registro                 with email (welcome email to create the password)
  *   POST /auth/registro/google/datos    who is registering, from the Google sign-up ticket
  *   POST /auth/registro/google          with Google (then MFA enrolment)
+ *   GET  /auth/registro/catalogo        rubros and provinces for the form (ADR-IDN-009)
  */
 @ApiTags('auth')
 @Controller('auth/registro')
@@ -55,6 +77,12 @@ export class SignupController {
   }
 
   @Public()
+  @Get('catalogo')
+  catalog() {
+    return { rubros: RUBROS, provincias: PROVINCIAS };
+  }
+
+  @Public()
   @Post('google/datos')
   @HttpCode(HttpStatus.OK)
   googleDetails(@Body() dto: GoogleSignupTicketDto) {
@@ -65,6 +93,7 @@ export class SignupController {
   @Post('google')
   @HttpCode(HttpStatus.CREATED)
   registerWithGoogle(@Body() dto: GoogleSignupDto) {
-    return this.signup.registerWithGoogle(dto.ticket, dto.nombreNegocio);
+    const { ticket, nombreNegocio, ...profile } = dto;
+    return this.signup.registerWithGoogle(ticket, nombreNegocio, profile);
   }
 }

@@ -187,7 +187,7 @@ function SignIn({ store, google }: Readonly<{ store: { nombre: string; slug: str
           </div>
         </details>
         <nav className="entry-others" aria-label="Otros accesos">
-          <a href="/es/auth/register">¿Tenés un negocio? <strong>Registrá tu tienda →</strong></a>
+          <a href="/vender">¿Querés vender en Wapsell? <strong>Creá tu negocio →</strong></a>
           <a href="/es/auth/login">¿Trabajás en una tienda? <strong>Ingresá al panel →</strong></a>
           <small>Si todavía no tenés acceso, pedile una invitación al dueño de la tienda.</small>
         </nav>

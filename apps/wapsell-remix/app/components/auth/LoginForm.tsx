@@ -14,7 +14,10 @@ interface ActionData {
   email?: string;
 }
 
-/** Figma "Ingresar a Wapsell" form content (145:13234 / 145:13272), wired to POST /auth/login. */
+/**
+ * Entry of Wapsell (ADR-IDN-008, Figma Page 3 · 07): Google first, email second, and
+ * «¿Querés vender en Wapsell?» to /vender. Wired to POST /auth/login.
+ */
 export function LoginForm() {
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
@@ -28,14 +31,30 @@ export function LoginForm() {
   return (
     <>
       <div className="ws-intro">
-        <p className="ws-intro__eyebrow">TU ESPACIO DE TRABAJO</p>
+        <p className="ws-intro__eyebrow">WAPSELL</p>
         <h1 className="ws-intro__title">
-          Qué bueno
+          Ingresá a
           <br />
-          verte de nuevo.
+          Wapsell.
         </h1>
-        <p className="ws-intro__lead">Ingresa para continuar tus conversaciones.</p>
+        <p className="ws-intro__lead">Tu negocio, tu equipo y tus conversaciones, en un solo lugar.</p>
       </div>
+
+      {loaded?.google && (
+        <>
+          <a className="ws-button ws-button--outline" href="/auth/google">
+            Continuar con Google
+          </a>
+          {googleError && (
+            <p className="ws-alert" role="alert">
+              No pudimos ingresar con Google. Probá de nuevo o ingresá con tu email.
+            </p>
+          )}
+          <p className="ws-or" aria-hidden="true">
+            o con tu email
+          </p>
+        </>
+      )}
 
       <Form method="post" className="ws-form" noValidate={false}>
         <label className="ws-field">
@@ -99,25 +118,11 @@ export function LoginForm() {
         </button>
       </Form>
 
-      {loaded?.google && (
-        <>
-          <p className="ws-or" aria-hidden="true">
-            o
-          </p>
-          <a className="ws-button ws-button--outline" href="/auth/google">
-            Ingresar con Google
-          </a>
-        </>
-      )}
-      {googleError && (
-        <p className="ws-alert" role="alert">
-          No pudimos ingresar con Google. Probá de nuevo o ingresá con tu email.
-        </p>
-      )}
-
-      <p className="ws-switch-account">
-        ¿Aún no tienes una cuenta? <Link to={`/${lang}/auth/register`}>Crear cuenta</Link>
-      </p>
+      <Link className="ws-sell-card" to="/vender">
+        <b>¿Querés vender en Wapsell?</b>
+        <span>Creá tu negocio en 2 pasos. Empezá hoy, con o sin CUIT.</span>
+        <em>Vendé en Wapsell →</em>
+      </Link>
     </>
   );
 }
