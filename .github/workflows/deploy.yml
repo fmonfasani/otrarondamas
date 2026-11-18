@@ -23,10 +23,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22.x'
           cache: 'npm'
@@ -55,10 +55,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22.x'
           cache: 'npm'
@@ -72,13 +72,6 @@ jobs:
       - name: Build application
         run: npm run build --workspace=@otrarondamas/api
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-build
-          path: apps/api/dist/
-          retention-days: 1
-
   # Stage 3: Tests (optional, can be skipped)
   test:
     name: Run Tests
@@ -89,10 +82,10 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22.x'
           cache: 'npm'
@@ -107,16 +100,6 @@ jobs:
         run: npm run test --workspace=@otrarondamas/api
         continue-on-error: true
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            apps/api/coverage/
-            apps/api/test-results.json
-          retention-days: 7
-
   # Stage 4: Security Scan (optional)
   security:
     name: Security Scan
@@ -126,10 +109,10 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22.x'
 
@@ -147,13 +130,13 @@ jobs:
     # Required reviewers on this environment make every production deploy a manual approval.
     environment:
       name: production
-      url: https://wapsell.com
+      url: https://app.wapsell.com
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
       SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Secrets reach the shell through env, never expanded into the script.
       - name: Setup SSH
