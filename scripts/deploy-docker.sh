@@ -10,8 +10,9 @@
 #   1. Fresh checkout of the commit in /opt/wapsell-build-<sha>
 #      (/opt/wapsell has local, uncommitted host config and is never modified).
 #   2. Build the runtime image and the builder stage (which has the Prisma CLI).
-#   3. Sync the schema with `prisma db push` WITHOUT --accept-data-loss: Prisma
-#      refuses any destructive change, which then needs a human decision.
+#   3. Apply versioned migrations with `prisma migrate deploy` (ADR-DAT-016).
+#      The first run records the baseline on the db-push-era database, only if
+#      the live schema is identical; pending migrations get a pg_dump first.
 #   4. Boot the new image in an isolated container (no ports) with the live
 #      environment and require /health 200 before touching production.
 #   5. Swap: tag the running image as wapsell-api:previous, retag latest,
@@ -67,9 +68,41 @@ NETWORK="$(docker inspect "$CONTAINER" --format '{{range $k, $v := .NetworkSetti
 docker inspect "$CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' \
   | grep -vE '^(PATH|NODE_VERSION|YARN_VERSION|HOSTNAME)=' > "$ENV_FILE"
 
-log "3/5 schema sync (non-destructive)"
-docker run --rm --network "$NETWORK" --env-file "$ENV_FILE" "wapsell-api-builder:${SHA}" \
-  npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+log "3/5 schema migrations (prisma migrate deploy)"
+prisma_run() { # runs a command in the builder image against the live database
+  docker run --rm --network "$NETWORK" --env-file "$ENV_FILE" "wapsell-api-builder:${SHA}" "$@"
+}
+SCHEMA=apps/api/prisma/schema.prisma
+
+# One-time baseline (ADR-DAT-016): production was created with `db push` and
+# has no _prisma_migrations table. If the table is missing, the live schema
+# must be IDENTICAL to this commit's schema (which CI proves equal to the
+# migrations); only then is the baseline recorded as applied, without running
+# its SQL. Any difference aborts the deploy before anything changes.
+HAS_HISTORY="$(prisma_run node -e '
+  const { PrismaClient } = require("@prisma/client");
+  const p = new PrismaClient();
+  p.$queryRaw`SELECT to_regclass(${"public._prisma_migrations"})::text AS t`
+    .then(r => { process.stdout.write(r[0].t ? "yes" : "no"); return p.$disconnect(); })
+    .catch(e => { console.error(e.message); process.exit(1); });
+')"
+if [[ "$HAS_HISTORY" == "no" ]]; then
+  log "no migration history: verifying the live schema matches before baselining"
+  prisma_run sh -c "npx prisma migrate diff --from-url \"\$DATABASE_URL\" --to-schema-datamodel $SCHEMA --exit-code >/dev/null" \
+    || { log "live schema differs from ${SHA}; refusing to baseline (no changes made)"; exit 1; }
+  prisma_run npx prisma migrate resolve --schema "$SCHEMA" --applied 00000000000000_baseline
+  log "baseline recorded"
+fi
+
+# Back up the database before applying any pending migration.
+if ! prisma_run npx prisma migrate status --schema "$SCHEMA" >/dev/null 2>&1; then
+  BACKUP="/opt/wapsell/backups/pre-migrate-${SHA:0:12}-$(date -u +%Y%m%dT%H%M%SZ).dump"
+  log "pending migrations: backing up to $BACKUP"
+  (umask 077; docker exec wapsell-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$BACKUP.part")
+  docker exec -i wapsell-postgres pg_restore --list < "$BACKUP.part" > /dev/null
+  mv "$BACKUP.part" "$BACKUP"
+fi
+prisma_run npx prisma migrate deploy --schema "$SCHEMA"
 
 log "4/5 isolated boot test"
 docker rm -f "$CHECK" >/dev/null 2>&1 || true

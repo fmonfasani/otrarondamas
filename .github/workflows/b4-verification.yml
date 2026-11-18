@@ -68,8 +68,18 @@ jobs:
       - name: Build API
         run: npm run build --workspace=@otrarondamas/api
 
-      - name: Prepare PostgreSQL schema
-        run: ./node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+      # ADR-DAT-016: the schema must be fully described by versioned migrations.
+      # Fails when schema.prisma changed without a migration (or the reverse).
+      - name: Migrations match schema.prisma
+        run: >-
+          ./node_modules/.bin/prisma migrate diff
+          --from-migrations apps/api/prisma/migrations
+          --to-schema-datamodel apps/api/prisma/schema.prisma
+          --shadow-database-url postgresql://user:password@localhost:5500/postgres
+          --exit-code
+
+      - name: Prepare PostgreSQL schema (migrate deploy)
+        run: ./node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma
 
       # CI-specific Jest scripts intentionally do not regenerate Prisma Client:
       # the client was generated once above, before build and both test stages.
