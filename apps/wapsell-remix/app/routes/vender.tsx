@@ -224,7 +224,7 @@ export default function SellPage() {
           <Steps step={1} />
           {googleEnabled && (
             <>
-              <a className="ws-button ws-button--outline" href="/auth/google">
+              <a className="ws-button ws-button--outline" href="/vender/google">
                 Continuar con Google
               </a>
               <p className="ws-or" aria-hidden="true">

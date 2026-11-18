@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParam
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signInCookie, signOutCookie, storeAuth } from '~/services/customer-session.server';
+import { getBuyer } from '~/services/buyer-session.server';
 import {
   fetchCustomerOrders,
   fetchCustomerPurchases,
@@ -35,8 +36,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (!store) throw new Response('Tienda no encontrada', { status: 404 });
   const customer = await getStoreCustomer(request, slug);
   const google = process.env.GOOGLE_LOGIN_ENABLED === '1';
+  const buyerName = customer ? null : ((await getBuyer(request))?.nombre ?? null);
   const purchasesOf = (jwt: string) => fetchCustomerPurchases(jwt, slug).catch(() => [] as CustomerPurchase[]);
-  if (!customer) return json({ store, google, customer: null, orders: [] as CustomerOrder[], purchases: [] as CustomerPurchase[], ordersError: null });
+  if (!customer) return json({ store, google, buyerName, customer: null, orders: [] as CustomerOrder[], purchases: [] as CustomerPurchase[], ordersError: null });
   try {
     const [orders, purchases] = await Promise.all([fetchCustomerOrders(customer.jwt, slug), purchasesOf(customer.jwt)]);
     return json({ store, google, customer: { nombre: customer.nombre, email: customer.email }, orders, purchases, ordersError: null as string | null });
@@ -113,7 +115,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function Account() {
-  const { store, google, customer, orders, purchases, ordersError } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const { store, google, customer, orders, purchases, ordersError } = data;
+  const buyerName = ('buyerName' in data ? data.buyerName : null) as string | null;
 
   return (
     <main className="store-shell">
@@ -127,14 +131,18 @@ export default function Account() {
             <Purchases purchases={purchases} slug={store.slug} />
           </>
         ) : (
-          <SignIn store={store} google={google} />
+          <SignIn store={store} google={google} buyerName={buyerName} />
         )}
       </section>
     </main>
   );
 }
 
-function SignIn({ store, google }: Readonly<{ store: { nombre: string; slug: string }; google: boolean }>) {
+function SignIn({
+  store,
+  google,
+  buyerName,
+}: Readonly<{ store: { nombre: string; slug: string }; google: boolean; buyerName: string | null }>) {
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
@@ -150,6 +158,14 @@ function SignIn({ store, google }: Readonly<{ store: { nombre: string; slug: str
         <p>Con tu cuenta confirmás pedidos, tu carrito queda guardado y seguís tus compras.</p>
       </div>
       <div className="entry">
+        {buyerName ? (
+          <a className="entry-google entry-buyer" href={`/tienda/${store.slug}/cuenta/comprador${back}`}>
+            Continuar como {buyerName.split(' ')[0]}
+          </a>
+        ) : null}
+        {params.get('error') === 'comprador' ? (
+          <output className="form-error">No pudimos entrar con tu cuenta de Wapsell. Probá de nuevo.</output>
+        ) : null}
         {params.get('error') === 'google' ? (
           <output className="form-error">No pudimos ingresar con Google. Probá de nuevo o usá tu email.</output>
         ) : null}
