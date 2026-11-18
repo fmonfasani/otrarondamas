@@ -577,3 +577,16 @@
 .ws-legal__body li { margin-bottom: 6px; }
 .ws-legal__body a { color: inherit; }
 .ws-legal__updated { color: #77736d; font-size: 13px; margin: 0 0 20px; }
+
+/* ADR-IDN-008 — «Vendé en Wapsell» and the entry card */
+.ws-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); width: 100%; }
+@media (max-width: 420px) { .ws-row { grid-template-columns: 1fr; } }
+.ws-steps { display: flex; gap: 6px; width: 100%; margin-bottom: 4px; }
+.ws-steps__bar { flex: 1; height: 4px; border-radius: 2px; background: var(--text-muted); opacity: .45; }
+.ws-steps__bar--on { background: var(--brand-accent, #d97757); opacity: 1; }
+.ws-field__control select { flex: 1 0 0; min-width: 1px; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; }
+.ws-field__hint { font-size: 12px; color: var(--text-secondary, #77736d); }
+.ws-sell-card { display: grid; gap: 6px; width: 100%; margin-top: 20px; padding: 16px 18px; border-radius: 14px; background: #141413; color: #faf9f5; text-decoration: none; }
+.ws-sell-card b { font-size: 15px; }
+.ws-sell-card span { font-size: 12px; color: #d9d6cf; }
+.ws-sell-card em { font-style: normal; font-size: 13px; font-weight: 700; color: #d97757; }

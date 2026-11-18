@@ -1,7 +1,7 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useParams, useRouteLoaderData } from '@remix-run/react';
 import { AlertTriangle, ShoppingBag, Users, Wallet } from 'lucide-react';
-import { requireAuth } from '~/services/auth.server';
+import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney, orderState } from '~/utils/format';
 import type { loader as businessLoader } from './_business';
@@ -27,18 +27,27 @@ interface Alerts {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [orders, cash, alerts, customers] = await Promise.all([
+  const user = await getCurrentUser(token);
+  const owner = user?.rol === 'OWNER';
+  const [orders, cash, alerts, customers, products, business] = await Promise.all([
     settle(apiRequest<Order[]>(token, '/pedidos')),
     settle(apiRequest<CashStatus>(token, '/caja/estado')),
     settle(apiRequest<Alerts>(token, '/inventario/alertas')),
     settle(apiRequest<unknown[]>(token, '/clientes')),
+    owner ? settle(apiRequest<unknown[]>(token, '/catalogo/productos')) : null,
+    owner ? settle(apiRequest<{ slug: string }>(token, '/negocio')) : null,
   ]);
+  // ADR-IDN-008 — first steps for the Owner: right after creating the business, or while the
+  // catalog is still empty.
+  const welcome = new URL(request.url).searchParams.get('bienvenida') === '1';
+  const firstSteps = owner && (welcome || products?.length === 0) ? { slug: business?.slug ?? null, welcome } : null;
   return json({
     pendingOrders: orders?.filter((order) => order.estado === 'RECIBIDO').length ?? null,
     recentOrders: orders?.slice(0, 5) ?? null,
     cash,
     alertCount: alerts ? alerts.stockBajo.length + alerts.lotesPorVencer.length : null,
     customerCount: customers?.length ?? null,
+    firstSteps,
   });
 }
 
@@ -64,6 +73,8 @@ export default function DashboardHome() {
           <p className="ws-page__lead">Esto es lo que necesita tu atención hoy.</p>
         </div>
       </div>
+
+      {data.firstSteps && <FirstSteps base={base} slug={data.firstSteps.slug} welcome={data.firstSteps.welcome} />}
 
       <div className="ws-stats">
         <Link className="ws-stat" to={`${base}/pedidos?estado=RECIBIDO`}>
@@ -140,5 +151,31 @@ export default function DashboardHome() {
         )}
       </section>
     </div>
+  );
+}
+
+/** ADR-IDN-008 (Figma Page 3 · 10): what to do first in a new business. */
+function FirstSteps({ base, slug, welcome }: Readonly<{ base: string; slug: string | null; welcome: boolean }>) {
+  const steps = [
+    { title: 'Cargá tu catálogo', text: 'El panel tiene el 100 % de tus productos: todas las ventas pasan por acá.', to: `${base}/productos` },
+    { title: 'Sumá a tu equipo', text: 'Invitá a vendedores y a quien maneja el stock.', to: `${base}/equipo` },
+    { title: 'Mirá tu tienda', text: 'Es la vidriera online de tu negocio.', to: slug ? `/tienda/${slug}` : null },
+    { title: 'Completá tus datos', text: 'Contacto, dirección y, cuando lo tengas, el CUIT.', to: `${base}/ajustes` },
+  ];
+  return (
+    <section className="ws-card ws-first-steps" aria-labelledby="first-steps">
+      <div className="ws-card__head">
+        <h2 id="first-steps" className="ws-card__title">{welcome ? '¡Tu negocio ya está creado! Primeros pasos' : 'Primeros pasos'}</h2>
+      </div>
+      <ol className="ws-first-steps__list">
+        {steps.map((step) => (
+          <li key={step.title}>
+            {step.to ? <Link to={step.to}><b>{step.title}</b></Link> : <b>{step.title}</b>}
+            <span>{step.text}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="ws-first-steps__hint">Tip: instalá Wapsell en este dispositivo desde el menú del navegador («Instalar app» o «Agregar a pantalla de inicio»).</p>
+    </section>
   );
 }

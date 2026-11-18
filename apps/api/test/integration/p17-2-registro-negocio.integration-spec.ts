@@ -160,4 +160,53 @@ describe('P17-2 — alta de negocio (registro)', () => {
       .send({ ticket: `${ticket}x`, nombreNegocio: `Otro kiosco P17-2 ${suffix}` })
       .expect(401);
   });
+
+  it('«Vendé en Wapsell» stores the business profile, starting at INICIAL (ADR-IDN-008)', async () => {
+    const catalog = await request(BASE).get('/auth/registro/catalogo').expect(200);
+    expect(catalog.body.provincias).toContain('Santa Fe');
+    expect(catalog.body.rubros.Bebidas).toContain('Vinoteca');
+
+    const email = `p17-2-perfil-${suffix}@example.test`;
+    const profile = {
+      apellido: 'Pérez',
+      cuit: '20-12345678-6',
+      direccion: 'Av. Pellegrini 1200',
+      ciudad: 'Rosario',
+      provincia: 'Santa Fe',
+      codigoPostal: '2000',
+      rubro: 'Bebidas',
+      subrubro: 'Vinoteca',
+    };
+    // An invalid CUIT is refused before anything is created.
+    await request(BASE)
+      .post('/auth/registro')
+      .send({
+        nombreNegocio: `Vinoteca P17-2 ${suffix}`,
+        nombre: 'Lucía',
+        email,
+        ...profile,
+        cuit: '20-12345678-9',
+      })
+      .expect(400);
+    expect(await prisma.usuario.findUnique({ where: { email } })).toBeNull();
+
+    await request(BASE)
+      .post('/auth/registro')
+      .send({ nombreNegocio: `Vinoteca P17-2 ${suffix}`, nombre: 'Lucía', email, ...profile })
+      .expect(201);
+    const owner = await prisma.usuario.findUniqueOrThrow({ where: { email } });
+    expect(owner.nombre).toBe('Lucía Pérez');
+    const business = await prisma.empresa.findUniqueOrThrow({ where: { id: owner.empresaId } });
+    expect(business.configuracion).toMatchObject({
+      perfil: {
+        cuit: '20123456786',
+        nivel: 'INICIAL',
+        provincia: 'Santa Fe',
+        codigoPostal: '2000',
+        rubro: 'Bebidas',
+        subrubro: 'Vinoteca',
+      },
+      negocio: { direccion: 'Av. Pellegrini 1200, Rosario, Santa Fe' },
+    });
+  });
 });

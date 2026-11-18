@@ -761,3 +761,12 @@
   .ws-table--audit th:nth-child(2) { width: 26%; }
   .ws-table--audit td { overflow-wrap: anywhere; }
 }
+
+/* ADR-IDN-008 — first steps of a new business */
+.ws-first-steps { margin-bottom: 20px; }
+.ws-first-steps__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.ws-first-steps__list li { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border-subtle, #e2ded6); border-radius: 12px; counter-increment: step; }
+.ws-first-steps__list li::before { content: counter(step); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: #141413; color: #faf9f5; font-size: 12px; font-weight: 700; }
+.ws-first-steps__list a { color: inherit; text-decoration: none; }
+.ws-first-steps__list span { color: var(--text-secondary, #77736d); font-size: 13px; }
+.ws-first-steps__hint { margin: 12px 0 0; color: var(--text-secondary, #77736d); font-size: 12px; }

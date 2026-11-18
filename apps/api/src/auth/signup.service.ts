@@ -13,6 +13,8 @@ import { recordAudit } from '../auditoria/audit-catalog';
 import { PasswordResetService } from './password-reset.service';
 import { MfaService } from './mfa/mfa.service';
 import type { GoogleProfile } from './google.strategy';
+import { Prisma } from '@prisma/client';
+import { BusinessProfile, PROVINCIAS, RUBROS, normalizeCuit } from './signup-catalog';
 
 const SIGNUP_TICKET_TTL = '30m';
 /** Sign-ups arrive through the web server (no visitor IP here): a platform-wide cap. */
@@ -25,6 +27,64 @@ type SignupTicket = {
   nombre: string;
   fotoUrl: string | null;
 };
+
+/** What «Vendé en Wapsell» sends about the business (ADR-IDN-008). All optional for old clients. */
+export type ProfileInput = {
+  apellido?: string;
+  cuit?: string;
+  direccion?: string;
+  ciudad?: string;
+  provincia?: string;
+  codigoPostal?: string;
+  rubro?: string;
+  subrubro?: string;
+};
+
+const POSTAL_CODE = /^[A-Za-z]?\d{4}[A-Za-z]{0,3}$/;
+
+/**
+ * Validates the business profile. Nothing sent → null (the older one-step form). Anything sent →
+ * the whole address and the type are required; the CUIT stays optional (ADR-IDN-004) but, when
+ * typed, must have a valid check digit. A typed CUIT is not verified: the level stays INICIAL.
+ */
+export function profileFrom(input: ProfileInput): BusinessProfile | null {
+  const t = (v?: string) => (v ?? '').trim();
+  const fields = [
+    input.cuit,
+    input.direccion,
+    input.ciudad,
+    input.provincia,
+    input.codigoPostal,
+    input.rubro,
+    input.subrubro,
+  ];
+  if (fields.every((v) => !t(v))) return null;
+  if (t(input.direccion).length < 3)
+    throw new BadRequestException('Escribí la dirección del negocio.');
+  if (t(input.ciudad).length < 2) throw new BadRequestException('Escribí la ciudad.');
+  if (!PROVINCIAS.includes(t(input.provincia)))
+    throw new BadRequestException('Elegí la provincia.');
+  if (!POSTAL_CODE.test(t(input.codigoPostal)))
+    throw new BadRequestException('Revisá el código postal.');
+  const subrubros = RUBROS[t(input.rubro)];
+  if (!subrubros) throw new BadRequestException('Elegí el rubro de tu negocio.');
+  if (!subrubros.includes(t(input.subrubro))) throw new BadRequestException('Elegí el subrubro.');
+  let cuit: string | null = null;
+  if (t(input.cuit)) {
+    cuit = normalizeCuit(t(input.cuit));
+    if (!cuit) throw new BadRequestException('El CUIT no es válido. Revisá los 11 números.');
+  }
+  return {
+    cuit,
+    nivel: 'INICIAL',
+    direccion: t(input.direccion),
+    ciudad: t(input.ciudad),
+    provincia: t(input.provincia),
+    codigoPostal: t(input.codigoPostal).toUpperCase(),
+    rubro: t(input.rubro),
+    subrubro: t(input.subrubro),
+  };
+}
 
 /** «Otra Ronda Más» → «otra-ronda-mas» (3 to 40 characters). */
 export function slugFrom(name: string): string {
@@ -112,9 +172,12 @@ export class SignupService {
     googleId?: string;
     fotoUrl?: string | null;
     via: 'email' | 'google';
+    profile?: ProfileInput;
   }) {
     const nombreNegocio = input.nombreNegocio.trim();
-    const nombre = input.nombre.trim();
+    const apellido = (input.profile?.apellido ?? '').trim();
+    const nombre = [input.nombre.trim(), apellido].filter(Boolean).join(' ');
+    const perfil = profileFrom(input.profile ?? {});
     const email = input.email.trim().toLowerCase();
     if (nombreNegocio.length < 2) throw new BadRequestException('Escribí el nombre de tu negocio.');
     if (nombre.length < 2) throw new BadRequestException('Escribí tu nombre.');
@@ -127,6 +190,23 @@ export class SignupService {
         ownerNombre: nombre,
         ownerEmail: email,
       });
+      if (perfil) {
+        // The structured profile, and the address the store shows (Ajustes → Contacto).
+        await tx.empresa.update({
+          where: { id: created.empresaId },
+          data: {
+            configuracion: {
+              perfil,
+              negocio: {
+                telefono: '',
+                direccion: `${perfil.direccion}, ${perfil.ciudad}, ${perfil.provincia}`,
+                horario: '',
+                descripcion: '',
+              },
+            } as Prisma.InputJsonValue,
+          },
+        });
+      }
       if (input.googleId) {
         await tx.usuario.update({
           where: { id: created.usuarioId },
@@ -137,19 +217,36 @@ export class SignupService {
         accion: 'NEGOCIO_REGISTRADO',
         entidad: 'Empresa',
         entidadId: created.empresaId,
-        despues: { nombre: nombreNegocio, slug, owner: nombre, email, via: input.via },
+        despues: {
+          nombre: nombreNegocio,
+          slug,
+          owner: nombre,
+          email,
+          via: input.via,
+          ...(perfil
+            ? {
+                rubro: perfil.rubro,
+                subrubro: perfil.subrubro,
+                provincia: perfil.provincia,
+                cuitDeclarado: Boolean(perfil.cuit),
+              }
+            : {}),
+        },
       });
       return { ...created, slug, nombreNegocio, email };
     });
   }
 
   /** With email: the welcome email carries the link to create the password. */
-  async registerWithEmail(input: { nombreNegocio: string; nombre: string; email: string }) {
+  async registerWithEmail(
+    input: { nombreNegocio: string; nombre: string; email: string } & ProfileInput,
+  ) {
     this.throttle();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
       throw new BadRequestException('Revisá el email.');
     }
-    const created = await this.create({ ...input, via: 'email' });
+    const { nombreNegocio, nombre, email, ...profile } = input;
+    const created = await this.create({ nombreNegocio, nombre, email, via: 'email', profile });
     const { sent } = await this.passwords.issueWelcomeLink(
       created.usuarioId,
       created.nombreNegocio,
@@ -196,7 +293,7 @@ export class SignupService {
   }
 
   /** With Google: the Business is created and the next step is enrolling MFA. */
-  async registerWithGoogle(ticket: string, nombreNegocio: string) {
+  async registerWithGoogle(ticket: string, nombreNegocio: string, profile: ProfileInput = {}) {
     this.throttle();
     const t = await this.readTicket(ticket);
     const created = await this.create({
@@ -206,6 +303,8 @@ export class SignupService {
       googleId: t.googleId,
       fotoUrl: t.fotoUrl,
       via: 'google',
+      // Google gives the full name: no apellido field with Google.
+      profile: { ...profile, apellido: undefined },
     });
     return {
       negocio: created.nombreNegocio,
