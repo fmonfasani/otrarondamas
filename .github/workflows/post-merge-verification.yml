@@ -50,7 +50,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npm run build --workspace=@otrarondamas/api
-      - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+      - run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
       - run: npm test --workspace=@otrarondamas/api -- --maxWorkers=50%
 
       - name: Run full integration regression suite

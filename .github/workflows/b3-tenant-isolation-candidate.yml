@@ -64,7 +64,7 @@ jobs:
         if: github.event_name == 'push'
         run: npm run build --workspace=@otrarondamas/api
 
-      - run: npx prisma db push --schema apps/api/prisma/schema.prisma --skip-generate
+      - run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
 
 
       - name: Run unit suite on candidate branch pushes
