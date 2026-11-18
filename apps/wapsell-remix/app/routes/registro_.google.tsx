@@ -31,7 +31,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!token) {
     if (process.env.GOOGLE_LOGIN_ENABLED !== '1') return redirect('/registro');
     const nonce = randomBytes(24).toString('base64url');
-    const api = (process.env.API_PUBLIC_URL || 'https://api.wapsell.com').replace(/\/+$/, '');
+    const api = withoutTrailingSlash(process.env.API_PUBLIC_URL || 'https://api.wapsell.com');
     const next = new URL(`${api}/auth/comprador/google`);
     next.searchParams.set('web', nonce);
     return redirect(next.toString(), { headers: { 'Set-Cookie': await startCookie.serialize(nonce) } });
@@ -50,4 +50,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   headers.append('Set-Cookie', clear);
   headers.append('Set-Cookie', await buyerSignInCookie(request, { accessToken: token, comprador: me.data }));
   return redirect('/cuenta', { headers });
+}
+
+/** «https://api.x/» → «https://api.x» (no regular expression). */
+function withoutTrailingSlash(url: string) {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end -= 1;
+  return url.slice(0, end);
 }

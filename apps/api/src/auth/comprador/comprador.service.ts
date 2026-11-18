@@ -31,7 +31,14 @@ import type { GoogleProfile } from '../google.strategy';
 export const BUYER_SESSION_TTL = '30d';
 const VERIFY_TTL_MS = 3 * 24 * 3600 * 1000;
 const MAX_SIGNUPS_PER_HOUR = 60;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** A plausible email without a backtracking-prone regular expression. */
+export function isEmail(value: string): boolean {
+  const at = value.indexOf('@');
+  if (at < 1 || at !== value.lastIndexOf('@') || /\s/.test(value)) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  return dot > 0 && dot < domain.length - 1;
+}
 
 type BuyerSession = { sub: string; typ: 'comprador' };
 type Buyer = { id: string; nombre: string; email: string };
@@ -141,7 +148,7 @@ export class CompradorService {
     const nombre = input.nombre.trim();
     const email = input.email.trim().toLowerCase();
     if (nombre.length < 2) throw new BadRequestException('Escribí tu nombre.');
-    if (!EMAIL.test(email)) throw new BadRequestException('Revisá el email.');
+    if (!isEmail(email)) throw new BadRequestException('Revisá el email.');
     if (input.password.length < 8)
       throw new BadRequestException('La contraseña tiene que tener al menos 8 caracteres.');
 
@@ -170,8 +177,7 @@ export class CompradorService {
       select: { id: true, tipo: true, usedAt: true, expiresAt: true, Comprador: true },
     });
     if (
-      !record ||
-      record.tipo !== 'VERIFICAR_EMAIL' ||
+      record?.tipo !== 'VERIFICAR_EMAIL' ||
       record.usedAt ||
       record.expiresAt < now ||
       !record.Comprador.activo

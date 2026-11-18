@@ -29,7 +29,7 @@ describe('P17-3 — comprador universal', () => {
         compradorId,
         tipo: 'VERIFICAR_EMAIL',
         tokenHash: createHash('sha256').update(token).digest('hex'),
-        expiresAt: new Date(Date.now() + 3600_000),
+        expiresAt: new Date(Date.now() + 3_600_000),
       },
     });
     return token;
@@ -169,6 +169,12 @@ describe('P17-3 — comprador universal', () => {
     const res = await request(BASE).get('/auth/comprador/negocios').expect(200);
     const mine = res.body.find((b: { slug: string }) => b.slug === slug);
     expect(mine).toMatchObject({ nombre: `Almacén P17-3 ${suffix}`, slug });
-    expect(Object.keys(mine).sort()).toEqual(['ciudad', 'nombre', 'provincia', 'rubro', 'slug']);
+    expect(Object.keys(mine).sort((a, b) => a.localeCompare(b))).toEqual([
+      'ciudad',
+      'nombre',
+      'provincia',
+      'rubro',
+      'slug',
+    ]);
   });
 });

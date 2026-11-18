@@ -82,7 +82,9 @@ export class SignupController {
   @UseGuards(VenderGoogleStartGuard)
   @Get('google/iniciar')
   @ApiExcludeEndpoint()
-  googleStart() {}
+  googleStart() {
+    // VenderGoogleStartGuard redirects to Google before this runs.
+  }
 
   @Public()
   @Get('catalogo')

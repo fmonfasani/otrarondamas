@@ -81,7 +81,9 @@ export class CompradorController {
   @UseGuards(BuyerGoogleStartGuard)
   @Get('google')
   @ApiExcludeEndpoint()
-  google() {}
+  google() {
+    // BuyerGoogleStartGuard redirects to Google before this runs.
+  }
 
   @Public()
   @Get('me')

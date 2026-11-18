@@ -27,7 +27,11 @@ import { AccountService } from './account.service';
 import { MfaPolicyService } from './mfa/mfa-policy.service';
 import { MfaService } from './mfa/mfa.service';
 import { SignupService } from './signup.service';
-import { STORE_GOOGLE_COOKIE, StoreGoogleService } from './store-google.service';
+import {
+  STORE_GOOGLE_COOKIE,
+  StoreGoogleService,
+  type StoreGoogleTarget,
+} from './store-google.service';
 import { AuthCustomerService } from './auth.customer.service';
 import { CompradorService } from './comprador/comprador.service';
 import { GoogleAccountNotFound } from './auth.google.service';
@@ -221,44 +225,46 @@ export class AuthController {
     if (this.storeGoogle?.isStoreState(req.query.state)) {
       res.clearCookie(STORE_GOOGLE_COOKIE, { path: '/auth' });
       const target = await this.storeGoogle.read(req.query.state, req.headers.cookie);
-      if (!target) {
-        back('/es/auth/login', { error: 'google' });
-        return;
-      }
-      if (target.kind === 'store' && this.customers) {
-        const store = `/tienda/${encodeURIComponent(target.slug)}/cuenta`;
-        try {
-          const session = await this.customers.loginWithGoogleInBusiness(
-            target.businessId,
-            req.user,
-          );
-          back(`${store}/google`, {
-            token: session.accessToken,
-            web: target.web,
-            ...(target.volver ? { volver: target.volver } : {}),
-          });
-        } catch {
-          back(store, { error: 'google' });
-        }
-        return;
-      }
-      if (target.kind === 'buyer' && this.buyers) {
-        try {
-          const session = await this.buyers.loginWithGoogle(req.user);
-          back('/registro/google', { token: session.accessToken, web: target.web });
-        } catch {
-          back('/registro', { error: 'google' });
-        }
-        return;
-      }
-      if (target.kind === 'vender') {
-        await this.staffGoogle(req.user, back, true);
-        return;
-      }
-      back('/es/auth/login', { error: 'google' });
+      await this.finishGoogleFlow(target, req.user, back);
       return;
     }
     await this.staffGoogle(req.user, back, false);
+  }
+
+  /** The store, buyer and «Vendé en Wapsell» flows named by a valid Google state. */
+  private async finishGoogleFlow(
+    target: StoreGoogleTarget | null,
+    profile: GoogleProfile,
+    back: (path: string, params: Record<string, string>) => void,
+  ) {
+    if (target?.kind === 'store' && this.customers) {
+      const store = `/tienda/${encodeURIComponent(target.slug)}/cuenta`;
+      try {
+        const session = await this.customers.loginWithGoogleInBusiness(target.businessId, profile);
+        back(`${store}/google`, {
+          token: session.accessToken,
+          web: target.web,
+          ...(target.volver ? { volver: target.volver } : {}),
+        });
+      } catch {
+        back(store, { error: 'google' });
+      }
+      return;
+    }
+    if (target?.kind === 'buyer' && this.buyers) {
+      try {
+        const session = await this.buyers.loginWithGoogle(profile);
+        back('/registro/google', { token: session.accessToken, web: target.web });
+      } catch {
+        back('/registro', { error: 'google' });
+      }
+      return;
+    }
+    if (target?.kind === 'vender') {
+      await this.staffGoogle(profile, back, true);
+      return;
+    }
+    back('/es/auth/login', { error: 'google' });
   }
 
   /**

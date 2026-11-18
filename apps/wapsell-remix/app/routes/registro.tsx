@@ -22,6 +22,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ google: process.env.GOOGLE_LOGIN_ENABLED === '1', error: ERRORS[code] ?? null });
 }
 
+/** A plausible email without a backtracking-prone regular expression. */
+function isEmail(value: string) {
+  const at = value.indexOf('@');
+  if (at < 1 || at !== value.lastIndexOf('@') || /\s/.test(value)) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  return dot > 0 && dot < domain.length - 1;
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const field = (k: string) => String(form.get(k) ?? '').trim();
@@ -30,7 +39,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const password = String(form.get('password') ?? '');
   const values = { nombre, email };
   if (nombre.length < 2) return json({ error: 'Escribí tu nombre.', values }, { status: 400 });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Revisá el email.', values }, { status: 400 });
+  if (!isEmail(email)) return json({ error: 'Revisá el email.', values }, { status: 400 });
   if (password.length < 8) return json({ error: 'La contraseña tiene que tener al menos 8 caracteres.', values }, { status: 400 });
   const result = await buyerApi<{ email: string; mailEnviado: boolean }>('/registro', {
     method: 'POST',

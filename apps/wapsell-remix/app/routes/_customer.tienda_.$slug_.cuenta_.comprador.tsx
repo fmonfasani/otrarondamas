@@ -12,7 +12,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const slug = params.slug ?? '';
   const volver = new URL(request.url).searchParams.get('volver');
   const buyer = await getBuyer(request);
-  if (!buyer) return redirect(`/es/auth/login?redirectTo=${encodeURIComponent(`/tienda/${slug}/cuenta/comprador`)}`);
+  const here = `/tienda/${slug}/cuenta/comprador`;
+  if (!buyer) return redirect(`/es/auth/login?redirectTo=${encodeURIComponent(here)}`);
   const result = await buyerApi<{ accessToken: string; cliente: { nombre: string; email: string } }>(
     `/negocio/${encodeURIComponent(slug)}`,
     { method: 'POST', jwt: buyer.jwt },
