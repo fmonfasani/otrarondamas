@@ -19,6 +19,8 @@ import { MfaService } from './mfa/mfa.service';
 import { MfaController } from './mfa/mfa.controller';
 import { SignupService } from './signup.service';
 import { SignupController } from './signup.controller';
+import { StoreGoogleService } from './store-google.service';
+import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { SignupController } from './signup.controller';
     SignupService,
     AuthGoogleService,
     AuthCustomerService,
+    StoreGoogleService,
+    StoreGoogleStartGuard,
     GoogleStrategy,
     PermissionsGuard,
     AuthorizationGuard,
