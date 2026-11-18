@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
-import { action } from '../app/routes/_business.$lang.dashboard.caja';
+import { action } from '../app/routes/_business.panel.caja';
 
 // Business panel "Caja", wired to POST /caja/apertura, /caja/movimientos, /caja/arqueo, /caja/cierre.
 async function post(fields: Record<string, string>) {
@@ -8,7 +8,7 @@ async function post(fields: Record<string, string>) {
   session.set('jwt', 'jwt-token');
   const cookie = (await commitSession(session)).split(';')[0];
   return action({
-    request: new Request('http://app.test/es/dashboard/caja', {
+    request: new Request('http://app.test/panel/caja', {
       method: 'POST',
       body: new URLSearchParams(fields),
       headers: { Cookie: cookie },

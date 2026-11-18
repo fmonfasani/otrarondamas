@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useLoaderData, useParams, useSearchParams } from '@remix-run/react';
+import { Form, Link, useLoaderData, useSearchParams } from '@remix-run/react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { formatDateTime } from '~/utils/format';
@@ -31,9 +31,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Auditoria() {
   const { list, error } = useLoaderData<typeof loader>();
-  const { lang = 'es' } = useParams();
   const [search] = useSearchParams();
-  const base = `/${lang}/dashboard/auditoria`;
+  const base = `/panel/auditoria`;
   const pages = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
   const pageHref = (page: number) => `?${auditQuery(search, { page: String(page) })}`;
   return (

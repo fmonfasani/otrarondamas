@@ -69,7 +69,7 @@ describe('«Vendé en Wapsell» (ADR-IDN-008)', () => {
     expect(response.headers.get('Location')).toBe('/es/auth/activar-mfa');
     expect(api.mock.calls[0][0]).toBe('http://api.test/auth/registro/google');
     const session = await getSession(response.headers.get('Set-Cookie'));
-    expect(session.get('mfaRedirect')).toBe('/es/dashboard?bienvenida=1');
+    expect(session.get('mfaRedirect')).toBe('/panel?bienvenida=1');
   });
 
   it('loads the rubros and provinces from the API', async () => {

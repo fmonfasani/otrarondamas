@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formBody, ok, postTo, sessionCookie, stubApi } from './helpers/route';
-import { action as teamAction, loader as teamLoader } from '../app/routes/_business.$lang.dashboard.equipo';
+import { action as teamAction, loader as teamLoader } from '../app/routes/_business.panel.equipo';
 import { action as activateAction } from '../app/routes/$lang.auth.activar';
 import { canChangeStatus, invitationState, missingSentence, type TeamMember } from '../app/utils/team';
 
@@ -51,7 +51,7 @@ describe('Equipo route', () => {
   it('tells a role without access that the team is for Owner and admins', async () => {
     api.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Forbidden' }), { status: 403 }));
     const response = (await teamLoader({
-      request: new Request('http://app.test/es/dashboard/equipo', { headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/equipo', { headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;
@@ -103,7 +103,7 @@ describe('invitation activation page', () => {
   it('activates, signs the person in and opens the panel', async () => {
     api.mockResolvedValueOnce(ok({ accessToken: 'new-jwt' }));
     const response = await activate([['token', 't'], ['nombre', 'Vale'], ['password', 'clave-segura'], ['confirm', 'clave-segura']]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard?bienvenida=1');
+    expect(response.headers.get('Location')).toBe('/panel?bienvenida=1');
     expect(response.headers.get('Set-Cookie')).toContain('__session=');
     expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ token: 't', nombre: 'Vale', password: 'clave-segura' });
   });

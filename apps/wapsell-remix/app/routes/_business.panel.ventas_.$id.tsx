@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from '@remix-run/react';
 import { useState } from 'react';
 import { ArrowLeft, Printer, RotateCcw } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
@@ -62,7 +62,6 @@ export default function SalePage() {
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
-  const { lang = 'es' } = useParams();
   const [medio, setMedio] = useState<PaymentMethod>('efectivo');
   const [received, setReceived] = useState('');
   const state = COLLECTION_STATES[sale.estadoCobro] ?? { label: sale.estadoCobro, tone: 'muted' };
@@ -72,14 +71,14 @@ export default function SalePage() {
 
   return (
     <div className="ws-page">
-      <Link className="ws-back ws-no-print" to={`/${lang}/dashboard/ventas`}>
+      <Link className="ws-back ws-no-print" to={`/panel/ventas`}>
         <ArrowLeft size={16} aria-hidden="true" /> Ventas
       </Link>
 
       {params.get('nueva') === '1' && (
         <output className="ws-notice ws-no-print">
           Venta {saleNumber(sale)} registrada{lastCash ? `. Vuelto: ${formatMoney(lastCash.vuelto)}` : ''}.{' '}
-          <Link className="ws-link" to={`/${lang}/dashboard/ventas`}>Nueva venta</Link>
+          <Link className="ws-link" to={`/panel/ventas`}>Nueva venta</Link>
         </output>
       )}
       {params.get('pago') === 'pendiente' && balance > 0 && (
@@ -158,7 +157,7 @@ export default function SalePage() {
           <Printer size={16} aria-hidden="true" /> Imprimir comprobante
         </button>
         {returnWindow(sale.createdAt).open && (
-          <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/devoluciones/nueva?venta=${sale.id}`}>
+          <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/devoluciones/nueva?venta=${sale.id}`}>
             <RotateCcw size={16} aria-hidden="true" /> Registrar devolución
           </Link>
         )}

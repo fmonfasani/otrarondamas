@@ -89,7 +89,7 @@ export class MercadoPagoAccountController {
     @Query('error') error: string | undefined,
     @Res() res: Response,
   ) {
-    const back = new URL('/es/dashboard/cobros', process.env.WEB_APP_URL || DEFAULT_WEB_APP_URL);
+    const back = new URL('/panel/cobros', process.env.WEB_APP_URL || DEFAULT_WEB_APP_URL);
     if (error) {
       back.searchParams.set('mp', 'cancelado');
       return res.redirect(back.toString());

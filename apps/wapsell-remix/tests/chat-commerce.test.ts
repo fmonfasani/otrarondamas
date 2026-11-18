@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formBody, ok, sessionCookie, stubApi } from './helpers/route';
-import { action as messagesAction } from '../app/routes/_business.$lang.dashboard.mensajes';
+import { action as messagesAction } from '../app/routes/_business.panel.mensajes';
 import { action as chatAction } from '../app/routes/_customer.tienda_.$slug_.chat';
 import { signInCookie } from '../app/services/customer-session.server';
 import { canEditCustomerCart, fillQuickReply, productCards, quickRepliesFrom } from '../app/utils/messaging';
@@ -29,7 +29,7 @@ describe('Mensajes actions', () => {
 
   const post = async (pairs: Array<[string, string]>) =>
     (await messagesAction({
-      request: new Request('http://app.test/es/dashboard/mensajes', { method: 'POST', body: formBody(pairs), headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/mensajes', { method: 'POST', body: formBody(pairs), headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;

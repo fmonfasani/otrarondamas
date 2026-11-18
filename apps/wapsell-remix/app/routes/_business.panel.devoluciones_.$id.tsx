@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from '@remix-run/react';
 import { ArrowLeft } from 'lucide-react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -135,7 +135,6 @@ export default function ReturnPage() {
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [params] = useSearchParams();
-  const { lang = 'es' } = useParams();
   const state = returnState(found);
   const closed = isClosedWithoutRefund(found);
   const manage = canManageReturns(role);
@@ -145,7 +144,7 @@ export default function ReturnPage() {
 
   return (
     <div className="ws-page">
-      <Link className="ws-back" to={`/${lang}/dashboard/devoluciones`}>
+      <Link className="ws-back" to={`/panel/devoluciones`}>
         <ArrowLeft size={16} aria-hidden="true" /> Devoluciones
       </Link>
       <div className="ws-page__head">
@@ -153,7 +152,7 @@ export default function ReturnPage() {
           <p className="ws-page__eyebrow">DEVOLUCIÓN {returnNumber(found)}</p>
           <h1 className="ws-page__title">{found.cliente.nombre}</h1>
           <p className="ws-page__lead">
-            De la <Link className="ws-link" to={`/${lang}/dashboard/ventas/${found.ventaId}`}>venta {found.ventaNumero ? `#${found.ventaNumero}` : ''}</Link> del{' '}
+            De la <Link className="ws-link" to={`/panel/ventas/${found.ventaId}`}>venta {found.ventaNumero ? `#${found.ventaNumero}` : ''}</Link> del{' '}
             {formatDateTime(found.ventaFecha)}
           </p>
         </div>
@@ -167,7 +166,7 @@ export default function ReturnPage() {
           {'saleId' in result && result.saleId ? (
             <>
               {' '}
-              <Link className="ws-link" to={`/${lang}/dashboard/ventas/${result.saleId}`}>Ver la venta</Link>
+              <Link className="ws-link" to={`/panel/ventas/${result.saleId}`}>Ver la venta</Link>
             </>
           ) : null}
         </p>

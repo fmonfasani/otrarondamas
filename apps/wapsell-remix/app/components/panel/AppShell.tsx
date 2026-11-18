@@ -25,7 +25,7 @@ const CANONICAL_ROLE: Record<string, string> = { ASISTENTE_LOCAL: 'VENDEDOR' };
  * New sections are added here as they ship.
  */
 export function navItems(lang: string, role?: string): NavItem[] {
-  const base = `/${lang}/dashboard`;
+  const base = `/panel`;
   const all: NavItem[] = [
     { to: base, label: 'Inicio', icon: House, end: true },
     { to: `${base}/mensajes`, label: 'Mensajes', icon: MessagesSquare },
@@ -100,10 +100,10 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
                 <b>{user.nombre}</b>
                 <span>{user.empresaNombre}</span>
               </p>
-              <Link to={`/${lang}/dashboard/perfil`} className="ws-panel__menu-link">
+              <Link to={`/panel/perfil`} className="ws-panel__menu-link">
                 Mi perfil
               </Link>
-              <Link to={`/${lang}/dashboard/mi-legajo`} className="ws-panel__menu-link">
+              <Link to={`/panel/mi-legajo`} className="ws-panel__menu-link">
                 Mi legajo
               </Link>
               <Form method="post" action="/logout">
@@ -141,12 +141,12 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
 }
 
 /** Why the panel cannot load data for a person whose dossier is not approved yet. */
-function DossierNotice({ standing, lang, onDossierPage }: Readonly<{ standing: string; lang: string; onDossierPage: boolean }>) {
+function DossierNotice({ standing, onDossierPage }: Readonly<{ standing: string; lang: string; onDossierPage: boolean }>) {
   if (standing === 'pending' && !onDossierPage) {
     return (
       <p className="ws-alert ws-dossier-notice" role="alert">
         Todavía no podés operar: completá tu legajo y esperá que el Owner lo apruebe.{' '}
-        <Link className="ws-link" to={`/${lang}/dashboard/mi-legajo`}>Completar mi legajo</Link>
+        <Link className="ws-link" to={`/panel/mi-legajo`}>Completar mi legajo</Link>
       </p>
     );
   }

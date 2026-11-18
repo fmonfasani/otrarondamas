@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
-import { action, loader } from '../app/routes/_business.$lang.dashboard.mensajes';
+import { action, loader } from '../app/routes/_business.panel.mensajes';
 import {
   canCreateOrder,
   conversationTitle,
@@ -20,7 +20,7 @@ async function cookie() {
 }
 async function post(fields: Array<[string, string]>) {
   return action({
-    request: new Request('http://app.test/es/dashboard/mensajes', {
+    request: new Request('http://app.test/panel/mensajes', {
       method: 'POST',
       body: new URLSearchParams(fields),
       headers: { Cookie: await cookie() },
@@ -31,7 +31,7 @@ async function post(fields: Array<[string, string]>) {
 }
 async function load(search = '') {
   return loader({
-    request: new Request(`http://app.test/es/dashboard/mensajes${search}`, { headers: { Cookie: await cookie() } }),
+    request: new Request(`http://app.test/panel/mensajes${search}`, { headers: { Cookie: await cookie() } }),
     params: { lang: 'es' },
     context: {},
   }) as Promise<Response>;
@@ -159,7 +159,7 @@ describe('messages route', () => {
     api.mockResolvedValueOnce(ok({ id: 'new-1' })).mockResolvedValueOnce(ok({ id: 'new-2' }));
 
     const direct = await post([['intent', 'create'], ['userId', 'u-d'], ['customerId', '']]);
-    expect(direct.headers.get('Location')).toBe('/es/dashboard/mensajes?c=new-1');
+    expect(direct.headers.get('Location')).toBe('/panel/mensajes?c=new-1');
     expect(JSON.parse(String((api.mock.calls[0][1] as RequestInit).body))).toEqual({
       type: 'DIRECT',
       participantUserIds: ['u-d'],

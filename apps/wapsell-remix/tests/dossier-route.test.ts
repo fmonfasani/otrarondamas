@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, sessionCookie, stubApi } from './helpers/route';
-import { action } from '../app/routes/_business.$lang.dashboard.mi-legajo';
+import { action } from '../app/routes/_business.panel.mi-legajo';
 import { sessionDossierState } from '../app/services/auth.server';
 import { dossierFieldsFor, dossierProgress, dossierStanding } from '../app/utils/team';
 
@@ -39,7 +39,7 @@ describe('Mi legajo route', () => {
 
   const post = async (form: FormData) =>
     (await action({
-      request: new Request('http://app.test/es/dashboard/mi-legajo', {
+      request: new Request('http://app.test/panel/mi-legajo', {
         method: 'POST',
         body: form,
         headers: { Cookie: await sessionCookie() },

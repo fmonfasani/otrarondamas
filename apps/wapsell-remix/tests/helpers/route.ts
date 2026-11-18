@@ -22,7 +22,7 @@ type Handler = (args: { request: Request; params: Record<string, string>; contex
 /** POSTs a form to a route action as a signed-in user. */
 export async function postTo(handler: Handler, path: string, pairs: Array<[string, string]>) {
   return handler({
-    request: new Request(`http://app.test/es/dashboard/${path}`, {
+    request: new Request(`http://app.test/panel/${path}`, {
       method: 'POST',
       body: formBody(pairs),
       headers: { Cookie: await sessionCookie() },

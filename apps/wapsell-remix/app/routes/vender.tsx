@@ -34,7 +34,7 @@ async function catalog(): Promise<Catalog> {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const session = await getSession(request.headers.get('Cookie'));
-  if (session.get('jwt')) return redirect('/es/dashboard');
+  if (session.get('jwt')) return redirect('/panel');
   const url = new URL(request.url);
   const ticket = url.searchParams.get('google');
   let google: Google | null = null;
@@ -78,7 +78,7 @@ export async function action({ request }: ActionFunctionArgs) {
       session.set('mfaTicket', done.ticket);
       session.set('mfaStep', 'activar');
       session.set('mfaRemember', true);
-      session.set('mfaRedirect', '/es/dashboard?bienvenida=1');
+      session.set('mfaRedirect', '/panel?bienvenida=1');
       session.unset('mfaEnroll');
       return redirect('/es/auth/activar-mfa', { headers: { 'Set-Cookie': await commitSession(session) } });
     }

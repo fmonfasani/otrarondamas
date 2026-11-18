@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, postTo, sessionCookie, stubApi } from './helpers/route';
-import { action, customerAbilities, customerBody, loader } from '../app/routes/_business.$lang.dashboard.clientes';
+import { action, customerAbilities, customerBody, loader } from '../app/routes/_business.panel.clientes';
 
 const formOf = (pairs: Array<[string, string]>) => {
   const form = new FormData();
@@ -39,7 +39,7 @@ describe('customers route', () => {
   it('creates a customer and opens its card', async () => {
     api.mockResolvedValueOnce(ok({ id: 'c-9' }));
     const response = await post([['intent', 'create'], ['nombre', 'Ana López'], ['email', 'ana@ejemplo.com']]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/clientes?c=c-9&guardado=1');
+    expect(response.headers.get('Location')).toBe('/panel/clientes?c=c-9&guardado=1');
     expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ nombre: 'Ana López', email: 'ana@ejemplo.com' });
   });
 
@@ -63,14 +63,14 @@ describe('customers route', () => {
       ]),
     );
     const response = await post([['intent', 'message'], ['customerId', 'c-1']]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/mensajes?c=conv-1');
+    expect(response.headers.get('Location')).toBe('/panel/mensajes?c=conv-1');
     expect(api).toHaveBeenCalledTimes(1);
   });
 
   it('starts a direct conversation with the customer otherwise', async () => {
     api.mockResolvedValueOnce(ok([])).mockResolvedValueOnce(ok({ id: 'conv-new' }));
     const response = await post([['intent', 'message'], ['customerId', 'c-1']]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/mensajes?c=conv-new');
+    expect(response.headers.get('Location')).toBe('/panel/mensajes?c=conv-new');
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({ type: 'DIRECT', participantUserIds: [], participantCustomerIds: ['c-1'] });
   });
 
@@ -86,7 +86,7 @@ describe('customers route', () => {
       return ok({});
     });
     const response = (await loader({
-      request: new Request('http://app.test/es/dashboard/clientes?c=c-1', { headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/clientes?c=c-1', { headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;

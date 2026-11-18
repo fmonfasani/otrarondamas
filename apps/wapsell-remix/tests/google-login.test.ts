@@ -30,7 +30,7 @@ describe('sign in with Google', () => {
 
   it('opens the session for an account without MFA', async () => {
     const res = (await callback(at('token=jwt-1'))) as Response;
-    expect(res.headers.get('Location')).toBe('/es/dashboard');
+    expect(res.headers.get('Location')).toBe('/panel');
     expect((await getSession(res.headers.get('Set-Cookie'))).get('jwt')).toBe('jwt-1');
   });
 

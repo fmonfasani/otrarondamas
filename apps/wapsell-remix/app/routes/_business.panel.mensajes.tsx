@@ -127,7 +127,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { ok: boolean; message?: string; orderId?: string };
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
   const form = await request.formData();
   const intent = form.get('intent');
@@ -180,7 +180,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         method: 'POST',
         body: JSON.stringify({ type: total === 1 ? 'DIRECT' : 'GROUP', participantUserIds, participantCustomerIds }),
       });
-      return redirect(`/${params.lang ?? 'es'}/dashboard/mensajes?c=${created.id}`);
+      return redirect(`/panel/mensajes?c=${created.id}`);
     }
     return json<ActionData>({ ok: false, message: 'Acción desconocida.' }, { status: 400 });
   } catch (error) {
@@ -215,7 +215,7 @@ export default function MessagesPage() {
   const sending = sender.state !== 'idle';
   useAutoRefresh(sending);
 
-  const base = `/${lang}/dashboard/mensajes`;
+  const base = `/panel/mensajes`;
   const query = searchParams.get('q') ?? '';
   const filter = searchParams.get('f') === 'clientes' ? 'clientes' : searchParams.get('f') === 'equipo' ? 'equipo' : 'todas';
   const hrefWith = (changes: Record<string, string | null>) => {
@@ -416,11 +416,11 @@ function Thread({
                     <>
                       {fileAttachments(message).map((file) =>
                         file.tipo === 'imagen' ? (
-                          <a key={file.id} href={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="ws-chat-photo">
-                            <img src={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
+                          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="ws-chat-photo">
+                            <img src={`/panel/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
                           </a>
                         ) : (
-                          <a key={file.id} href={`/${lang}/dashboard/mensajes/adjunto/${file.id}`} className="ws-chat-file">
+                          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} className="ws-chat-file">
                             <FileText size={18} aria-hidden="true" /> {file.nombre} <small>{fileSize(file.tamano)}</small>
                           </a>
                         ),
@@ -561,7 +561,7 @@ function Composer({
       {upload.state === 'idle' && upload.data && !upload.data.ok ? (
         <output className="ws-alert ws-chat__error">{upload.data.message}</output>
       ) : null}
-      <upload.Form method="post" encType="multipart/form-data" action={`/${lang}/dashboard/mensajes/adjuntar`} hidden>
+      <upload.Form method="post" encType="multipart/form-data" action={`/panel/mensajes/adjuntar`} hidden>
         <input type="hidden" name="conversationId" value={conversation.id} />
         <input
           ref={fileRef}
@@ -656,7 +656,6 @@ const PANEL_TITLES: Record<Exclude<ComposerPanel, null>, string> = {
 function OrderBar({
   conversation,
   cart,
-  lang,
   canEdit,
 }: Readonly<{ conversation: Conversation; cart: ConversationCart; lang: string; canEdit: boolean }>) {
   const order = useFetcher<ActionData>();
@@ -708,7 +707,7 @@ function OrderBar({
         )}
       </div>
       {created ? (
-        <Link className="ws-link" to={`/${lang}/dashboard/pedidos/${created}`}>Pedido creado · Ver pedido</Link>
+        <Link className="ws-link" to={`/panel/pedidos/${created}`}>Pedido creado · Ver pedido</Link>
       ) : null}
       {canCreateOrder(conversation) && cart.items.length > 0 ? (
         <order.Form method="post">
@@ -732,7 +731,6 @@ function OrderBar({
  */
 function ProductPicker({
   conversation,
-  lang,
   canEditCart,
   cart,
 }: Readonly<{ conversation: Conversation; lang: string; canEditCart: boolean; cart: ConversationCart | null }>) {
@@ -741,7 +739,7 @@ function ProductPicker({
   const inCart = (productoId: string) => cart?.items.find((i) => i.productoId === productoId)?.cantidad ?? 0;
   return (
     <div className="ws-picker">
-      <search.Form method="get" action={`/${lang}/dashboard/mensajes/productos`} className="ws-picker__search" role="search">
+      <search.Form method="get" action={`/panel/mensajes/productos`} className="ws-picker__search" role="search">
         <input name="q" placeholder="Buscar en el catálogo" aria-label="Buscar en el catálogo" minLength={2} required autoFocus />
         <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={search.state !== 'idle'}>
           Buscar
@@ -788,7 +786,7 @@ function ProductPicker({
   );
 }
 
-function ContextPanel({ conversation, customer, lang }: { conversation: Conversation; customer: Customer | null; lang: string }) {
+function ContextPanel({ conversation, customer }: { conversation: Conversation; customer: Customer | null; lang: string }) {
   const customerParticipant = customerOf(conversation);
   const staff = conversation.participants.filter((p) => p.kind === 'STAFF');
   return (
@@ -808,7 +806,7 @@ function ContextPanel({ conversation, customer, lang }: { conversation: Conversa
               <span className="ws-chip ws-chip--secondary">{customer.nivel}</span>
             </div>
           )}
-          <Link className="ws-link" to={`/${lang}/dashboard/pedidos`}>Ver pedidos</Link>
+          <Link className="ws-link" to={`/panel/pedidos`}>Ver pedidos</Link>
           <div className="ws-divider" />
         </>
       ) : (

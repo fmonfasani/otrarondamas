@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formBody, ok, sessionCookie, stubApi } from './helpers/route';
-import { action as newAction } from '../app/routes/_business.$lang.dashboard.devoluciones_.nueva';
-import { action as detailAction } from '../app/routes/_business.$lang.dashboard.devoluciones_.$id';
+import { action as newAction } from '../app/routes/_business.panel.devoluciones_.nueva';
+import { action as detailAction } from '../app/routes/_business.panel.devoluciones_.$id';
 import {
   destinationsFrom,
   exchangeItemsFrom,
@@ -169,7 +169,7 @@ describe('returns routes', () => {
 
   const post = async (handler: typeof newAction | typeof detailAction, path: string, pairs: Array<[string, string]>, id?: string) =>
     (await handler({
-      request: new Request(`http://app.test/es/dashboard/${path}`, { method: 'POST', body: formBody(pairs), headers: { Cookie: await sessionCookie() } }),
+      request: new Request(`http://app.test/panel/${path}`, { method: 'POST', body: formBody(pairs), headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es', ...(id ? { id } : {}) },
       context: {},
     })) as Response;
@@ -195,7 +195,7 @@ describe('returns routes', () => {
     const response = await post(newAction, 'devoluciones/nueva', [
       ['ventaId', 'v-1'], ['cantidad-vi-1', '2'], ['razon-vi-1', 'ROTO'], ['motivo-vi-1', 'Rota'], ['clienteId', 'c-1'], ['motivo_general', ''],
     ]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/devoluciones/d-1?nueva=1');
+    expect(response.headers.get('Location')).toBe('/panel/devoluciones/d-1?nueva=1');
     expect(JSON.parse(String(api.mock.calls[2][1]?.body))).toEqual({
       ventaId: 'v-1',
       items: [{ ventaItemId: 'vi-1', cantidad: 2, motivoCodigo: 'ROTO', motivo: 'Rota' }],

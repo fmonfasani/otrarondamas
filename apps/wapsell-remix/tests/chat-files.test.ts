@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, sessionCookie, stubApi } from './helpers/route';
 import { proxyFile } from '../app/services/api.server';
-import { action as uploadAction } from '../app/routes/_business.$lang.dashboard.mensajes_.adjuntar';
+import { action as uploadAction } from '../app/routes/_business.panel.mensajes_.adjuntar';
 import { fileAttachments, fileSize } from '../app/utils/messaging';
 
 /** OR-B4-037 — photos and PDFs in the conversation. */
@@ -58,7 +58,7 @@ describe('panel upload', () => {
     form.append('conversationId', 'c-1');
     form.append('archivo', new File([new Uint8Array([0xff, 0xd8, 0xff])], 'foto.jpg', { type: 'image/jpeg' }));
     const response = (await uploadAction({
-      request: new Request('http://app.test/es/dashboard/mensajes/adjuntar', { method: 'POST', body: form, headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/mensajes/adjuntar', { method: 'POST', body: form, headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;
@@ -73,7 +73,7 @@ describe('panel upload', () => {
     const form = new FormData();
     form.append('conversationId', 'c-1');
     const response = (await uploadAction({
-      request: new Request('http://app.test/es/dashboard/mensajes/adjuntar', { method: 'POST', body: form, headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/mensajes/adjuntar', { method: 'POST', body: form, headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;

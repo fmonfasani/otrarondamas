@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { CONTACT_FIELDS, businessFrom, storeUrl, type Business } from '~/utils/settings';
@@ -66,7 +66,6 @@ export default function Ajustes() {
   const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
-  const { lang = 'es' } = useParams();
   const notice = (intent: string) =>
     result?.intent === intent ? (
       <p className={result.ok ? 'ws-notice' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>
@@ -173,7 +172,7 @@ export default function Ajustes() {
           <h2 id="payments-title" className="ws-card__title">Cobros online</h2>
           <p className="ws-meta">La cuenta de Mercado Pago donde entra la plata de los pedidos de la tienda.</p>
           {owner ? (
-            <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/cobros`}>Ir a Cobros</Link>
+            <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/cobros`}>Ir a Cobros</Link>
           ) : (
             <p className="ws-meta">La conecta el Owner.</p>
           )}

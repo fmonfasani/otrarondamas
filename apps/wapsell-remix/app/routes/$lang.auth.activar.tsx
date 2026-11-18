@@ -25,7 +25,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { error: string };
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const token = String(form.get('token') ?? '');
   const nombre = String(form.get('nombre') ?? '').trim();
@@ -56,7 +56,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   const session = await getSession(request.headers.get('Cookie'));
   session.set('jwt', payload.accessToken);
-  return redirect(`/${params.lang ?? 'es'}/dashboard?bienvenida=1`, {
+  return redirect(`/panel?bienvenida=1`, {
     headers: { 'Set-Cookie': await commitSession(session) },
   });
 }

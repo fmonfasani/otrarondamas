@@ -7,8 +7,8 @@ test.describe('Products Management', () => {
     await page.fill('input[name="email"]', 'test@example.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/es/dashboard');
-    await page.goto('http://localhost:3000/es/dashboard/productos');
+    await page.waitForURL('/panel');
+    await page.goto('http://localhost:3000/panel/productos');
   });
 
   test('should display product list', async ({ page }) => {

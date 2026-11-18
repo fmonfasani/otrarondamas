@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useLoaderData, useParams, useRouteLoaderData } from '@remix-run/react';
+import { Link, useLoaderData, useRouteLoaderData } from '@remix-run/react';
 import { AlertTriangle, ShoppingBag, Users, Wallet } from 'lucide-react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { apiRequest, settle } from '~/services/api.server';
@@ -59,8 +59,7 @@ function firstName(name: string) {
 export default function DashboardHome() {
   const data = useLoaderData<typeof loader>();
   const layout = useRouteLoaderData<typeof businessLoader>('routes/_business');
-  const { lang = 'es' } = useParams();
-  const base = `/${lang}/dashboard`;
+  const base = `/panel`;
   const open = data.cash?.caja.estado === 'ABIERTA';
   const value = (n: number | null) => (n === null ? '—' : n);
 

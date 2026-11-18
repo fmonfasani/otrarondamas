@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, postTo, sessionCookie, stubApi } from './helpers/route';
-import { action, loader, CALLBACK_NOTICES } from '../app/routes/_business.$lang.dashboard.cobros';
+import { action, loader, CALLBACK_NOTICES } from '../app/routes/_business.panel.cobros';
 
 describe('Cobros (Mercado Pago account, OR-B4-032/033)', () => {
   let api: ReturnType<typeof stubApi>;
@@ -11,7 +11,7 @@ describe('Cobros (Mercado Pago account, OR-B4-032/033)', () => {
 
   const load = async () =>
     (await loader({
-      request: new Request('http://app.test/es/dashboard/cobros', { headers: { Cookie: await sessionCookie() } }),
+      request: new Request('http://app.test/panel/cobros', { headers: { Cookie: await sessionCookie() } }),
       params: { lang: 'es' },
       context: {},
     })) as Response;

@@ -74,7 +74,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { intent: string; ok: boolean; message?: string; total?: string };
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
   const form = await request.formData();
   const intent = String(form.get('intent'));
@@ -114,7 +114,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       method: 'POST',
       body: JSON.stringify({ ...body, idempotencyKey: String(form.get('idempotencyKey') ?? '') || undefined }),
     });
-    const base = `/${params.lang ?? 'es'}/dashboard/ventas/${sale.id}`;
+    const base = `/panel/ventas/${sale.id}`;
     try {
       // The sale's own total, in case prices changed between the quote and the sale.
       await apiRequest(token, `/ventas/${sale.id}/pagos`, {
@@ -180,7 +180,7 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
 
   useEffect(() => {
     if (query.trim().length < 2) return;
-    const timer = window.setTimeout(() => search.load(`/${lang}/dashboard/ventas?q=${encodeURIComponent(query.trim())}`), 250);
+    const timer = window.setTimeout(() => search.load(`/panel/ventas?q=${encodeURIComponent(query.trim())}`), 250);
     return () => window.clearTimeout(timer);
     // Only the typed text matters.
   }, [query, lang]);
@@ -291,7 +291,7 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
           ))}
         </fieldset>
         {medio === 'efectivo' && !cashOpen && (
-          <p className="ws-alert">La caja está cerrada. <Link className="ws-link" to={`/${lang}/dashboard/caja`}>Abrila</Link> para cobrar en efectivo.</p>
+          <p className="ws-alert">La caja está cerrada. <Link className="ws-link" to={`/panel/caja`}>Abrila</Link> para cobrar en efectivo.</p>
         )}
         {medio === 'efectivo' ? (
           <label className="ws-field">
@@ -323,7 +323,7 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
   );
 }
 
-function TodaySales({ sales, lang }: Readonly<{ sales: SaleRow[]; lang: string }>) {
+function TodaySales({ sales }: Readonly<{ sales: SaleRow[]; lang: string }>) {
   const collected = sales.reduce((sum, s) => sum + Number(s.total) - Number(s.saldo), 0);
   return (
     <section className="ws-card" aria-labelledby="today-title">
@@ -346,7 +346,7 @@ function TodaySales({ sales, lang }: Readonly<{ sales: SaleRow[]; lang: string }
               const state = COLLECTION_STATES[sale.estadoCobro] ?? { label: sale.estadoCobro, tone: 'muted' };
               return (
                 <tr key={sale.id}>
-                  <td><Link className="ws-link" to={`/${lang}/dashboard/ventas/${sale.id}`}>{saleNumber(sale)}</Link></td>
+                  <td><Link className="ws-link" to={`/panel/ventas/${sale.id}`}>{saleNumber(sale)}</Link></td>
                   <td>{formatTime(sale.createdAt)}</td>
                   <td>{sale.Cliente?.nombre ?? 'Consumidor final'}</td>
                   <td><span className={`ws-chip ws-chip--${state.tone}`}>{state.label}</span></td>

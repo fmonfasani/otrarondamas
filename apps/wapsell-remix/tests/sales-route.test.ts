@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formBody, ok, postTo, sessionCookie, stubApi } from './helpers/route';
-import { action as salesAction } from '../app/routes/_business.$lang.dashboard.ventas';
-import { action as saleAction } from '../app/routes/_business.$lang.dashboard.ventas_.$id';
+import { action as salesAction } from '../app/routes/_business.panel.ventas';
+import { action as saleAction } from '../app/routes/_business.panel.ventas_.$id';
 import { changeFor, parseNumber, parseSaleLines, paymentFrom, saleErrorMessage, startOfTodayBA } from '../app/utils/sales';
 
 const formOf = (pairs: Array<[string, string]>) => {
@@ -71,7 +71,7 @@ describe('sales routes', () => {
     const response = await postTo(salesAction, 'ventas', [
       ['intent', 'sell'], ['items', items], ['medio', 'transferencia'], ['referencia', 'OP-9'], ['idempotencyKey', 'key-1'],
     ]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/ventas/venta-1?nueva=1');
+    expect(response.headers.get('Location')).toBe('/panel/ventas/venta-1?nueva=1');
     expect(api.mock.calls[1][0]).toBe('http://api.test/ventas');
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({
       canal: 'presencial',
@@ -88,7 +88,7 @@ describe('sales routes', () => {
       .mockResolvedValueOnce(ok({ id: 'venta-1', total: '2200.00' }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'PAGO_EXCEDE_SALDO' }), { status: 400 }));
     const response = await postTo(salesAction, 'ventas', [['intent', 'sell'], ['items', items], ['medio', 'QR']]);
-    expect(response.headers.get('Location')).toMatch(/^\/es\/dashboard\/ventas\/venta-1\?pago=pendiente&motivo=/);
+    expect(response.headers.get('Location')).toMatch(/^\/panel\/ventas\/venta-1\?pago=pendiente&motivo=/);
   });
 
   it('names the product when there is not enough stock', async () => {
@@ -102,7 +102,7 @@ describe('sales routes', () => {
   it('charges what is left of a sale from its page', async () => {
     api.mockResolvedValueOnce(ok({ id: 'venta-1', saldo: '700.00' })).mockResolvedValueOnce(ok({ saldo: '0' }));
     const response = (await saleAction({
-      request: new Request('http://app.test/es/dashboard/ventas/venta-1', {
+      request: new Request('http://app.test/panel/ventas/venta-1', {
         method: 'POST',
         body: formBody([['medio', 'efectivo'], ['recibido', '1000']]),
         headers: { Cookie: await sessionCookie() },

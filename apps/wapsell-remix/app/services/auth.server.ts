@@ -140,7 +140,7 @@ export async function commitApiSession(request: Request, api: ApiSession, rememb
 }
 
 /** Only same-site relative paths are accepted as a post-login destination. */
-export function safeRedirectPath(value: unknown, fallback = '/es/dashboard'): string {
+export function safeRedirectPath(value: unknown, fallback = '/panel'): string {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//'))
     return fallback;
   return value;

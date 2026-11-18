@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, postTo, stubApi } from './helpers/route';
-import { action as inventoryAction } from '../app/routes/_business.$lang.dashboard.inventario';
-import { action as purchasesAction } from '../app/routes/_business.$lang.dashboard.compras';
+import { action as inventoryAction } from '../app/routes/_business.panel.inventario';
+import { action as purchasesAction } from '../app/routes/_business.panel.compras';
 import {
   adjustmentFrom,
   daysUntil,
@@ -112,7 +112,7 @@ describe('inventory and purchases routes', () => {
     const response = await post(purchasesAction, 'compras', [
       ['intent', 'createPurchase'], ['proveedorId', 'prov-1'], ['productoId', 'p-1'], ['cantidad', '24'], ['costo', '500'], ['emitir', '1'],
     ]);
-    expect(response.headers.get('Location')).toBe('/es/dashboard/compras?c=compra-1');
+    expect(response.headers.get('Location')).toBe('/panel/compras?c=compra-1');
     expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ proveedorId: 'prov-1', items: [{ productoId: 'p-1', cantidadPedida: 24, costoUnitario: 500 }] });
     expect(api.mock.calls[1][0]).toBe('http://api.test/compras/compra-1/emitir');
   });
