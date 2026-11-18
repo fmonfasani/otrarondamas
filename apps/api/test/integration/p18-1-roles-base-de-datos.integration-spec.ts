@@ -56,39 +56,45 @@ type RoleRow = {
   });
 
   it('neither role can change the schema, empty a table or read the migration history', async () => {
-    for (const client of [app, system]) {
-      await expect(client.$executeRawUnsafe('CREATE TABLE p18_1_probe (id int)')).rejects.toThrow(
-        /permission denied/,
-      );
-      await expect(
-        client.$executeRawUnsafe('ALTER TABLE "Producto" ADD COLUMN p18_1_probe int'),
-      ).rejects.toThrow(/must be owner/);
-      await expect(client.$executeRawUnsafe('TRUNCATE "Producto"')).rejects.toThrow(
-        /permission denied/,
-      );
-      await expect(
-        client.$queryRawUnsafe('SELECT count(*)::int AS n FROM "_prisma_migrations"'),
-      ).rejects.toThrow(/permission denied/);
-    }
+    await Promise.all(
+      [app, system].map(async (client) => {
+        await expect(client.$executeRawUnsafe('CREATE TABLE p18_1_probe (id int)')).rejects.toThrow(
+          /permission denied/,
+        );
+        await expect(
+          client.$executeRawUnsafe('ALTER TABLE "Producto" ADD COLUMN p18_1_probe int'),
+        ).rejects.toThrow(/must be owner/);
+        await expect(client.$executeRawUnsafe('TRUNCATE "Producto"')).rejects.toThrow(
+          /permission denied/,
+        );
+        await expect(
+          client.$queryRawUnsafe('SELECT count(*)::int AS n FROM "_prisma_migrations"'),
+        ).rejects.toThrow(/permission denied/);
+      }),
+    );
   });
 
   it('identity and security tables are out of reach inside one business', async () => {
-    for (const table of ['Comprador', 'CompradorToken', 'PasswordResetToken', 'MfaFactor']) {
-      await expect(
-        app.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
-      ).rejects.toThrow(/permission denied/);
-      await expect(
-        system.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
-      ).resolves.toHaveLength(1);
-    }
+    await Promise.all(
+      ['Comprador', 'CompradorToken', 'PasswordResetToken', 'MfaFactor'].map(async (table) => {
+        await expect(
+          app.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
+        ).rejects.toThrow(/permission denied/);
+        await expect(
+          system.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
+        ).resolves.toHaveLength(1);
+      }),
+    );
   });
 
   it('nobody edits the audit trail; inside a business it is only appended and read', async () => {
-    for (const client of [app, system]) {
-      await expect(
-        client.$executeRawUnsafe('UPDATE "AuditLog" SET "empresaId" = "empresaId" WHERE false'),
-      ).rejects.toThrow(/permission denied/);
-    }
+    await Promise.all(
+      [app, system].map((client) =>
+        expect(
+          client.$executeRawUnsafe('UPDATE "AuditLog" SET "empresaId" = "empresaId" WHERE false'),
+        ).rejects.toThrow(/permission denied/),
+      ),
+    );
     await expect(app.$executeRawUnsafe('DELETE FROM "AuditLog" WHERE false')).rejects.toThrow(
       /permission denied/,
     );
@@ -100,22 +106,28 @@ type RoleRow = {
   });
 
   it('global catalogs are read-only inside one business', async () => {
-    for (const table of ['Permiso', 'CapabilityDefinition', 'RoleCapability']) {
-      await expect(
-        app.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
-      ).resolves.toHaveLength(1);
-      await expect(app.$executeRawUnsafe(`DELETE FROM "${table}" WHERE false`)).rejects.toThrow(
-        /permission denied/,
-      );
-    }
+    await Promise.all(
+      ['Permiso', 'CapabilityDefinition', 'RoleCapability'].map(async (table) => {
+        await expect(
+          app.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
+        ).resolves.toHaveLength(1);
+        await expect(app.$executeRawUnsafe(`DELETE FROM "${table}" WHERE false`)).rejects.toThrow(
+          /permission denied/,
+        );
+      }),
+    );
   });
 
   it('business data stays readable and writable by both roles', async () => {
-    for (const client of [app, system]) {
-      await expect(
-        client.$queryRawUnsafe('SELECT count(*)::int AS n FROM "Producto"'),
-      ).resolves.toHaveLength(1);
-      await expect(client.$executeRawUnsafe('DELETE FROM "Producto" WHERE false')).resolves.toBe(0);
-    }
+    await Promise.all(
+      [app, system].map(async (client) => {
+        await expect(
+          client.$queryRawUnsafe('SELECT count(*)::int AS n FROM "Producto"'),
+        ).resolves.toHaveLength(1);
+        await expect(client.$executeRawUnsafe('DELETE FROM "Producto" WHERE false')).resolves.toBe(
+          0,
+        );
+      }),
+    );
   });
 });
