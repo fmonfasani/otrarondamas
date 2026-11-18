@@ -20,7 +20,13 @@ import { MfaController } from './mfa/mfa.controller';
 import { SignupService } from './signup.service';
 import { SignupController } from './signup.controller';
 import { StoreGoogleService } from './store-google.service';
-import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
+import {
+  BuyerGoogleStartGuard,
+  StoreGoogleStartGuard,
+  VenderGoogleStartGuard,
+} from './guards/store-google-start.guard';
+import { CompradorService } from './comprador/comprador.service';
+import { CompradorController } from './comprador/comprador.controller';
 
 @Module({
   imports: [
@@ -31,7 +37,13 @@ import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
     AuthJwtModule,
     EmailModule,
   ],
-  controllers: [AuthController, AuthCustomerController, MfaController, SignupController],
+  controllers: [
+    AuthController,
+    AuthCustomerController,
+    MfaController,
+    SignupController,
+    CompradorController,
+  ],
   providers: [
     AuthService,
     PasswordResetService,
@@ -42,6 +54,9 @@ import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
     AuthCustomerService,
     StoreGoogleService,
     StoreGoogleStartGuard,
+    BuyerGoogleStartGuard,
+    VenderGoogleStartGuard,
+    CompradorService,
     GoogleStrategy,
     PermissionsGuard,
     AuthorizationGuard,

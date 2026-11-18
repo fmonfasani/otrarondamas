@@ -37,7 +37,7 @@ export function LoginForm() {
           <br />
           Wapsell.
         </h1>
-        <p className="ws-intro__lead">Tu negocio, tu equipo y tus conversaciones, en un solo lugar.</p>
+        <p className="ws-intro__lead">Para comprar en tus negocios favoritos o atender el tuyo.</p>
       </div>
 
       {loaded?.google && (
@@ -118,11 +118,9 @@ export function LoginForm() {
         </button>
       </Form>
 
-      <Link className="ws-sell-card" to="/vender">
-        <b>¿Querés vender en Wapsell?</b>
-        <span>Creá tu negocio en 2 pasos. Empezá hoy, con o sin CUIT.</span>
-        <em>Vendé en Wapsell →</em>
-      </Link>
+      <p className="ws-switch-account">
+        ¿No tenés cuenta? <Link to="/registro">Registrate</Link>
+      </p>
     </>
   );
 }

@@ -586,7 +586,12 @@
 .ws-steps__bar--on { background: var(--brand-accent, #d97757); opacity: 1; }
 .ws-field__control select { flex: 1 0 0; min-width: 1px; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; }
 .ws-field__hint { font-size: 12px; color: var(--text-secondary, #77736d); }
-.ws-sell-card { display: grid; gap: 6px; width: 100%; margin-top: 20px; padding: 16px 18px; border-radius: 14px; background: #141413; color: #faf9f5; text-decoration: none; }
-.ws-sell-card b { font-size: 15px; }
-.ws-sell-card span { font-size: 12px; color: #d9d6cf; }
-.ws-sell-card em { font-style: normal; font-size: 13px; font-weight: 700; color: #d97757; }
+
+/* ADR-IDN-008 — buyer sign-up and home */
+.ws-sell-link { margin-top: 28px; text-align: center; font-size: 12px; color: var(--text-secondary, #77736d); }
+.ws-sell-link a { color: var(--text-primary); font-weight: 600; }
+.ws-businesses { display: grid; gap: 10px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.ws-business { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); text-decoration: none; }
+.ws-business:hover { border-color: var(--text-primary); }
+.ws-business span { font-size: 12px; color: var(--text-secondary, #77736d); }
+.ws-link-button { border: 0; padding: 0; background: none; color: var(--text-primary); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }

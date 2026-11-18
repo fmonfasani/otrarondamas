@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Public } from './decorators/public.decorator';
 import { SignupService } from './signup.service';
 import { PROVINCIAS, RUBROS } from './signup-catalog';
+import { VenderGoogleStartGuard } from './guards/store-google-start.guard';
 
 /* eslint-disable indent */
 export class SignupDto {
@@ -74,6 +75,15 @@ export class SignupController {
   @ApiOperation({ summary: 'Register a new Business and its Owner (OR-B4-045)' })
   register(@Body() dto: SignupDto) {
     return this.signup.registerWithEmail(dto);
+  }
+
+  /** ADR-IDN-008: «Continuar con Google» of «Vendé en Wapsell» (shared Google callback). */
+  @Public()
+  @UseGuards(VenderGoogleStartGuard)
+  @Get('google/iniciar')
+  @ApiExcludeEndpoint()
+  googleStart() {
+    // VenderGoogleStartGuard redirects to Google before this runs.
   }
 
   @Public()

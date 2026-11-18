@@ -27,8 +27,13 @@ import { AccountService } from './account.service';
 import { MfaPolicyService } from './mfa/mfa-policy.service';
 import { MfaService } from './mfa/mfa.service';
 import { SignupService } from './signup.service';
-import { STORE_GOOGLE_COOKIE, StoreGoogleService } from './store-google.service';
+import {
+  STORE_GOOGLE_COOKIE,
+  StoreGoogleService,
+  type StoreGoogleTarget,
+} from './store-google.service';
 import { AuthCustomerService } from './auth.customer.service';
+import { CompradorService } from './comprador/comprador.service';
 import { GoogleAccountNotFound } from './auth.google.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
@@ -55,6 +60,7 @@ export class AuthController {
     @Optional() private readonly signup?: SignupService,
     @Optional() private readonly storeGoogle?: StoreGoogleService,
     @Optional() private readonly customers?: AuthCustomerService,
+    @Optional() private readonly buyers?: CompradorService,
   ) {}
 
   @Public()
@@ -213,18 +219,28 @@ export class AuthController {
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
       res.redirect(url.toString());
     };
-    // ADR-IDN-007: a store's «Continuar con Google» shares this callback and carries a signed
-    // `state` (the staff flow never sends one). Only the browser that started it gets in.
+    // ADR-IDN-007/008: the store, the universal buyer and «Vendé en Wapsell» share this callback
+    // and carry a signed `state` (the plain staff sign-in never sends one). Only the browser that
+    // started the flow gets in.
     if (this.storeGoogle?.isStoreState(req.query.state)) {
       res.clearCookie(STORE_GOOGLE_COOKIE, { path: '/auth' });
       const target = await this.storeGoogle.read(req.query.state, req.headers.cookie);
-      if (!target || !this.customers) {
-        back('/es/auth/login', { error: 'google' });
-        return;
-      }
+      await this.finishGoogleFlow(target, req.user, back);
+      return;
+    }
+    await this.staffGoogle(req.user, back, false);
+  }
+
+  /** The store, buyer and «Vendé en Wapsell» flows named by a valid Google state. */
+  private async finishGoogleFlow(
+    target: StoreGoogleTarget | null,
+    profile: GoogleProfile,
+    back: (path: string, params: Record<string, string>) => void,
+  ) {
+    if (target?.kind === 'store' && this.customers) {
       const store = `/tienda/${encodeURIComponent(target.slug)}/cuenta`;
       try {
-        const session = await this.customers.loginWithGoogleInBusiness(target.businessId, req.user);
+        const session = await this.customers.loginWithGoogleInBusiness(target.businessId, profile);
         back(`${store}/google`, {
           token: session.accessToken,
           web: target.web,
@@ -235,8 +251,34 @@ export class AuthController {
       }
       return;
     }
+    if (target?.kind === 'buyer' && this.buyers) {
+      try {
+        const session = await this.buyers.loginWithGoogle(profile);
+        back('/registro/google', { token: session.accessToken, web: target.web });
+      } catch {
+        back('/registro', { error: 'google' });
+      }
+      return;
+    }
+    if (target?.kind === 'vender') {
+      await this.staffGoogle(profile, back, true);
+      return;
+    }
+    back('/es/auth/login', { error: 'google' });
+  }
+
+  /**
+   * Google for a staff account. Without one: from «Vendé en Wapsell» the Google identity may
+   * register a Business (OR-B4-045); from the Wapsell entry it continues as a buyer
+   * (ADR-IDN-008), which signs in or creates the universal buyer account.
+   */
+  private async staffGoogle(
+    profile: GoogleProfile,
+    back: (path: string, params: Record<string, string>) => void,
+    fromSell: boolean,
+  ) {
     try {
-      const session = await this.authGoogleService.loginWithGoogle(req.user);
+      const session = await this.authGoogleService.loginWithGoogle(profile);
       // OR-B4-044: Google is only the first factor. An account that needs a second one gets the
       // 10-minute ticket (it only allows the second step), never a session.
       const usuarioId = session.usuario.id;
@@ -247,11 +289,16 @@ export class AuthController {
       }
       back('/auth/google/callback', { token: session.accessToken });
     } catch (error) {
-      // OR-B4-045: a verified Google identity without an account may register a Business.
-      if (error instanceof GoogleAccountNotFound && this.signup) {
-        // ADR-IDN-008: «Vendé en Wapsell» (2 steps) continues with the Google identity.
-        back('/vender', { google: await this.signup.signupTicket(error.profile) });
-        return;
+      if (error instanceof GoogleAccountNotFound) {
+        if (fromSell && this.signup) {
+          back('/vender', { google: await this.signup.signupTicket(error.profile) });
+          return;
+        }
+        if (!fromSell && this.buyers) {
+          // The buyer flow binds the browser before any buyer session is handed over.
+          back('/registro/google', {});
+          return;
+        }
       }
       // The exact reason is not leaked to the browser (same criterion as password login).
       back('/es/auth/login', { error: 'google' });

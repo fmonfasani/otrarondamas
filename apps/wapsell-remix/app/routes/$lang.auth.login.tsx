@@ -16,6 +16,13 @@ import {
   safeRedirectPath,
 } from '~/services/auth.server';
 import { deviceFrom } from '~/services/mfa.server';
+import { buyerApi, buyerSignInCookie, type BuyerLogin } from '~/services/buyer-session.server';
+
+/** Where a buyer may be sent after signing in: their home or a store, nothing else. */
+function buyerDestination(redirectTo: string | null) {
+  const path = safeRedirectPath(redirectTo, '/cuenta');
+  return path === '/cuenta' || path.startsWith('/cuenta?') || path.startsWith('/tienda/') ? path : '/cuenta';
+}
 
 export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
 
@@ -77,6 +84,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
         { error: 'No pudimos conectarnos. Intenta de nuevo en unos minutos.', email },
         { status: 503 },
       );
+    }
+    // ADR-IDN-008: the same entry signs in the universal buyer.
+    const buyer = await buyerApi<BuyerLogin>('/login', { method: 'POST', body: { email, password } });
+    if (buyer.ok) {
+      return redirect(buyerDestination(new URL(request.url).searchParams.get('redirectTo')), {
+        headers: { 'Set-Cookie': await buyerSignInCookie(request, buyer.data) },
+      });
     }
     return json({ error: 'El correo o la contraseña no son correctos.', email }, { status: 400 });
   }

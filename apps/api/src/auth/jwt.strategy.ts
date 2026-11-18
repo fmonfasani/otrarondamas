@@ -28,6 +28,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // OR-B4-044: a staff session that did not pass the second factor is refused when the
     // account needs one (Owner, Admin, Wapsell administrator, or MFA turned on), whatever
     // path issued it (password, invitation, business switch, Google, an older token).
+    // Every token that is not a session carries `typ` (MFA ticket and device, sign-up ticket,
+    // Google state, buyer session): none of them may act as a staff or customer session.
+    if ('typ' in (payload as object) || !payload.sub) throw new UnauthorizedException();
     const type = payload.type ?? 'usuario';
     if (type === 'usuario' && !payload.mfa && (await this.mfaPolicy.requiresMfa(payload.sub))) {
       throw new UnauthorizedException(MFA_REQUIRED_MESSAGE);

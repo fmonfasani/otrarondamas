@@ -16,7 +16,7 @@ model AperturaCaja {
   fechaApertura  DateTime         @default(now())
   fechaCierre    DateTime?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime         @updatedAt
   Caja           Caja             @relation(fields: [cajaId], references: [id])
   Usuario        Usuario          @relation(fields: [usuarioId], references: [id])
   ArqueoCaja     ArqueoCaja[]
@@ -52,7 +52,7 @@ model ArqueoCaja {
   autorizacionId                                String?
   fechaArqueo                                   DateTime      @default(now())
   createdAt                                     DateTime      @default(now())
-  updatedAt                                     DateTime @updatedAt
+  updatedAt                                     DateTime      @updatedAt
   usuarioEntranteId                             String
   AperturaCaja                                  AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
   Autorizacion                                  Autorizacion? @relation(fields: [autorizacionId], references: [id])
@@ -92,7 +92,7 @@ model AuditLog {
   autorizacionId     String?
   ventaId            String?
   createdAt          DateTime      @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime      @updatedAt
   Autorizacion       Autorizacion? @relation(fields: [autorizacionId], references: [id])
   Empresa            Empresa       @relation(fields: [empresaId], references: [id])
   Usuario            Usuario?      @relation(fields: [usuarioId], references: [id])
@@ -109,7 +109,7 @@ model Autorizacion {
   motivo            String?
   fechaAutorizacion DateTime     @default(now())
   createdAt         DateTime     @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime     @updatedAt
   ArqueoCaja        ArqueoCaja[]
   AuditLog          AuditLog[]
   Usuario           Usuario      @relation(fields: [autorizadorId], references: [id])
@@ -123,7 +123,7 @@ model Caja {
   fondoFijo      Decimal
   estado         EstadoCaja       @default(CERRADA)
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime         @updatedAt
   AperturaCaja   AperturaCaja[]
   ArqueoCaja     ArqueoCaja[]
   Empresa        Empresa          @relation(fields: [empresaId], references: [id])
@@ -136,7 +136,7 @@ model CapabilityDefinition {
   description     String?
   category        String?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   CapabilityGrant CapabilityGrant[]
   RoleCapability  RoleCapability[]
 }
@@ -149,7 +149,7 @@ model CapabilityGrant {
   reason               String?
   grantedBy            String?
   createdAt            DateTime             @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime             @updatedAt
   CapabilityDefinition CapabilityDefinition @relation(fields: [capabilityDefId], references: [id])
   RoleGrant            RoleGrant            @relation(fields: [roleGrantId], references: [id], onDelete: Cascade)
 
@@ -162,7 +162,7 @@ model Cart {
   customerId String
   businessId String
   createdAt  DateTime   @default(now())
-  updatedAt  DateTime @updatedAt
+  updatedAt  DateTime   @updatedAt
   Empresa    Empresa    @relation(fields: [businessId], references: [id])
   Cliente    Cliente    @relation(fields: [customerId], references: [id])
   CartItem   CartItem[]
@@ -192,7 +192,7 @@ model CierreCaja {
   fechaCierre    DateTime     @default(now())
   montoFinal     Decimal
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime     @updatedAt
   AperturaCaja   AperturaCaja @relation(fields: [aperturaCajaId], references: [id])
   Usuario        Usuario      @relation(fields: [usuarioId], references: [id])
 }
@@ -207,7 +207,7 @@ model Cliente {
   limiteCredito           Decimal?
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   condicionIva            String?
   cuit                    String?
   esMayorista             Boolean                   @default(false)
@@ -229,9 +229,13 @@ model Cliente {
   Venta                   Venta[]
   PhoneNumber             PhoneNumber[]
   SMSAlert                SMSAlert[]
-  EmailPreference         EmailPreference?      @relation("EmailPreference_cliente")
+  EmailPreference         EmailPreference?          @relation("EmailPreference_cliente")
+
+  compradorId String?
+  Comprador   Comprador? @relation(fields: [compradorId], references: [id])
 
   @@unique([empresaId, email])
+  @@unique([empresaId, compradorId])
   @@unique([id, empresaId])
 }
 
@@ -245,7 +249,7 @@ model Compra {
   fechaOrden             DateTime              @default(now())
   fechaRecepcionEsperada DateTime?
   createdAt              DateTime              @default(now())
-  updatedAt              DateTime @updatedAt
+  updatedAt              DateTime              @updatedAt
   fechaVencimientoPago   DateTime?
   numeroFactura          String?
   saldo                  Decimal               @default(0)
@@ -277,7 +281,7 @@ model Conversation {
   businessId              String
   type                    MessagingConversationType
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   deletedAt               DateTime?
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
   ConversationAssociation ConversationAssociation[]
@@ -299,7 +303,7 @@ model ConversationAssociation {
   changedBy      String?
   reason         String?
   createdAt      DateTime                 @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime                 @updatedAt
   Conversation   Conversation             @relation(fields: [conversationId, businessId], references: [id, businessId])
 
   @@index([businessId, conversationId, active])
@@ -353,7 +357,7 @@ model Deuda {
   montoPendiente    Decimal
   fechaVencimiento  DateTime?
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime         @updatedAt
   cuentaCorrienteId String?
   AplicacionPago    AplicacionPago[]
   Cliente           Cliente          @relation(fields: [clienteId], references: [id])
@@ -363,28 +367,28 @@ model Deuda {
 }
 
 model DevolucionCliente {
-  id                    String                   @id @default(uuid())
-  empresaId             String
-  negocioId             String?
-  clienteId             String
-  ventaId               String
-  creadoPorId           String
-  numeroDevolucion      Int?
-  estado                EstadoDevolucion        @default(SOLICITADA)
-  fechaSolicitud        DateTime                @default(now())
-  fechaAutorizacion     DateTime?
-  fechaRecibida         DateTime?
-  fechaProcesada        DateTime?
-  ventaFecha            DateTime
-  diasDesdeVenta        Int?
-  montoTotal            Decimal  @db.Decimal(14, 2)
-  montoComisiones       Decimal  @db.Decimal(14, 2) @default(0)
-  montoReembolsable     Decimal  @db.Decimal(14, 2)
-  motivo                String
-  observaciones         String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  createdBy             String?
+  id                String           @id @default(uuid())
+  empresaId         String
+  negocioId         String?
+  clienteId         String
+  ventaId           String
+  creadoPorId       String
+  numeroDevolucion  Int?
+  estado            EstadoDevolucion @default(SOLICITADA)
+  fechaSolicitud    DateTime         @default(now())
+  fechaAutorizacion DateTime?
+  fechaRecibida     DateTime?
+  fechaProcesada    DateTime?
+  ventaFecha        DateTime
+  diasDesdeVenta    Int?
+  montoTotal        Decimal          @db.Decimal(14, 2)
+  montoComisiones   Decimal          @default(0) @db.Decimal(14, 2)
+  montoReembolsable Decimal          @db.Decimal(14, 2)
+  motivo            String
+  observaciones     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdBy         String?
 
   Cliente               Cliente                 @relation(fields: [clienteId], references: [id])
   Empresa               Empresa                 @relation(fields: [empresaId], references: [id])
@@ -402,23 +406,23 @@ model DevolucionCliente {
 }
 
 model DevolucionClienteItem {
-  id                      String   @id @default(uuid())
-  devolucionClienteId     String
-  ventaItemId             String
-  productoId              String
-  cantidad                Decimal  @db.Decimal(14, 2)
-  precioUnitarioOriginal  Decimal  @db.Decimal(14, 2)
-  precioDevuelto          Decimal  @db.Decimal(14, 2)
-  descuentoItem           Decimal  @db.Decimal(14, 2) @default(0)
-  montoLineaDevuelto      Decimal  @db.Decimal(14, 2)
-  motivo                  String?
-  observaciones           String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  devolucionClienteId    String
+  ventaItemId            String
+  productoId             String
+  cantidad               Decimal  @db.Decimal(14, 2)
+  precioUnitarioOriginal Decimal  @db.Decimal(14, 2)
+  precioDevuelto         Decimal  @db.Decimal(14, 2)
+  descuentoItem          Decimal  @default(0) @db.Decimal(14, 2)
+  montoLineaDevuelto     Decimal  @db.Decimal(14, 2)
+  motivo                 String?
+  observaciones          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  DevolucionCliente       DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
-  VentaItem               VentaItem         @relation(fields: [ventaItemId], references: [id])
-  Producto                Producto          @relation(fields: [productoId], references: [id])
+  DevolucionCliente DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
+  VentaItem         VentaItem         @relation(fields: [ventaItemId], references: [id])
+  Producto          Producto          @relation(fields: [productoId], references: [id])
 
   @@unique([devolucionClienteId, ventaItemId])
   @@index([devolucionClienteId])
@@ -426,25 +430,25 @@ model DevolucionClienteItem {
 }
 
 model Reembolso {
-  id                      String   @id @default(uuid())
-  devolucionClienteId     String   @unique
-  empresaId               String
-  referenceId             String?
-  estado                  EstadoReembolso     @default(PENDIENTE)
-  montoReembolsable       Decimal  @db.Decimal(14, 2)
-  montoActual             Decimal  @db.Decimal(14, 2)
-  metodoReembolso         String?
-  intentos                Int      @default(0)
-  ultimoIntento           DateTime?
-  proximoIntento          DateTime?
-  resultado               String?
-  motivoFalla             String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  procesadoEn             DateTime?
+  id                  String          @id @default(uuid())
+  devolucionClienteId String          @unique
+  empresaId           String
+  referenceId         String?
+  estado              EstadoReembolso @default(PENDIENTE)
+  montoReembolsable   Decimal         @db.Decimal(14, 2)
+  montoActual         Decimal         @db.Decimal(14, 2)
+  metodoReembolso     String?
+  intentos            Int             @default(0)
+  ultimoIntento       DateTime?
+  proximoIntento      DateTime?
+  resultado           String?
+  motivoFalla         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  procesadoEn         DateTime?
 
-  DevolucionCliente       DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
-  Empresa                 Empresa           @relation(fields: [empresaId], references: [id])
+  DevolucionCliente DevolucionCliente @relation(fields: [devolucionClienteId], references: [id], onDelete: Cascade)
+  Empresa           Empresa           @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, estado])
   @@index([empresaId, createdAt])
@@ -460,7 +464,7 @@ model DevolucionProveedor {
   motivo                  String
   fecha                   DateTime                  @default(now())
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   Compra                  Compra                    @relation(fields: [compraId], references: [id])
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   Proveedor               Proveedor                 @relation(fields: [proveedorId], references: [id])
@@ -488,7 +492,7 @@ model DocumentoLegajo {
   nombreArchivo String
   vencimiento   DateTime
   createdAt     DateTime            @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime            @updatedAt
   Legajo        Legajo              @relation(fields: [legajoId], references: [id])
 }
 
@@ -498,7 +502,7 @@ model Empresa {
   handle                  String?                   @unique
   configuracion           Json
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   slug                    String                    @unique
   AuditLog                AuditLog[]
   Autorizacion            Autorizacion[]
@@ -554,18 +558,18 @@ model Empresa {
 }
 
 model AnalyticsEvent {
-  id                String   @id @default(uuid())
-  empresaId         String
-  userId            String?
-  eventType         String   // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE', 'CUSTOM'
-  eventName         String   // e.g., 'checkout_started', 'product_viewed'
-  category          String?  // e.g., 'sales', 'inventory', 'users'
-  timestamp         DateTime @default(now())
-  metadata          Json?    // {productId, quantity, value, customerId, orderId, errorMessage, duration, ...}
-  sessionId         String?  // For session-based tracking
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+  id        String   @id @default(uuid())
+  empresaId String
+  userId    String?
+  eventType String // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE', 'CUSTOM'
+  eventName String // e.g., 'checkout_started', 'product_viewed'
+  category  String? // e.g., 'sales', 'inventory', 'users'
+  timestamp DateTime @default(now())
+  metadata  Json? // {productId, quantity, value, customerId, orderId, errorMessage, duration, ...}
+  sessionId String? // For session-based tracking
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Empresa   Empresa  @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, eventType, timestamp])
   @@index([empresaId, userId, timestamp])
@@ -573,36 +577,36 @@ model AnalyticsEvent {
 }
 
 model AnalyticsAggregation {
-  id                String   @id @default(uuid())
-  empresaId         String
-  period            String   // 'DAILY', 'WEEKLY', 'MONTHLY'
-  periodStart       DateTime
-  periodEnd         DateTime
-  eventType         String   // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE'
-  eventName         String?  // NULL for aggregated by type
-  count             Int
-  uniqueUsers       Int
-  avgValue          Decimal? // For conversions/revenue
-  metadata          Json?    // {topProducts, topPages, errorRate, ...}
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+  id          String   @id @default(uuid())
+  empresaId   String
+  period      String // 'DAILY', 'WEEKLY', 'MONTHLY'
+  periodStart DateTime
+  periodEnd   DateTime
+  eventType   String // 'PAGE_VIEW', 'CONVERSION', 'ERROR', 'PERFORMANCE'
+  eventName   String? // NULL for aggregated by type
+  count       Int
+  uniqueUsers Int
+  avgValue    Decimal? // For conversions/revenue
+  metadata    Json? // {topProducts, topPages, errorRate, ...}
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Empresa     Empresa  @relation(fields: [empresaId], references: [id])
 
   @@unique([empresaId, period, periodStart, eventType, eventName])
   @@index([empresaId, period, periodStart])
 }
 
 model AnalyticsDashboard {
-  id                String   @id @default(uuid())
-  empresaId         String
-  name              String
-  description       String?
-  dashboardConfig   Json     // {widgets: [{type, metric, period, filters}]}
-  isPublic          Boolean  @default(false)
-  createdBy         String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  Empresa           Empresa  @relation(fields: [empresaId], references: [id])
+  id              String   @id @default(uuid())
+  empresaId       String
+  name            String
+  description     String?
+  dashboardConfig Json // {widgets: [{type, metric, period, filters}]}
+  isPublic        Boolean  @default(false)
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Empresa         Empresa  @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
 }
@@ -617,7 +621,7 @@ model Entrega {
   medioCobro                            String?
   fechaEntrega                          DateTime?
   createdAt                             DateTime  @default(now())
-  updatedAt                             DateTime @updatedAt
+  updatedAt                             DateTime  @updatedAt
   Empresa                               Empresa   @relation(fields: [empresaId], references: [id])
   Pedido                                Pedido    @relation(fields: [pedidoId], references: [id])
   Usuario_Entrega_preparadorIdToUsuario Usuario?  @relation("Entrega_preparadorIdToUsuario", fields: [preparadorId], references: [id])
@@ -631,7 +635,7 @@ model Familia {
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime            @updatedAt
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
@@ -651,7 +655,7 @@ model Invitacion {
   expiraEn      DateTime
   usadaEn       DateTime?
   createdAt     DateTime   @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime   @updatedAt
   Empresa       Empresa    @relation(fields: [empresaId], references: [id])
   Usuario       Usuario    @relation(fields: [invitadoPorId], references: [id])
 }
@@ -670,7 +674,7 @@ model Legajo {
   vehiculoDatos    String?
   licenciaConducir String?
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime          @updatedAt
   DocumentoLegajo  DocumentoLegajo[]
   Cliente          Cliente?          @relation(fields: [clienteId], references: [id])
   Usuario          Usuario?          @relation(fields: [usuarioId], references: [id])
@@ -684,7 +688,7 @@ model Lote {
   vencimiento             DateTime
   cantidad                Decimal
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   DevolucionProveedorItem DevolucionProveedorItem[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   Producto                Producto                  @relation(fields: [productoId], references: [id])
@@ -700,7 +704,7 @@ model Membership {
   role                    RolUsuario
   status                  MembershipStatus          @default(ACTIVE)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   ConversationParticipant ConversationParticipant[]
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
   User                    User                      @relation(fields: [userId], references: [id])
@@ -780,7 +784,7 @@ model MessagingReadPreference {
   customerBusinessId   String?
   enabled              Boolean     @default(true)
   createdAt            DateTime    @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime    @updatedAt
   Empresa              Empresa     @relation(fields: [businessId], references: [id])
   Cliente              Cliente?    @relation(fields: [customerId, customerBusinessId], references: [id, empresaId])
   Membership           Membership? @relation(fields: [userId, membershipBusinessId], references: [userId, businessId])
@@ -801,7 +805,7 @@ model MovimientoCaja {
   descripcion    String?
   referenciaId   String?
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime      @updatedAt
   AperturaCaja   AperturaCaja? @relation(fields: [aperturaCajaId], references: [id])
   Caja           Caja          @relation(fields: [cajaId], references: [id])
   Usuario        Usuario       @relation(fields: [usuarioId], references: [id])
@@ -819,7 +823,7 @@ model MovimientoStock {
   usuarioId            String?
   recepcionCompraId    String?
   createdAt            DateTime         @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime         @updatedAt
   loteVencidoAlMomento Boolean          @default(false)
   Empresa              Empresa          @relation(fields: [empresaId], references: [id])
   Lote                 Lote?            @relation(fields: [loteId], references: [id])
@@ -854,7 +858,7 @@ model Pago {
   estado          EstadoPago       @default(PENDIENTE)
   comision        Decimal          @default(0)
   createdAt       DateTime         @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime         @updatedAt
   pedidoId        String?
   montoRecibido   Decimal?
   vuelto          Decimal?
@@ -879,7 +883,7 @@ model PagoProveedor {
   fecha       DateTime  @default(now())
   notas       String?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   Compra      Compra    @relation(fields: [compraId], references: [id])
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
   Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
@@ -896,7 +900,7 @@ model Pedido {
   total          Decimal
   descuento      Decimal        @default(0)
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime       @updatedAt
   idempotencyKey String?
   Entrega        Entrega?
   Notificacion   Notificacion[]
@@ -915,7 +919,7 @@ model PedidoItem {
   precioUnitario                  Decimal
   descuentoItem                   Decimal            @default(0)
   createdAt                       DateTime           @default(now())
-  updatedAt                       DateTime @updatedAt
+  updatedAt                       DateTime           @updatedAt
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
   reglaFidelizacionId             String?
   Pedido                          Pedido             @relation(fields: [pedidoId], references: [id])
@@ -928,7 +932,7 @@ model Permiso {
   nombre         String           @unique
   descripcion    String?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime         @updatedAt
   UsuarioPermiso UsuarioPermiso[]
 }
 
@@ -960,7 +964,7 @@ model Producto {
   precioMayorista         Decimal?
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   stockMinimo             Decimal                   @default(0)
   descuentoPorcentaje     Decimal?                  @db.Decimal(5, 2)
   familiaId               String
@@ -992,7 +996,7 @@ model ProductoProveedor {
   productoId  String
   proveedorId String
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
   Producto    Producto  @relation(fields: [productoId], references: [id])
   Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
@@ -1008,7 +1012,7 @@ model Proveedor {
   telefono            String?
   direccion           String?
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime              @updatedAt
   Compra              Compra[]
   DevolucionProveedor DevolucionProveedor[]
   PagoProveedor       PagoProveedor[]
@@ -1039,7 +1043,7 @@ model RecepcionCompra {
   fechaRecepcion  DateTime          @default(now())
   observaciones   String?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   MovimientoStock MovimientoStock[]
   Compra          Compra            @relation(fields: [compraId], references: [id])
   Empresa         Empresa           @relation(fields: [empresaId], references: [id])
@@ -1056,7 +1060,7 @@ model ReglaFidelizacion {
   cantidadMinima      Int?
   activo              Boolean        @default(true)
   createdAt           DateTime       @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime       @updatedAt
   familiaId           String?
   subfamiliaId        String?
   tipoId              String?
@@ -1087,7 +1091,7 @@ model RoleGrant {
   membershipId    String            @unique
   roleTemplateId  String
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   CapabilityGrant CapabilityGrant[]
   Membership      Membership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   RoleTemplate    RoleTemplate      @relation(fields: [roleTemplateId], references: [id])
@@ -1101,7 +1105,7 @@ model RoleTemplate {
   description    String?
   empresaId      String?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime         @updatedAt
   RoleCapability RoleCapability[]
   RoleGrant      RoleGrant[]
 }
@@ -1114,7 +1118,7 @@ model Subfamilia {
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime            @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
@@ -1133,7 +1137,7 @@ model Subtipo {
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime            @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
@@ -1151,7 +1155,7 @@ model Tipo {
   prefijo           String              @db.Char(3)
   activo            Boolean             @default(true)
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime            @updatedAt
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Subtipo           Subtipo[]
@@ -1171,35 +1175,35 @@ model User {
   fotoUrl      String?
   usuarioId    String?      @unique
   createdAt    DateTime     @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime     @updatedAt
   Membership   Membership[]
   Reaction     Reaction[]
 }
 
 model Usuario {
-  id                                               String                @id @default(uuid())
+  id                                               String                   @id @default(uuid())
   empresaId                                        String
   nombre                                           String
-  email                                            String                @unique
+  email                                            String                   @unique
   passwordHash                                     String?
-  activo                                           Boolean               @default(true)
-  createdAt                                        DateTime              @default(now())
-  updatedAt                                        DateTime @updatedAt
+  activo                                           Boolean                  @default(true)
+  createdAt                                        DateTime                 @default(now())
+  updatedAt                                        DateTime                 @updatedAt
   fotoUrl                                          String?
-  googleId                                         String?               @unique
-  estadoLegajo                                     EstadoLegajo          @default(APROBADO)
-  rol                                              RolUsuario            @default(OWNER)
+  googleId                                         String?                  @unique
+  estadoLegajo                                     EstadoLegajo             @default(APROBADO)
+  rol                                              RolUsuario               @default(OWNER)
   AperturaCaja                                     AperturaCaja[]
-  ArqueoCaja_ArqueoCaja_usuarioEntranteIdToUsuario ArqueoCaja[]          @relation("ArqueoCaja_usuarioEntranteIdToUsuario")
-  ArqueoCaja_ArqueoCaja_usuarioIdToUsuario         ArqueoCaja[]          @relation("ArqueoCaja_usuarioIdToUsuario")
+  ArqueoCaja_ArqueoCaja_usuarioEntranteIdToUsuario ArqueoCaja[]             @relation("ArqueoCaja_usuarioEntranteIdToUsuario")
+  ArqueoCaja_ArqueoCaja_usuarioIdToUsuario         ArqueoCaja[]             @relation("ArqueoCaja_usuarioIdToUsuario")
   AuditLog                                         AuditLog[]
   Autorizacion                                     Autorizacion[]
   CierreCaja                                       CierreCaja[]
   Compra                                           Compra[]
-  DevolucionCliente                                DevolucionCliente[]   @relation("DevolucionCliente_creadoPorIdToUsuario")
+  DevolucionCliente                                DevolucionCliente[]      @relation("DevolucionCliente_creadoPorIdToUsuario")
   DevolucionProveedor                              DevolucionProveedor[]
-  Entrega_Entrega_preparadorIdToUsuario            Entrega[]             @relation("Entrega_preparadorIdToUsuario")
-  Entrega_Entrega_repartidorIdToUsuario            Entrega[]             @relation("Entrega_repartidorIdToUsuario")
+  Entrega_Entrega_preparadorIdToUsuario            Entrega[]                @relation("Entrega_preparadorIdToUsuario")
+  Entrega_Entrega_repartidorIdToUsuario            Entrega[]                @relation("Entrega_repartidorIdToUsuario")
   MfaFactor                                        MfaFactor?
   Invitacion                                       Invitacion[]
   Legajo                                           Legajo?
@@ -1209,7 +1213,7 @@ model Usuario {
   PagoProveedor                                    PagoProveedor[]
   Pedido                                           Pedido[]
   RecepcionCompra                                  RecepcionCompra[]
-  Empresa                                          Empresa               @relation(fields: [empresaId], references: [id])
+  Empresa                                          Empresa                  @relation(fields: [empresaId], references: [id])
   UserEmpresa                                      UserEmpresa[]
   UsuarioPermiso                                   UsuarioPermiso[]
   PasswordResetToken                               PasswordResetToken[]
@@ -1218,40 +1222,40 @@ model Usuario {
   SMSAlert                                         SMSAlert[]
   NotificationPreference                           NotificationPreference[]
   NotificationDigest                               NotificationDigest[]
-  EmailPreference                                  EmailPreference?      @relation("EmailPreference_usuario")
+  EmailPreference                                  EmailPreference?         @relation("EmailPreference_usuario")
 }
 
 /// Notification Preferences - User notification settings and delivery preferences
 model NotificationPreference {
-  id                        String                   @id @default(uuid())
-  usuarioId                 String
-  empresaId                 String
+  id        String @id @default(uuid())
+  usuarioId String
+  empresaId String
 
   /// Channel settings
-  pushEnabled               Boolean                  @default(true)
-  emailEnabled              Boolean                  @default(true)
-  smsEnabled                Boolean                  @default(false)
+  pushEnabled  Boolean @default(true)
+  emailEnabled Boolean @default(true)
+  smsEnabled   Boolean @default(false)
 
   /// Frequency settings (per notification type)
-  orderNotifications        NotificationFrequency    @default(REAL_TIME)
-  messageNotifications      NotificationFrequency    @default(REAL_TIME)
-  inventoryNotifications    NotificationFrequency    @default(DAILY)
-  systemNotifications       NotificationFrequency    @default(REAL_TIME)
+  orderNotifications     NotificationFrequency @default(REAL_TIME)
+  messageNotifications   NotificationFrequency @default(REAL_TIME)
+  inventoryNotifications NotificationFrequency @default(DAILY)
+  systemNotifications    NotificationFrequency @default(REAL_TIME)
 
   /// Quiet hours (24-hour format HH:MM)
-  quietHoursEnabled         Boolean                  @default(false)
-  quietHoursStart           String?                  /// "22:00"
-  quietHoursEnd             String?                  /// "08:00"
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart   String? /// "22:00"
+  quietHoursEnd     String? /// "08:00"
 
   /// Digest settings
-  digestFrequency           DigestPeriod             @default(DAILY)
-  digestTime                String                   @default("09:00") /// preferred send time HH:MM
+  digestFrequency DigestPeriod @default(DAILY)
+  digestTime      String       @default("09:00") /// preferred send time HH:MM
 
-  createdAt                 DateTime                 @default(now())
-  updatedAt                 DateTime                 @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  Usuario                   Usuario                  @relation(fields: [usuarioId], references: [id])
-  Empresa                   Empresa                  @relation(fields: [empresaId], references: [id])
+  Usuario Usuario @relation(fields: [usuarioId], references: [id])
+  Empresa Empresa @relation(fields: [empresaId], references: [id])
 
   @@unique([usuarioId, empresaId])
   @@index([empresaId, usuarioId])
@@ -1259,22 +1263,22 @@ model NotificationPreference {
 
 /// Notification Digest - Batched notifications sent at scheduled intervals
 model NotificationDigest {
-  id                String      @id @default(uuid())
-  usuarioId         String
-  empresaId         String
-  period            DigestPeriod
-  startDate         DateTime
-  endDate           DateTime
-  summary           Json        /// { orders: 5, messages: 12, inventory: 3 }
-  content           String      /// HTML digest content
-  sentAt            DateTime?
-  openedAt          DateTime?
+  id        String       @id @default(uuid())
+  usuarioId String
+  empresaId String
+  period    DigestPeriod
+  startDate DateTime
+  endDate   DateTime
+  summary   Json /// { orders: 5, messages: 12, inventory: 3 }
+  content   String /// HTML digest content
+  sentAt    DateTime?
+  openedAt  DateTime?
 
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  Usuario           Usuario     @relation(fields: [usuarioId], references: [id])
-  Empresa           Empresa     @relation(fields: [empresaId], references: [id])
+  Usuario Usuario @relation(fields: [usuarioId], references: [id])
+  Empresa Empresa @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, usuarioId, period])
   @@index([usuarioId, sentAt])
@@ -1284,12 +1288,12 @@ model UserEmpresa {
   id        String   @id @default(uuid())
   usuarioId String
   empresaId String
-  role      String   @default("owner")  // owner, admin, user, editor
+  role      String   @default("owner") // owner, admin, user, editor
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  Empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  Usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  Empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, empresaId])
   @@index([usuarioId])
@@ -1323,46 +1327,46 @@ model UsuarioPermiso {
 }
 
 model Venta {
-  id                String               @id @default(uuid())
+  id                String              @id @default(uuid())
   empresaId         String
   usuarioId         String
   clienteId         String?
   canal             String
-  total             Decimal     @db.Decimal(14, 2)
-  descuento         Decimal     @default(0) @db.Decimal(14, 2)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime @updatedAt
-  estado            EstadoVenta @default(CONFIRMADA)
-  idempotencyKey    String?     @unique
+  total             Decimal             @db.Decimal(14, 2)
+  descuento         Decimal             @default(0) @db.Decimal(14, 2)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  estado            EstadoVenta         @default(CONFIRMADA)
+  idempotencyKey    String?             @unique
   numero            Int?
   AuditLog          AuditLog[]
   Deuda             Deuda[]
   DevolucionCliente DevolucionCliente[]
   Pago              Pago[]
   Payment           Payment[]
-  Cliente           Cliente?    @relation(fields: [clienteId], references: [id])
-  Empresa           Empresa     @relation(fields: [empresaId], references: [id])
-  Usuario           Usuario     @relation(fields: [usuarioId], references: [id])
+  Cliente           Cliente?            @relation(fields: [clienteId], references: [id])
+  Empresa           Empresa             @relation(fields: [empresaId], references: [id])
+  Usuario           Usuario             @relation(fields: [usuarioId], references: [id])
   VentaItem         VentaItem[]
 
   @@index([empresaId, numero])
 }
 
 model VentaItem {
-  id                              String                   @id @default(uuid())
+  id                              String                  @id @default(uuid())
   ventaId                         String
   productoId                      String
-  cantidad                        Decimal            @db.Decimal(14, 2)
-  precioUnitario                  Decimal            @db.Decimal(14, 2)
-  descuentoItem                   Decimal            @default(0) @db.Decimal(14, 2)
-  createdAt                       DateTime           @default(now())
-  updatedAt                       DateTime @updatedAt
-  descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
+  cantidad                        Decimal                 @db.Decimal(14, 2)
+  precioUnitario                  Decimal                 @db.Decimal(14, 2)
+  descuentoItem                   Decimal                 @default(0) @db.Decimal(14, 2)
+  createdAt                       DateTime                @default(now())
+  updatedAt                       DateTime                @updatedAt
+  descuentoFidelizacionPorcentaje Decimal?                @db.Decimal(5, 2)
   reglaFidelizacionId             String?
   DevolucionClienteItem           DevolucionClienteItem[]
-  Producto                        Producto           @relation(fields: [productoId], references: [id])
-  ReglaFidelizacion               ReglaFidelizacion? @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
-  Venta                           Venta              @relation(fields: [ventaId], references: [id])
+  Producto                        Producto                @relation(fields: [productoId], references: [id])
+  ReglaFidelizacion               ReglaFidelizacion?      @relation(fields: [reglaFidelizacionId], references: [id], onDelete: Restrict)
+  Venta                           Venta                   @relation(fields: [ventaId], references: [id])
 }
 
 enum CapabilityGrantType {
@@ -1538,26 +1542,26 @@ enum OTPPurpose {
 }
 
 model PhoneNumber {
-  id                    String      @id @default(uuid())
-  usuarioId             String?
-  clienteId             String?
-  empresaId             String
-  phoneNumber           String
-  countryCode           String      @default("+54") // Argentina by default
-  isVerified            Boolean     @default(false)
-  isPrimary             Boolean     @default(false)
-  verificationCode      String?
+  id                      String    @id @default(uuid())
+  usuarioId               String?
+  clienteId               String?
+  empresaId               String
+  phoneNumber             String
+  countryCode             String    @default("+54") // Argentina by default
+  isVerified              Boolean   @default(false)
+  isPrimary               Boolean   @default(false)
+  verificationCode        String?
   verificationCodeExpires DateTime?
-  lastUsedAt            DateTime?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  lastUsedAt              DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  Usuario               Usuario?    @relation(fields: [usuarioId], references: [id])
-  Cliente               Cliente?    @relation(fields: [clienteId], references: [id])
-  Empresa               Empresa     @relation(fields: [empresaId], references: [id])
-  smsLogs               SMSLog[]
-  otpSessions           OTPSession[]
-  smsAlerts             SMSAlert[]
+  Usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
+  Cliente     Cliente?     @relation(fields: [clienteId], references: [id])
+  Empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  smsLogs     SMSLog[]
+  otpSessions OTPSession[]
+  smsAlerts   SMSAlert[]
 
   @@unique([empresaId, phoneNumber])
   @@index([usuarioId])
@@ -1566,39 +1570,39 @@ model PhoneNumber {
 }
 
 model OTPSession {
-  id                    String      @id @default(uuid())
-  phoneNumberId         String
-  purpose               OTPPurpose
-  code                  String
-  attempts              Int         @default(0)
-  maxAttempts           Int         @default(3)
-  expiresAt             DateTime
-  verifiedAt            DateTime?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id            String     @id @default(uuid())
+  phoneNumberId String
+  purpose       OTPPurpose
+  code          String
+  attempts      Int        @default(0)
+  maxAttempts   Int        @default(3)
+  expiresAt     DateTime
+  verifiedAt    DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  phoneNumber           PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
 
   @@index([phoneNumberId])
   @@index([expiresAt])
 }
 
 model SMSLog {
-  id                    String      @id @default(uuid())
-  phoneNumberId         String
-  toPhone               String      @db.VarChar(20)
-  message               String      @db.VarChar(160)
-  type                  SMSType
-  status                SMSStatus   @default(PENDING)
-  twilioSid             String?     @unique
-  errorCode             String?
-  errorMessage          String?
-  sentAt                DateTime    @default(now())
-  deliveredAt           DateTime?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id            String    @id @default(uuid())
+  phoneNumberId String
+  toPhone       String    @db.VarChar(20)
+  message       String    @db.VarChar(160)
+  type          SMSType
+  status        SMSStatus @default(PENDING)
+  twilioSid     String?   @unique
+  errorCode     String?
+  errorMessage  String?
+  sentAt        DateTime  @default(now())
+  deliveredAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  phoneNumber           PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
 
   @@index([phoneNumberId])
   @@index([status])
@@ -1607,21 +1611,21 @@ model SMSLog {
 }
 
 model SMSAlert {
-  id                    String      @id @default(uuid())
-  empresaId             String
-  usuarioId             String?
-  clienteId             String?
-  trigger               String      // "order_confirmation", "inventory_low", "payment_received", etc
-  message               String
-  isActive              Boolean     @default(true)
-  phoneNumberId         String?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id            String   @id @default(uuid())
+  empresaId     String
+  usuarioId     String?
+  clienteId     String?
+  trigger       String // "order_confirmation", "inventory_low", "payment_received", etc
+  message       String
+  isActive      Boolean  @default(true)
+  phoneNumberId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  Empresa               Empresa     @relation(fields: [empresaId], references: [id])
-  Usuario               Usuario?    @relation(fields: [usuarioId], references: [id])
-  Cliente               Cliente?    @relation(fields: [clienteId], references: [id])
-  PhoneNumber           PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+  Empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  Usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
+  Cliente     Cliente?     @relation(fields: [clienteId], references: [id])
+  PhoneNumber PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
 
   @@index([empresaId])
   @@index([usuarioId])
@@ -1635,14 +1639,14 @@ model EmailTemplate {
   nombre        String
   tipo          TipoEmail @default(TRANSACCIONAL)
   asunto        String
-  contenidoHtml String    // Handlebars template: {{variable}}
-  variables     Json?     // Schema: {"required": ["userId"], "optional": ["orderId"]}
+  contenidoHtml String // Handlebars template: {{variable}}
+  variables     Json? // Schema: {"required": ["userId"], "optional": ["orderId"]}
   activo        Boolean   @default(true)
   versionActual Int       @default(1)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  Empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  Empresa       Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   EmailLog      EmailLog[]
   EmailCampaign EmailCampaign[]
 
@@ -1651,51 +1655,51 @@ model EmailTemplate {
 }
 
 model EmailLog {
-  id                String      @id @default(uuid())
+  id                String    @id @default(uuid())
   empresaId         String
   templateId        String?
   destinatario      String
   asunto            String
-  contenido         String?     // Rendered HTML
-  evento            String      @default("ENVIADO")  // ENVIADO, ABIERTO, CLICK, REBOTE, QUEJA
-  proveedor         String      @default("RESEND")   // RESEND, SENDGRID, SES
-  providerMessageId String?     @unique             // Provider's message ID for tracking
-  metadata          Json?       // tracking: {openedAt, clicks: [{url, clickedAt}]}
-  idReferencia      String?     // orderId, ventaId, etc
-  tipoReferencia    String?     // "Venta", "Pedido", "Invitacion"
-  intentos          Int         @default(1)
+  contenido         String? // Rendered HTML
+  evento            String    @default("ENVIADO") // ENVIADO, ABIERTO, CLICK, REBOTE, QUEJA
+  proveedor         String    @default("RESEND") // RESEND, SENDGRID, SES
+  providerMessageId String?   @unique // Provider's message ID for tracking
+  metadata          Json? // tracking: {openedAt, clicks: [{url, clickedAt}]}
+  idReferencia      String? // orderId, ventaId, etc
+  tipoReferencia    String? // "Venta", "Pedido", "Invitacion"
+  intentos          Int       @default(1)
   errorMensaje      String?
-  proxRetento       DateTime?   // Null = no retry needed
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  proxRetento       DateTime? // Null = no retry needed
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  Empresa           Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  EmailTemplate     EmailTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  Empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  EmailTemplate EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([empresaId, destinatario, createdAt])
   @@index([empresaId, tipoReferencia, idReferencia])
   @@index([proveedor, providerMessageId])
-  @@index([proxRetento])  // For retry queries
+  @@index([proxRetento]) // For retry queries
 }
 
 model EmailPreference {
-  id            String      @id @default(uuid())
-  empresaId     String
-  usuarioId     String?     @unique
-  clienteId     String?     @unique // For non-staff customers
-  email         String
-  categoriasOptIn Json?     // {"transaccional": true, "marketing": true, "newsletters": false}
-  frecuencia    String      @default("TODAS")  // TODAS, SEMANAL, MENSUAL, NUNCA
-  suscrito      Boolean     @default(true)
-  desuscritaEn  DateTime?
+  id                  String    @id @default(uuid())
+  empresaId           String
+  usuarioId           String?   @unique
+  clienteId           String?   @unique // For non-staff customers
+  email               String
+  categoriasOptIn     Json? // {"transaccional": true, "marketing": true, "newsletters": false}
+  frecuencia          String    @default("TODAS") // TODAS, SEMANAL, MENSUAL, NUNCA
+  suscrito            Boolean   @default(true)
+  desuscritaEn        DateTime?
   motivoDesuscripcion String?
-  unsubscribeToken String   @unique @db.VarChar(128)  // For anonymous unsubscribe links
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  unsubscribeToken    String    @unique @db.VarChar(128) // For anonymous unsubscribe links
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  Empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  Usuario       Usuario?  @relation("EmailPreference_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
-  Cliente       Cliente?  @relation("EmailPreference_cliente", fields: [clienteId], references: [id], onDelete: Cascade)
+  Empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  Usuario Usuario? @relation("EmailPreference_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  Cliente Cliente? @relation("EmailPreference_cliente", fields: [clienteId], references: [id], onDelete: Cascade)
 
   @@unique([empresaId, email])
   @@index([empresaId, suscrito])
@@ -1703,27 +1707,27 @@ model EmailPreference {
 }
 
 model EmailCampaign {
-  id              String           @id @default(uuid())
-  empresaId       String
-  templateId      String
-  nombre          String
-  descripcion     String?
-  estadio         EstadoCampaign   @default(BORRADOR)
-  audiencia       String           @default("CLIENTES")  // CLIENTES, USUARIOS, SUSCRIPTORES, MANUAL
-  filtroAudiencia Json?            // {status: "ACTIVO", createdAfter: "2024-01-01"}
-  programadaPara  DateTime?
-  iniciadaEn      DateTime?
-  finalizadaEn    DateTime?
-  destinatariosTotal Int?
-  destinatariosEnviados Int         @default(0)
-  destinatariosFallidos Int         @default(0)
-  tasaApertura    Decimal?         @db.Decimal(5, 2)
-  tasaClick       Decimal?         @db.Decimal(5, 2)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                    String         @id @default(uuid())
+  empresaId             String
+  templateId            String
+  nombre                String
+  descripcion           String?
+  estadio               EstadoCampaign @default(BORRADOR)
+  audiencia             String         @default("CLIENTES") // CLIENTES, USUARIOS, SUSCRIPTORES, MANUAL
+  filtroAudiencia       Json? // {status: "ACTIVO", createdAfter: "2024-01-01"}
+  programadaPara        DateTime?
+  iniciadaEn            DateTime?
+  finalizadaEn          DateTime?
+  destinatariosTotal    Int?
+  destinatariosEnviados Int            @default(0)
+  destinatariosFallidos Int            @default(0)
+  tasaApertura          Decimal?       @db.Decimal(5, 2)
+  tasaClick             Decimal?       @db.Decimal(5, 2)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  Empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  EmailTemplate   EmailTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  Empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  EmailTemplate EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
 
   @@index([empresaId, estadio])
   @@index([empresaId, programadaPara])
@@ -1732,9 +1736,9 @@ model EmailCampaign {
 
 // P8-2: Email enums
 enum TipoEmail {
-  TRANSACCIONAL   // Order confirmations, password reset, invitations
-  MARKETING       // Promotions, newsletters
-  ALERTAS         // Stock alerts, payment reminders
+  TRANSACCIONAL // Order confirmations, password reset, invitations
+  MARKETING // Promotions, newsletters
+  ALERTAS // Stock alerts, payment reminders
 }
 
 enum EstadoCampaign {
@@ -1747,29 +1751,29 @@ enum EstadoCampaign {
 
 // P11-1: Payment Gateway Models
 model Payment {
-  id                String     @id @default(cuid())
-  empresaId         String
-  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  id        String  @id @default(cuid())
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
-  ventaId           String
-  venta             Venta      @relation(fields: [ventaId], references: [id], onDelete: Restrict)
+  ventaId String
+  venta   Venta  @relation(fields: [ventaId], references: [id], onDelete: Restrict)
 
-  monto             Decimal    @db.Decimal(10, 2)
-  moneda            String     @default("ARS")
+  monto  Decimal @db.Decimal(10, 2)
+  moneda String  @default("ARS")
 
-  proveedor         String     // "STRIPE" | "MERCADOPAGO"
-  providerPaymentId String     @unique
+  proveedor         String // "STRIPE" | "MERCADOPAGO"
+  providerPaymentId String @unique
 
-  estado            String     @default("PENDING")  // "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED"
+  estado String @default("PENDING") // "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED"
 
-  metodo            String?    // "CARD" | "BANK_TRANSFER" | "QR" | "WALLET"
-  ultimosDigitos    String?
+  metodo         String? // "CARD" | "BANK_TRANSFER" | "QR" | "WALLET"
+  ultimosDigitos String?
 
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  PaymentIntent     PaymentIntent[]
-  Refund            Refund[]
+  PaymentIntent PaymentIntent[]
+  Refund        Refund[]
 
   @@index([empresaId, estado])
   @@index([ventaId])
@@ -1777,59 +1781,59 @@ model Payment {
 }
 
 model PaymentIntent {
-  id                String     @id @default(cuid())
-  empresaId         String
-  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
-  paymentId         String
-  payment           Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
-  clientSecret      String     @unique
-  providerIntentId  String     @unique
+  clientSecret     String @unique
+  providerIntentId String @unique
 
-  metadata          Json?
+  metadata Json?
 
-  createdAt         DateTime   @default(now())
-  expiresAt         DateTime
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
   @@index([empresaId, expiresAt])
   @@index([paymentId])
 }
 
 model PaymentWebhook {
-  id                String     @id @default(cuid())
-  empresaId         String
-  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  id        String  @id @default(cuid())
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
-  tipo              String     // "payment.success" | "payment.failed" | "refund.completed" | etc
-  providerEventId   String     @unique
+  tipo            String // "payment.success" | "payment.failed" | "refund.completed" | etc
+  providerEventId String @unique
 
-  payload           Json
+  payload Json
 
-  processed         Boolean    @default(false)
-  processedAt       DateTime?
+  processed   Boolean   @default(false)
+  processedAt DateTime?
 
-  createdAt         DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([empresaId, processed])
   @@index([empresaId, createdAt])
 }
 
 model Refund {
-  id                String     @id @default(cuid())
-  empresaId         String
-  empresa           Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  id        String  @id @default(cuid())
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
-  paymentId         String
-  payment           Payment    @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
-  monto             Decimal    @db.Decimal(10, 2)
-  razon             String     // "CUSTOMER_REQUEST" | "MISTAKE" | "FRAUD_SUSPECTED" | "OTHER"
+  monto Decimal @db.Decimal(10, 2)
+  razon String // "CUSTOMER_REQUEST" | "MISTAKE" | "FRAUD_SUSPECTED" | "OTHER"
 
-  estado            String     @default("PENDING")  // "PENDING" | "COMPLETED" | "FAILED"
-  providerRefundId  String?    @unique
+  estado           String  @default("PENDING") // "PENDING" | "COMPLETED" | "FAILED"
+  providerRefundId String? @unique
 
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([empresaId, estado])
   @@index([paymentId])
@@ -1851,4 +1855,35 @@ model MfaFactor {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   Usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+/// ADR-IDN-001/011 — universal buyer: one Wapsell account to buy in any business. Global
+/// identity (no tenant field, like User). Each business keeps its own Cliente linked to it.
+model Comprador {
+  id                String           @id @default(uuid())
+  email             String           @unique
+  nombre            String
+  passwordHash      String?
+  googleId          String?          @unique
+  fotoUrl           String?
+  emailVerificadoAt DateTime?
+  activo            Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  Clientes          Cliente[]
+  Tokens            CompradorToken[]
+}
+
+/// Single-use links for a Comprador (email verification). Only the SHA-256 of the token is kept.
+model CompradorToken {
+  id          String    @id @default(uuid())
+  compradorId String
+  tokenHash   String    @unique
+  tipo        String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  Comprador   Comprador @relation(fields: [compradorId], references: [id], onDelete: Cascade)
+
+  @@index([compradorId, tipo])
 }
