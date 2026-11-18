@@ -12,7 +12,7 @@ model AperturaCaja {
   id             String           @id @default(uuid())
   cajaId         String
   usuarioId      String
-  montoInicial   Decimal
+  montoInicial   Decimal          @db.Decimal(18, 2)
   fechaApertura  DateTime         @default(now())
   fechaCierre    DateTime?
   createdAt      DateTime         @default(now())
@@ -28,7 +28,7 @@ model AplicacionPago {
   id            String   @id @default(uuid())
   pagoId        String
   deudaId       String
-  montoAplicado Decimal
+  montoAplicado Decimal  @db.Decimal(18, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   Deuda         Deuda    @relation(fields: [deudaId], references: [id])
@@ -42,13 +42,13 @@ model ArqueoCaja {
   cajaId                                        String
   aperturaCajaId                                String
   usuarioId                                     String
-  fondoFijoContado                              Decimal
-  efectivoVentasContado                         Decimal
-  efectivoDeudasContado                         Decimal
-  gastosRetirosRegistrados                      Decimal
-  efectivoEsperado                              Decimal
-  efectivoContado                               Decimal
-  diferencia                                    Decimal
+  fondoFijoContado                              Decimal       @db.Decimal(18, 2)
+  efectivoVentasContado                         Decimal       @db.Decimal(18, 2)
+  efectivoDeudasContado                         Decimal       @db.Decimal(18, 2)
+  gastosRetirosRegistrados                      Decimal       @db.Decimal(18, 2)
+  efectivoEsperado                              Decimal       @db.Decimal(18, 2)
+  efectivoContado                               Decimal       @db.Decimal(18, 2)
+  diferencia                                    Decimal       @db.Decimal(18, 2)
   autorizacionId                                String?
   fechaArqueo                                   DateTime      @default(now())
   createdAt                                     DateTime      @default(now())
@@ -120,7 +120,7 @@ model Caja {
   id             String           @id @default(uuid())
   empresaId      String           @unique
   nombre         String           @default("Caja Principal")
-  fondoFijo      Decimal
+  fondoFijo      Decimal          @db.Decimal(18, 2)
   estado         EstadoCaja       @default(CERRADA)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -175,7 +175,7 @@ model CartItem {
   id         String   @id @default(uuid())
   cartId     String
   productoId String
-  cantidad   Decimal
+  cantidad   Decimal  @db.Decimal(18, 4)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   Cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
@@ -190,7 +190,7 @@ model CierreCaja {
   aperturaCajaId String       @unique
   usuarioId      String
   fechaCierre    DateTime     @default(now())
-  montoFinal     Decimal
+  montoFinal     Decimal      @db.Decimal(18, 2)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   AperturaCaja   AperturaCaja @relation(fields: [aperturaCajaId], references: [id])
@@ -204,7 +204,7 @@ model Cliente {
   email                   String?
   telefono                String?
   direccion               String?
-  limiteCredito           Decimal?
+  limiteCredito           Decimal?                  @db.Decimal(18, 2)
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
@@ -245,15 +245,15 @@ model Compra {
   proveedorId            String
   usuarioId              String
   estado                 EstadoCompra          @default(BORRADOR)
-  total                  Decimal
+  total                  Decimal               @db.Decimal(18, 2)
   fechaOrden             DateTime              @default(now())
   fechaRecepcionEsperada DateTime?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
   fechaVencimientoPago   DateTime?
   numeroFactura          String?
-  saldo                  Decimal               @default(0)
-  totalPagado            Decimal               @default(0)
+  saldo                  Decimal               @default(0) @db.Decimal(18, 2)
+  totalPagado            Decimal               @default(0) @db.Decimal(18, 2)
   Empresa                Empresa               @relation(fields: [empresaId], references: [id])
   Proveedor              Proveedor             @relation(fields: [proveedorId], references: [id])
   Usuario                Usuario               @relation(fields: [usuarioId], references: [id])
@@ -267,9 +267,9 @@ model CompraItem {
   id               String   @id @default(uuid())
   compraId         String
   productoId       String
-  cantidadPedida   Decimal
-  cantidadRecibida Decimal  @default(0)
-  costoUnitario    Decimal
+  cantidadPedida   Decimal  @db.Decimal(18, 4)
+  cantidadRecibida Decimal  @default(0) @db.Decimal(18, 4)
+  costoUnitario    Decimal  @db.Decimal(18, 4)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   Compra           Compra   @relation(fields: [compraId], references: [id])
@@ -337,7 +337,7 @@ model CuentaCorriente {
   id        String   @id @default(uuid())
   empresaId String
   clienteId String
-  saldo     Decimal  @default(0)
+  saldo     Decimal  @default(0) @db.Decimal(18, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Cliente   Cliente  @relation(fields: [clienteId], references: [id])
@@ -353,8 +353,8 @@ model Deuda {
   empresaId         String
   clienteId         String
   ventaId           String?
-  montoTotal        Decimal
-  montoPendiente    Decimal
+  montoTotal        Decimal          @db.Decimal(18, 2)
+  montoPendiente    Decimal          @db.Decimal(18, 2)
   fechaVencimiento  DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -381,9 +381,9 @@ model DevolucionCliente {
   fechaProcesada    DateTime?
   ventaFecha        DateTime
   diasDesdeVenta    Int?
-  montoTotal        Decimal          @db.Decimal(14, 2)
-  montoComisiones   Decimal          @default(0) @db.Decimal(14, 2)
-  montoReembolsable Decimal          @db.Decimal(14, 2)
+  montoTotal        Decimal          @db.Decimal(18, 2)
+  montoComisiones   Decimal          @default(0) @db.Decimal(18, 2)
+  montoReembolsable Decimal          @db.Decimal(18, 2)
   motivo            String
   observaciones     String?
   createdAt         DateTime         @default(now())
@@ -410,11 +410,11 @@ model DevolucionClienteItem {
   devolucionClienteId    String
   ventaItemId            String
   productoId             String
-  cantidad               Decimal  @db.Decimal(14, 2)
-  precioUnitarioOriginal Decimal  @db.Decimal(14, 2)
-  precioDevuelto         Decimal  @db.Decimal(14, 2)
-  descuentoItem          Decimal  @default(0) @db.Decimal(14, 2)
-  montoLineaDevuelto     Decimal  @db.Decimal(14, 2)
+  cantidad               Decimal  @db.Decimal(18, 4)
+  precioUnitarioOriginal Decimal  @db.Decimal(18, 2)
+  precioDevuelto         Decimal  @db.Decimal(18, 2)
+  descuentoItem          Decimal  @default(0) @db.Decimal(18, 2)
+  montoLineaDevuelto     Decimal  @db.Decimal(18, 2)
   motivo                 String?
   observaciones          String?
   createdAt              DateTime @default(now())
@@ -435,8 +435,8 @@ model Reembolso {
   empresaId           String
   referenceId         String?
   estado              EstadoReembolso @default(PENDIENTE)
-  montoReembolsable   Decimal         @db.Decimal(14, 2)
-  montoActual         Decimal         @db.Decimal(14, 2)
+  montoReembolsable   Decimal         @db.Decimal(18, 2)
+  montoActual         Decimal         @db.Decimal(18, 2)
   metodoReembolso     String?
   intentos            Int             @default(0)
   ultimoIntento       DateTime?
@@ -477,8 +477,8 @@ model DevolucionProveedorItem {
   devolucionId        String
   productoId          String
   loteId              String?
-  cantidad            Decimal
-  costoUnitario       Decimal
+  cantidad            Decimal             @db.Decimal(18, 4)
+  costoUnitario       Decimal             @db.Decimal(18, 4)
   DevolucionProveedor DevolucionProveedor @relation(fields: [devolucionId], references: [id])
   Lote                Lote?               @relation(fields: [loteId], references: [id])
   Producto            Producto            @relation(fields: [productoId], references: [id])
@@ -589,7 +589,7 @@ model AnalyticsAggregation {
   eventName   String? // NULL for aggregated by type
   count       Int
   uniqueUsers Int
-  avgValue    Decimal? // For conversions/revenue
+  avgValue    Decimal? @db.Decimal(18, 2) // For conversions/revenue
   metadata    Json? // {topProducts, topPages, errorRate, ...}
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -689,7 +689,7 @@ model Lote {
   productoId              String
   numeroLote              String
   vencimiento             DateTime
-  cantidad                Decimal
+  cantidad                Decimal                   @db.Decimal(18, 4)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   DevolucionProveedorItem DevolucionProveedorItem[]
@@ -804,7 +804,7 @@ model MovimientoCaja {
   aperturaCajaId String?
   usuarioId      String
   tipo           String
-  monto          Decimal
+  monto          Decimal       @db.Decimal(18, 2)
   descripcion    String?
   referenciaId   String?
   createdAt      DateTime      @default(now())
@@ -820,7 +820,7 @@ model MovimientoStock {
   productoId           String
   loteId               String?
   tipoMovimiento       String
-  cantidad             Decimal
+  cantidad             Decimal          @db.Decimal(18, 4)
   motivo               String
   referenciaId         String?
   usuarioId            String?
@@ -856,15 +856,15 @@ model Pago {
   usuarioId       String?
   ventaId         String?
   deudaId         String?
-  monto           Decimal
+  monto           Decimal          @db.Decimal(18, 2)
   medio           String
   estado          EstadoPago       @default(PENDIENTE)
-  comision        Decimal          @default(0)
+  comision        Decimal          @default(0) @db.Decimal(18, 2)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   pedidoId        String?
-  montoRecibido   Decimal?
-  vuelto          Decimal?
+  montoRecibido   Decimal?         @db.Decimal(18, 2)
+  vuelto          Decimal?         @db.Decimal(18, 2)
   referencia      String?
   AplicacionPago  AplicacionPago[]
   CuentaCorriente CuentaCorriente? @relation(fields: [deudaId], references: [id])
@@ -880,7 +880,7 @@ model PagoProveedor {
   compraId    String
   proveedorId String
   usuarioId   String
-  monto       Decimal
+  monto       Decimal   @db.Decimal(18, 2)
   medioPago   String
   referencia  String?
   fecha       DateTime  @default(now())
@@ -900,8 +900,8 @@ model Pedido {
   usuarioId      String?
   estado         EstadoPedido   @default(RECIBIDO)
   canalOrigen    String
-  total          Decimal
-  descuento      Decimal        @default(0)
+  total          Decimal        @db.Decimal(18, 2)
+  descuento      Decimal        @default(0) @db.Decimal(18, 2)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   idempotencyKey String?
@@ -918,9 +918,9 @@ model PedidoItem {
   id                              String             @id @default(uuid())
   pedidoId                        String
   productoId                      String
-  cantidad                        Decimal
-  precioUnitario                  Decimal
-  descuentoItem                   Decimal            @default(0)
+  cantidad                        Decimal            @db.Decimal(18, 4)
+  precioUnitario                  Decimal            @db.Decimal(18, 2)
+  descuentoItem                   Decimal            @default(0) @db.Decimal(18, 2)
   createdAt                       DateTime           @default(now())
   updatedAt                       DateTime           @updatedAt
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
@@ -944,7 +944,7 @@ model Presentacion {
   empresaId        String
   productoId       String
   nombre           String
-  factorConversion Decimal
+  factorConversion Decimal  @db.Decimal(18, 4)
   activo           Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -962,13 +962,13 @@ model Producto {
   codigoBarras            String?
   marca                   String?
   unidadBase              UnidadBase
-  costo                   Decimal
-  precioMinorista         Decimal
-  precioMayorista         Decimal?
+  costo                   Decimal                   @db.Decimal(18, 4)
+  precioMinorista         Decimal                   @db.Decimal(18, 2)
+  precioMayorista         Decimal?                  @db.Decimal(18, 2)
   activo                  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
-  stockMinimo             Decimal                   @default(0)
+  stockMinimo             Decimal                   @default(0) @db.Decimal(18, 4)
   descuentoPorcentaje     Decimal?                  @db.Decimal(5, 2)
   familiaId               String
   subfamiliaId            String
@@ -1335,8 +1335,8 @@ model Venta {
   usuarioId         String
   clienteId         String?
   canal             String
-  total             Decimal             @db.Decimal(14, 2)
-  descuento         Decimal             @default(0) @db.Decimal(14, 2)
+  total             Decimal             @db.Decimal(18, 2)
+  descuento         Decimal             @default(0) @db.Decimal(18, 2)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   estado            EstadoVenta         @default(CONFIRMADA)
@@ -1359,9 +1359,9 @@ model VentaItem {
   id                              String                  @id @default(uuid())
   ventaId                         String
   productoId                      String
-  cantidad                        Decimal                 @db.Decimal(14, 2)
-  precioUnitario                  Decimal                 @db.Decimal(14, 2)
-  descuentoItem                   Decimal                 @default(0) @db.Decimal(14, 2)
+  cantidad                        Decimal                 @db.Decimal(18, 4)
+  precioUnitario                  Decimal                 @db.Decimal(18, 2)
+  descuentoItem                   Decimal                 @default(0) @db.Decimal(18, 2)
   createdAt                       DateTime                @default(now())
   updatedAt                       DateTime                @updatedAt
   descuentoFidelizacionPorcentaje Decimal?                @db.Decimal(5, 2)
@@ -1761,7 +1761,7 @@ model Payment {
   ventaId String
   venta   Venta  @relation(fields: [ventaId], references: [id], onDelete: Restrict)
 
-  monto  Decimal @db.Decimal(10, 2)
+  monto  Decimal @db.Decimal(18, 2)
   moneda String  @default("ARS")
 
   proveedor         String // "STRIPE" | "MERCADOPAGO"
@@ -1829,7 +1829,7 @@ model Refund {
   paymentId String
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
-  monto Decimal @db.Decimal(10, 2)
+  monto Decimal @db.Decimal(18, 2)
   razon String // "CUSTOMER_REQUEST" | "MISTAKE" | "FRAUD_SUSPECTED" | "OTHER"
 
   estado           String  @default("PENDING") // "PENDING" | "COMPLETED" | "FAILED"
