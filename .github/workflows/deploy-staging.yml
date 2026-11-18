@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
       - name: Deploy to Hetzner Staging VPS
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.SSH_USER }}
