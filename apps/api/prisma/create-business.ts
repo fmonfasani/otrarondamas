@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { createBusinessWithOwner } from '../src/platform-admin/create-business.js';
+import { systemDatasource } from '../src/prisma/database-urls.js';
 import { SCRIPT_BLOCKED_MESSAGE } from '../src/platform-admin/business-creation-gate.js';
 
 /**
@@ -39,7 +40,8 @@ async function main() {
   }
   if (!Number.isFinite(fondoFijo) || fondoFijo < 0) throw new Error('--fondo-fijo inválido');
 
-  const prisma = new PrismaClient();
+  // ADR-DAT-019: creating a business crosses businesses, so it uses the system role.
+  const prisma = new PrismaClient(systemDatasource());
   try {
     // OR-B4-042: in production a second Business is created from the platform (with MFA), not
     // here. Completing the existing Business (same store address) is still allowed.

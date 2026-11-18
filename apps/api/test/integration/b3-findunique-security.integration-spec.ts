@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
+import { TenantPrismaService } from '../../src/prisma/tenant-prisma.service';
 
 /**
  * SECURITY TEST: Multi-tenant isolation in findUnique/findUniqueOrThrow (B3-FINDUNIQUE)
@@ -17,7 +18,7 @@ describe('CompanyScopedPrismaService - findUnique Security (B3-FINDUNIQUE)', () 
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      providers: [PrismaService, CompanyScopedPrismaService],
+      providers: [PrismaService, TenantPrismaService, CompanyScopedPrismaService],
     }).compile();
 
     prisma = module.get<PrismaService>(PrismaService);

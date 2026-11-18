@@ -13,6 +13,9 @@
 #   3. Apply versioned migrations with `prisma migrate deploy` (ADR-DAT-016).
 #      The first run records the baseline on the db-push-era database, only if
 #      the live schema is identical; pending migrations get a pg_dump first.
+#      Migrations run as the schema owner (ADR-DAT-019), whose URL is only in
+#      /opt/wapsell/secrets/migrate.env (root only), followed by the API roles'
+#      privileges (apps/api/prisma/db-roles/grants.sql).
 #   4. Boot the new image in an isolated container (no ports) with the live
 #      environment and require /health 200 before touching production.
 #   5. Swap: tag the running image as wapsell-api:previous, retag latest,
@@ -31,10 +34,12 @@ CONTAINER="wapsell-api"
 BUILD_DIR="/opt/wapsell-build-${SHA}"
 CHECK="wapsell-api-check"
 ENV_FILE="$(mktemp)"
-chmod 600 "$ENV_FILE"
+MIGRATE_ENV_FILE="$(mktemp)"
+chmod 600 "$ENV_FILE" "$MIGRATE_ENV_FILE"
+MIGRATE_SECRET="/opt/wapsell/secrets/migrate.env"
 
 cleanup() {
-  rm -f "$ENV_FILE"
+  rm -f "$ENV_FILE" "$MIGRATE_ENV_FILE"
   docker rm -f "$CHECK" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -69,8 +74,23 @@ docker inspect "$CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}'
   | grep -vE '^(PATH|NODE_VERSION|YARN_VERSION|HOSTNAME)=' > "$ENV_FILE"
 
 log "3/5 schema migrations (prisma migrate deploy)"
-prisma_run() { # runs a command in the builder image against the live database
-  docker run --rm --network "$NETWORK" --env-file "$ENV_FILE" "wapsell-api-builder:${SHA}" "$@"
+# ADR-DAT-019: the API's roles cannot change the schema, so migrations run as
+# wapsell_owner. Its URL is never in the API container; it comes from a root-only
+# file on this host. Without the file (before the roles exist) the API's own
+# DATABASE_URL is used, as before.
+if [[ -f "$MIGRATE_SECRET" ]]; then
+  grep -v '^DATABASE_URL=' "$ENV_FILE" > "$MIGRATE_ENV_FILE"
+  sed -n 's/^MIGRATE_DATABASE_URL=/DATABASE_URL=/p' "$MIGRATE_SECRET" >> "$MIGRATE_ENV_FILE"
+  [[ "$(grep -c '^DATABASE_URL=' "$MIGRATE_ENV_FILE")" == 1 ]] \
+    || { log "$MIGRATE_SECRET must define MIGRATE_DATABASE_URL once; no changes made"; exit 1; }
+  DB_ROLES=yes
+else
+  cp "$ENV_FILE" "$MIGRATE_ENV_FILE"
+  DB_ROLES=no
+  log "no $MIGRATE_SECRET: migrations use the API's DATABASE_URL"
+fi
+prisma_run() { # runs a command in the builder image against the live database, as the owner
+  docker run --rm --network "$NETWORK" --env-file "$MIGRATE_ENV_FILE" "wapsell-api-builder:${SHA}" "$@"
 }
 SCHEMA=apps/api/prisma/schema.prisma
 
@@ -103,6 +123,10 @@ if ! prisma_run npx prisma migrate status --schema "$SCHEMA" >/dev/null 2>&1; th
   mv "$BACKUP.part" "$BACKUP"
 fi
 prisma_run npx prisma migrate deploy --schema "$SCHEMA"
+if [[ "$DB_ROLES" == yes ]]; then
+  prisma_run npx prisma db execute --schema "$SCHEMA" --file apps/api/prisma/db-roles/grants.sql
+  log "API role privileges applied (grants.sql)"
+fi
 
 log "4/5 isolated boot test"
 docker rm -f "$CHECK" >/dev/null 2>&1 || true

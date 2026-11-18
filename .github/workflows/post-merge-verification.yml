@@ -32,7 +32,8 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      # DATABASE_URL, SYSTEM_DATABASE_URL and OWNER_DATABASE_URL come from the
+      # "Database roles" step (ADR-DAT-019, see b4-verification.yml).
       JWT_SECRET: s-v1-ci-only-jwt-secret
       GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
       GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
@@ -50,7 +51,31 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run prisma:generate --workspace=@otrarondamas/api
       - run: npm run build --workspace=@otrarondamas/api
-      - run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
+      # ADR-DAT-019: the same database roles as production. Passwords are random
+      # per run (this database lives only for this job) and masked in the logs.
+      # The API and every suite use wapsell_app (DATABASE_URL) and wapsell_system
+      # (SYSTEM_DATABASE_URL); only migrations use the owner (OWNER_DATABASE_URL).
+      - name: Database roles (ADR-DAT-019)
+        env:
+          PGPASSWORD: password
+        run: |
+          db="localhost:5500/otrarondamas?schema=public"
+          for role in owner app system; do
+            pw="$(openssl rand -hex 16)"
+            echo "::add-mask::$pw"
+            export "WAPSELL_${role^^}_PW=$pw"
+          done
+          {
+            echo "DATABASE_URL=postgresql://wapsell_app:${WAPSELL_APP_PW}@${db}"
+            echo "SYSTEM_DATABASE_URL=postgresql://wapsell_system:${WAPSELL_SYSTEM_PW}@${db}"
+            echo "OWNER_DATABASE_URL=postgresql://wapsell_owner:${WAPSELL_OWNER_PW}@${db}"
+          } >> "$GITHUB_ENV"
+          psql -h localhost -p 5500 -U user -d otrarondamas -v ON_ERROR_STOP=1 -f apps/api/prisma/db-roles/roles.sql
+      - name: Migrate as the owner, then privileges
+        run: |
+          export DATABASE_URL="$OWNER_DATABASE_URL"
+          ./node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma
+          ./node_modules/.bin/prisma db execute --schema apps/api/prisma/schema.prisma --file apps/api/prisma/db-roles/grants.sql
       - run: npm test --workspace=@otrarondamas/api -- --maxWorkers=50%
 
       - name: Run full integration regression suite
