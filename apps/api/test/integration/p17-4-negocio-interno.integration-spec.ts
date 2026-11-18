@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
+import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createBusinessWithOwner } from '../../src/platform-admin/create-business';
@@ -56,9 +57,21 @@ describe('P17-4 — negocio interno de Wapsell', () => {
     await expect(
       prisma.empresa.update({ where: { id: empresaId }, data: { interno: false } }),
     ).rejects.toThrow(/dejar de ser interno/);
-    await expect(prisma.$executeRawUnsafe('TRUNCATE "Empresa" CASCADE')).rejects.toThrow(
-      /no se puede vaciar/,
-    );
+    // The trigger stops even the table owner; the API roles cannot TRUNCATE at all (ADR-DAT-019).
+    const ownerUrl = process.env.OWNER_DATABASE_URL;
+    const owner = ownerUrl ? new PrismaClient({ datasourceUrl: ownerUrl }) : prisma;
+    try {
+      await expect(owner.$executeRawUnsafe('TRUNCATE "Empresa" CASCADE')).rejects.toThrow(
+        /no se puede vaciar/,
+      );
+    } finally {
+      if (owner !== prisma) await owner.$disconnect();
+    }
+    if (ownerUrl) {
+      await expect(prisma.$executeRawUnsafe('TRUNCATE "Empresa" CASCADE')).rejects.toThrow(
+        /permission denied/,
+      );
+    }
     expect(await prisma.empresa.count({ where: { id: empresaId, interno: true } })).toBe(1);
   });
 

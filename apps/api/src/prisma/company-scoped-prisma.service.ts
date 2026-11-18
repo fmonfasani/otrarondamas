@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { TenantPrismaService } from './tenant-prisma.service';
 import { companyScopeExtension } from './company-scope.extension';
 
 /**
  * Factory of Prisma clients with the tenant isolation filter (INV-01)
  * already applied to models keyed by empresaId or businessId. Regular provider (singleton, NOT Scope.REQUEST).
+ * The clients connect as `wapsell_app` (ADR-DAT-019), the database role limited to one
+ * business, never as the system role.
  *
  * History: the first version of this service used
  * `@Injectable({ scope: Scope.REQUEST })` + `@Inject(REQUEST)` to read the
@@ -33,7 +35,7 @@ import { companyScopeExtension } from './company-scope.extension';
  */
 @Injectable()
 export class CompanyScopedPrismaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: TenantPrismaService) {}
 
   forCompany(companyId: string) {
     return this.prisma.$extends(companyScopeExtension(companyId));

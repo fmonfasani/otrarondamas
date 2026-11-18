@@ -41,7 +41,12 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://user:password@localhost:5500/otrarondamas?schema=public
+      # ADR-DAT-019: the same database roles as production. The API and every suite
+      # use wapsell_app (DATABASE_URL) and wapsell_system (SYSTEM_DATABASE_URL);
+      # only migrations run as the schema owner.
+      DATABASE_URL: postgresql://wapsell_app:app-ci@localhost:5500/otrarondamas?schema=public
+      SYSTEM_DATABASE_URL: postgresql://wapsell_system:system-ci@localhost:5500/otrarondamas?schema=public
+      OWNER_DATABASE_URL: postgresql://wapsell_owner:owner-ci@localhost:5500/otrarondamas?schema=public
       JWT_SECRET: s-v1-ci-only-jwt-secret
       GOOGLE_CLIENT_ID: s-v1-ci-only-client-id
       GOOGLE_CLIENT_SECRET: s-v1-ci-only-client-secret
@@ -78,8 +83,20 @@ jobs:
           --shadow-database-url postgresql://user:password@localhost:5500/postgres
           --exit-code
 
-      - name: Prepare PostgreSQL schema (migrate deploy)
-        run: ./node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma
+      - name: Database roles (ADR-DAT-019)
+        env:
+          PGPASSWORD: password
+          WAPSELL_OWNER_PW: owner-ci
+          WAPSELL_APP_PW: app-ci
+          WAPSELL_SYSTEM_PW: system-ci
+        run: psql -h localhost -p 5500 -U user -d otrarondamas -v ON_ERROR_STOP=1 -f apps/api/prisma/db-roles/roles.sql
+
+      - name: Prepare PostgreSQL schema (migrate deploy as the owner, then privileges)
+        env:
+          DATABASE_URL: ${{ env.OWNER_DATABASE_URL }}
+        run: |
+          ./node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma
+          ./node_modules/.bin/prisma db execute --schema apps/api/prisma/schema.prisma --file apps/api/prisma/db-roles/grants.sql
 
       # CI-specific Jest scripts intentionally do not regenerate Prisma Client:
       # the client was generated once above, before build and both test stages.

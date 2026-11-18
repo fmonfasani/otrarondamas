@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { createBusinessWithOwner } from '../src/platform-admin/create-business.js';
+import { systemDatasource } from '../src/prisma/database-urls.js';
 
 /**
  * ADR-IDN-014 — creates (or completes) the internal Wapsell business «Wapsell (plataforma)» with
@@ -26,7 +27,8 @@ async function main() {
   const ownerNombre = arg('nombre')?.trim() || 'Administración Wapsell';
   if (!email || !email.includes('@')) throw new Error('Falta --email');
 
-  const prisma = new PrismaClient();
+  // ADR-DAT-019: creating a business crosses businesses, so it uses the system role.
+  const prisma = new PrismaClient(systemDatasource());
   try {
     const result = await prisma.$transaction(async (tx) => {
       const internal = await tx.empresa.findFirst({
