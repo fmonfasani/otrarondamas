@@ -26,6 +26,7 @@ import { AllowCustomer } from './decorators/allow-customer.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser } from './auth.types';
 import { GoogleProfile } from './google.strategy';
+import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
 import {
   CanonicalPermission,
   CUSTOMER_POLICY,
@@ -84,6 +85,17 @@ export class AuthCustomerController {
     const { businessId } = await this.businessContext.resolveForAnonymous(businessSlug);
     return this.authCustomerService.login(businessId, dto);
   }
+
+  /**
+   * ADR-IDN-007 — «Continuar con Google» in the store of one Business. The guard sends the
+   * browser to Google; it comes back through the shared /auth/google/callback (AuthController),
+   * which recognises the signed store `state`.
+   */
+  @Public()
+  @UseGuards(StoreGoogleStartGuard)
+  @Get('negocio/:businessSlug/google')
+  @ApiExcludeEndpoint()
+  googleInStore() {}
 
   private legacyStoreCompanyId(): string {
     const companyId = process.env.TIENDA_EMPRESA_ID;

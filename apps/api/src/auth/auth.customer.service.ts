@@ -11,7 +11,7 @@ import { GoogleProfile } from './google.strategy';
  * RF-17 (docs/spec-login-roles.md): Customer-side authentication.
  * Separate from AuthService (which is exclusive to Usuario) because the
  * data model is different — Cliente has no `empresaId` of its own but
- * inherits the scope via Pedido/CuentaCorriente, has no `permisos` nor
+ * inherits the scope via Pedido/CuentaCorriente, has no `permisos` no
  * `rol` (the business attributes of Usuario do not apply to a buyer),
  * and `estadoLegajo` only exists for the wholesaler.
  *
@@ -77,6 +77,53 @@ export class AuthCustomerService {
   }
 
   /**
+   * ADR-IDN-007 — «Continuar con Google» in the store of one Business (accounts are pe
+   * Business until the global buyer identity, ADR-IDN-001). The account is the Cliente of this
+   * Business with the email Google verified: it is reused if it exists and created otherwise.
+   * `Cliente.googleId` is globally unique, so it is only recorded when no other store's account
+   * holds it; the email is what identifies the person inside each store.
+   */
+  async loginWithGoogleInBusiness(companyId: string, profile: GoogleProfile) {
+    if (profile.emailVerified !== true) {
+      throw new UnauthorizedException('Google debe confirmar que el email está verificado');
+    }
+    const email = profile.email.trim().toLowerCase();
+    const holder = await this.prisma.cliente.findUnique({
+      where: { googleId: profile.googleId },
+      select: { id: true },
+    });
+
+    // Store accounts keep the email as it was typed, so the match ignores case.
+    let customer = await this.prisma.cliente.findFirst({
+      where: { empresaId: companyId, email: { equals: email, mode: 'insensitive' } },
+      include: { Empresa: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (customer) {
+      if (customer.activo === false) throw new UnauthorizedException('Cuenta deshabilitada');
+      if (!customer.googleId && !holder) {
+        customer = await this.prisma.cliente.update({
+          where: { id: customer.id },
+          data: { googleId: profile.googleId },
+          include: { Empresa: true },
+        });
+      }
+    } else {
+      customer = await this.prisma.cliente.create({
+        data: {
+          empresaId: companyId,
+          nombre: profile.nombre,
+          email,
+          googleId: holder ? null : profile.googleId,
+          esMayorista: false,
+        },
+        include: { Empresa: true },
+      });
+    }
+    return this.issueCustomerSession(customer);
+  }
+
+  /**
    * Resolves the Google profile to a retail Cliente — same pattern as
    * AuthGoogleService for Usuario. If the Cliente already exists by
    * email, it links the googleId; if not, it creates it as a new retail
@@ -132,9 +179,9 @@ export class AuthCustomerService {
   }
 
   /**
-   * Cliente JWT shape — parallel to AuthService.issueSession() for
+   * Cliente JWT shape — parallel to AuthService.issueSession() fo
    * Usuario. `permisos: []` always (Clientes have no granular permissions
-   * of the internal system). `rol` uses 'OWNER' as a typed placeholder
+   * of the internal system). `rol` uses 'OWNER' as a typed placeholde
    * (AuthenticatedUser.rol is UserRole, non-nullable); the field
    * `type: 'cliente'` is the real discriminator for the guards.
    */

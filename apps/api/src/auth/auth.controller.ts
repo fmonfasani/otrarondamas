@@ -27,6 +27,8 @@ import { AccountService } from './account.service';
 import { MfaPolicyService } from './mfa/mfa-policy.service';
 import { MfaService } from './mfa/mfa.service';
 import { SignupService } from './signup.service';
+import { STORE_GOOGLE_COOKIE, StoreGoogleService } from './store-google.service';
+import { AuthCustomerService } from './auth.customer.service';
 import { GoogleAccountNotFound } from './auth.google.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/account.dto';
 import { Public } from './decorators/public.decorator';
@@ -51,6 +53,8 @@ export class AuthController {
     @Optional() private readonly mfaPolicy?: MfaPolicyService,
     @Optional() private readonly mfa?: MfaService,
     @Optional() private readonly signup?: SignupService,
+    @Optional() private readonly storeGoogle?: StoreGoogleService,
+    @Optional() private readonly customers?: AuthCustomerService,
   ) {}
 
   @Public()
@@ -182,7 +186,7 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard('google'))
   @Get('google')
-  @ApiExcludeEndpoint() // not a JSON endpoint, makes no sense in Swagger
+  @ApiExcludeEndpoint() // not a JSON endpoint, makes no sense in Swagge
   googleLogin() {}
 
   // Google redirects here after consent, with the code already exchanged
@@ -197,7 +201,11 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @Get('google/callback')
   @ApiExcludeEndpoint()
-  async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
+  async googleCallback(
+    @Req()
+    req: { user: GoogleProfile; query: Record<string, unknown>; headers: { cookie?: string } },
+    @Res() res: Response,
+  ) {
     // The panel (Remix). FRONTEND_URL can override it; it is never taken from the request.
     const web = process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'https://app.wapsell.com';
     const back = (path: string, params: Record<string, string>) => {
@@ -205,6 +213,28 @@ export class AuthController {
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
       res.redirect(url.toString());
     };
+    // ADR-IDN-007: a store's «Continuar con Google» shares this callback and carries a signed
+    // `state` (the staff flow never sends one). Only the browser that started it gets in.
+    if (this.storeGoogle?.isStoreState(req.query.state)) {
+      res.clearCookie(STORE_GOOGLE_COOKIE, { path: '/auth' });
+      const target = await this.storeGoogle.read(req.query.state, req.headers.cookie);
+      if (!target || !this.customers) {
+        back('/es/auth/login', { error: 'google' });
+        return;
+      }
+      const store = `/tienda/${encodeURIComponent(target.slug)}/cuenta`;
+      try {
+        const session = await this.customers.loginWithGoogleInBusiness(target.businessId, req.user);
+        back(`${store}/google`, {
+          token: session.accessToken,
+          web: target.web,
+          ...(target.volver ? { volver: target.volver } : {}),
+        });
+      } catch {
+        back(store, { error: 'google' });
+      }
+      return;
+    }
     try {
       const session = await this.authGoogleService.loginWithGoogle(req.user);
       // OR-B4-044: Google is only the first factor. An account that needs a second one gets the
