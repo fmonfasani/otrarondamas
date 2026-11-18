@@ -249,6 +249,7 @@ export class CompradorService {
   /** Businesses on Wapsell, for «comprá en tu negocio más cercano». Only public store data. */
   async businesses() {
     const rows = await this.prisma.empresa.findMany({
+      where: { interno: false },
       select: { nombre: true, slug: true, configuracion: true },
       orderBy: { nombre: 'asc' },
       take: 200,

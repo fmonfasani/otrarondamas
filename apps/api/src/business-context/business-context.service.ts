@@ -110,9 +110,10 @@ export class BusinessContextService {
     }
     const business = await this.prisma.empresa.findUnique({
       where: { slug },
-      select: { id: true },
+      select: { id: true, interno: true },
     });
-    if (!business) {
+    // ADR-IDN-014: the internal Wapsell business has no store and no customers.
+    if (!business || business.interno) {
       throw new NotFoundException('Business no encontrado');
     }
     return {

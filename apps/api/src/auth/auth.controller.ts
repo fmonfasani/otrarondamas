@@ -130,6 +130,7 @@ export class AuthController {
       nombre: userRecord.nombre,
       empresaId: userRecord.empresaId,
       empresaNombre: userRecord.Empresa.nombre,
+      empresaInterna: userRecord.Empresa.interno,
       permisos: userRecord.UsuarioPermiso.map((assignment) => assignment.Permiso.nombre),
       fotoUrl: userRecord.fotoUrl,
       metodoLogin: userRecord.googleId ? 'google' : 'password',

@@ -1,4 +1,4 @@
-import { json, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/node';
+import { json, redirect, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/node';
 import { Outlet, useLoaderData, useParams } from '@remix-run/react';
 import panelStyles from '../styles/panel.css?url';
 import { AppShell, type ShellUser } from '~/components/panel/AppShell';
@@ -16,6 +16,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
   const user = await getCurrentUser(token);
   if (!user) throw new Response('No pudimos verificar tu sesión.', { status: 401 });
+  // ADR-IDN-014: the internal Wapsell business has no business panel — its accounts administer
+  // the platform.
+  if (user.empresaInterna) throw redirect('/es/platform-admin');
   const shellUser: ShellUser = {
     nombre: user.nombre ?? user.email,
     empresaNombre: user.empresaNombre ?? '',

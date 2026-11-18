@@ -111,12 +111,15 @@ export class PlatformAdminService {
     const from30 = new Date(now.getTime() - 30 * DAY_MS);
     const [businesses, newBusinesses, users, customers, orders, recentBusinesses] =
       await Promise.all([
-        this.prisma.empresa.count(),
-        this.prisma.empresa.count({ where: { createdAt: { gte: from30 } } }),
-        this.prisma.membership.count({ where: { status: MembershipStatus.ACTIVE } }),
+        this.prisma.empresa.count({ where: { interno: false } }),
+        this.prisma.empresa.count({ where: { interno: false, createdAt: { gte: from30 } } }),
+        this.prisma.membership.count({
+          where: { status: MembershipStatus.ACTIVE, Empresa: { interno: false } },
+        }),
         this.prisma.cliente.count(),
         this.prisma.pedido.count(),
         this.prisma.empresa.findMany({
+          where: { interno: false },
           select: { id: true, nombre: true, slug: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 8,
@@ -134,12 +137,13 @@ export class PlatformAdminService {
     const page = Math.max(1, Math.floor(Number(query.page) || 1));
     const where: Prisma.EmpresaWhereInput = search
       ? {
+          interno: false,
           OR: [
             { nombre: { contains: search, mode: 'insensitive' } },
             { slug: { contains: search, mode: 'insensitive' } },
           ],
         }
-      : {};
+      : { interno: false };
     const [total, rows] = await Promise.all([
       this.prisma.empresa.count({ where }),
       this.prisma.empresa.findMany({
@@ -172,9 +176,16 @@ export class PlatformAdminService {
   async businessDetail(businessId: string, viewerUsuarioId: string, now = new Date()) {
     const business = await this.prisma.empresa.findUnique({
       where: { id: businessId },
-      select: { id: true, nombre: true, slug: true, createdAt: true, configuracion: true },
+      select: {
+        id: true,
+        nombre: true,
+        slug: true,
+        createdAt: true,
+        configuracion: true,
+        interno: true,
+      },
     });
-    if (!business) throw new NotFoundException('Negocio no encontrado');
+    if (!business || business.interno) throw new NotFoundException('Negocio no encontrado');
     const from30 = new Date(now.getTime() - 30 * DAY_MS);
     const [stats, team, returns, conversations, sales30, orders30] = await Promise.all([
       this.stats([businessId], now),
