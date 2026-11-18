@@ -9,7 +9,7 @@ test.describe('Authentication Flow', () => {
     await page.fill('input[name="email"]', 'test@example.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/es/dashboard');
+    await expect(page).toHaveURL('/panel');
     await expect(page.locator('text=Dashboard')).toBeVisible();
   });
 
@@ -41,11 +41,11 @@ test.describe('Authentication Flow', () => {
     await page.fill('input[name="email"]', 'test@example.com');
     await page.fill('input[name="password"]', 'password123');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/es/dashboard');
+    await page.waitForURL('/panel');
 
     // Create new page with same context
     const newPage = await context.newPage();
-    await newPage.goto('http://localhost:3000/es/dashboard');
+    await newPage.goto('http://localhost:3000/panel');
     await expect(newPage.locator('text=Dashboard')).toBeVisible();
   });
 });

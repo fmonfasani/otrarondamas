@@ -24,7 +24,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     session.set('mfaTicket', ticket);
     session.set('mfaStep', mfa);
     session.set('mfaRemember', true);
-    session.set('mfaRedirect', '/es/dashboard');
+    session.set('mfaRedirect', '/panel');
     session.unset('mfaEnroll');
     return redirect(`/es/auth/${mfa === 'activar' ? 'activar-mfa' : 'verificacion'}`, {
       headers: { 'Set-Cookie': await commitSession(session) },
@@ -38,7 +38,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   session.set('jwt', token);
   session.set('userId', user.id);
   session.set('empresaId', user.empresaId);
-  return redirect('/es/dashboard', {
+  return redirect('/panel', {
     headers: { 'Set-Cookie': await commitSession(session, { maxAge: REMEMBER_ME_MAX_AGE }) },
   });
 }

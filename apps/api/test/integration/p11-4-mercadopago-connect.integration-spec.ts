@@ -170,14 +170,14 @@ describe('P11-4 — Mercado Pago account per Business', () => {
 
   it('ignores a callback with a forged or missing state', async () => {
     const res = await callback({ code: 'any', state: 'forged.state' }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=error');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=error');
     await callback({ code: 'any' }).expect(302);
     expect(tokenRequests).toHaveLength(0);
   });
 
   it('reports a cancelled authorization', async () => {
     const res = await callback({ error: 'access_denied', state: 'x' }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=cancelado');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=cancelado');
   });
 
   it('reports a code Mercado Pago rejects, without connecting', async () => {
@@ -185,7 +185,7 @@ describe('P11-4 — Mercado Pago account per Business', () => {
       code: 'bad-code',
       state: stateFrom(await connectUrl(ownerA.auth)),
     }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=error');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=error');
     const status = await request(BASE)
       .get('/cobros/mercadopago')
       .set('Authorization', ownerA.auth)
@@ -198,7 +198,7 @@ describe('P11-4 — Mercado Pago account per Business', () => {
       code: 'good-code',
       state: stateFrom(await connectUrl(ownerA.auth)),
     }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=conectado');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=conectado');
     expect(tokenRequests.at(-1)).toEqual({
       client_id: 'wapsell-app-id',
       client_secret: clientSecret,
@@ -237,7 +237,7 @@ describe('P11-4 — Mercado Pago account per Business', () => {
       code: 'good-code',
       state: stateFrom(await connectUrl(ownerB.auth)),
     }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=otra-cuenta');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=otra-cuenta');
     const status = await request(BASE)
       .get('/cobros/mercadopago')
       .set('Authorization', ownerB.auth)
@@ -264,7 +264,7 @@ describe('P11-4 — Mercado Pago account per Business', () => {
       data: { role: 'ADMIN' },
     });
     const res = await callback({ code: 'good-code', state }).expect(302);
-    expect(res.headers.location).toBe('https://panel.test/es/dashboard/cobros?mp=error');
+    expect(res.headers.location).toBe('https://panel.test/panel/cobros?mp=error');
     await prisma.membership.updateMany({
       where: { businessId: ownerB.empresaId },
       data: { role: 'OWNER' },

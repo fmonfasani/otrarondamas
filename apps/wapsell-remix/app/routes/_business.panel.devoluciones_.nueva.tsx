@@ -1,5 +1,5 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { ArrowLeft } from 'lucide-react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -62,7 +62,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
   const form = await request.formData();
   const saleId = String(form.get('ventaId') ?? '');
@@ -83,7 +83,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         ...(late ? { fuera_de_plazo: late } : {}),
       }),
     });
-    return redirect(`/${params.lang ?? 'es'}/dashboard/devoluciones/${created.id}?nueva=1`);
+    return redirect(`/panel/devoluciones/${created.id}?nueva=1`);
   } catch (error) {
     if (error instanceof ApiError) return json({ message: error.message }, { status: error.status });
     throw error;
@@ -94,12 +94,11 @@ export default function NewReturn() {
   const { sale, lines, customers, window, canOverride } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { lang = 'es' } = useParams();
   const returnable = lines.filter((l) => l.available > 0);
 
   return (
     <div className="ws-page">
-      <Link className="ws-back" to={`/${lang}/dashboard/ventas/${sale.id}`}>
+      <Link className="ws-back" to={`/panel/ventas/${sale.id}`}>
         <ArrowLeft size={16} aria-hidden="true" /> Venta {saleNumber(sale)}
       </Link>
       <div className="ws-page__head">

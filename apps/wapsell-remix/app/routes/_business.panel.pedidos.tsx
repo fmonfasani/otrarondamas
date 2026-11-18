@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useLoaderData, useParams, useSearchParams } from '@remix-run/react';
+import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { formatDateTime, formatMoney, orderState } from '~/utils/format';
@@ -41,7 +41,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function OrdersPage() {
   const { orders, error } = useLoaderData<typeof loader>();
   const [params] = useSearchParams();
-  const { lang = 'es' } = useParams();
   const active = params.get('estado') ?? '';
 
   return (
@@ -79,7 +78,7 @@ export default function OrdersPage() {
             {orders.map((order) => {
               const state = orderState(order.estado);
               return (
-                <Link key={order.id} className="ws-list__row" to={`/${lang}/dashboard/pedidos/${order.id}`}>
+                <Link key={order.id} className="ws-list__row" to={`/panel/pedidos/${order.id}`}>
                   <span className="ws-list__main">
                     <b>{order.Cliente?.nombre ?? 'Cliente'}</b>
                     <span>

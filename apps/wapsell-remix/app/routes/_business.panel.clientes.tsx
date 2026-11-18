@@ -1,5 +1,5 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
 import { MessagesSquare, Plus, Search, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -93,11 +93,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { ok: boolean; message: string };
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
   const form = await request.formData();
   const intent = String(form.get('intent') ?? '');
-  const lang = params.lang ?? 'es';
   const fail = (message: string, status = 400) => json<ActionData>({ ok: false, message }, { status });
   try {
     if (intent === 'create' || intent === 'update') {
@@ -108,7 +107,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         intent === 'create'
           ? await apiRequest<Customer>(token, '/clientes', { method: 'POST', body: JSON.stringify(parsed.body) })
           : await apiRequest<Customer>(token, `/clientes/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(parsed.body) });
-      return redirect(`/${lang}/dashboard/clientes?c=${saved.id}&guardado=1`);
+      return redirect(`/panel/clientes?c=${saved.id}&guardado=1`);
     }
     if (intent === 'message') {
       // Opens the existing direct conversation with this customer, or starts one.
@@ -125,7 +124,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
             body: JSON.stringify({ type: 'DIRECT', participantUserIds: [], participantCustomerIds: [customerId] }),
           })
         ).id;
-      return redirect(`/${lang}/dashboard/mensajes?c=${id}`);
+      return redirect(`/panel/mensajes?c=${id}`);
     }
     return fail('Acción desconocida.');
   } catch (error) {
@@ -142,9 +141,8 @@ export default function CustomersPage() {
   const can = customerAbilities(layout?.user.rol ?? '');
   const navigation = useNavigation();
   const busy = navigation.state !== 'idle';
-  const { lang = 'es' } = useParams();
   const [searchParams] = useSearchParams();
-  const base = `/${lang}/dashboard/clientes`;
+  const base = `/panel/clientes`;
   const creating = searchParams.get('nuevo') === '1';
   const saved = searchParams.get('guardado') === '1';
   const query = searchParams.get('q') ?? '';
@@ -282,7 +280,7 @@ export default function CustomersPage() {
                       return (
                         <li key={order.id}>
                           <span>
-                            <Link className="ws-catalog__name" to={`/${lang}/dashboard/pedidos/${order.id}`}>{formatMoney(order.total)}</Link>
+                            <Link className="ws-catalog__name" to={`/panel/pedidos/${order.id}`}>{formatMoney(order.total)}</Link>
                             <small>{formatDateTime(order.createdAt)}</small>
                           </span>
                           <span className={`ws-chip ws-chip--${state.tone}`}>{state.label}</span>

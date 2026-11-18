@@ -49,7 +49,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (typeof data.dispositivo === 'string') {
       headers.append('Set-Cookie', await deviceCookie.serialize(data.dispositivo));
     }
-    return redirect(session.get('mfaRedirect') ?? `/${lang}/dashboard`, { headers });
+    return redirect(session.get('mfaRedirect') ?? `/panel`, { headers });
   } catch (error) {
     if (error instanceof ApiError) {
       if (error.status === 401 && /venció/.test(error.message)) {

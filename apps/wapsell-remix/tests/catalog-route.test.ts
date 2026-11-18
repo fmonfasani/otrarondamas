@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
-import { action } from '../app/routes/_business.$lang.dashboard.productos';
+import { action } from '../app/routes/_business.panel.productos';
 import { catalogAbilities, categoryOptions, chainFor, parseAmount, productPayload, type Hierarchy, type Product } from '../app/utils/catalog';
 
 // Business panel "Catálogo" (OR-B4-028), wired to /catalogo/productos and /catalogo/jerarquia.
@@ -124,7 +124,7 @@ describe('catalog route', () => {
     session.set('jwt', 'jwt-token');
     const cookie = (await commitSession(session)).split(';')[0];
     return action({
-      request: new Request('http://app.test/es/dashboard/productos', { method: 'POST', body: new URLSearchParams(fields), headers: { Cookie: cookie } }),
+      request: new Request('http://app.test/panel/productos', { method: 'POST', body: new URLSearchParams(fields), headers: { Cookie: cookie } }),
       params: { lang: 'es' },
       context: {},
     }) as Promise<Response>;
@@ -165,7 +165,7 @@ describe('catalog route', () => {
   it('creates a product and opens it', async () => {
     api.mockResolvedValueOnce(ok({ ...product, id: 'p-9' }));
     const response = await post({ intent: 'createProduct', nombre: 'Sprite', subfamiliaId: 's-gas', costo: '400', precioMinorista: '750' });
-    expect(response.headers.get('Location')).toBe('/es/dashboard/productos?p=p-9&guardado=1');
+    expect(response.headers.get('Location')).toBe('/panel/productos?p=p-9&guardado=1');
     expect(api.mock.calls[0][1]?.method).toBe('POST');
   });
 

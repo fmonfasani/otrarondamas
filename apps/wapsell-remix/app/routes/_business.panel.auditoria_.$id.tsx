@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useLoaderData, useParams } from '@remix-run/react';
+import { Link, useLoaderData } from '@remix-run/react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
 import { formatDateTime } from '~/utils/format';
@@ -26,11 +26,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export default function AuditEntry() {
   const { entry } = useLoaderData<typeof loader>();
-  const { lang = 'es' } = useParams();
   const who = entry.persona ? `${entry.persona.nombre} (${entry.persona.email})` : 'Sistema';
   return (
     <div className="ws-page">
-      <Link className="ws-link" to={`/${lang}/dashboard/auditoria`}>
+      <Link className="ws-link" to={`/panel/auditoria`}>
         ← Auditoría
       </Link>
       <div className="ws-page__head">

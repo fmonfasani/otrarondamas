@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
 import { AlertTriangle, CalendarClock, Search, Truck, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -98,9 +98,8 @@ export default function InventoryPage() {
   const can = inventoryAbilities(layout?.user.rol ?? '');
   const navigation = useNavigation();
   const busy = navigation.state !== 'idle';
-  const { lang = 'es' } = useParams();
   const [searchParams] = useSearchParams();
-  const base = `/${lang}/dashboard/inventario`;
+  const base = `/panel/inventario`;
   const hrefWith = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
     for (const [key, value] of Object.entries(changes)) {
@@ -133,7 +132,7 @@ export default function InventoryPage() {
           <p className="ws-page__lead">Stock por producto, sumando todos sus lotes. La mercadería entra desde Compras.</p>
         </div>
         {can.purchases && (
-          <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/compras?nueva=1`}>
+          <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/compras?nueva=1`}>
             <Truck size={16} aria-hidden="true" /> Cargar compra
           </Link>
         )}

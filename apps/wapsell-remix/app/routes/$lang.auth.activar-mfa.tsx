@@ -77,7 +77,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json(
       {
         codes: data.codigosRecuperacion as string[],
-        next: (session.get('mfaRedirect') as string | undefined) ?? `/${lang}/dashboard`,
+        next: (session.get('mfaRedirect') as string | undefined) ?? `/panel`,
       },
       { headers },
     );

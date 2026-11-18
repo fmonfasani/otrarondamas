@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useRouteLoaderData, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -45,11 +45,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type ActionData = { ok: boolean; message: string };
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
   const form = await request.formData();
   const intent = String(form.get('intent') ?? '');
-  const base = `/${params.lang ?? 'es'}/dashboard/compras`;
+  const base = `/panel/compras`;
   const fail = (message: string, status = 400) => json<ActionData>({ ok: false, message }, { status });
   const text = (key: string) => String(form.get(key) ?? '').trim();
   try {
@@ -102,9 +102,8 @@ export default function PurchasesPage() {
   const can = inventoryAbilities(layout?.user.rol ?? '');
   const navigation = useNavigation();
   const busy = navigation.state !== 'idle';
-  const { lang = 'es' } = useParams();
   const [searchParams] = useSearchParams();
-  const base = `/${lang}/dashboard/compras`;
+  const base = `/panel/compras`;
   const tab = searchParams.get('tab') === 'proveedores' ? 'proveedores' : 'compras';
   const productName = (id: string) => data.products.find((p) => p.id === id)?.nombre ?? 'Producto';
 

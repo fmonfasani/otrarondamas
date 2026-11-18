@@ -44,9 +44,9 @@ export function Header({ area = 'customer', userName }: HeaderProps) {
 
         {area === 'business' && (
           <>
-            <Link to="/es/dashboard">Dashboard</Link>
-            <Link to="/es/dashboard/pedidos">Pedidos</Link>
-            <Link to="/es/dashboard/productos">Productos</Link>
+            <Link to="/panel">Dashboard</Link>
+            <Link to="/panel/pedidos">Pedidos</Link>
+            <Link to="/panel/productos">Productos</Link>
           </>
         )}
 

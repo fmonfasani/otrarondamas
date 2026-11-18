@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
-import { action as orderAction, loader as orderLoader } from '../app/routes/_business.$lang.dashboard.pedidos_.$id';
-import { loader as ordersLoader } from '../app/routes/_business.$lang.dashboard.pedidos';
+import { action as orderAction, loader as orderLoader } from '../app/routes/_business.panel.pedidos_.$id';
+import { loader as ordersLoader } from '../app/routes/_business.panel.pedidos';
 import { formatMoney, orderState } from '../app/utils/format';
 
 // Business panel "Pedidos", wired to GET /pedidos, GET /pedidos/:id,
@@ -26,7 +26,7 @@ describe('orders routes', () => {
   it('lists orders filtered by an allowed state only', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(ok([{ id: 'o-1', estado: 'RECIBIDO' }]));
     const response = (await ordersLoader({
-      request: await authedRequest('http://app.test/es/dashboard/pedidos?estado=RECIBIDO'),
+      request: await authedRequest('http://app.test/panel/pedidos?estado=RECIBIDO'),
       params: { lang: 'es' },
       context: {},
     })) as Response;
@@ -35,7 +35,7 @@ describe('orders routes', () => {
 
     vi.mocked(fetch).mockResolvedValueOnce(ok({ id: 'u-1' })).mockResolvedValueOnce(ok([]));
     await ordersLoader({
-      request: await authedRequest('http://app.test/es/dashboard/pedidos?estado=DROP%20TABLE'),
+      request: await authedRequest('http://app.test/panel/pedidos?estado=DROP%20TABLE'),
       params: { lang: 'es' },
       context: {},
     });
@@ -45,7 +45,7 @@ describe('orders routes', () => {
   it('confirms an order with PATCH /estado and the bearer token', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(ok({ id: 'o-1', estado: 'CONFIRMADO' }));
     const response = (await orderAction({
-      request: await authedRequest('http://app.test/es/dashboard/pedidos/o-1', {
+      request: await authedRequest('http://app.test/panel/pedidos/o-1', {
         method: 'POST',
         body: new URLSearchParams({ intent: 'confirm' }),
       }),
@@ -65,7 +65,7 @@ describe('orders routes', () => {
       new Response(JSON.stringify({ message: 'Requiere ORDER_CANCEL' }), { status: 403 }),
     );
     const response = (await orderAction({
-      request: await authedRequest('http://app.test/es/dashboard/pedidos/o-1', {
+      request: await authedRequest('http://app.test/panel/pedidos/o-1', {
         method: 'POST',
         body: new URLSearchParams({ intent: 'cancel', motivo: 'sin stock' }),
       }),
@@ -81,7 +81,7 @@ describe('orders routes', () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 404 }));
     await expect(
       orderLoader({
-        request: await authedRequest('http://app.test/es/dashboard/pedidos/nope'),
+        request: await authedRequest('http://app.test/panel/pedidos/nope'),
         params: { lang: 'es', id: 'nope' },
         context: {},
       }),
@@ -90,13 +90,13 @@ describe('orders routes', () => {
 
   it('sends anonymous visitors to the login page and back', async () => {
     await expect(
-      ordersLoader({ request: new Request('http://app.test/es/dashboard/pedidos'), params: { lang: 'es' }, context: {} }),
+      ordersLoader({ request: new Request('http://app.test/panel/pedidos'), params: { lang: 'es' }, context: {} }),
     ).rejects.toMatchObject({ status: 302 });
     try {
-      await ordersLoader({ request: new Request('http://app.test/es/dashboard/pedidos?estado=RECIBIDO'), params: { lang: 'es' }, context: {} });
+      await ordersLoader({ request: new Request('http://app.test/panel/pedidos?estado=RECIBIDO'), params: { lang: 'es' }, context: {} });
     } catch (response) {
       expect((response as Response).headers.get('Location')).toBe(
-        `/es/auth/login?redirectTo=${encodeURIComponent('/es/dashboard/pedidos?estado=RECIBIDO')}`,
+        `/es/auth/login?redirectTo=${encodeURIComponent('/panel/pedidos?estado=RECIBIDO')}`,
       );
     }
   });

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, sessionCookie, stubApi } from './helpers/route';
-import { loader as listLoader } from '../app/routes/_business.$lang.dashboard.auditoria';
-import { loader as detailLoader } from '../app/routes/_business.$lang.dashboard.auditoria_.$id';
-import { loader as exportLoader } from '../app/routes/_business.$lang.dashboard.auditoria_.exportar';
+import { loader as listLoader } from '../app/routes/_business.panel.auditoria';
+import { loader as detailLoader } from '../app/routes/_business.panel.auditoria_.$id';
+import { loader as exportLoader } from '../app/routes/_business.panel.auditoria_.exportar';
 import { auditQuery, fieldName, hasFilters, valueText } from '../app/utils/audit';
 
 /** OR-B4-041 — the Business audit screen. */
@@ -42,7 +42,7 @@ describe('audit routes', () => {
     api.mockResolvedValueOnce(
       ok({ total: 0, page: 2, pageSize: 50, todo: true, temas: [], personas: [], items: [] }),
     );
-    await listLoader(await args('/es/dashboard/auditoria?tema=precios&page=2'));
+    await listLoader(await args('/panel/auditoria?tema=precios&page=2'));
     expect(api.mock.calls[0][0]).toBe('http://api.test/auditoria?tema=precios&page=2');
   });
 
@@ -50,14 +50,14 @@ describe('audit routes', () => {
     api.mockResolvedValueOnce(
       new Response(JSON.stringify({ message: 'desde va como AAAA-MM-DD' }), { status: 400 }),
     );
-    const res = await listLoader(await args('/es/dashboard/auditoria?desde=mal'));
+    const res = await listLoader(await args('/panel/auditoria?desde=mal'));
     expect(await res.json()).toEqual({ list: null, error: 'desde va como AAAA-MM-DD' });
   });
 
   it('answers 404 for an entry that is not the viewer’s', async () => {
     api.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'No' }), { status: 404 }));
     await expect(
-      detailLoader(await args('/es/dashboard/auditoria/x', { id: 'x' })),
+      detailLoader(await args('/panel/auditoria/x', { id: 'x' })),
     ).rejects.toMatchObject({
       status: 404,
     });
@@ -73,7 +73,7 @@ describe('audit routes', () => {
         },
       }),
     );
-    const res = await exportLoader(await args('/es/dashboard/auditoria/exportar?tema=caja'));
+    const res = await exportLoader(await args('/panel/auditoria/exportar?tema=caja'));
     expect(api.mock.calls[0][0]).toBe('http://api.test/auditoria/exportar?tema=caja');
     expect(res.headers.get('content-disposition')).toContain('auditoria.csv');
   });

@@ -38,7 +38,7 @@ describe('Route Boundaries', () => {
       expect(true).toBe(true);
     });
 
-    it('should contain dashboard routes under /_business/$lang/dashboard/*', () => {
+    it('should contain panel routes under /_business/panel/*', () => {
       // Dashboard, orders, products, businesses routes nested under business boundary
       expect(true).toBe(true);
     });

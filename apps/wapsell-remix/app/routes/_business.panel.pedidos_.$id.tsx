@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
@@ -79,7 +79,6 @@ export default function OrderPage() {
   const { order } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { lang = 'es' } = useParams();
   const busy = navigation.state === 'submitting';
   const state = orderState(order.estado);
   const payments = order.Pago ?? [];
@@ -87,7 +86,7 @@ export default function OrderPage() {
 
   return (
     <div className="ws-page">
-      <Link className="ws-back" to={`/${lang}/dashboard/pedidos`}>
+      <Link className="ws-back" to={`/panel/pedidos`}>
         <ArrowLeft size={16} aria-hidden="true" /> Pedidos
       </Link>
       <div className="ws-page__head">

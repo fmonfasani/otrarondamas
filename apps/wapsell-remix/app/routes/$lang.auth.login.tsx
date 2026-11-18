@@ -21,11 +21,11 @@ export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
 
 export { REMEMBER_ME_MAX_AGE } from '~/services/auth.server';
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const session = await getSession(request.headers.get('Cookie'));
   if (session.get('jwt')) {
     const redirectTo = new URL(request.url).searchParams.get('redirectTo');
-    return redirect(safeRedirectPath(redirectTo, `/${params.lang ?? 'es'}/dashboard`));
+    return redirect(safeRedirectPath(redirectTo, `/panel`));
   }
   // «Ingresar con Google» only once Google OAuth is configured for this deployment.
   return json({ google: process.env.GOOGLE_LOGIN_ENABLED === '1' });
@@ -52,7 +52,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const lang = params.lang ?? 'es';
     const redirectTo = safeRedirectPath(
       new URL(request.url).searchParams.get('redirectTo'),
-      `/${lang}/dashboard`,
+      `/panel`,
     );
     if (isMfaStep(result)) {
       // OR-B4-044: the password is right; the second factor comes next. The ticket stays on

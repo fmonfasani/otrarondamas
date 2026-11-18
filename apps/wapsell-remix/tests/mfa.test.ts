@@ -32,7 +32,7 @@ describe('second factor at sign-in', () => {
   it('sends an Owner from the password to enrolling, keeping the ticket on the server', async () => {
     api.mockResolvedValueOnce(ok({ mfa: 'activar', ticket: 't-1' }));
     const res = (await loginAction({
-      request: post('/es/auth/login?redirectTo=%2Fes%2Fdashboard%2Fcaja', [
+      request: post('/es/auth/login?redirectTo=%2Fpanel%2Fcaja', [
         ['email', 'a@b.co'],
         ['password', 'x'],
         ['remember', '1'],
@@ -44,7 +44,7 @@ describe('second factor at sign-in', () => {
     expect(res.headers.get('Location')).toBe('/es/auth/activar-mfa');
     const session = await getSession(res.headers.get('Set-Cookie'));
     expect(session.get('mfaTicket')).toBe('t-1');
-    expect(session.get('mfaRedirect')).toBe('/es/dashboard/caja');
+    expect(session.get('mfaRedirect')).toBe('/panel/caja');
     expect(session.get('jwt')).toBeUndefined();
   });
 
@@ -74,7 +74,7 @@ describe('second factor at sign-in', () => {
     const cookie = await cookieWith({
       mfaTicket: 't-2',
       mfaStep: 'verificar',
-      mfaRedirect: '/es/dashboard/pedidos',
+      mfaRedirect: '/panel/pedidos',
     });
     const res = (await verifyAction({
       request: post(
@@ -93,7 +93,7 @@ describe('second factor at sign-in', () => {
       codigo: '123456',
       recordar: true,
     });
-    expect(res.headers.get('Location')).toBe('/es/dashboard/pedidos');
+    expect(res.headers.get('Location')).toBe('/panel/pedidos');
     const cookies = res.headers.get('Set-Cookie') ?? '';
     expect(cookies).toContain('__wapsell_device=');
     const session = await getSession(cookies.split(', __wapsell_device')[0]);

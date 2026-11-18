@@ -40,7 +40,7 @@ export function ErrorBoundary() {
               ? 'Ese negocio no existe.'
               : 'Probá de nuevo en unos minutos.'}
         </p>
-        <a href="/es/dashboard" className="mt-6 inline-block text-sm font-medium text-[#b85c4a] underline">
+        <a href="/panel" className="mt-6 inline-block text-sm font-medium text-[#b85c4a] underline">
           Ir a mi panel
         </a>
       </div>

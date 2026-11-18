@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from '@remix-run/react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, formatMoney } from '~/utils/format';
@@ -58,7 +58,6 @@ export default function Devoluciones() {
   const { returns, error, plazoDias, manage } = useLoaderData<typeof loader>();
   const saved = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { lang = 'es' } = useParams();
   const [params] = useSearchParams();
   const current = params.get('estado') ?? '';
   return (
@@ -71,7 +70,7 @@ export default function Devoluciones() {
             Se registran desde la venta, hasta {plazoDias} días después. Cada una pasa por autorizar, recibir y reembolsar.
           </p>
         </div>
-        <Link className="ws-button ws-button--outline ws-button--auto" to={`/${lang}/dashboard/ventas`}>
+        <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/ventas`}>
           Buscar la venta
         </Link>
       </div>
@@ -122,7 +121,7 @@ export default function Devoluciones() {
                 return (
                   <tr key={r.id}>
                     <td>
-                      <Link className="ws-link" to={`/${lang}/dashboard/devoluciones/${r.id}`}>{returnNumber(r)}</Link>
+                      <Link className="ws-link" to={`/panel/devoluciones/${r.id}`}>{returnNumber(r)}</Link>
                       <small className="ws-team__email">{formatDateTime(r.fechaSolicitud)}</small>
                     </td>
                     <td>{r.cliente.nombre}</td>
