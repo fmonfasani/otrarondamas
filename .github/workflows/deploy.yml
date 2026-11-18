@@ -147,7 +147,7 @@ jobs:
     # Required reviewers on this environment make every production deploy a manual approval.
     environment:
       name: production
-      url: https://wapsell.com
+      url: https://app.wapsell.com
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
       SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
