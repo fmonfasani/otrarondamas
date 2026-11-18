@@ -504,6 +504,9 @@ model Empresa {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   slug                    String                    @unique
+  /// ADR-IDN-014: the internal Wapsell business (platform administration). Hidden from the
+  /// public, the directory and the metrics; the database refuses to delete it or its accounts.
+  interno                 Boolean                   @default(false)
   AuditLog                AuditLog[]
   Autorizacion            Autorizacion[]
   Caja                    Caja?

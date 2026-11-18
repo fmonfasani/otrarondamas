@@ -47,6 +47,7 @@ export class PlatformInsightsService {
   /** Businesses that need attention, most urgent first. */
   async health(now = new Date()) {
     const businesses = await this.prisma.empresa.findMany({
+      where: { interno: false },
       select: { id: true, nombre: true, slug: true, createdAt: true, configuracion: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -222,7 +223,7 @@ export class PlatformInsightsService {
       this.prisma.$queryRaw<
         Row[]
       >`SELECT ${month('createdAt')} AS m, count(*)::int AS n, 0::float AS v
-        FROM "Empresa" WHERE "createdAt" >= ${from} GROUP BY 1`,
+        FROM "Empresa" WHERE NOT interno AND "createdAt" >= ${from} GROUP BY 1`,
       this.prisma.$queryRaw<
         Row[]
       >`SELECT ${month('createdAt')} AS m, count(*)::int AS n, coalesce(sum(total), 0)::float AS v
@@ -262,7 +263,7 @@ export class PlatformInsightsService {
   /** How many Businesses use each part of Wapsell (in the last 30 days where it is an activity). */
   async adoption(now = new Date()) {
     const since30 = new Date(now.getTime() - 30 * DAY_MS);
-    const total = await this.prisma.empresa.count();
+    const total = await this.prisma.empresa.count({ where: { interno: false } });
     const recent = { createdAt: { gte: since30 } };
     const [mostrador, tienda, chat, devoluciones, configs] = await Promise.all([
       this.prisma.venta.findMany({
@@ -285,7 +286,7 @@ export class PlatformInsightsService {
         distinct: ['empresaId'],
         select: { empresaId: true },
       }),
-      this.prisma.empresa.findMany({ select: { configuracion: true } }),
+      this.prisma.empresa.findMany({ where: { interno: false }, select: { configuracion: true } }),
     ]);
     let cobros = 0;
     let respuestas = 0;

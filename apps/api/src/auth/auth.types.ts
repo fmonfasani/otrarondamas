@@ -78,6 +78,8 @@ export interface AuthenticatedUser {
  */
 export interface UserProfile extends AuthenticatedUser {
   empresaNombre: string;
+  /** ADR-IDN-014: the account lives in the internal Wapsell business (platform administration). */
+  empresaInterna?: boolean;
   fotoUrl: string | null;
   metodoLogin: 'google' | 'password';
   createdAt: string;
