@@ -22,6 +22,9 @@ The superuser stays for backups and emergencies, from the server only.
   - It writes the owner URL to `/opt/wapsell/secrets/migrate.env` and points the API at the two roles.
   - It restores the previous configuration if the API does not become healthy.
   - After that, `scripts/deploy-docker.sh` runs the migrations as the owner, then `grants.sql`. Without `migrate.env`, the deploy keeps the previous behavior.
+  - **Done on 2026-11-18 (20:18 UTC).** The superuser password was rotated the same day. Its value is only in `/opt/wapsell/secrets/postgres-superuser.env` (root only). Backups do not need it: they use the container's local socket.
+  - `grants.sql` run by the owner prints `WARNING: no privileges were granted for "public"`. This is expected: the schema belongs to the database owner, and `PUBLIC` already has `USAGE`.
+  - Secrets never go in a command line: on the host any user can read other processes' arguments. Pass them through the environment, stdin or a root-only file.
 - **CI.** `b4-verification` and `post-merge-verification` create the roles, migrate as the owner and run every suite with the API roles. `p18-1-roles-base-de-datos` checks the privileges.
 - **Local.** Optional. Without `SYSTEM_DATABASE_URL`, both clients use `DATABASE_URL`. To work with the roles:
 

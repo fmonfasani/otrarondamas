@@ -34,9 +34,10 @@ docker exec wapsell-api cat apps/api/prisma/db-roles/roles.sql \
 
 log "4/9 connection strings: same host, database and options; new user and password"
 CUR="$(docker exec wapsell-api printenv DATABASE_URL)"
-url() { # <user> <password>
-  local user="$1" password="$2"
-  printf '%s' "$CUR" | sed -E "s#^(postgres(ql)?://)[^@]*@#\1${user}:${password}@#"
+[[ "$CUR" =~ ^(postgres(ql)?://)[^@]*(@.*)$ ]] || { log "unexpected DATABASE_URL shape"; exit 1; }
+URL_SCHEME="${BASH_REMATCH[1]}" URL_REST="${BASH_REMATCH[3]}"
+url() { # <user> <password>. Pure bash: any user on the host can read process arguments.
+  printf '%s%s:%s%s' "$URL_SCHEME" "$1" "$2" "$URL_REST"
 }
 APP_URL="$(url wapsell_app "$WAPSELL_APP_PW")"
 SYSTEM_URL="$(url wapsell_system "$WAPSELL_SYSTEM_PW")"
