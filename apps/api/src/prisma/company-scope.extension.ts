@@ -61,6 +61,9 @@ export const MODELS_WITH_COMPANY_ID = [
   'VentaItem',
   'PedidoItem',
   'DevolucionClienteItem',
+  // INIT-019 PR 4, module 2: purchase and supplier return lines.
+  'CompraItem',
+  'DevolucionProveedorItem',
   // OR-B4-046 rule 12: product photos, born with their business (ADR-DAT-020).
   'ProductoFoto',
 ] as const;
