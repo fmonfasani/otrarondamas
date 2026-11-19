@@ -25,12 +25,9 @@ import { Prisma } from '@prisma/client';
  * shows it nothing (p18-3-rls-spike).
  */
 export const RELATIONS_WITH_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
-  CompraItem: ['Producto'],
-  DevolucionProveedorItem: ['Producto', 'Lote'],
+  // Purchases and stock left in INIT-019 PR 4, module 2: their composite keys check ownership in
+  // the database (ADR-DAT-020). The registry must be empty before row-level security (PR 5).
   Producto: ['Familia', 'Subfamilia', 'Tipo', 'Subtipo'],
-  ProductoProveedor: ['Producto', 'Proveedor'],
-  Lote: ['Producto'],
-  MovimientoStock: ['Producto'],
   ReglaFidelizacion: ['Subtipo', 'Familia', 'Subfamilia'],
 };
 

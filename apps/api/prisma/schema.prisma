@@ -257,16 +257,19 @@ model Compra {
   saldo                  Decimal               @default(0) @db.Decimal(18, 2)
   totalPagado            Decimal               @default(0) @db.Decimal(18, 2)
   Empresa                Empresa               @relation(fields: [empresaId], references: [id])
-  Proveedor              Proveedor             @relation(fields: [proveedorId], references: [id])
-  Usuario                Usuario               @relation(fields: [usuarioId], references: [id])
+  Proveedor              Proveedor             @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario                Usuario               @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   CompraItem             CompraItem[]
   DevolucionProveedor    DevolucionProveedor[]
   PagoProveedor          PagoProveedor[]
   RecepcionCompra        RecepcionCompra[]
+
+  @@unique([empresaId, id])
 }
 
 model CompraItem {
   id               String   @id @default(uuid())
+  empresaId        String
   compraId         String
   productoId       String
   cantidadPedida   Decimal  @db.Decimal(18, 4)
@@ -274,8 +277,8 @@ model CompraItem {
   costoUnitario    Decimal  @db.Decimal(18, 4)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  Compra           Compra   @relation(fields: [compraId], references: [id])
-  Producto         Producto @relation(fields: [productoId], references: [id])
+  Compra           Compra   @relation(fields: [empresaId, compraId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Producto         Producto @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Conversation {
@@ -470,23 +473,26 @@ model DevolucionProveedor {
   fecha                   DateTime                  @default(now())
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
-  Compra                  Compra                    @relation(fields: [compraId], references: [id])
+  Compra                  Compra                    @relation(fields: [empresaId, compraId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
-  Proveedor               Proveedor                 @relation(fields: [proveedorId], references: [id])
-  Usuario                 Usuario                   @relation(fields: [usuarioId], references: [id])
+  Proveedor               Proveedor                 @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario                 Usuario                   @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   DevolucionProveedorItem DevolucionProveedorItem[]
+
+  @@unique([empresaId, id])
 }
 
 model DevolucionProveedorItem {
   id                  String              @id @default(uuid())
+  empresaId           String
   devolucionId        String
   productoId          String
   loteId              String?
   cantidad            Decimal             @db.Decimal(18, 4)
   costoUnitario       Decimal             @db.Decimal(18, 4)
-  DevolucionProveedor DevolucionProveedor @relation(fields: [devolucionId], references: [id])
-  Lote                Lote?               @relation(fields: [loteId], references: [id])
-  Producto            Producto            @relation(fields: [productoId], references: [id])
+  DevolucionProveedor DevolucionProveedor @relation(fields: [empresaId, devolucionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Lote                Lote?               @relation(fields: [empresaId, loteId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Producto            Producto            @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model DocumentoLegajo {
@@ -702,10 +708,11 @@ model Lote {
   updatedAt               DateTime                  @updatedAt
   DevolucionProveedorItem DevolucionProveedorItem[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
-  Producto                Producto                  @relation(fields: [productoId], references: [id])
+  Producto                Producto                  @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   MovimientoStock         MovimientoStock[]
 
   @@unique([productoId, numeroLote, empresaId])
+  @@unique([empresaId, id])
 }
 
 model Membership {
@@ -837,10 +844,10 @@ model MovimientoStock {
   updatedAt            DateTime         @updatedAt
   loteVencidoAlMomento Boolean          @default(false)
   Empresa              Empresa          @relation(fields: [empresaId], references: [id])
-  Lote                 Lote?            @relation(fields: [loteId], references: [id])
-  Producto             Producto         @relation(fields: [productoId], references: [id])
-  RecepcionCompra      RecepcionCompra? @relation(fields: [recepcionCompraId], references: [id])
-  Usuario              Usuario?         @relation(fields: [usuarioId], references: [id])
+  Lote                 Lote?            @relation(fields: [empresaId, loteId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Producto             Producto         @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  RecepcionCompra      RecepcionCompra? @relation(fields: [empresaId, recepcionCompraId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario              Usuario?         @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Notificacion {
@@ -895,10 +902,10 @@ model PagoProveedor {
   notas       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  Compra      Compra    @relation(fields: [compraId], references: [id])
+  Compra      Compra    @relation(fields: [empresaId, compraId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
-  Usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  Proveedor   Proveedor @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario     Usuario   @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Pedido {
@@ -1038,8 +1045,8 @@ model ProductoProveedor {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   Empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  Producto    Producto  @relation(fields: [productoId], references: [id])
-  Proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  Producto    Producto  @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Proveedor   Proveedor @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([productoId, proveedorId])
 }
@@ -1060,6 +1067,7 @@ model Proveedor {
   Empresa             Empresa               @relation(fields: [empresaId], references: [id])
 
   @@unique([empresaId, nombre])
+  @@unique([empresaId, id])
 }
 
 model Reaction {
@@ -1085,9 +1093,11 @@ model RecepcionCompra {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   MovimientoStock MovimientoStock[]
-  Compra          Compra            @relation(fields: [compraId], references: [id])
+  Compra          Compra            @relation(fields: [empresaId, compraId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa         Empresa           @relation(fields: [empresaId], references: [id])
-  Usuario         Usuario           @relation(fields: [usuarioId], references: [id])
+  Usuario         Usuario           @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([empresaId, id])
 }
 
 model ReglaFidelizacion {

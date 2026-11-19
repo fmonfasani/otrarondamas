@@ -5,13 +5,10 @@ import {
   collectRelationalReferences,
 } from './relation-ownership';
 
-// Compra and its lines stand in for any registered header -> lines pair; sales and orders
-// left the registry in INIT-019 PR 4: their composite keys check ownership in the database.
-const item = (productId: string) => ({
-  productoId: productId,
-  cantidadPedida: 1,
-  costoUnitario: 10,
-});
+// Products and their categories stand in for any registered relation: sales and orders (PR 4,
+// module 1) and purchases and stock (module 2) left the registry, their composite keys check
+// ownership in the database (ADR-DAT-020). Only the catalog hierarchy and loyalty rules remain.
+const product = (subfamiliaId: string) => ({ nombre: 'Yerba', subfamiliaId });
 
 describe('relation-ownership', () => {
   describe('registro', () => {
@@ -29,114 +26,115 @@ describe('relation-ownership', () => {
     });
 
     it('registra únicamente modelos opt-in con relaciones de ownership', () => {
-      expect(modelHasRelationsWithOwnership('CompraItem')).toBe(true);
-      // Covered by composite keys since INIT-019 PR 4 (ADR-DAT-020).
-      expect(modelHasRelationsWithOwnership('VentaItem')).toBe(false);
-      expect(modelHasRelationsWithOwnership('PedidoItem')).toBe(false);
-      expect(modelHasRelationsWithOwnership('Venta')).toBe(false);
-      expect(modelHasRelationsWithOwnership('Pedido')).toBe(false);
       expect(modelHasRelationsWithOwnership('Producto')).toBe(true);
-      expect(modelHasRelationsWithOwnership('Lote')).toBe(true);
+      expect(modelHasRelationsWithOwnership('ReglaFidelizacion')).toBe(true);
+      // Covered by composite keys since INIT-019 PR 4 (ADR-DAT-020).
+      for (const model of ['VentaItem', 'PedidoItem', 'Venta', 'Pedido', 'CompraItem', 'Lote']) {
+        expect(modelHasRelationsWithOwnership(model)).toBe(false);
+      }
+      for (const model of ['DevolucionProveedorItem', 'ProductoProveedor', 'MovimientoStock']) {
+        expect(modelHasRelationsWithOwnership(model)).toBe(false);
+      }
     });
   });
 
-  describe('Compra.create con CompraItem anidados', () => {
-    it('extrae el Producto referenciado por cada item, sin duplicados', () => {
-      const refs = collectRelationalReferences('Compra', 'create', {
+  describe('Familia.create con Producto anidados', () => {
+    it('extrae la Subfamilia referenciada por cada producto, sin duplicados', () => {
+      const refs = collectRelationalReferences('Familia', 'create', {
         data: {
-          numeroFactura: 'x',
-          CompraItem: { create: [item('p1'), item('p2'), item('p1')] },
+          nombre: 'Almacén',
+          Producto: { create: [product('s1'), product('s2'), product('s1')] },
         },
       });
       expect(refs).toEqual([
-        { model: 'Producto', where: { id: 'p1' } },
-        { model: 'Producto', where: { id: 'p2' } },
+        { model: 'Subfamilia', where: { id: 's1' } },
+        { model: 'Subfamilia', where: { id: 's2' } },
       ]);
     });
 
-    it('acepta CompraItem.create como objeto único', () => {
-      const refs = collectRelationalReferences('Compra', 'create', {
-        data: { CompraItem: { create: item('p1') } },
+    it('acepta Producto.create como objeto único', () => {
+      const refs = collectRelationalReferences('Familia', 'create', {
+        data: { Producto: { create: product('s1') } },
       });
-      expect(refs).toEqual([{ model: 'Producto', where: { id: 'p1' } }]);
+      expect(refs).toEqual([{ model: 'Subfamilia', where: { id: 's1' } }]);
     });
 
     it('extrae también desde createMany anidado y connectOrCreate', () => {
-      const refs = collectRelationalReferences('Compra', 'create', {
+      const refs = collectRelationalReferences('Familia', 'create', {
         data: {
-          CompraItem: {
-            createMany: { data: [item('p1')] },
-            connectOrCreate: { where: { id: 'x' }, create: item('p2') },
+          Producto: {
+            createMany: { data: [product('s1')] },
+            connectOrCreate: { where: { id: 'x' }, create: product('s2') },
           },
         },
       });
-      expect(refs.map((r) => r.where.id)).toEqual(['p1', 'p2']);
+      expect(refs.map((r) => r.where.id)).toEqual(['s1', 's2']);
     });
 
     it('extrae desde update anidado (con y sin where/data) y upsert anidado', () => {
-      const refs = collectRelationalReferences('Compra', 'update', {
-        where: { id: 'v1' },
+      const refs = collectRelationalReferences('Familia', 'update', {
+        where: { id: 'f1' },
         data: {
-          CompraItem: {
-            create: item('p1'),
-            update: { where: { id: 'i1' }, data: { productoId: 'p2' } },
-            updateMany: { where: {}, data: { productoId: 'p3' } },
-            upsert: { where: { id: 'i2' }, create: item('p4'), update: { productoId: 'p5' } },
+          Producto: {
+            create: product('s1'),
+            update: { where: { id: 'p1' }, data: { subfamiliaId: 's2' } },
+            updateMany: { where: {}, data: { subfamiliaId: 's3' } },
+            upsert: { where: { id: 'p2' }, create: product('s4'), update: { subfamiliaId: 's5' } },
           },
         },
       });
-      expect(refs.map((r) => r.where.id)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
+      expect(refs.map((r) => r.where.id)).toEqual(['s1', 's2', 's3', 's4', 's5']);
     });
 
-    it('no extrae nada de una Compra sin items ni de operaciones de lectura', () => {
+    it('no extrae nada de una Familia sin productos ni de operaciones de lectura', () => {
       expect(
-        collectRelationalReferences('Compra', 'create', { data: { numeroFactura: 'x' } }),
+        collectRelationalReferences('Familia', 'create', { data: { nombre: 'Almacén' } }),
       ).toEqual([]);
       expect(
-        collectRelationalReferences('Compra', 'findMany', {
-          where: { CompraItem: { some: { productoId: 'p1' } } },
+        collectRelationalReferences('Familia', 'findMany', {
+          where: { Producto: { some: { subfamiliaId: 's1' } } },
         }),
       ).toEqual([]);
     });
   });
 
-  describe('CompraItem como modelo raíz', () => {
-    it('valida productoId en create, createMany, update y upsert', () => {
-      expect(collectRelationalReferences('CompraItem', 'create', { data: item('p1') })).toEqual([
-        { model: 'Producto', where: { id: 'p1' } },
+  describe('Producto como modelo raíz', () => {
+    it('valida subfamiliaId en create, createMany, update y upsert', () => {
+      expect(collectRelationalReferences('Producto', 'create', { data: product('s1') })).toEqual([
+        { model: 'Subfamilia', where: { id: 's1' } },
       ]);
       expect(
-        collectRelationalReferences('CompraItem', 'createMany', {
-          data: [item('p1'), item('p2')],
+        collectRelationalReferences('Producto', 'createMany', {
+          data: [product('s1'), product('s2')],
         }).map((r) => r.where.id),
-      ).toEqual(['p1', 'p2']);
+      ).toEqual(['s1', 's2']);
       expect(
-        collectRelationalReferences('CompraItem', 'update', {
-          where: { id: 'i1' },
-          data: { productoId: { set: 'p9' } },
+        collectRelationalReferences('Producto', 'update', {
+          where: { id: 'p1' },
+          data: { subfamiliaId: { set: 's9' } },
         }),
-      ).toEqual([{ model: 'Producto', where: { id: 'p9' } }]);
+      ).toEqual([{ model: 'Subfamilia', where: { id: 's9' } }]);
       expect(
-        collectRelationalReferences('CompraItem', 'upsert', {
-          where: { id: 'i1' },
-          create: item('p1'),
-          update: { productoId: 'p2' },
+        collectRelationalReferences('Producto', 'upsert', {
+          where: { id: 'p1' },
+          create: product('s1'),
+          update: { subfamiliaId: 's2' },
         }).map((r) => r.where.id),
-      ).toEqual(['p1', 'p2']);
+      ).toEqual(['s1', 's2']);
     });
 
-    it('trata Producto.connect como una referencia más', () => {
-      const refs = collectRelationalReferences('CompraItem', 'create', {
-        data: { cantidadPedida: 1, costoUnitario: 1, Producto: { connect: { id: 'p1' } } },
+    it('trata Subfamilia.connect como una referencia más', () => {
+      const refs = collectRelationalReferences('Producto', 'create', {
+        data: { nombre: 'Yerba', Subfamilia: { connect: { id: 's1' } } },
       });
-      expect(refs).toEqual([{ model: 'Producto', where: { id: 'p1' } }]);
+      expect(refs).toEqual([{ model: 'Subfamilia', where: { id: 's1' } }]);
     });
 
-    it('no valida un update que no toca productoId', () => {
+    it('no valida un update que no toca las categorías', () => {
       expect(
-        collectRelationalReferences('CompraItem', 'update', {
-          where: { id: 'i1' },
-          data: { cantidadPedida: 3 },
+        collectRelationalReferences('Producto', 'update', {
+          where: { id: 'p1' },
+          data: { nombre: 'Yerba suave' },
         }),
       ).toEqual([]);
     });
@@ -145,29 +143,29 @@ describe('relation-ownership', () => {
   describe('falla cerrada ante formas no verificables', () => {
     it.each([
       ['create', { create: { nombre: 'x' } }],
-      ['connectOrCreate', { connectOrCreate: { where: { id: 'p1' }, create: {} } }],
+      ['connectOrCreate', { connectOrCreate: { where: { id: 's1' }, create: {} } }],
       ['disconnect', { disconnect: true }],
-    ])('rechaza Producto.%s', (name, operation) => {
+    ])('rechaza Subfamilia.%s', (name, operation) => {
       expect(() =>
-        collectRelationalReferences('CompraItem', 'create', {
-          data: { cantidadPedida: 1, costoUnitario: 1, Producto: operation },
+        collectRelationalReferences('Producto', 'create', {
+          data: { nombre: 'Yerba', Subfamilia: operation },
         }),
       ).toThrow(/no tiene manejo de ownership definido/);
     });
 
-    it('rechaza productoId con una forma de valor desconocida', () => {
+    it('rechaza subfamiliaId con una forma de valor desconocida', () => {
       expect(() =>
-        collectRelationalReferences('CompraItem', 'update', {
-          where: { id: 'i1' },
-          data: { productoId: { increment: 1 } },
+        collectRelationalReferences('Producto', 'update', {
+          where: { id: 'p1' },
+          data: { subfamiliaId: { increment: 1 } },
         }),
       ).toThrow(/forma de valor no soportada/);
     });
 
-    it('propaga el rechazo desde un item anidado dentro de Compra.create', () => {
+    it('propaga el rechazo desde un producto anidado dentro de Familia.create', () => {
       expect(() =>
-        collectRelationalReferences('Compra', 'create', {
-          data: { CompraItem: { create: { Producto: { create: {} } } } },
+        collectRelationalReferences('Familia', 'create', {
+          data: { Producto: { create: { Subfamilia: { create: {} } } } },
         }),
       ).toThrow(/no tiene manejo de ownership definido/);
     });

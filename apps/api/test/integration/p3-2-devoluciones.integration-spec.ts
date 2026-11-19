@@ -160,6 +160,9 @@ describe('P3-2 — devoluciones', () => {
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.user.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
     await prisma.usuarioPermiso.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
+    // Stock movements reference the user who made them, and that reference restricts deletes
+    // (ADR-DAT-020, PR 4 module 2): movements go first.
+    await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.usuario.deleteMany({ where: { id: { in: usuarioIds } } });
     await deleteStoreCompanies(prisma, companies);
     await prisma.$disconnect();

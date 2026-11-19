@@ -3,6 +3,9 @@ import { InventoryService } from '../../src/inventory/inventory.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
+// INIT-019 PR 4, module 2 (ADR-DAT-020): MovimientoStock left the relation registry. Its references
+// are composite, so the database rejects a product of another business or one that does not exist
+// (P2003), whichever role writes. Before, the registry answered P2025 from the application.
 describe('B3 relation isolation — MovimientoStock.producto ownership candidate', () => {
   let prisma: PrismaService;
   let scopedPrisma: CompanyScopedPrismaService;
@@ -239,7 +242,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
     expect(created.productoId).toBe(productA.id);
   });
 
-  it('MS-P-02: cross-Business Producto create rejects with P2025 and no persistence', async () => {
+  it('MS-P-02: cross-Business Producto create rejects with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const reason = uniqueReason('02');
 
@@ -247,12 +250,12 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
       await rejectionCode(
         db.movimientoStock.create({ data: movementData(companyA.id, productB.id, reason) }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.movimientoStock.count({ where: { motivo: reason } })).toBe(0);
   });
 
-  it('MS-P-03: cross-Business Producto update rejects with P2025 and preserves the relation', async () => {
+  it('MS-P-03: cross-Business Producto update rejects with P2003 and preserves the relation', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const movement = await prisma.movimientoStock.create({
       data: movementData(companyA.id, productA.id, uniqueReason('03-base')),
@@ -266,7 +269,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           data: { productoId: productB.id },
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     const persisted = await prisma.movimientoStock.findUnique({
       where: { id: movement.id },
@@ -304,14 +307,14 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           });
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.movimientoStock.count({ where: { motivo: { in: [valid, invalid] } } }),
     ).toBe(0);
   });
 
-  it('MS-P-06: nonexistent Producto fails closed with P2025 and no persistence', async () => {
+  it('MS-P-06: nonexistent Producto fails closed with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const reason = uniqueReason('06');
 
@@ -321,7 +324,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           data: movementData(companyA.id, `no-existe-${suffix}`, reason),
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.movimientoStock.count({ where: { motivo: reason } })).toBe(0);
   });
@@ -494,7 +497,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
     }
   });
 
-  it('MS-P-12: control — update to a nonexistent Producto is P2025, distinguishable from the FK violation', async () => {
+  it('MS-P-12: control — update to a nonexistent Producto is rejected by the database too (P2003)', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const movement = await prisma.movimientoStock.create({
       data: movementData(companyA.id, productA.id, uniqueReason('12-base')),
@@ -508,7 +511,7 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
           data: { productoId: `no-existe-${suffix}` },
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
   });
 
   it('MS-P-14: concurrent negative adjustments cannot overdraw a batch or duplicate movements', async () => {
