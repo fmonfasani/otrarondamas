@@ -18,7 +18,10 @@ export const waitPort = (port: number, attempts = 60) =>
     probe(attempts);
   });
 
-/** One sellable product (full hierarchy + a lot of 5 units) in the given company. */
+/**
+ * One sellable product (full hierarchy + a lot of 5 units) in the given company, published in its
+ * store: since OR-B4-046 the store lists and sells only the Catálogo.
+ */
 export async function createStoreProduct(
   prisma: PrismaService,
   companyId: string,
@@ -70,6 +73,7 @@ export async function createStoreProduct(
       costo: 1,
       precioMinorista: 10,
       activo: true,
+      publicado: true,
     },
     select: { id: true, nombre: true },
   });

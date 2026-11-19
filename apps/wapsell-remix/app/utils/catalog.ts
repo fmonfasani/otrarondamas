@@ -1,7 +1,8 @@
 /**
  * Shapes of /catalogo/productos and /catalogo/jerarquia, and the pure helpers the
- * Catálogo screen uses (OR-B4-028: the panel shows category + subcategory; the Tipo and
- * Subtipo the model requires are the "General" ones of each subcategory).
+ * Mercadería screen uses (OR-B4-028: the panel shows category + subcategory; the Tipo and
+ * Subtipo the model requires are the "General" ones of each subcategory). OR-B4-046: the
+ * Mercadería is every product; the Catálogo is what the Business publishes in its store.
  */
 import { parseArsNumber } from './format';
 
@@ -21,7 +22,16 @@ export interface Product {
   precioMayorista: string | null;
   descuentoPorcentaje: string | null;
   activo: boolean;
+  /** In the store (the Catálogo). Only an active product is published. */
+  publicado: boolean;
+  /** First in the store. Only a published product is featured. */
+  destacado: boolean;
+  /** What the customer reads on the product page. */
+  descripcion: string | null;
 }
+
+/** Longest store description the API takes. */
+export const DESCRIPTION_MAX = 2000;
 
 interface Node {
   id: string;
@@ -142,12 +152,47 @@ export function productPayload(
       if (!options.current || Number(options.current.descuentoPorcentaje ?? 0) !== discount) body.descuentoPorcentaje = discount;
     }
   }
+
+  // OR-B4-046: the store fields. Each checkbox travels after a hidden "false", so a field the
+  // form did not send at all leaves things as they are.
+  const flag = (key: string) => (fields[key] === undefined || fields[key] === null ? undefined : String(fields[key]) === 'true');
+  const publicado = flag('publicado');
+  const destacado = flag('destacado');
+  if (destacado && !(publicado ?? options.current?.publicado)) {
+    return { ok: false, message: 'Solo un producto publicado en la tienda puede ser destacado.' };
+  }
+  if (publicado !== undefined && publicado !== Boolean(options.current?.publicado)) body.publicado = publicado;
+  if (destacado !== undefined && destacado !== Boolean(options.current?.destacado)) body.destacado = destacado;
+  if (fields.descripcion !== undefined && fields.descripcion !== null) {
+    const descripcion = text('descripcion');
+    if (descripcion.length > DESCRIPTION_MAX) return { ok: false, message: `La descripción puede tener hasta ${DESCRIPTION_MAX} caracteres.` };
+    if (descripcion !== (options.current?.descripcion ?? '')) body.descripcion = descripcion;
+  }
   return { ok: true, body };
 }
 
-export function matchesFilters(product: Product, filters: { category: string | null; status: string }) {
+/** Store filter of the list: in the store, outside it, or both (null). */
+export type StoreFilter = 'publicados' | 'sin-publicar' | null;
+
+export function matchesFilters(product: Product, filters: { category: string | null; status: string; store?: StoreFilter }) {
   if (filters.category && product.familiaId !== filters.category) return false;
   if (filters.status === 'activos' && !product.activo) return false;
   if (filters.status === 'inactivos' && product.activo) return false;
+  if (filters.store === 'publicados' && !product.publicado) return false;
+  if (filters.store === 'sin-publicar' && product.publicado) return false;
   return true;
+}
+
+export const storeFilterOf = (value: string | null): StoreFilter =>
+  value === 'publicados' || value === 'sin-publicar' ? value : null;
+
+/** What the Business reads after publishing or unpublishing many products at once. */
+export function publishMessage(updated: number, publicado: boolean) {
+  if (updated === 0) {
+    return publicado
+      ? 'No había productos para publicar: ya estaban en la tienda o están inactivos.'
+      : 'Esos productos ya estaban fuera de la tienda.';
+  }
+  const products = updated === 1 ? '1 producto' : `${updated} productos`;
+  return publicado ? `Listo: ${products} en la tienda.` : `Listo: ${products} fuera de la tienda.`;
 }

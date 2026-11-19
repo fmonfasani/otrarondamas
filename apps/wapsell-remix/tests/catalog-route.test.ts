@@ -1,9 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitSession, getSession } from '../app/services/auth.server';
-import { action } from '../app/routes/_business.panel.productos';
-import { catalogAbilities, categoryOptions, chainFor, parseAmount, productPayload, type Hierarchy, type Product } from '../app/utils/catalog';
+import { action } from '../app/routes/_business.panel.mercaderia';
+import { loader as oldAddress } from '../app/routes/_business.panel.productos';
+import {
+  catalogAbilities,
+  categoryOptions,
+  chainFor,
+  matchesFilters,
+  parseAmount,
+  productPayload,
+  publishMessage,
+  storeFilterOf,
+  type Hierarchy,
+  type Product,
+} from '../app/utils/catalog';
 
-// Business panel "Catálogo" (OR-B4-028), wired to /catalogo/productos and /catalogo/jerarquia.
+// Business panel "Mercadería" (OR-B4-028, OR-B4-046), wired to /catalogo/productos and /catalogo/jerarquia.
 const hierarchy: Hierarchy = {
   familias: [{ id: 'f-beb', nombre: 'Bebidas', prefijo: 'BEB' }],
   subfamilias: [
@@ -35,6 +47,9 @@ const product: Product = {
   precioMayorista: null,
   descuentoPorcentaje: null,
   activo: true,
+  publicado: true,
+  destacado: false,
+  descripcion: null,
 };
 
 describe('catalog helpers', () => {
@@ -108,6 +123,51 @@ describe('catalog helpers', () => {
     });
   });
 
+  it('publishes a new product only when ticked (OR-B4-046)', () => {
+    const fields = { nombre: 'Agua', subfamiliaId: 's-gen', costo: '1', precioMinorista: '2' };
+    const ticked = productPayload({ ...fields, publicado: 'true', destacado: 'true', descripcion: ' Sin gas ' }, hierarchy, { mode: 'create', changePrices: true });
+    expect(ticked.ok && ticked.body).toMatchObject({ publicado: true, destacado: true, descripcion: 'Sin gas' });
+    const unticked = productPayload({ ...fields, publicado: 'false', destacado: 'false', descripcion: '' }, hierarchy, { mode: 'create', changePrices: true });
+    expect(unticked.ok && unticked.body).not.toHaveProperty('publicado');
+    expect(unticked.ok && unticked.body).not.toHaveProperty('destacado');
+    expect(unticked.ok && unticked.body).not.toHaveProperty('descripcion');
+  });
+
+  it('on edit sends the store fields only when they change, and an unticked box unpublishes', () => {
+    const edit = (fields: Record<string, string>) =>
+      productPayload({ nombre: 'Coca 500', subfamiliaId: 's-gas', ...fields }, hierarchy, { mode: 'update', changePrices: false, current: product });
+    expect(edit({ publicado: 'true', destacado: 'false', descripcion: '' })).toEqual({ ok: true, body: { nombre: 'Coca 500', unidadBase: 'UNIDAD' } });
+    expect(edit({ publicado: 'false', destacado: 'false' })).toMatchObject({ ok: true, body: { publicado: false } });
+    expect(edit({ publicado: 'true', destacado: 'true' })).toMatchObject({ ok: true, body: { destacado: true } });
+    expect(edit({ descripcion: 'Lata de 500 ml' })).toMatchObject({ ok: true, body: { descripcion: 'Lata de 500 ml' } });
+    // A form without the store fields leaves the product as it is in the store.
+    expect(edit({})).toEqual({ ok: true, body: { nombre: 'Coca 500', unidadBase: 'UNIDAD' } });
+  });
+
+  it('refuses to feature a product that is not published, and a description too long', () => {
+    expect(
+      productPayload({ nombre: 'X', subfamiliaId: 's-gen', publicado: 'false', destacado: 'true' }, hierarchy, { mode: 'update', changePrices: false, current: product }),
+    ).toEqual({ ok: false, message: 'Solo un producto publicado en la tienda puede ser destacado.' });
+    expect(
+      productPayload({ nombre: 'X', subfamiliaId: 's-gen', descripcion: 'x'.repeat(2001) }, hierarchy, { mode: 'update', changePrices: false, current: product }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it('filters the list by its place in the store', () => {
+    const hidden = { ...product, publicado: false };
+    expect(storeFilterOf('publicados')).toBe('publicados');
+    expect(storeFilterOf('otra-cosa')).toBeNull();
+    expect(matchesFilters(product, { category: null, status: 'activos', store: 'publicados' })).toBe(true);
+    expect(matchesFilters(hidden, { category: null, status: 'activos', store: 'publicados' })).toBe(false);
+    expect(matchesFilters(hidden, { category: null, status: 'activos', store: 'sin-publicar' })).toBe(true);
+  });
+
+  it('says how many products moved in or out of the store', () => {
+    expect(publishMessage(1, true)).toBe('Listo: 1 producto en la tienda.');
+    expect(publishMessage(12, false)).toBe('Listo: 12 productos fuera de la tienda.');
+    expect(publishMessage(0, true)).toContain('inactivos');
+  });
+
   it('rejects missing or invalid prices and categories', () => {
     expect(productPayload({ nombre: 'X', subfamiliaId: '' }, hierarchy, { mode: 'create', changePrices: true })).toMatchObject({ ok: false });
     expect(productPayload({ nombre: 'X', subfamiliaId: 's-gen', costo: '0', precioMinorista: '2' }, hierarchy, { mode: 'create', changePrices: true })).toMatchObject({ ok: false });
@@ -119,12 +179,16 @@ describe('catalog route', () => {
   const api = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
   const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
   let role = 'OWNER';
-  async function post(fields: Record<string, string>) {
+  async function post(fields: Record<string, string> | URLSearchParams) {
     const session = await getSession();
     session.set('jwt', 'jwt-token');
     const cookie = (await commitSession(session)).split(';')[0];
     return action({
-      request: new Request('http://app.test/panel/productos', { method: 'POST', body: new URLSearchParams(fields), headers: { Cookie: cookie } }),
+      request: new Request('http://app.test/panel/mercaderia', {
+        method: 'POST',
+        body: fields instanceof URLSearchParams ? fields : new URLSearchParams(fields),
+        headers: { Cookie: cookie },
+      }),
       params: { lang: 'es' },
       context: {},
     }) as Promise<Response>;
@@ -165,7 +229,7 @@ describe('catalog route', () => {
   it('creates a product and opens it', async () => {
     api.mockResolvedValueOnce(ok({ ...product, id: 'p-9' }));
     const response = await post({ intent: 'createProduct', nombre: 'Sprite', subfamiliaId: 's-gas', costo: '400', precioMinorista: '750' });
-    expect(response.headers.get('Location')).toBe('/panel/productos?p=p-9&guardado=1');
+    expect(response.headers.get('Location')).toBe('/panel/mercaderia?p=p-9&guardado=1');
     expect(api.mock.calls[0][1]?.method).toBe('POST');
   });
 
@@ -184,9 +248,40 @@ describe('catalog route', () => {
     await expect(response.json()).resolves.toEqual({ ok: false, message: 'Ya existe un producto con ese código interno' });
   });
 
+  it('publishes the picked products in one request (OR-B4-046)', async () => {
+    api.mockResolvedValueOnce(ok({ actualizados: 2 }));
+    const form = new URLSearchParams([['intent', 'publish'], ['id', 'p-1'], ['id', 'p-2'], ['publicado', 'true']]);
+    const response = await post(form);
+    await expect(response.json()).resolves.toEqual({ ok: true, message: 'Listo: 2 productos en la tienda.' });
+    expect(api.mock.calls[0]).toEqual([
+      'http://api.test/catalogo/productos/publicacion',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ ids: ['p-1', 'p-2'], publicado: true }) }),
+    ]);
+  });
+
+  it('takes a whole category out of the store', async () => {
+    api.mockResolvedValueOnce(ok({ actualizados: 5 }));
+    await post({ intent: 'publish', familiaId: 'f-beb', publicado: 'false' });
+    expect(api.mock.calls[0][1]?.body).toBe(JSON.stringify({ familiaId: 'f-beb', publicado: false }));
+  });
+
+  it('asks to pick something before publishing', async () => {
+    const response = await post({ intent: 'publish', publicado: 'true' });
+    expect(response.status).toBe(400);
+    expect(api).not.toHaveBeenCalled();
+  });
+
   it('deactivates a product', async () => {
     api.mockResolvedValueOnce(ok({ ...product, activo: false }));
     await post({ intent: 'toggleActive', productId: 'p-1', activo: 'false' });
     expect(api.mock.calls[0]).toEqual(['http://api.test/catalogo/productos/p-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ activo: false }) })]);
+  });
+});
+
+describe('old address of the section', () => {
+  it('sends /panel/productos to Mercadería, keeping the filters', async () => {
+    const response = (await oldAddress({ request: new Request('http://app.test/panel/productos?cat=f-beb&p=p-1'), params: {}, context: {} })) as Response;
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toBe('/panel/mercaderia?cat=f-beb&p=p-1');
   });
 });

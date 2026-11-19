@@ -150,6 +150,8 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
         unidadBase: 'UNIDAD',
         costo: 5,
         precioMinorista: 10,
+        // Ordered from the store, which sells only the Catálogo (OR-B4-046).
+        publicado: true,
       },
       select: { id: true },
     });

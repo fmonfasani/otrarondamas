@@ -197,7 +197,7 @@ export default function InventoryPage() {
           {data.rows.length === 0 ? (
             <div className="ws-empty">
               <b>{onlyLow ? 'No hay productos con stock bajo.' : 'No hay productos activos.'}</b>
-              {!onlyLow && 'Carga productos en Catálogo y su stock entrando una compra.'}
+              {!onlyLow && 'Carga productos en Mercadería y su stock entrando una compra.'}
             </div>
           ) : (
             <div className="ws-table-wrap">

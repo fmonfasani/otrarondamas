@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { AuditAction } from './audit-catalog';
 
-export { recordAudit } from './audit-catalog';
+export { recordAudit, recordAuditMany } from './audit-catalog';
 
 const PRICE_FIELDS = [
   'costo',
@@ -20,6 +20,8 @@ const OTHER_FIELDS = [
   'subtipoId',
   'unidadBase',
   'stockMinimo',
+  'destacado',
+  'descripcion',
 ] as const;
 
 /** Prisma Decimals compare and store as plain numbers; empty is null. */
@@ -30,9 +32,9 @@ function plain(v: unknown): unknown {
 }
 
 /**
- * OR-B4-041 — what a product edit means for the audit trail: a (de)activation, a price
- * change, or another edit; only the fields that changed, plus the product name. Null when
- * nothing changed.
+ * OR-B4-041 — what a product edit means for the audit trail: a (de)activation, a change in the
+ * store (OR-B4-046: published or taken out), a price change, or another edit; only the fields
+ * that changed, plus the product name. Null when nothing changed.
  */
 export function productAuditEntry(
   before: Record<string, unknown>,
@@ -46,13 +48,15 @@ export function productAuditEntry(
 } | null {
   const changed = (k: string) =>
     JSON.stringify(plain(before[k])) !== JSON.stringify(plain(after[k]));
-  const fields = [...PRICE_FIELDS, ...OTHER_FIELDS, 'activo'].filter(changed);
+  const fields = [...PRICE_FIELDS, ...OTHER_FIELDS, 'activo', 'publicado'].filter(changed);
   if (fields.length === 0) return null;
   const pick = (o: Record<string, unknown>) =>
     Object.fromEntries(fields.map((k) => [k, plain(o[k])]));
   let accion: AuditAction = 'PRODUCTO_EDITADO';
   if (fields.includes('activo'))
     accion = after.activo ? 'PRODUCTO_ACTIVADO' : 'PRODUCTO_DESACTIVADO';
+  else if (fields.includes('publicado'))
+    accion = after.publicado ? 'PRODUCTO_PUBLICADO' : 'PRODUCTO_DESPUBLICADO';
   else if (PRICE_FIELDS.some((k) => fields.includes(k))) accion = 'PRODUCTO_PRECIO_CAMBIADO';
   return {
     accion,

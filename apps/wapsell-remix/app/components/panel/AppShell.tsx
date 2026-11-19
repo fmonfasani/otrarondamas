@@ -34,7 +34,7 @@ export function navItems(lang: string, role?: string): NavItem[] {
     { to: `${base}/devoluciones`, label: 'Devoluciones', icon: RotateCcw },
     { to: `${base}/clientes`, label: 'Clientes', icon: Users, roles: SELLING },
     { to: `${base}/caja`, label: 'Caja', icon: Wallet, roles: SELLING },
-    { to: `${base}/productos`, label: 'Catálogo', icon: Package },
+    { to: `${base}/mercaderia`, label: 'Mercadería', icon: Package },
     { to: `${base}/inventario`, label: 'Inventario', icon: Boxes },
     { to: `${base}/compras`, label: 'Compras', icon: Truck, roles: ['OWNER', 'ADMIN', 'GESTOR_DE_STOCK'] },
     { to: `${base}/reportes`, label: 'Reportes', icon: BarChart3, roles: MANAGERS },

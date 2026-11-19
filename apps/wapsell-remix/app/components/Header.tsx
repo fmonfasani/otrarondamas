@@ -46,7 +46,7 @@ export function Header({ area = 'customer', userName }: HeaderProps) {
           <>
             <Link to="/panel">Dashboard</Link>
             <Link to="/panel/pedidos">Pedidos</Link>
-            <Link to="/panel/productos">Productos</Link>
+            <Link to="/panel/mercaderia">Mercadería</Link>
           </>
         )}
 

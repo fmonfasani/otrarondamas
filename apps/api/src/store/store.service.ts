@@ -86,17 +86,29 @@ export class StoreService {
    * familiaId/subfamiliaId (Online Store design spec): category navigation
    * in addition to the text search — passed as is to consolidatedStock(),
    * which already knows how to filter by them.
+   *
+   * OR-B4-046: the store shows only the Catálogo (published products), featured
+   * first. A published product without stock shows «Sin stock», unless the
+   * Business chose to hide those (`hideOutOfStock`, from its settings).
    */
-  async catalog(search?: string, familyId?: string, subfamilyId?: string, companyId?: string) {
+  async catalog(
+    search?: string,
+    familyId?: string,
+    subfamilyId?: string,
+    companyId?: string,
+    options: { hideOutOfStock?: boolean } = {},
+  ) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
-    const stock = await this.inventoryService.consolidatedStock(
+    const listed = await this.inventoryService.consolidatedStock(
       resolvedCompanyId,
       search,
       undefined,
       familyId,
       subfamilyId,
+      { publishedOnly: true },
     );
+    const stock = options.hideOutOfStock ? listed.filter((s) => s.stockTotal > 0) : listed;
 
     const products = await db.producto.findMany({
       where: { id: { in: stock.map((s) => s.productoId) } },
@@ -122,6 +134,7 @@ export class StoreService {
         tipoId: item.tipoId,
         subtipoId: item.subtipoId,
         unidadBase: item.unidadBase,
+        destacado: item.destacado,
         precio: this.priceWithDiscount(basePrice, discountPercentage),
         precioSinDescuento:
           discountPercentage && !discountPercentage.isZero() ? basePrice.toFixed(2) : null,
@@ -165,13 +178,17 @@ export class StoreService {
     channelOrigen = 'web',
     idempotencyKey?: string,
     deductStock = false,
+    { catalogOnly = true }: { catalogOnly?: boolean } = {},
   ) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
 
     const productIds = [...new Set(dto.items.map((i) => i.productoId))];
+    // OR-B4-046 rule 2: the store sells the Catálogo (published products). A signed-in customer
+    // may also order what the Business shared in the chat (createCustomerOrder passes
+    // catalogOnly: false), since the chat sells every active product.
     const products = await db.producto.findMany({
-      where: { id: { in: productIds }, activo: true },
+      where: { id: { in: productIds }, activo: true, ...(catalogOnly ? { publicado: true } : {}) },
     });
     const productById = new Map(products.map((p) => [p.id, p]));
 
@@ -383,6 +400,11 @@ export class StoreService {
         items,
       },
       companyId,
+      'web',
+      undefined,
+      false,
+      // Products shared in the chat can be ordered even when they are not in the Catálogo.
+      { catalogOnly: false },
     );
   }
 

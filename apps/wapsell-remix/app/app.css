@@ -60,6 +60,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .product-initial { z-index: 1; display: grid; place-items: center; width: 83px; height: 83px; border-radius: 27px; color: #fff; background: #f07848; font-size: 36px; font-weight: 850; transform: rotate(-7deg); box-shadow: 0 13px 35px #f0784833; }
 .discount-tag, .unavailable-tag { position: absolute; z-index: 2; top: 11px; left: 11px; padding: 5px 8px; border-radius: 3px; color: #fff; background: #f07848; font-size: 9px; font-weight: 800; }
 .unavailable-tag { right: 11px; left: auto; color: #fff; background: #777; }
+/* OR-B4-046: featured products go first in the store, marked. Below the discount tag when both. */
+.featured-tag { position: absolute; z-index: 2; bottom: 11px; left: 11px; padding: 5px 8px; border-radius: 3px; color: #1f1d1a; background: #f6d26b; font-size: 9px; font-weight: 800; }
 .product-info { padding: 15px; }
 .product-code { color: #99958d; font-size: 9px; font-weight: 750; letter-spacing: .12em; }
 .product-info h3 { min-height: 38px; margin: 6px 0 15px; font-size: 14px; line-height: 1.35; }

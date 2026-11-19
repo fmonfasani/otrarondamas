@@ -976,6 +976,12 @@ model Producto {
   precioMinorista         Decimal                   @db.Decimal(18, 2)
   precioMayorista         Decimal?                  @db.Decimal(18, 2)
   activo                  Boolean                   @default(true)
+  /// OR-B4-046: the Catálogo is what the Business publishes in its store; the panel (Mercadería) sees 100 %.
+  publicado               Boolean                   @default(false)
+  /// Featured products go first in the store. Only a published product can be featured.
+  destacado               Boolean                   @default(false)
+  /// What the customer reads on the product page (OR-B4-046 rule 12).
+  descripcion             String?
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   stockMinimo             Decimal                   @default(0) @db.Decimal(18, 4)

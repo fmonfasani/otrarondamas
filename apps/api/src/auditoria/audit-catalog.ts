@@ -27,6 +27,8 @@ export type AuditAction =
   | 'PRODUCTO_EDITADO'
   | 'PRODUCTO_ACTIVADO'
   | 'PRODUCTO_DESACTIVADO'
+  | 'PRODUCTO_PUBLICADO'
+  | 'PRODUCTO_DESPUBLICADO'
   | 'CAJA_ABIERTA'
   | 'CAJA_MOVIMIENTO'
   | 'CAJA_ARQUEO'
@@ -52,6 +54,8 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_EDITADO: { tema: 'precios', nombre: 'Editó un producto' },
   PRODUCTO_ACTIVADO: { tema: 'precios', nombre: 'Activó un producto' },
   PRODUCTO_DESACTIVADO: { tema: 'precios', nombre: 'Desactivó un producto' },
+  PRODUCTO_PUBLICADO: { tema: 'precios', nombre: 'Publicó un producto en la tienda' },
+  PRODUCTO_DESPUBLICADO: { tema: 'precios', nombre: 'Sacó un producto de la tienda' },
   CAJA_ABIERTA: { tema: 'caja', nombre: 'Abrió la caja' },
   CAJA_MOVIMIENTO: { tema: 'caja', nombre: 'Registró un movimiento de caja' },
   CAJA_ARQUEO: { tema: 'caja', nombre: 'Hizo un arqueo' },
@@ -163,35 +167,55 @@ type AuditWriter = {
   auditLog: { create: (args: { data: Prisma.AuditLogUncheckedCreateInput }) => Promise<unknown> };
 };
 
+type AuditBatchWriter = {
+  auditLog: {
+    createMany: (args: { data: Prisma.AuditLogCreateManyInput[] }) => Promise<unknown>;
+  };
+};
+
+type AuditEntry = {
+  accion: AuditAction;
+  entidad: string;
+  entidadId?: string | null;
+  antes?: unknown;
+  despues?: unknown;
+  motivo?: string | null;
+};
+
 const json = (v: unknown) =>
   v === undefined || v === null
     ? undefined
     : (JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue);
+
+const rowOf = (companyId: string, usuarioId: string | null, entry: AuditEntry) => ({
+  empresaId: companyId,
+  usuarioId,
+  accion: entry.accion,
+  entidadAfectada: entry.entidad,
+  entidadId: entry.entidadId ?? null,
+  valoresAnteriores: json(entry.antes),
+  valoresPosteriores: json(entry.despues),
+  motivo: entry.motivo ?? null,
+});
 
 /** Writes one entry, inside the caller's transaction when it has one. */
 export function recordAudit(
   db: AuditWriter,
   companyId: string,
   usuarioId: string | null,
-  entry: {
-    accion: AuditAction;
-    entidad: string;
-    entidadId?: string | null;
-    antes?: unknown;
-    despues?: unknown;
-    motivo?: string | null;
-  },
+  entry: AuditEntry,
 ) {
-  return db.auditLog.create({
-    data: {
-      empresaId: companyId,
-      usuarioId,
-      accion: entry.accion,
-      entidadAfectada: entry.entidad,
-      entidadId: entry.entidadId ?? null,
-      valoresAnteriores: json(entry.antes),
-      valoresPosteriores: json(entry.despues),
-      motivo: entry.motivo ?? null,
-    },
+  return db.auditLog.create({ data: rowOf(companyId, usuarioId, entry) });
+}
+
+/** Many entries in one statement (a change applied to many records at once). */
+export function recordAuditMany(
+  db: AuditBatchWriter,
+  companyId: string,
+  usuarioId: string | null,
+  entries: AuditEntry[],
+) {
+  return db.auditLog.createMany({
+    data: entries.map((entry) => rowOf(companyId, usuarioId, entry)),
   });
 }

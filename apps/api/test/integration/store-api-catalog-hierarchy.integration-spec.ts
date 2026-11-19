@@ -82,6 +82,8 @@ describe('Store API — Catalog and Hierarchy', () => {
         descuentoPorcentaje: '10',
         unidadBase: 'UNIDAD',
         activo: true,
+        // The store lists only the Catálogo (OR-B4-046).
+        publicado: true,
       },
     });
 
