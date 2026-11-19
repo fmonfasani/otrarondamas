@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
+import { recordAudit } from '../auditoria/audit-catalog';
 import { RegisterAdjustmentDto } from './dto/register-adjustment.dto';
 
 // Same pattern as sales.service.ts: the client of
@@ -219,7 +220,10 @@ export class InventoryService {
   async registerAdjustment(companyId: string, dto: RegisterAdjustmentDto, userId: string) {
     const db = this.prismaFactory.forCompany(companyId);
 
-    const batch = await db.lote.findUnique({ where: { id: dto.loteId } });
+    const batch = await db.lote.findUnique({
+      where: { id: dto.loteId },
+      include: { Producto: { select: { nombre: true, costo: true } } },
+    });
     if (!batch) {
       throw new NotFoundException('Lote no encontrado');
     }
@@ -237,7 +241,7 @@ export class InventoryService {
         );
       }
 
-      return tx.movimientoStock.create({
+      const movement = await tx.movimientoStock.create({
         data: {
           empresaId: companyId,
           productoId: batch.productoId,
@@ -246,8 +250,27 @@ export class InventoryService {
           cantidad: Math.abs(dto.cantidad),
           motivo: `AjusteManual: ${dto.motivo}`,
           usuarioId: userId,
+          costoUnitario: batch.Producto.costo,
         },
       });
+      // OR-B4-041 / OR-B4-046 rule 8: every stock adjustment is in the audit trail.
+      await recordAudit(tx, companyId, userId, {
+        accion: 'STOCK_AJUSTE',
+        entidad: 'Producto',
+        entidadId: batch.productoId,
+        antes: {
+          nombre: batch.Producto.nombre,
+          lote: batch.numeroLote,
+          cantidad: Number(batch.cantidad),
+        },
+        despues: {
+          nombre: batch.Producto.nombre,
+          lote: batch.numeroLote,
+          cantidad: Number(batch.cantidad) + dto.cantidad,
+        },
+        motivo: dto.motivo,
+      });
+      return movement;
     });
   }
 
@@ -306,9 +329,16 @@ export class InventoryService {
     referenceId: string,
     userId: string | null,
   ): Promise<boolean> {
+    // OR-B4-046 rule 9: lots with a date leave first expiring first (FEFO); lots without a date
+    // (products that do not control expiry) leave in arrival order (FIFO).
     const batches = await tx.lote.findMany({
       where: { empresaId: companyId, productoId: productId, cantidad: { gt: 0 } },
-      orderBy: { vencimiento: 'asc' },
+      orderBy: [{ vencimiento: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
+    });
+    // ADR-DAT-009: each movement keeps the cost of what leaves (the product's current cost).
+    const product = await tx.producto.findFirst({
+      where: { id: productId },
+      select: { costo: true },
     });
 
     const stockTotal = batches.reduce((acc, l) => acc + Number(l.cantidad), 0);
@@ -324,7 +354,8 @@ export class InventoryService {
     for (const batch of batches) {
       if (remaining <= 0) break;
       const thisBatchQuantity = Math.min(remaining, Number(batch.cantidad));
-      const expiredBatch = batch.vencimiento <= now;
+      // A lot without a date never counts as expired (`null <= now` would be true in JavaScript).
+      const expiredBatch = batch.vencimiento !== null && batch.vencimiento <= now;
       if (expiredBatch) {
         hadExpiredBatch = true;
       }
@@ -359,6 +390,7 @@ export class InventoryService {
           referenciaId: referenceId,
           usuarioId: userId,
           loteVencidoAlMomento: expiredBatch,
+          costoUnitario: product?.costo ?? null,
         },
       });
 

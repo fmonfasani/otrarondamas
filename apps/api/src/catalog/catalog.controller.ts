@@ -186,6 +186,8 @@ export class CatalogController {
       descuentoPorcentaje: dto.descuentoPorcentaje,
       ...flags,
       descripcion: descriptionOf(dto.descripcion),
+      // OR-B4-046 rule 9: whether its lots carry an expiry date.
+      controlaVencimiento: dto.controlaVencimiento,
       stockMinimo: dto.stockMinimo,
       empresaId: companyId,
     };

@@ -22,6 +22,7 @@ const OTHER_FIELDS = [
   'stockMinimo',
   'destacado',
   'descripcion',
+  'controlaVencimiento',
 ] as const;
 
 /** Prisma Decimals compare and store as plain numbers; empty is null. */

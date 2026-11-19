@@ -62,7 +62,14 @@ describe('inventory helpers', () => {
       ]),
     );
     expect(parsed).toEqual({ ok: true, items: [{ compraItemId: 'i1', cantidadRecibida: 10, numeroLote: 'L-1', vencimiento: '2027-03-01' }] });
-    expect(receiptItemsFrom(formOf([['compraItemId', 'i1'], ['recibido', '5'], ['lote', 'L'], ['vencimiento', '']]))).toMatchObject({ ok: false });
+    // OR-B4-046 rule 9: the date is asked only where the product controls expiry; the lot is optional.
+    const plain = (lote: string, needs: string) =>
+      receiptItemsFrom(formOf([['compraItemId', 'i1'], ['controlaVencimiento', needs], ['recibido', '5'], ['lote', lote], ['vencimiento', '']]));
+    expect(plain('', '0')).toEqual({ ok: true, items: [{ compraItemId: 'i1', cantidadRecibida: 5 }] });
+    expect(plain('L', '1')).toEqual({ ok: false, message: 'Indicá la fecha de vencimiento de los productos que la controlan.' });
+    expect(
+      receiptItemsFrom(formOf([['compraItemId', 'i1'], ['recibido', '5'], ['lote', ''], ['vencimiento', '01/02/2027']])),
+    ).toMatchObject({ ok: false });
   });
 
   it('labels expiry relative to today and computes pending quantities', () => {
@@ -70,6 +77,7 @@ describe('inventory helpers', () => {
     expect(daysUntil('2026-11-15T00:00:00.000Z', now)).toBe(3);
     expect(expiryLabel('2026-11-10T00:00:00.000Z', now)).toEqual({ label: 'Vencido hace 2 días', tone: 'warning' });
     expect(expiryLabel('2026-11-12T00:00:00.000Z', now).label).toBe('Vence hoy');
+    expect(expiryLabel(null, now)).toEqual({ label: 'Sin vencimiento', tone: 'muted' });
     expect(pendingOf({ id: 'i', productoId: 'p', cantidadPedida: '10', cantidadRecibida: '4', costoUnitario: '1' })).toBe(6);
     expect(suggestedBatchNumber({ id: 'ab12cd34-0000', RecepcionCompra: [{ id: 'r', createdAt: '' }] })).toBe('CAB12CD-2');
   });

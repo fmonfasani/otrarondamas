@@ -50,6 +50,7 @@ const product: Product = {
   publicado: true,
   destacado: false,
   descripcion: null,
+  controlaVencimiento: false,
 };
 
 describe('catalog helpers', () => {
@@ -151,6 +152,17 @@ describe('catalog helpers', () => {
     expect(
       productPayload({ nombre: 'X', subfamiliaId: 's-gen', descripcion: 'x'.repeat(2001) }, hierarchy, { mode: 'update', changePrices: false, current: product }),
     ).toMatchObject({ ok: false });
+  });
+
+  it('sends whether the product controls expiry only when it changes (OR-B4-046 rule 9)', () => {
+    const edit = (value: string) =>
+      productPayload({ nombre: 'Coca 500', subfamiliaId: 's-gas', controlaVencimiento: value }, hierarchy, {
+        mode: 'update',
+        changePrices: false,
+        current: product,
+      });
+    expect(edit('false')).toEqual({ ok: true, body: { nombre: 'Coca 500', unidadBase: 'UNIDAD' } });
+    expect(edit('true')).toMatchObject({ ok: true, body: { controlaVencimiento: true } });
   });
 
   it('filters the list by its place in the store', () => {

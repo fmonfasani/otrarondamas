@@ -292,6 +292,8 @@ export class OrdersService {
                   referenciaId: id,
                   usuarioId: userId,
                   loteVencidoAlMomento: false, // Reversing stock, not expired
+                  // ADR-DAT-009: it comes back at the cost it left with.
+                  costoUnitario: egreso.costoUnitario,
                 },
               });
 

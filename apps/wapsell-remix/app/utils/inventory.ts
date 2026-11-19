@@ -16,7 +16,8 @@ export interface StockRow {
 export interface Batch {
   id: string;
   numeroLote: string;
-  vencimiento: string;
+  /** Only for products that control expiry (OR-B4-046 rule 9). */
+  vencimiento: string | null;
   cantidad: string;
 }
 export interface StockMovement {
@@ -93,7 +94,8 @@ export function daysUntil(iso: string, now = new Date()): number {
   return Math.round((Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate()) - day(now)) / 86_400_000);
 }
 
-export function expiryLabel(iso: string, now = new Date()): { label: string; tone: string } {
+export function expiryLabel(iso: string | null, now = new Date()): { label: string; tone: string } {
+  if (!iso) return { label: 'Sin vencimiento', tone: 'muted' };
   const days = daysUntil(iso, now);
   if (days < 0) return { label: `Vencido hace ${-days} ${-days === 1 ? 'día' : 'días'}`, tone: 'warning' };
   if (days === 0) return { label: 'Vence hoy', tone: 'warning' };
@@ -133,22 +135,35 @@ export function purchaseItemsFrom(form: FormData):
   return { ok: true, items };
 }
 
-/** Receipt rows (compraItemId[], recibido[], lote[], vencimiento[]); a 0/blank quantity is skipped. */
+/**
+ * Receipt rows (compraItemId[], recibido[], lote[], vencimiento[], controlaVencimiento[]); a 0/blank
+ * quantity is skipped. OR-B4-046 rule 9: the lot number is optional, and the expiry date is asked
+ * only for products that control expiry (the API checks it too).
+ */
 export function receiptItemsFrom(form: FormData):
-  | { ok: true; items: Array<{ compraItemId: string; cantidadRecibida: number; numeroLote: string; vencimiento: string }> }
+  | { ok: true; items: Array<{ compraItemId: string; cantidadRecibida: number; numeroLote?: string; vencimiento?: string }> }
   | { ok: false; message: string } {
   const ids = form.getAll('compraItemId').map(String);
   const quantities = form.getAll('recibido');
   const batches = form.getAll('lote').map((v) => String(v).trim());
-  const expiries = form.getAll('vencimiento').map(String);
+  const expiries = form.getAll('vencimiento').map((v) => String(v).trim());
+  const needsExpiry = form.getAll('controlaVencimiento').map(String);
   const items = [];
   for (let i = 0; i < ids.length; i++) {
     const cantidad = num(quantities[i]);
     if (cantidad === null || cantidad === 0) continue;
     if (Number.isNaN(cantidad) || cantidad < 0) return { ok: false, message: 'Las cantidades recibidas tienen que ser números positivos.' };
-    if (!batches[i]) return { ok: false, message: 'Cada producto recibido necesita un número de lote.' };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiries[i] ?? '')) return { ok: false, message: 'Cada producto recibido necesita una fecha de vencimiento.' };
-    items.push({ compraItemId: ids[i], cantidadRecibida: cantidad, numeroLote: batches[i], vencimiento: expiries[i] });
+    const expiry = expiries[i] ?? '';
+    if (expiry && !/^\d{4}-\d{2}-\d{2}$/.test(expiry)) return { ok: false, message: 'La fecha de vencimiento no es válida.' };
+    if (!expiry && needsExpiry[i] === '1') {
+      return { ok: false, message: 'Indicá la fecha de vencimiento de los productos que la controlan.' };
+    }
+    items.push({
+      compraItemId: ids[i],
+      cantidadRecibida: cantidad,
+      ...(batches[i] ? { numeroLote: batches[i] } : {}),
+      ...(expiry ? { vencimiento: expiry } : {}),
+    });
   }
   if (items.length === 0) return { ok: false, message: 'Ingresa la cantidad recibida de al menos un producto.' };
   return { ok: true, items };

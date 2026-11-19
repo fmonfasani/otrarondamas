@@ -17,6 +17,12 @@ describe('PurchasesService.receivePurchase', () => {
         ],
       }),
     },
+    // OR-B4-046 rule 9: the reception asks which products control expiry.
+    producto: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ id: 'prod-1', nombre: 'Yerba', controlaVencimiento: false }]),
+    },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   const service = new PurchasesService({ forCompany: () => db } as never);

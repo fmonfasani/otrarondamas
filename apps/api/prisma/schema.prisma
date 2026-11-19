@@ -702,7 +702,8 @@ model Lote {
   empresaId               String
   productoId              String
   numeroLote              String
-  vencimiento             DateTime
+  /// Only for products that control expiry (OR-B4-046 rule 9); null for the rest.
+  vencimiento             DateTime?
   cantidad                Decimal                   @db.Decimal(18, 4)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
@@ -836,6 +837,8 @@ model MovimientoStock {
   loteId               String?
   tipoMovimiento       String
   cantidad             Decimal          @db.Decimal(18, 4)
+  /// ADR-DAT-009: the unit cost of this movement, so the stock is valued at weighted average cost.
+  costoUnitario        Decimal?         @db.Decimal(18, 4)
   motivo               String
   referenciaId         String?
   usuarioId            String?
@@ -990,6 +993,9 @@ model Producto {
   destacado               Boolean                   @default(false)
   /// What the customer reads on the product page (OR-B4-046 rule 12).
   descripcion             String?
+  /// OR-B4-046 rule 9 (D9): lots with an expiry date only for products that control expiry (they
+  /// leave FEFO); the rest enter without a date and leave in arrival order (FIFO).
+  controlaVencimiento     Boolean                   @default(false)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   stockMinimo             Decimal                   @default(0) @db.Decimal(18, 4)
