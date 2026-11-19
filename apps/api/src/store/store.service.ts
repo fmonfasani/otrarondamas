@@ -12,6 +12,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { CustomersService } from '../customers/customers.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { priceWithDiscount } from './store-price';
 
 // Same pattern as sales.service.ts/inventory.service.ts: the client of
 // CompanyScopedPrismaService.forCompany() is a dynamic type from Prisma
@@ -55,25 +56,6 @@ export class StoreService {
       );
     }
     return companyId;
-  }
-
-  /**
-   * Phase 6 (RF-06/RF-04): applies the product's single, global discount (if
-   * it has one) over precioMinorista. The SDD limits the store to 'a single
-   * base price, with the possibility of applying discounts' — there are no
-   * quantity/customer rules (D-01/D-02 are still undefined). Rounded to 2
-   * decimals (currency), a price with more precision than makes sense to
-   * show/charge is never returned.
-   */
-  private priceWithDiscount(
-    retailPrice: Prisma.Decimal,
-    discountPercentage: Prisma.Decimal | null,
-  ): string {
-    if (!discountPercentage || discountPercentage.isZero()) {
-      return retailPrice.toFixed(2);
-    }
-    const factor = new Prisma.Decimal(1).minus(discountPercentage.dividedBy(100));
-    return retailPrice.times(factor).toFixed(2);
   }
 
   /**
@@ -135,7 +117,7 @@ export class StoreService {
         subtipoId: item.subtipoId,
         unidadBase: item.unidadBase,
         destacado: item.destacado,
-        precio: this.priceWithDiscount(basePrice, discountPercentage),
+        precio: priceWithDiscount(basePrice, discountPercentage),
         precioSinDescuento:
           discountPercentage && !discountPercentage.isZero() ? basePrice.toFixed(2) : null,
         descuentoPorcentaje: discountPercentage?.toNumber() ?? null,
@@ -234,10 +216,7 @@ export class StoreService {
     // combined, the larger one is not chosen).
     const itemsWithPrice = dto.items.map((item) => {
       const product = productById.get(item.productoId)!;
-      const unitPrice = this.priceWithDiscount(
-        product.precioMinorista,
-        product.descuentoPorcentaje,
-      );
+      const unitPrice = priceWithDiscount(product.precioMinorista, product.descuentoPorcentaje);
       const loyaltyDiscount = this.loyaltyService.calculateApplicableDiscount(
         activeRules,
         customerLevel,

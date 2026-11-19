@@ -1,10 +1,12 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, useFetcher, useLoaderData, type ShouldRevalidateFunction } from '@remix-run/react';
+import { Link, useFetcher, useLoaderData, type ShouldRevalidateFunction } from '@remix-run/react';
 import { useEffect, useRef, useState } from 'react';
+import { CatalogControls } from '~/components/store/CatalogControls';
 import { StoreHeader } from '~/components/store/StoreHeader';
+import { StoreSearch } from '~/components/store/StoreSearch';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
-import { fetchCatalog, fetchStore, loadServerCart, placeCustomerOrder, replaceServerCart } from '~/services/store.server';
+import { fetchStore, fetchStoreCatalog, loadServerCart, placeCustomerOrder, replaceServerCart } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
 import {
   addToCart,
@@ -20,6 +22,7 @@ import {
   type CartLine,
   type StoreProduct,
 } from '~/utils/store';
+import { EMPTY_LISTING, appendPage, linkWith, listingQuery, productHref, type StoreListing } from '~/utils/store-browse';
 
 /**
  * Store of one Business — /tienda/:slug (STORE-V1-03).
@@ -28,6 +31,9 @@ import {
  * browser. Signing in saves it to the customer's account (server cart, OR-B4-029) so the
  * business sees it too, and only a signed-in customer confirms an order, which is filed
  * under their account. The Business comes from the slug, never from a configured id.
+ *
+ * OR-B4-047 — a practical store: search with suggestions, categories with counts, filters, order
+ * and «Ver más», all kept in the address so a search can be shared.
  */
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
@@ -41,7 +47,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ formData, defaultSh
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const slug = params.slug ?? '';
-  const search = new URL(request.url).searchParams.get('search') ?? '';
+  const query = listingQuery(new URL(request.url));
   let store: Awaited<ReturnType<typeof fetchStore>>;
   try {
     store = await fetchStore(slug);
@@ -51,9 +57,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (!store) throw new Response('Tienda no encontrada', { status: 404 });
 
   const [catalog, customer] = await Promise.all([
-    fetchCatalog(slug, search).then(
-      (products) => ({ products, error: null as string | null }),
-      () => ({ products: [] as StoreProduct[], error: 'No pudimos cargar el catálogo. Intentá nuevamente en unos minutos.' }),
+    fetchStoreCatalog(slug, query).then(
+      (listing) => ({ listing, error: null as string | null }),
+      () => ({ listing: EMPTY_LISTING, error: 'No pudimos cargar el catálogo. Intentá nuevamente en unos minutos.' }),
     ),
     getStoreCustomer(request, slug),
   ]);
@@ -61,18 +67,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   let savedCart: CartLine[] = [];
   if (customer) {
     try {
-      savedCart = withCatalogPrices(linesFromServer(await loadServerCart(customer.jwt)), catalog.products);
+      savedCart = withCatalogPrices(linesFromServer(await loadServerCart(customer.jwt)), catalog.listing.productos);
     } catch (error) {
       // An expired or revoked customer session: continue as a visitor.
       if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
         return json(
-          { store, ...catalog, search, customer: null, savedCart },
+          { store, ...catalog, query: query.toString(), customer: null, savedCart },
           { headers: { 'Set-Cookie': await signOutCookie(request) } },
         );
       }
     }
   }
-  return json({ store, ...catalog, search, customer: customer ? { nombre: customer.nombre } : null, savedCart });
+  return json({ store, ...catalog, query: query.toString(), customer: customer ? { nombre: customer.nombre } : null, savedCart });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -103,7 +109,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function Store() {
-  const { store, products, error, search, customer, savedCart } = useLoaderData<typeof loader>();
+  const { store, listing, error, query: queryString, customer, savedCart } = useLoaderData<typeof loader>();
+  const query = new URLSearchParams(queryString);
+  const base = `/tienda/${store.slug}`;
+  const { products, nextPage, loadMore, loadingMore, moreError } = useListing(base, listing, query);
   const order = useFetcher<typeof action>();
   const signedIn = Boolean(customer);
   const { cart, setCart, emptiedOnServer } = usePersistentCart(store.slug, signedIn, savedCart);
@@ -155,15 +164,32 @@ export default function Store() {
       <section className="catalog-section" id="catalogo">
         <div className="section-heading">
           <div><span className="eyebrow">SELECCIÓN DEL COMERCIO</span><h2>El catálogo</h2></div>
-          <span className="product-count">{products.length} productos</span>
+          <span className="product-count">{listing.total === 1 ? '1 producto' : `${listing.total} productos`}</span>
         </div>
-        <Form method="get" className="search-form">
-          <span aria-hidden="true">⌕</span>
-          <input type="search" name="search" placeholder="¿Qué estás buscando?" defaultValue={search} aria-label="Buscar productos" />
-          <button type="submit">Buscar</button>
-        </Form>
+        <StoreSearch slug={store.slug} defaultValue={query.get('q') ?? ''} orden={query.get('orden')} />
+        <CatalogControls base={base} query={query} listing={listing} />
 
-        <Catalog products={products} error={error} searching={Boolean(search)} onAdd={(product) => { setCart((lines) => addToCart(lines, product)); setCartOpen(true); }} />
+        <Catalog
+          slug={store.slug}
+          products={products}
+          error={error}
+          filtered={queryString !== ''}
+          clearHref={base}
+          onAdd={(product) => { setCart((lines) => addToCart(lines, product)); setCartOpen(true); }}
+        />
+        {nextPage ? (
+          <div className="load-more">
+            <span>Mostrando {products.length} de {listing.total}</span>
+            <a
+              href={linkWith(base, query, { pagina: String(nextPage) })}
+              onClick={(event) => { event.preventDefault(); loadMore(); }}
+              aria-disabled={loadingMore}
+            >
+              {loadingMore ? 'Cargando…' : 'Ver más'}
+            </a>
+            {moreError ? <output className="form-error">{moreError}</output> : null}
+          </div>
+        ) : null}
       </section>
 
       <a className="chat-fab" href={`/tienda/${store.slug}/chat`}>
@@ -281,13 +307,58 @@ function usePersistentCart(slug: string, signedIn: boolean, savedCart: CartLine[
 
 const itemsJson = (lines: CartLine[]) => JSON.stringify(lines.map(({ productoId, cantidad }) => ({ productoId, cantidad })));
 
-function Catalog({ products, error, searching, onAdd }: Readonly<{ products: StoreProduct[]; error: string | null; searching: boolean; onAdd: (product: StoreProduct) => void }>) {
+/**
+ * The products on screen: the page the address asked for, plus the next ones «Ver más» brings
+ * (without reloading the store). A new search or filter starts over.
+ */
+function useListing(base: string, listing: StoreListing, query: URLSearchParams) {
+  const more = useFetcher<StoreListing>();
+  const [shown, setShown] = useState(listing.productos);
+  const [page, setPage] = useState(listing.pagina);
+  const [moreError, setMoreError] = useState('');
+  useEffect(() => {
+    setShown(listing.productos);
+    setPage(listing.pagina);
+    setMoreError('');
+  }, [listing]);
+  useEffect(() => {
+    if (!more.data) return;
+    const next = more.data;
+    if (next.error) {
+      setMoreError(next.error);
+      return;
+    }
+    setMoreError('');
+    setShown((current) => appendPage(current, next.productos));
+    setPage(next.pagina);
+  }, [more.data]);
+  const nextPage = page < listing.paginas ? page + 1 : null;
+  const loadMore = () => {
+    if (nextPage && more.state === 'idle') more.load(linkWith(`${base}/listado`, query, { pagina: String(nextPage) }));
+  };
+  return { products: shown, nextPage, loadMore, loadingMore: more.state !== 'idle', moreError };
+}
+
+function Catalog({
+  slug,
+  products,
+  error,
+  filtered,
+  clearHref,
+  onAdd,
+}: Readonly<{ slug: string; products: StoreProduct[]; error: string | null; filtered: boolean; clearHref: string; onAdd: (product: StoreProduct) => void }>) {
   if (error) return <output className="catalog-state"><span>!</span><p>{error}</p></output>;
   if (products.length === 0) {
     return (
       <div className="catalog-state">
         <span>○</span>
-        <p>{searching ? 'No encontramos productos para mostrar. Probá con otra búsqueda.' : 'Esta tienda todavía no publicó productos. Escribinos por el chat y te ayudamos.'}</p>
+        {filtered ? (
+          <p>
+            No encontramos productos con esa búsqueda o esos filtros. <Link to={clearHref} preventScrollReset>Ver todo el catálogo</Link>
+          </p>
+        ) : (
+          <p>Esta tienda todavía no publicó productos. Escribinos por el chat y te ayudamos.</p>
+        )}
       </div>
     );
   }
@@ -295,15 +366,15 @@ function Catalog({ products, error, searching, onAdd }: Readonly<{ products: Sto
     <div className="product-grid">
       {products.map((product) => (
         <article className="product-card" key={product.productoId}>
-          <div className="product-visual">
+          <Link className="product-visual" to={productHref(slug, product.productoId)} aria-label={`Ver ${product.nombre}`}>
             <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
             {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
             {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
             {product.destacado ? <span className="featured-tag">Destacado</span> : null}
-          </div>
+          </Link>
           <div className="product-info">
             <span className="product-code">{product.codigoInterno || 'PRODUCTO'}</span>
-            <h3>{product.nombre}</h3>
+            <h3><Link to={productHref(slug, product.productoId)}>{product.nombre}</Link></h3>
             <div className="product-bottom">
               <div>
                 <strong>{formatMoney(product.precio)}</strong>
