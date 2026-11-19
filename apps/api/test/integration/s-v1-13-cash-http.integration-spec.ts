@@ -416,18 +416,14 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     expect(movements.body).toEqual([]);
   });
 
-  it('CH-05 (caso 3): claim A + Membership B (legacy empresaId = A) → opera sobre B', async () => {
+  it('CH-05 (caso 3): Membership B con Usuario legacy de A → 403 en las 8 rutas, nada persistido (D7)', async () => {
+    // ADR-DAT-020 / D7: caja, ventas y pedidos registran al Usuario que actuó y esa referencia
+    // lleva el negocio. Un Usuario legacy de otro negocio no opera: se rechaza el contexto.
+    await expectAllRoutesRejected(bearer(legacyDivergent.id, companyA.id), 403);
     const res = await call('get', '/caja/estado', bearer(legacyDivergent.id, companyA.id)).expect(
-      200,
+      403,
     );
-    expect(res.body.caja.id).toBe(cashB.id);
-    expect(res.body.aperturaVigente.id).toBe(openingB.id);
-    const movements = await call(
-      'get',
-      '/caja/movimientos',
-      bearer(legacyDivergent.id, companyA.id),
-    ).expect(200);
-    expect(movements.body.map((m: { id: string }) => m.id)).toEqual([movementB.id]);
+    expect(res.body.message).toMatch(/Usuario de otro negocio/);
   });
 
   // ------------------------------------------------------------------ BusinessContext cases 4-7 (fail closed)
@@ -840,24 +836,19 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     expect(await snapshotCash(companyB.id)).toBe(beforeB);
   });
 
-  it('CH-27: POST /autorizaciones con Membership B y legacy empresaId A → el autorizador se valida contra B', async () => {
+  it('CH-27: POST /autorizaciones con Membership B y Usuario legacy de A → 403, nada persistido (D7)', async () => {
     const auth = bearer(legacyDivergent.id, companyA.id, []);
     const beforeA = await snapshotCash(companyA.id);
+    const beforeB = await snapshotCash(companyB.id);
 
-    // authorizerA belongs (legacy) to A, the canonical Business of the requester is B
-    await call('post', '/autorizaciones', auth, {
-      operacion: OPERATION,
-      ...credentialsOf(authorizerA),
-    }).expect(403);
+    for (const authorizer of [authorizerA, authorizerB]) {
+      await call('post', '/autorizaciones', auth, {
+        operacion: OPERATION,
+        ...credentialsOf(authorizer),
+      }).expect(403);
+    }
     expect(await snapshotCash(companyA.id)).toBe(beforeA);
-
-    const res = await call('post', '/autorizaciones', auth, {
-      operacion: OPERATION,
-      ...credentialsOf(authorizerB),
-    }).expect(201);
-    expect(res.body.empresaId).toBe(companyB.id);
-    expect(res.body.autorizadorId).toBe(authorizerB.id);
-    expect(await snapshotCash(companyA.id)).toBe(beforeA);
+    expect(await snapshotCash(companyB.id)).toBe(beforeB);
   });
 
   it('CH-28 (caracterización): entidadId de otro Business no se valida ni se muta — solo queda en la Autorizacion de A', async () => {
