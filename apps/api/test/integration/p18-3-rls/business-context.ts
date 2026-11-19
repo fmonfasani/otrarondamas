@@ -48,7 +48,7 @@ export function businessOnceInTransactions(businessId: string, transactionClient
       client: {
         $transaction(fn: unknown, options?: unknown) {
           if (typeof fn !== 'function') {
-            throw new Error(
+            throw new TypeError(
               'El cliente con filtro de negocio no admite transacciones por lote: usá una transacción interactiva.',
             );
           }

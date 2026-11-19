@@ -106,7 +106,8 @@ async function measure(n: number, run: () => Promise<unknown>) {
   let cA: { id: string };
   let cB: { id: string };
 
-  const names = (rows: Array<{ nombre: string }>) => rows.map((r) => r.nombre).sort();
+  const names = (rows: Array<{ nombre: string }>) =>
+    rows.map((r) => r.nombre).sort((x, y) => x.localeCompare(y));
 
   beforeAll(async () => {
     prisma('generate', '--schema', SCHEMA);
