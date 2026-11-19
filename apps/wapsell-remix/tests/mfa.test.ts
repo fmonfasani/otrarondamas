@@ -5,7 +5,10 @@ import {
   action as verifyAction,
   loader as verifyLoader,
 } from '../app/routes/$lang.auth.verificacion';
-import { loader as enrolLoader } from '../app/routes/$lang.auth.activar-mfa';
+import {
+  loader as enrolLoader,
+  shouldRevalidate as enrolShouldRevalidate,
+} from '../app/routes/$lang.auth.activar-mfa';
 import { commitSession, getSession } from '../app/services/auth.server';
 import { sixDigits } from '../app/services/mfa.server';
 
@@ -170,5 +173,19 @@ describe('second factor at sign-in', () => {
     expect(sixDigits('123 456')).toBe(true);
     expect(sixDigits('12345')).toBe(false);
     expect(sixDigits('abcdef')).toBe(false);
+  });
+
+  it('keeps the recovery codes on screen after activating instead of reloading into the panel', () => {
+    // After activating there is no sign-in ticket left: reloading the page data would redirect.
+    const args = {
+      actionResult: { codes: ['abcd-efgh'], next: '/panel' },
+      defaultShouldRevalidate: true,
+    } as unknown as Parameters<typeof enrolShouldRevalidate>[0];
+
+    expect(enrolShouldRevalidate(args)).toBe(false);
+    expect(enrolShouldRevalidate({ ...args, actionResult: { error: 'Código incorrecto' } })).toBe(
+      true,
+    );
+    expect(enrolShouldRevalidate({ ...args, actionResult: undefined })).toBe(true);
   });
 });
