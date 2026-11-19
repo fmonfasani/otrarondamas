@@ -1,0 +1,94 @@
+// INIT-019 PR 3 — technical spike (FASE-2 §5.3). Not part of the API.
+//
+// A mini schema with the shape the real tables take in PR 4: child rows carry the business
+// column, and every reference shares it — (empresaId, ventaId) → Venta (empresaId, id). Model and
+// field names match schema.prisma, so the real companyScopeExtension runs unchanged on this client.
+// p18-3-rls-spike.integration-spec.ts generates the client, creates the tables (prefixed p18_3_,
+// the owner may only create in public) and drops them when it ends.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.p18-3-rls/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("P18_3_DATABASE_URL")
+}
+
+model Empresa {
+  id       String     @id @default(uuid())
+  nombre   String
+  Producto Producto[]
+  Cliente  Cliente[]
+  Venta    Venta[]
+
+  @@map("p18_3_Empresa")
+}
+
+model Producto {
+  id        String      @id @default(uuid())
+  empresaId String
+  nombre    String
+  activo    Boolean     @default(true)
+  Empresa   Empresa     @relation(fields: [empresaId], references: [id])
+  VentaItem VentaItem[]
+
+  @@unique([empresaId, id])
+  @@map("p18_3_Producto")
+}
+
+model Cliente {
+  id        String  @id @default(uuid())
+  empresaId String
+  nombre    String
+  Empresa   Empresa @relation(fields: [empresaId], references: [id])
+  Venta     Venta[]
+
+  @@unique([empresaId, id])
+  @@map("p18_3_Cliente")
+}
+
+model Venta {
+  id        String      @id @default(uuid())
+  empresaId String
+  clienteId String?
+  total     Decimal     @db.Decimal(18, 2)
+  numero    Int?
+  Empresa   Empresa     @relation(fields: [empresaId], references: [id])
+  Cliente   Cliente?    @relation(fields: [empresaId, clienteId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  VentaItem VentaItem[]
+
+  @@unique([empresaId, id])
+  @@map("p18_3_Venta")
+}
+
+model VentaItem {
+  id         String   @id @default(uuid())
+  empresaId  String
+  ventaId    String
+  productoId String
+  cantidad   Decimal  @db.Decimal(18, 4)
+  Venta      Venta    @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Producto   Producto @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("p18_3_VentaItem")
+}
+
+// Like RoleTemplate: global rows (no business) that every business reads, plus each business's own.
+// Plantilla gets one policy per command; PlantillaUnaPolitica a single policy for all commands.
+model Plantilla {
+  id        String  @id @default(uuid())
+  empresaId String?
+  nombre    String
+
+  @@map("p18_3_Plantilla")
+}
+
+model PlantillaUnaPolitica {
+  id        String  @id @default(uuid())
+  empresaId String?
+  nombre    String
+
+  @@map("p18_3_PlantillaUnaPolitica")
+}
