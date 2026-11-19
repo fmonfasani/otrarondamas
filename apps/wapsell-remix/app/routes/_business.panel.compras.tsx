@@ -342,7 +342,7 @@ function NewPurchase({
         <Link className="ws-icon-button" to={close} aria-label="Cancelar"><X size={18} aria-hidden="true" /></Link>
       </div>
       {products.length === 0 ? (
-        <p className="ws-page__lead">Primero carga productos en Catálogo.</p>
+        <p className="ws-page__lead">Primero carga productos en Mercadería.</p>
       ) : (
         <Form method="post" className="ws-form">
           <input type="hidden" name="intent" value="createPurchase" />

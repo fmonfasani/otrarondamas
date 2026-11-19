@@ -114,6 +114,8 @@ describe('C5B: Commerce — Venta Completa (E2E)', () => {
         descuentoPorcentaje: 0,
         unidadBase: 'UNIDAD',
         activo: true,
+        // The store lists and sells only the Catálogo (OR-B4-046).
+        publicado: true,
       },
     });
 

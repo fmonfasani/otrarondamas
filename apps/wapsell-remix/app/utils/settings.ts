@@ -8,6 +8,8 @@ export type Business = {
   direccion: string;
   horario: string;
   descripcion: string;
+  /** OR-B4-046 rule 3: hide published products without stock instead of showing «Sin stock». */
+  ocultarSinStock: boolean;
   puedeEditar: boolean;
 };
 
@@ -30,12 +32,18 @@ export function passwordChangeFrom(form: FormData): { ok: true; actual: string; 
   return { ok: true, actual, nueva };
 }
 
-/** The Business form: a name of 2+ letters and the contact fields (empty is fine). */
-export function businessFrom(form: FormData): { ok: true; data: Record<string, string> } | { ok: false; message: string } {
+/**
+ * The Business form: a name of 2+ letters, the contact fields (empty is fine) and how the store
+ * shows products without stock (a checkbox: absent means show them).
+ */
+export function businessFrom(
+  form: FormData,
+): { ok: true; data: Record<string, string | boolean> } | { ok: false; message: string } {
   const nombre = String(form.get('nombre') ?? '').trim();
   if (nombre.length < 2) return { ok: false, message: 'El nombre del negocio tiene que tener al menos 2 letras.' };
-  const data: Record<string, string> = { nombre };
+  const data: Record<string, string | boolean> = { nombre };
   for (const f of CONTACT_FIELDS) data[f.name] = String(form.get(f.name) ?? '').trim().slice(0, f.max);
+  data.ocultarSinStock = form.get('ocultarSinStock') === 'true';
   return { ok: true, data };
 }
 

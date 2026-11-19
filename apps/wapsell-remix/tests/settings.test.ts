@@ -23,9 +23,16 @@ describe('Mi perfil and Ajustes helpers', () => {
   it('reads the Business form', () => {
     expect(businessFrom(formOf([['nombre', ' Almacén Ronda '], ['telefono', ' 11 5555 '], ['direccion', '']]))).toEqual({
       ok: true,
-      data: { nombre: 'Almacén Ronda', telefono: '11 5555', direccion: '', horario: '', descripcion: '' },
+      data: { nombre: 'Almacén Ronda', telefono: '11 5555', direccion: '', horario: '', descripcion: '', ocultarSinStock: false },
     });
     expect(businessFrom(formOf([['nombre', 'A']]))).toMatchObject({ ok: false });
+  });
+
+  it('reads whether the store hides products without stock (OR-B4-046)', () => {
+    expect(businessFrom(formOf([['nombre', 'Almacén'], ['ocultarSinStock', 'true']]))).toMatchObject({
+      ok: true,
+      data: { ocultarSinStock: true },
+    });
   });
 
   it('builds the store address', () => {

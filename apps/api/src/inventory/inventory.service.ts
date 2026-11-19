@@ -54,11 +54,15 @@ export class InventoryService {
     // subfamiliaId (if sent together) narrows further within that Familia.
     familyId?: string,
     subfamilyId?: string,
+    // OR-B4-046: the public store lists only the Catálogo (published products), featured first.
+    // The panel, the counter and the chat keep seeing every active product.
+    options: { publishedOnly?: boolean } = {},
   ) {
     const db = this.prismaFactory.forCompany(companyId);
 
     const whereProduct: Prisma.ProductoWhereInput = {
       activo: true,
+      ...(options.publishedOnly ? { publicado: true } : {}),
       ...(familyId ? { familiaId: familyId } : {}),
       ...(subfamilyId ? { subfamiliaId: subfamilyId } : {}),
       /* eslint-disable indent -- known false positive of the base `indent`
@@ -81,7 +85,9 @@ export class InventoryService {
     const limit = !!search || !!familyId || !!subfamilyId;
     const products = await db.producto.findMany({
       where: whereProduct,
-      orderBy: { nombre: 'asc' },
+      orderBy: options.publishedOnly
+        ? [{ destacado: 'desc' }, { nombre: 'asc' }]
+        : { nombre: 'asc' },
       ...(limit ? { take: 50 } : {}),
     });
 
@@ -109,6 +115,7 @@ export class InventoryService {
         tipoId: product.tipoId,
         subtipoId: product.subtipoId,
         unidadBase: product.unidadBase,
+        destacado: product.destacado,
         stockTotal,
         stockMinimo: minimumStock,
         // INV-AL-01: stockMinimo=0 (default of the whole existing catalog, see

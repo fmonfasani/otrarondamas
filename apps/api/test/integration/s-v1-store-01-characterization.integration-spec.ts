@@ -130,6 +130,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         precioMinorista: data.precioMinorista,
         descuentoPorcentaje: data.descuentoPorcentaje,
         activo: data.activo ?? true,
+        // OR-B4-046 rule 13: an active product of an existing Business is in its store.
+        publicado: data.activo ?? true,
       },
       select: { id: true, nombre: true },
     });
@@ -306,6 +308,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         'tipoId',
         'subtipoId',
         'unidadBase',
+        // OR-B4-046: featured products go first, and the store marks them.
+        'destacado',
         'precio',
         'precioSinDescuento',
         'descuentoPorcentaje',

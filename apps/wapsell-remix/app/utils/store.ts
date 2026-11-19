@@ -8,6 +8,8 @@ export type StoreProduct = {
   precio: string;
   precioSinDescuento?: string | null;
   descuentoPorcentaje?: number | null;
+  /** OR-B4-046: featured products come first and carry a mark. */
+  destacado?: boolean;
   disponible: boolean;
   stockTotal: number;
 };

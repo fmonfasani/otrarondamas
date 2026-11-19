@@ -486,8 +486,12 @@
 .ws-table tr.is-selected td { background: var(--background-default); }
 .ws-catalog { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); align-items: start; }
 @media (max-width: 639px) {
-  .ws-table--catalog th:nth-child(2), .ws-table--catalog td:nth-child(2),
-  .ws-table--catalog th:nth-child(3), .ws-table--catalog td:nth-child(3),
+  .ws-table--catalog:not(.has-pick) th:nth-child(2), .ws-table--catalog:not(.has-pick) td:nth-child(2),
+  .ws-table--catalog:not(.has-pick) th:nth-child(3), .ws-table--catalog:not(.has-pick) td:nth-child(3),
+  .ws-table--catalog.has-pick th:nth-child(3), .ws-table--catalog.has-pick td:nth-child(3),
+  .ws-table--catalog.has-pick th:nth-child(4), .ws-table--catalog.has-pick td:nth-child(4),
+  .ws-table--catalog:not(.has-pick) th:nth-child(6), .ws-table--catalog:not(.has-pick) td:nth-child(6),
+  .ws-table--catalog.has-pick th:nth-child(7), .ws-table--catalog.has-pick td:nth-child(7),
   .ws-table--stock th:nth-child(2), .ws-table--stock td:nth-child(2),
   .ws-table--customers th:nth-child(2), .ws-table--customers td:nth-child(2) { display: none; }
 }
@@ -519,6 +523,16 @@
 .ws-catalog__fields { margin: 0; padding: 0; border: 0; min-width: 0; }
 .ws-catalog__pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-12); }
 .ws-catalog__editor { gap: var(--space-16); }
+/* OR-B4-046: publish many at once, and the store fields of a product. */
+.ws-table__pick { width: 32px; }
+.ws-table__pick input { width: 16px; height: 16px; cursor: pointer; }
+.ws-bulkbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-16); padding: var(--space-12); border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--background-default); }
+.ws-bulkbar__group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.ws-bulkbar__count { font-size: 13px; }
+.ws-catalog__store { gap: var(--space-8); }
+.ws-catalog__store .ws-field__control { align-items: stretch; }
+.ws-catalog__store textarea { flex: 1 0 0; min-width: 1px; width: 100%; border: 0; outline: 0; padding: 0; background: transparent; resize: vertical; color: var(--text-primary); font: inherit; font-size: 14px; line-height: 1.45; }
+.ws-chip svg { vertical-align: -1px; }
 @media (min-width: 1024px) {
   .ws-catalog { grid-template-columns: 220px minmax(0, 1fr); }
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }

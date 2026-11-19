@@ -163,7 +163,7 @@ export default function Store() {
           <button type="submit">Buscar</button>
         </Form>
 
-        <Catalog products={products} error={error} onAdd={(product) => { setCart((lines) => addToCart(lines, product)); setCartOpen(true); }} />
+        <Catalog products={products} error={error} searching={Boolean(search)} onAdd={(product) => { setCart((lines) => addToCart(lines, product)); setCartOpen(true); }} />
       </section>
 
       <a className="chat-fab" href={`/tienda/${store.slug}/chat`}>
@@ -281,10 +281,15 @@ function usePersistentCart(slug: string, signedIn: boolean, savedCart: CartLine[
 
 const itemsJson = (lines: CartLine[]) => JSON.stringify(lines.map(({ productoId, cantidad }) => ({ productoId, cantidad })));
 
-function Catalog({ products, error, onAdd }: Readonly<{ products: StoreProduct[]; error: string | null; onAdd: (product: StoreProduct) => void }>) {
+function Catalog({ products, error, searching, onAdd }: Readonly<{ products: StoreProduct[]; error: string | null; searching: boolean; onAdd: (product: StoreProduct) => void }>) {
   if (error) return <output className="catalog-state"><span>!</span><p>{error}</p></output>;
   if (products.length === 0) {
-    return <div className="catalog-state"><span>○</span><p>No encontramos productos para mostrar. Probá con otra búsqueda.</p></div>;
+    return (
+      <div className="catalog-state">
+        <span>○</span>
+        <p>{searching ? 'No encontramos productos para mostrar. Probá con otra búsqueda.' : 'Esta tienda todavía no publicó productos. Escribinos por el chat y te ayudamos.'}</p>
+      </div>
+    );
   }
   return (
     <div className="product-grid">
@@ -294,6 +299,7 @@ function Catalog({ products, error, onAdd }: Readonly<{ products: StoreProduct[]
             <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
             {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
             {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
+            {product.destacado ? <span className="featured-tag">Destacado</span> : null}
           </div>
           <div className="product-info">
             <span className="product-code">{product.codigoInterno || 'PRODUCTO'}</span>

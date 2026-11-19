@@ -1,6 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
@@ -37,6 +37,11 @@ export class UpdateNegocioDto {
   @IsString()
   @MaxLength(500)
   descripcion?: string;
+
+  // OR-B4-046 rule 3: hide published products without stock instead of showing «Sin stock».
+  @IsOptional()
+  @IsBoolean()
+  ocultarSinStock?: boolean;
 }
 /* eslint-enable indent */
 

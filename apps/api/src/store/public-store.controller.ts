@@ -26,7 +26,7 @@ import { StoreService } from './store.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
-import { contactOf } from '../negocio/negocio.service';
+import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
 import { CustomerReturnDto } from '../devoluciones/dto';
 
 /**
@@ -95,12 +95,15 @@ export class PublicStoreController {
     @Query('familiaId') familyId?: string,
     @Query('subfamiliaId') subfamilyId?: string,
   ) {
-    return this.storeService.catalog(
-      search,
-      familyId,
-      subfamilyId,
-      await this.companyId(businessSlug),
-    );
+    const businessId = await this.companyId(businessSlug);
+    // OR-B4-046 rule 3: the Business may hide published products without stock.
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: businessId },
+      select: { configuracion: true },
+    });
+    return this.storeService.catalog(search, familyId, subfamilyId, businessId, {
+      hideOutOfStock: storeSettingsOf(business?.configuracion ?? null).ocultarSinStock,
+    });
   }
 
   @Public()

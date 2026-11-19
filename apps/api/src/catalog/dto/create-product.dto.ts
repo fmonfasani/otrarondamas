@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -79,6 +80,22 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  // OR-B4-046: published in the store (the Catálogo) and featured first. A new product stays
+  // outside the store unless it is published; only an active product is published.
+  @IsOptional()
+  @IsBoolean()
+  publicado?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  destacado?: boolean;
+
+  // Rule 12: what the customer reads on the product page.
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descripcion?: string;
 
   // INV-AL-01: threshold for the low-stock alert; 0 (the default) never alerts.
   @IsOptional()

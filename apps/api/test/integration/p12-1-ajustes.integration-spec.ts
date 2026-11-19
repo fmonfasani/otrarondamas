@@ -176,7 +176,13 @@ describe('P12-1 — mi perfil y ajustes del negocio', () => {
       .set('Authorization', people.owner.auth)
       .send(body)
       .expect(200);
-    expect(res.body).toEqual({ ...body, slug: `p12-1-a-${suffix}`, puedeEditar: true });
+    // OR-B4-046 rule 3: the store setting rides along, unchanged unless sent.
+    expect(res.body).toEqual({
+      ...body,
+      slug: `p12-1-a-${suffix}`,
+      ocultarSinStock: false,
+      puedeEditar: true,
+    });
 
     // The rest of the configuration is kept, and the store shows the contact details.
     const config = (await prisma.empresa.findUnique({ where: { id: company.id } }))

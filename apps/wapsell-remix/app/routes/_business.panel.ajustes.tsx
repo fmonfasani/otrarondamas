@@ -105,6 +105,13 @@ export default function Ajustes() {
                 </span>
               </label>
             ))}
+            <label className="ws-check">
+              <input type="checkbox" name="ocultarSinStock" value="true" defaultChecked={business.ocultarSinStock} />
+              <span>
+                <b>Ocultar en la tienda los productos sin stock</b>
+                <small>Si no lo marcás, se ven con «Sin stock» y no se pueden pedir.</small>
+              </span>
+            </label>
           </fieldset>
           {notice('business')}
           {business.puedeEditar && (

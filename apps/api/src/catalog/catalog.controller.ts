@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   Patch,
@@ -20,8 +22,10 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PublishProductsDto } from './dto/publish-products.dto';
 import { CatalogStructureService } from './catalog-structure.service';
-import { productAuditEntry, recordAudit } from '../auditoria/product-audit';
+import { NEW_PRODUCT_FLAGS, nextCatalogFlags } from './catalog-flags';
+import { productAuditEntry, recordAudit, recordAuditMany } from '../auditoria/product-audit';
 import {
   CanonicalPermission,
   PRODUCT_UPDATE,
@@ -149,6 +153,12 @@ export class CatalogController {
     // type returned by the extension, TypeScript cannot resolve the
     // `Exact<XOR<...>>` that Prisma demands for `create` and rejects it with a
     // confusing error.
+    // OR-B4-046: a new product stays outside the store unless it is published.
+    const flags = nextCatalogFlags(NEW_PRODUCT_FLAGS, {
+      activo: dto.activo,
+      publicado: dto.publicado,
+      destacado: dto.destacado,
+    });
     const data: Prisma.ProductoUncheckedCreateInput = {
       nombre: dto.nombre,
       codigoInterno: dto.codigoInterno?.trim() ?? '',
@@ -163,7 +173,8 @@ export class CatalogController {
       precioMinorista: dto.precioMinorista,
       precioMayorista: dto.precioMayorista,
       descuentoPorcentaje: dto.descuentoPorcentaje,
-      activo: dto.activo,
+      ...flags,
+      descripcion: descriptionOf(dto.descripcion),
       stockMinimo: dto.stockMinimo,
       empresaId: companyId,
     };
@@ -187,6 +198,7 @@ export class CatalogController {
               precioMinorista: product.precioMinorista,
               precioMayorista: product.precioMayorista,
               descuentoPorcentaje: product.descuentoPorcentaje,
+              publicado: product.publicado,
             },
           });
           return product;
@@ -228,13 +240,69 @@ export class CatalogController {
         subtipoId: dto.subtipoId ?? existing.subtipoId,
       });
     }
-    const data: Prisma.ProductoUncheckedUpdateInput = { ...dto };
-    // OR-B4-041: price changes, (de)activations and edits, with before and after.
+    // OR-B4-046: deactivating or unpublishing takes the product out of the store and drops the
+    // featured mark; publishing an inactive product is refused.
+    const flags = nextCatalogFlags(existing, {
+      activo: dto.activo,
+      publicado: dto.publicado,
+      destacado: dto.destacado,
+    });
+    const data: Prisma.ProductoUncheckedUpdateInput = {
+      ...dto,
+      ...flags,
+      ...(dto.descripcion === undefined ? {} : { descripcion: descriptionOf(dto.descripcion) }),
+    };
+    // OR-B4-041: price changes, (de)activations, store changes and edits, with before and after.
     return db.$transaction(async (tx) => {
       const updated = await tx.producto.update({ where: { id }, data });
       const entry = productAuditEntry(existing, updated);
       if (entry) await recordAudit(tx, companyId, user.id, entry);
       return updated;
+    });
+  }
+
+  /**
+   * OR-B4-046 — publish or unpublish many products at once: the ones picked in the list, or a
+   * whole category. Only active products are published; unpublishing also drops «destacado».
+   * Products already in the asked state are left alone, and each one that changes goes to the
+   * audit trail.
+   */
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Post('publicacion')
+  @HttpCode(200)
+  async publish(@Body() dto: PublishProductsDto, @CurrentUser() user: AuthenticatedUser) {
+    const byIds = Boolean(dto.ids?.length);
+    if (byIds === Boolean(dto.familiaId)) {
+      throw new BadRequestException('Elegí los productos o una categoría.');
+    }
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    const db = this.prismaFactory.forCompany(companyId);
+    const where: Prisma.ProductoWhereInput = {
+      ...(byIds ? { id: { in: dto.ids } } : { familiaId: dto.familiaId }),
+      publicado: !dto.publicado,
+      ...(dto.publicado ? { activo: true } : {}),
+    };
+    return db.$transaction(async (tx) => {
+      const products = await tx.producto.findMany({ where, select: { id: true, nombre: true } });
+      if (products.length === 0) return { actualizados: 0 };
+      await tx.producto.updateMany({
+        where: { id: { in: products.map((p) => p.id) } },
+        data: dto.publicado ? { publicado: true } : { publicado: false, destacado: false },
+      });
+      await recordAuditMany(
+        tx,
+        companyId,
+        user.id,
+        products.map((product) => ({
+          accion: dto.publicado ? 'PRODUCTO_PUBLICADO' : 'PRODUCTO_DESPUBLICADO',
+          entidad: 'Producto',
+          entidadId: product.id,
+          antes: { nombre: product.nombre, publicado: !dto.publicado },
+          despues: { nombre: product.nombre, publicado: dto.publicado },
+        })),
+      );
+      return { actualizados: products.length };
     });
   }
 
@@ -266,4 +334,10 @@ export class CatalogController {
       throw new NotFoundException('La Subfamilia indicada no pertenece a la Familia indicada');
     }
   }
+}
+
+/** The store description as typed, without surrounding blanks; empty means none. */
+function descriptionOf(value: string | undefined): string | null {
+  const text = value?.trim();
+  return text ? text : null;
 }

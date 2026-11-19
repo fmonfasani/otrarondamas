@@ -17,6 +17,17 @@ const CONTACT_KEYS: Array<keyof BusinessContact> = [
   'descripcion',
 ];
 
+/** How the store shows the Catálogo: kept in Empresa.configuracion.tienda (OR-B4-046 rule 3). */
+export type StoreSettings = {
+  /** Hide published products without stock; otherwise they show «Sin stock». */
+  ocultarSinStock: boolean;
+};
+
+export function storeSettingsOf(configuracion: Prisma.JsonValue | null): StoreSettings {
+  const raw = ((configuracion ?? {}) as { tienda?: Record<string, unknown> }).tienda ?? {};
+  return { ocultarSinStock: raw.ocultarSinStock === true };
+}
+
 export function contactOf(configuracion: Prisma.JsonValue | null): BusinessContact {
   const raw = ((configuracion ?? {}) as { negocio?: Record<string, unknown> }).negocio ?? {};
   return Object.fromEntries(
@@ -38,28 +49,38 @@ export class NegocioService {
       select: { nombre: true, slug: true, configuracion: true },
     });
     if (!business) throw new NotFoundException('Negocio no encontrado');
-    return { nombre: business.nombre, slug: business.slug, ...contactOf(business.configuracion) };
+    return {
+      nombre: business.nombre,
+      slug: business.slug,
+      ...contactOf(business.configuracion),
+      ...storeSettingsOf(business.configuracion),
+    };
   }
 
   async update(
     companyId: string,
     userId: string,
-    data: { nombre: string } & Partial<BusinessContact>,
+    data: { nombre: string } & Partial<BusinessContact> & Partial<StoreSettings>,
   ) {
     const before = await this.get(companyId);
     const nombre = data.nombre.trim();
     const contact = Object.fromEntries(
       CONTACT_KEYS.map((k) => [k, (data[k] ?? before[k]).trim()]),
     ) as BusinessContact;
+    const store: StoreSettings = {
+      ocultarSinStock: data.ocultarSinStock ?? before.ocultarSinStock,
+    };
     try {
       await this.prisma.$transaction(async (tx) => {
         const business = await tx.empresa.findUniqueOrThrow({
           where: { id: companyId },
           select: { configuracion: true },
         });
+        const current = (business.configuracion ?? {}) as Record<string, unknown>;
         const config = {
-          ...((business.configuracion ?? {}) as Record<string, unknown>),
+          ...current,
           negocio: contact,
+          tienda: { ...((current.tienda ?? {}) as Record<string, unknown>), ...store },
         };
         await tx.empresa.update({
           where: { id: companyId },
@@ -73,7 +94,7 @@ export class NegocioService {
             entidadAfectada: 'Empresa',
             entidadId: companyId,
             valoresAnteriores: before,
-            valoresPosteriores: { nombre, ...contact },
+            valoresPosteriores: { nombre, ...contact, ...store },
           },
         });
       });
