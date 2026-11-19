@@ -57,6 +57,10 @@ export const MODELS_WITH_COMPANY_ID = [
   'DevolucionProveedor',
   'ReglaFidelizacion',
   'Invitacion',
+  // ADR-DAT-020 (INIT-019 PR 4): lines that now carry their business.
+  'VentaItem',
+  'PedidoItem',
+  'DevolucionClienteItem',
 ] as const;
 
 /**
@@ -68,6 +72,7 @@ export const GLOBAL_MODELS = ['RoleTemplate'] as const;
 
 export const MODELS_WITH_BUSINESS_ID = [
   'Cart',
+  'CartItem',
   'Conversation',
   'ConversationAssociation',
   'ConversationParticipant',

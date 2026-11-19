@@ -799,6 +799,7 @@ describe.skip('P9-2: Business Metrics & KPIs', () => {
       // Create order items
       await db.pedidoItem.create({
         data: {
+          empresaId: companyId,
           pedidoId: order.id,
           productoId: product.id,
           cantidad: new Prisma.Decimal(2 + (i % 3)),
@@ -829,6 +830,7 @@ describe.skip('P9-2: Business Metrics & KPIs', () => {
         // Create venta items
         await db.ventaItem.create({
           data: {
+            empresaId: companyId,
             ventaId: venta.id,
             productoId: product.id,
             cantidad: new Prisma.Decimal(1 + (i % 2)),

@@ -2,6 +2,12 @@
 
 This directory contains automatically generated test suites for tenant-scoped relations.
 
+> **INIT-019 PR 4 (ADR-DAT-020).** Composite keys replace the relation registry module by module:
+> the database rejects a reference to another business, whichever role writes it. Sales and order
+> lines left the registry, and their generated suites were removed. The module tests are in
+> `p18-4-claves-compuestas-ventas.integration-spec.ts`, and `src/prisma/composite-references.spec.ts`
+> checks the whole schema. The examples below show the generated format.
+
 ## Purpose
 
 These tests verify that the multi-tenant isolation boundary is enforced at the database and application layers:

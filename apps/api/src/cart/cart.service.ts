@@ -127,6 +127,7 @@ export class CartService {
       // Create new item
       item = await db.cartItem.create({
         data: {
+          businessId,
           cartId,
           productoId,
           cantidad,
