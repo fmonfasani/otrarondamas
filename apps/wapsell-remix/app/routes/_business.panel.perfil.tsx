@@ -320,7 +320,8 @@ function MfaCard({
       ) : status.activo ? (
         <>
           <p className="ws-meta">
-            Activa desde {status.activadoEl ? formatDateTime(status.activadoEl) : '—'}. Te quedan{' '}
+            {/* «·», not a period: the time can end in «a. m.» and would read «a. m..». */}
+            Activa desde {status.activadoEl ? formatDateTime(status.activadoEl) : '—'} · Te quedan{' '}
             {status.codigosRestantes} códigos de recuperación.
             {status.obligatorio ? ' Para tu rol es obligatoria.' : ''}
           </p>

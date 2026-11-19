@@ -13,6 +13,7 @@ import {
   useLoaderData,
   useNavigation,
   useParams,
+  type ShouldRevalidateFunction,
 } from '@remix-run/react';
 import QRCode from 'qrcode';
 import { AuthShell } from '~/components/auth/AuthShell';
@@ -24,6 +25,19 @@ import { deviceCookie, mfaPublicPost, sixDigits } from '~/services/mfa.server';
 export const meta: MetaFunction = () => [{ title: 'Activar verificación · Wapsell' }];
 
 type Enrolment = { clave: string; enlace: string };
+
+/**
+ * Activating opens the session and ends the sign-in ticket. Reloading this page's data after that
+ * finds no ticket and sends the person to sign in, and from there to the panel, before anyone can
+ * save the recovery codes. The codes stay on screen until «Ya los guardé, entrar».
+ */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  actionResult,
+  defaultShouldRevalidate,
+}) =>
+  actionResult && typeof actionResult === 'object' && 'codes' in actionResult
+    ? false
+    : defaultShouldRevalidate;
 
 /**
  * OR-B4-044 — first sign-in of an Owner or Admin: enrol the authenticator app. The secret is
