@@ -8,7 +8,9 @@ import {
   Param,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,6 +27,7 @@ import { CustomerOrderDto } from './dto/customer-order.dto';
 import { BrowseCatalogDto } from './dto/browse-catalog.dto';
 import { StoreService } from './store.service';
 import { StoreCatalogService } from './store-catalog.service';
+import { ProductPhotosService, sendPhoto } from '../catalog/product-photos.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
@@ -48,6 +51,7 @@ export class PublicStoreController {
     private readonly businessContext: BusinessContextService,
     private readonly storeService: StoreService,
     private readonly storeCatalog: StoreCatalogService,
+    private readonly photos: ProductPhotosService,
     private readonly prisma: PrismaService,
     private readonly mercadoPago: MercadoPagoAccountService,
     private readonly checkout: MercadoPagoCheckoutService,
@@ -153,6 +157,23 @@ export class PublicStoreController {
       String(q ?? '').slice(0, 100),
       await this.storeSettings(businessId),
     );
+  }
+
+  /**
+   * GET /:slug/tienda/productos/:productoId/fotos/:fotoId — a photo of a published product
+   * (OR-B4-046 rule 12). A photo never changes, so browsers and proxies may keep it.
+   */
+  @Public()
+  @Get('productos/:productoId/fotos/:fotoId')
+  async photo(
+    @Param('businessSlug') businessSlug: string,
+    @Param('productoId') productId: string,
+    @Param('fotoId') photoId: string,
+    @Res() res: Response,
+  ) {
+    const businessId = await this.companyId(businessSlug);
+    const file = await this.photos.file(businessId, productId, photoId, { publishedOnly: true });
+    sendPhoto(res, file, 'public');
   }
 
   /** GET /:slug/tienda/productos/:productoId — the product page of a published product. */

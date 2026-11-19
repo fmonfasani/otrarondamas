@@ -112,6 +112,8 @@ export async function deleteStoreCompanies(prisma: PrismaService, companies: str
   await prisma.cliente.deleteMany(scope);
   await prisma.movimientoStock.deleteMany(scope);
   await prisma.lote.deleteMany(scope);
+  // Product photos restrict deleting their product (ADR-DAT-020).
+  await prisma.productoFoto.deleteMany(scope);
   await prisma.producto.deleteMany(scope);
   await prisma.subtipo.deleteMany(scope);
   await prisma.tipo.deleteMany(scope);

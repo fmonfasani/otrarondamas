@@ -40,6 +40,8 @@ export const EMPTY_LISTING: StoreListing = {
 export type StoreProductDetail = StoreProduct & {
   marca: string | null;
   descripcion: string | null;
+  /** Its photos, in order (OR-B4-046 rule 12). */
+  fotos: string[];
   categoria: { id: string; nombre: string };
   subcategoria: { id: string; nombre: string } | null;
 };
@@ -141,6 +143,10 @@ export function appendPage(shown: StoreProduct[], next: StoreProduct[]) {
   const seen = new Set(shown.map((p) => p.productoId));
   return [...shown, ...next.filter((p) => !seen.has(p.productoId))];
 }
+
+/** Address of a product photo in the store. */
+export const storePhotoSrc = (slug: string, productoId: string, fotoId: string) =>
+  `/tienda/${slug}/foto/${encodeURIComponent(productoId)}/${encodeURIComponent(fotoId)}`;
 
 /** Address of a product page. */
 export const productHref = (slug: string, productoId: string) => `/tienda/${slug}/producto/${encodeURIComponent(productoId)}`;

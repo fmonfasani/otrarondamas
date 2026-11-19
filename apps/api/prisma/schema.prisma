@@ -537,6 +537,7 @@ model Empresa {
   Pedido                  Pedido[]
   Presentacion            Presentacion[]
   Producto                Producto[]
+  ProductoFoto            ProductoFoto[]
   ProductoProveedor       ProductoProveedor[]
   Proveedor               Proveedor[]
   Reembolso               Reembolso[]
@@ -1005,9 +1006,28 @@ model Producto {
   Tipo                    Tipo                      @relation(fields: [tipoId], references: [id])
   ProductoProveedor       ProductoProveedor[]
   VentaItem               VentaItem[]
+  ProductoFoto            ProductoFoto[]
 
   @@unique([empresaId, codigoInterno])
   @@unique([empresaId, id])
+}
+
+/// OR-B4-046 rule 12: up to 5 photos per product, for the store. The file lives on the server's
+/// volume, outside any web root (like chat files, OR-B4-037); this row says which file and in what
+/// order. The first one (lowest orden) is the photo of the product in the store's list.
+model ProductoFoto {
+  id         String   @id @default(uuid())
+  empresaId  String
+  productoId String
+  orden      Int
+  storageKey String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+  Empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  Producto   Producto @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([empresaId, productoId, orden])
 }
 
 model ProductoProveedor {

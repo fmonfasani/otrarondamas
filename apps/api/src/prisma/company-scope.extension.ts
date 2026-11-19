@@ -61,6 +61,8 @@ export const MODELS_WITH_COMPANY_ID = [
   'VentaItem',
   'PedidoItem',
   'DevolucionClienteItem',
+  // OR-B4-046 rule 12: product photos, born with their business (ADR-DAT-020).
+  'ProductoFoto',
 ] as const;
 
 /**

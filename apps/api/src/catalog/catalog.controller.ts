@@ -3,6 +3,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   NotFoundException,
@@ -10,8 +11,14 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import 'multer';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
@@ -25,6 +32,9 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { PublishProductsDto } from './dto/publish-products.dto';
 import { CatalogStructureService } from './catalog-structure.service';
 import { NEW_PRODUCT_FLAGS, nextCatalogFlags } from './catalog-flags';
+import { ReorderPhotosDto } from './dto/reorder-photos.dto';
+import { PHOTO_MAX_BYTES } from './product-photos';
+import { ProductPhotosService, sendPhoto } from './product-photos.service';
 import { productAuditEntry, recordAudit, recordAuditMany } from '../auditoria/product-audit';
 import {
   CanonicalPermission,
@@ -68,6 +78,7 @@ export class CatalogController {
     private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly businessContext: BusinessContextService,
     private readonly structure: CatalogStructureService,
+    private readonly photos: ProductPhotosService,
   ) {}
 
   /**
@@ -304,6 +315,69 @@ export class CatalogController {
       );
       return { actualizados: products.length };
     });
+  }
+
+  /** OR-B4-046 rule 12 — the photos of a product, in order (the first is the store's photo). */
+  @CanonicalPermission('CATALOG_VIEW')
+  @Get(':id/fotos')
+  async listPhotos(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.photos.list(await this.resolveCompanyIdFromContext(user), id);
+  }
+
+  /** Adds a photo (JPG, PNG or WebP, up to 5 MB, up to 5 per product). */
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Post(':id/fotos')
+  // A little above the limit, so a slightly bigger photo gets the Business's own message.
+  @UseInterceptors(
+    FileInterceptor('archivo', { limits: { fileSize: PHOTO_MAX_BYTES + 1024 * 1024 } }),
+  )
+  async addPhoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.photos.add(await this.resolveCompanyIdFromContext(user), user.id, id, file);
+  }
+
+  /** Puts the given photos first, in that order. */
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Patch(':id/fotos/orden')
+  async reorderPhotos(
+    @Param('id') id: string,
+    @Body() dto: ReorderPhotosDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.photos.reorder(await this.resolveCompanyIdFromContext(user), user.id, id, dto.ids);
+  }
+
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('CATALOG_MANAGE')
+  @Delete(':id/fotos/:fotoId')
+  async removePhoto(
+    @Param('id') id: string,
+    @Param('fotoId') photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.photos.remove(await this.resolveCompanyIdFromContext(user), user.id, id, photoId);
+  }
+
+  /** The file of a photo, for the panel (any product of the Business, published or not). */
+  @CanonicalPermission('CATALOG_VIEW')
+  @Get(':id/fotos/:fotoId')
+  async photoFile(
+    @Param('id') id: string,
+    @Param('fotoId') photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    sendPhoto(
+      res,
+      await this.photos.file(companyId, id, photoId, { publishedOnly: false }),
+      'private',
+    );
   }
 
   /**

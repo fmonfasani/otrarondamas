@@ -1,5 +1,5 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useFetcher, useLoaderData } from '@remix-run/react';
+import { Link, useFetcher, useLoaderData, useSearchParams } from '@remix-run/react';
 import { useState } from 'react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
@@ -7,12 +7,14 @@ import { getStoreCustomer } from '~/services/customer-session.server';
 import { addToServerCart, fetchStore, fetchStoreProduct } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
 import { addToCart, readStoredCart, writeStoredCart } from '~/utils/store';
+import { storePhotoSrc } from '~/utils/store-browse';
 
 /**
  * OR-B4-047 — the product page of the store: /tienda/:slug/producto/:id. Its price (with the
  * discount), whether there is stock, its description and «Agregar a mi pedido». Only a product
  * the Business published is found. A visitor's pick goes to the cart in the browser; a signed-in
- * customer's, to the cart of their account (OR-B4-029). Photos come with stage A3, reviews with F.
+ * customer's, to the cart of their account (OR-B4-029). Up to 5 photos (OR-B4-046 rule 12); reviews
+ * come with stage F.
  */
 
 export const meta: MetaFunction<typeof loader> = ({ data }) =>
@@ -53,6 +55,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function ProductPage() {
   const { store, product, customer } = useLoaderData<typeof loader>();
   const add = useFetcher<typeof action>();
+  const [searchParams] = useSearchParams();
+  const wanted = searchParams.get('foto');
+  const shown = wanted && product.fotos.includes(wanted) ? wanted : (product.fotos[0] ?? null);
   const [addedHere, setAddedHere] = useState(false);
   const base = `/tienda/${store.slug}`;
   const added = addedHere || Boolean(add.data?.ok);
@@ -84,11 +89,35 @@ export default function ProductPage() {
         </nav>
 
         <div className="product-page__body">
-          <div className="product-visual product-page__visual">
-            <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
-            {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
-            {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
-            {product.destacado ? <span className="featured-tag">Destacado</span> : null}
+          <div className="product-gallery">
+            <div className="product-visual product-page__visual">
+              {shown ? (
+                <img className="product-photo" src={storePhotoSrc(store.slug, product.productoId, shown)} alt={product.nombre} />
+              ) : (
+                <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
+              )}
+              {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
+              {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
+              {product.destacado ? <span className="featured-tag">Destacado</span> : null}
+            </div>
+            {product.fotos.length > 1 ? (
+              <ul className="product-gallery__thumbs" aria-label="Fotos del producto">
+                {product.fotos.map((id, index) => (
+                  <li key={id}>
+                    <Link
+                      to={`?foto=${encodeURIComponent(id)}`}
+                      replace
+                      preventScrollReset
+                      className={id === shown ? 'is-active' : undefined}
+                      aria-label={`Ver foto ${index + 1}`}
+                      aria-current={id === shown ? 'true' : undefined}
+                    >
+                      <img src={storePhotoSrc(store.slug, product.productoId, id)} alt="" loading="lazy" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           <div className="product-page__info">

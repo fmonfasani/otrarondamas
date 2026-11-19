@@ -33,6 +33,22 @@ export interface Product {
 /** Longest store description the API takes. */
 export const DESCRIPTION_MAX = 2000;
 
+/** OR-B4-046 rule 12: photos per product, and what one upload may weigh before the API's check. */
+export const MAX_PHOTOS = 5;
+export const PHOTO_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+/** The browser shrinks photos to this longest side before sending them. */
+export const PHOTO_MAX_SIDE = 1600;
+
+export type ProductPhoto = { id: string; orden: number; mimeType: string; sizeBytes: number };
+
+/** Address of a product photo in the panel. */
+export const panelPhotoSrc = (productId: string, photoId: string) =>
+  `/panel/mercaderia/foto/${encodeURIComponent(productId)}/${encodeURIComponent(photoId)}`;
+
+/** What the photos form says after coming back without JavaScript (`?fotos=`). */
+export const photosNotice = (value: string | null) =>
+  value === null ? null : value === 'ok' ? { ok: true, message: 'Fotos actualizadas.' } : { ok: false, message: value };
+
 interface Node {
   id: string;
   nombre: string;

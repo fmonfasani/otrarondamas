@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatMoney } from '~/utils/format';
+import { ProductPhotos } from '~/components/panel/ProductPhotos';
 import {
   DESCRIPTION_MAX,
   UNITS,
@@ -13,10 +14,12 @@ import {
   categoryOptions,
   matchesFilters,
   productPayload,
+  photosNotice,
   publishMessage,
   storeFilterOf,
   type Hierarchy,
   type Product,
+  type ProductPhoto,
 } from '~/utils/catalog';
 import type { loader as businessLoader } from './_business';
 
@@ -37,10 +40,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const store = storeFilterOf(url.searchParams.get('tienda'));
   const selectedId = url.searchParams.get('p');
 
-  const [products, hierarchy, selected] = await Promise.all([
+  const [products, hierarchy, selected, photos] = await Promise.all([
     settle(apiRequest<Product[]>(token, `/catalogo/productos${query ? `?search=${encodeURIComponent(query)}` : ''}`)),
     settle(apiRequest<Hierarchy>(token, '/catalogo/jerarquia')),
     selectedId ? settle(apiRequest<Product>(token, `/catalogo/productos/${encodeURIComponent(selectedId)}`)) : null,
+    // OR-B4-046 rule 12: the photos of the product open in the editor.
+    selectedId ? settle(apiRequest<ProductPhoto[]>(token, `/catalogo/productos/${encodeURIComponent(selectedId)}/fotos`)) : null,
   ]);
 
   const filtered = (products ?? []).filter((p) => matchesFilters(p, { category, status, store }));
@@ -60,6 +65,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     countByCategory,
     selected,
     selectedId,
+    photos: photos ?? [],
   });
 }
 
@@ -188,6 +194,7 @@ export default function MercaderiaPage() {
   const options = categoryOptions(data.hierarchy);
   const hasCategories = data.hierarchy.familias.length > 0;
   const saved = searchParams.get('guardado') === '1';
+  const photosResult = photosNotice(searchParams.get('fotos'));
   const categoryName = category ? data.hierarchy.familias.find((f) => f.id === category)?.nombre ?? 'la categoría' : null;
   const pickable = can.editProducts ? data.products.filter((p) => p.activo || p.publicado).map((p) => p.id) : [];
   const allPicked = pickable.length > 0 && pickable.every((id) => picked.includes(id));
@@ -215,6 +222,11 @@ export default function MercaderiaPage() {
 
       {result && <p className={result.ok ? 'ws-success-note' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
       {saved && !result && <p className="ws-success-note" role="status">Producto guardado.</p>}
+      {photosResult && !result && (
+        <p className={photosResult.ok ? 'ws-success-note' : 'ws-alert'} role={photosResult.ok ? 'status' : 'alert'}>
+          {photosResult.message}
+        </p>
+      )}
 
       {hasCategories && data.activeCount > 0 && data.published === 0 && can.editProducts && (
         <section className="ws-card" aria-labelledby="empty-store">
@@ -425,6 +437,9 @@ export default function MercaderiaPage() {
                 canPrice={can.changePrices}
                 defaultSubfamilia={category ? options.find((o) => o.familia.id === category)?.subcategories[0]?.id : undefined}
               />
+              {!creating && editing && (
+                <ProductPhotos key={editing.id} productId={editing.id} photos={data.photos} canEdit={can.editProducts} />
+              )}
               {!creating && editing && can.editProducts && (
                 <Form method="post">
                   <input type="hidden" name="intent" value="toggleActive" />
