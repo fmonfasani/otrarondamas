@@ -393,6 +393,9 @@ describe('B3 tenant isolation — execution candidates', () => {
   });
 
   describe('relation isolation — Venta → VentaItem → Producto', () => {
+    // INIT-019 PR 4 (ADR-DAT-020): VentaItem carries its business and its references are composite,
+    // so the database rejects these (P2003) whichever role writes. Before, the relation registry
+    // answered P2025 from the application. RI-06 is rejected by Prisma itself (P2025, see there).
     const itemOf = (productId: string) => ({
       productoId: productId,
       cantidad: 1,
@@ -432,14 +435,14 @@ describe('B3 tenant isolation — execution candidates', () => {
       expect(persisted?.VentaItem[0].productoId).toBe(productA.id);
     });
 
-    it('RI-04/RI-05: Business A + Product B is rejected as not found and persists nothing', async () => {
+    it('RI-04/RI-05: Business A + Product B is rejected and persists nothing', async () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const channel = 'ri-negative';
 
       await expect(
         db.venta.create({ data: saleOf(channel, [itemOf(productB.id)]) }),
       ).rejects.toMatchObject({
-        code: 'P2025',
+        code: 'P2003',
       });
 
       expect(await countSales(channel)).toBe(0);
@@ -452,7 +455,7 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await expect(
         db.venta.create({ data: saleOf(channel, [itemOf(productA.id), itemOf(productB.id)]) }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
 
       expect(await countSales(channel)).toBe(0);
       expect(await prisma.ventaItem.count({ where: { Venta: { canal: channel } } })).toBe(0);
@@ -478,13 +481,13 @@ describe('B3 tenant isolation — execution candidates', () => {
             },
           },
         }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
 
       expect(await countSales(channel)).toBe(0);
       expect(await countProductItems(productB.id)).toBe(0);
     });
 
-    it('RI-06: an unverifiable nested form on the relation fails closed', async () => {
+    it('RI-06: connectOrCreate to a Business B product is rejected', async () => {
       const db = scopedPrisma.forCompany(companyA.id);
       const channel = 'ri-unsupported';
 
@@ -520,9 +523,12 @@ describe('B3 tenant isolation — execution candidates', () => {
             },
           },
         }),
-      ).rejects.toThrow(/no tiene manejo de ownership definido/);
+        // The relation is composite: Prisma looks the product up with the line's business (A),
+        // does not find B's product and fails before writing anything (P2025).
+      ).rejects.toMatchObject({ code: 'P2025' });
 
       expect(await countSales(channel)).toBe(0);
+      expect(await prisma.producto.count({ where: { nombre: 'SHOULD-NOT-CREATE' } })).toBe(0);
     });
 
     it('RI-02: a VentaItem cannot be created directly against a Business B product', async () => {
@@ -539,10 +545,10 @@ describe('B3 tenant isolation — execution candidates', () => {
 
       await expect(
         db.ventaItem.create({ data: { ventaId: sale.id, ...itemOf(productB.id) } }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
       await expect(
         db.ventaItem.createMany({ data: [{ ventaId: sale.id, ...itemOf(productB.id) }] }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
       expect(await prisma.ventaItem.count({ where: { ventaId: sale.id } })).toBe(0);
 
       await db.ventaItem.create({ data: { ventaId: sale.id, ...itemOf(productA.id) } });
@@ -566,7 +572,7 @@ describe('B3 tenant isolation — execution candidates', () => {
           where: { id: sale.id },
           data: { VentaItem: { create: itemOf(productB.id) } },
         }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
 
       expect(await prisma.ventaItem.count({ where: { ventaId: sale.id } })).toBe(0);
     });
@@ -580,7 +586,7 @@ describe('B3 tenant isolation — execution candidates', () => {
         db.$transaction(async (tx) => {
           await tx.venta.create({ data: saleOf(negativeChannel, [itemOf(productB.id)]) });
         }),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      ).rejects.toMatchObject({ code: 'P2003' });
       expect(await countSales(negativeChannel)).toBe(0);
 
       await db.$transaction(async (tx) => {

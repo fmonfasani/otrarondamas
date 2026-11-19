@@ -57,8 +57,16 @@ export class BusinessContextService {
     // Adapter as an assertion: verifies the Business→Empresa equivalence
     // before handing over the context (fails if the Business no longer
     // exists).
-    await this.resolveCompanyId(membership.businessId);
-    const permissions = await this.legacyPermissions(auth.id);
+    const companyId = await this.resolveCompanyId(membership.businessId);
+    const legacy = await this.legacyUsuario(auth.id);
+    // ADR-DAT-020: sales, orders, deliveries and returns record this Usuario as
+    // the person who acted, and those references carry the business. A Usuario
+    // of another business cannot act here (signup and invitations always create
+    // the Usuario and its Membership in the same business).
+    if (legacy && legacy.empresaId !== companyId) {
+      throw new ForbiddenException('Usuario de otro negocio: contexto denegado');
+    }
+    const permissions = legacy ? legacy.UsuarioPermiso.map((up) => up.Permiso.nombre) : [];
     return {
       businessId: membership.businessId,
       customerId: null,
@@ -142,15 +150,16 @@ export class BusinessContextService {
     return company.id;
   }
 
-  // Legacy permissions of the session's Usuario (same source as login).
-  // If the Usuario no longer exists: least privilege (empty list), never
-  // invent permissions.
-  private async legacyPermissions(userId: string): Promise<string[]> {
-    const user = await this.prisma.usuario.findUnique({
+  // The session's legacy Usuario: its business and its permissions (same
+  // source as login). If it no longer exists the caller grants least privilege
+  // (empty list), never invented permissions.
+  private legacyUsuario(userId: string) {
+    return this.prisma.usuario.findUnique({
       where: { id: userId },
-      include: { UsuarioPermiso: { include: { Permiso: true } } },
+      select: {
+        empresaId: true,
+        UsuarioPermiso: { select: { Permiso: { select: { nombre: true } } } },
+      },
     });
-    if (!user) return [];
-    return user.UsuarioPermiso.map((up) => up.Permiso.nombre);
   }
 }

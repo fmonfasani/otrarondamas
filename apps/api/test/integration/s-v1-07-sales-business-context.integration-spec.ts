@@ -892,32 +892,24 @@ describe('S-V1-07 — BusinessContext en Sales y Payments (integración, BD real
 
   // ------------------------------------------------------ J1 / idempotency
 
-  it('SBC-22 (J1, characterization): usuarioId keeps the legacy user.id even when it belongs to another empresa', async () => {
+  it('SBC-22 (J1): a legacy Usuario of another business is refused and records nothing (ADR-DAT-020)', async () => {
+    // The User holds the ACTIVE Membership of company A, but its legacy Usuario belongs to B.
+    // Sales record that Usuario as the seller, and since ADR-DAT-020 that reference carries the
+    // business: the context is refused before anything is written.
     const productA = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, productA.id, 10);
     const legacy = await prisma.usuario.findUniqueOrThrow({ where: { id: crossUsuario.id } });
     expect(legacy.empresaId).toBe(companyB.id);
 
-    const sale = await sales.create(
-      { canal: 'presencial', items: [{ productoId: productA.id, cantidad: 2 }] },
-      sessionOf(crossUsuario.id, companyB.id),
-    );
+    await expect(
+      sales.create(
+        { canal: 'presencial', items: [{ productoId: productA.id, cantidad: 2 }] },
+        sessionOf(crossUsuario.id, companyB.id),
+      ),
+    ).rejects.toThrow(ForbiddenException);
 
-    expect(sale.empresaId).toBe(companyA.id);
-    expect(sale.usuarioId).toBe(crossUsuario.id);
-    expect(await batchQuantity(batchA.id)).toBe(8);
-    const movements = await prisma.movimientoStock.findMany({ where: { referenciaId: sale.id } });
-    expect(movements).toHaveLength(1);
-    expect(movements[0].empresaId).toBe(companyA.id);
-    expect(movements[0].usuarioId).toBe(crossUsuario.id);
-
-    const payment = await payments.create(
-      sale.id,
-      { medio: 'transferencia', monto: 5 },
-      sessionOf(crossUsuario.id, companyB.id),
-    );
-    expect(payment.pago.empresaId).toBe(companyA.id);
-    expect(payment.pago.usuarioId).toBe(crossUsuario.id);
+    expect(await batchQuantity(batchA.id)).toBe(10);
+    expect(await prisma.venta.count({ where: { usuarioId: crossUsuario.id } })).toBe(0);
   });
 
   it('SBC-23 (idempotency cross-tenant, characterization): the key is globally unique — B reusing A key fails with P2002 and nothing leaks', async () => {

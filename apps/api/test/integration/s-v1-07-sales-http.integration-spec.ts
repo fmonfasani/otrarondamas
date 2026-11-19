@@ -1074,43 +1074,22 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
 
   // ------------------------------------------------------------------ J1
 
-  it('SV7-H-23 (J1, caracterización): Venta.usuarioId = user.id aunque el Usuario legacy sea de otra empresa', async () => {
+  it('SV7-H-23 (J1): un Usuario legacy de otra empresa recibe 403 y no se registra nada (ADR-DAT-020)', async () => {
+    // La Membership ACTIVE es de A, el Usuario legacy es de B. La venta registra a ese Usuario
+    // como vendedor y, desde ADR-DAT-020, esa referencia lleva el negocio: se rechaza el contexto.
     const productA = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, productA.id, 10);
     const legacy = await prisma.usuario.findUniqueOrThrow({ where: { id: legacyCrossUser.id } });
     expect(legacy.empresaId).toBe(companyB.id);
-    const auth = bearer(legacyCrossUser.id, companyB.id);
 
-    const sale = await request(BASE)
+    await request(BASE)
       .post('/ventas')
-      .set('Authorization', auth)
+      .set('Authorization', bearer(legacyCrossUser.id, companyB.id))
       .send({ canal: 'presencial', items: [{ productoId: productA.id, cantidad: 2 }] })
-      .expect(201);
+      .expect(403);
 
-    expect(sale.body.empresaId).toBe(companyA.id);
-    expect(sale.body.usuarioId).toBe(legacyCrossUser.id);
-    expect(await batchQuantity(batchA.id)).toBe(8);
-    const movements = await prisma.movimientoStock.findMany({
-      where: { referenciaId: sale.body.id },
-    });
-    expect(movements).toHaveLength(1);
-    expect(movements[0].empresaId).toBe(companyA.id);
-    expect(movements[0].usuarioId).toBe(legacyCrossUser.id);
-
-    const payment = await request(BASE)
-      .post(`/ventas/${sale.body.id}/pagos`)
-      .set('Authorization', auth)
-      .send({ medio: 'transferencia', monto: 5 })
-      .expect(201);
-    expect(payment.body.pago.empresaId).toBe(companyA.id);
-    expect(payment.body.pago.usuarioId).toBe(legacyCrossUser.id);
-
-    // The sale is readable inside A (list embeds the legacy Usuario by FK).
-    const detail = await request(BASE)
-      .get(`/ventas/${sale.body.id}`)
-      .set('Authorization', auth)
-      .expect(200);
-    expect(detail.body.Usuario.id).toBe(legacyCrossUser.id);
+    expect(await batchQuantity(batchA.id)).toBe(10);
+    expect(await prisma.venta.count({ where: { usuarioId: legacyCrossUser.id } })).toBe(0);
   });
 
   // ------------------------------------------------------------- symmetry

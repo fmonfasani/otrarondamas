@@ -525,34 +525,30 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     }
   });
 
-  it('OBC-13 (J1, characterization): usuarioId keeps the legacy user.id even when it belongs to another empresa', async () => {
+  it('OBC-13 (J1): a legacy Usuario of another business is refused and changes nothing (ADR-DAT-020)', async () => {
     const freshProduct = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, freshProduct.id, 10);
     const orderA = await mkOrder(companyA.id, customerA.id, [
       { productId: freshProduct.id, quantity: 2 },
     ]);
-    // The legacy Usuario behind this session belongs to company B, but its
-    // User holds the ACTIVE Membership of company A.
+    // The legacy Usuario behind this session belongs to company B, but its User holds the
+    // ACTIVE Membership of company A. Orders record that Usuario as the one who confirmed, and
+    // since ADR-DAT-020 that reference carries the business: the context is refused.
     const legacy = await prisma.usuario.findUniqueOrThrow({ where: { id: crossUsuario.id } });
     expect(legacy.empresaId).toBe(companyB.id);
 
-    const result = await orders.updateStatus(
-      orderA.id,
-      { estado: 'CONFIRMADO' },
-      sessionOf(crossUsuario.id, companyB.id),
-    );
+    await expect(
+      orders.updateStatus(
+        orderA.id,
+        { estado: 'CONFIRMADO' },
+        sessionOf(crossUsuario.id, companyB.id),
+      ),
+    ).rejects.toThrow(ForbiddenException);
 
-    expect(result.empresaId).toBe(companyA.id);
-    expect(result.estado).toBe('CONFIRMADO');
-    // ORD-006-01: user.id is kept as the legacy value, not corrected.
-    expect(result.usuarioId).toBe(crossUsuario.id);
-    expect(await batchQuantity(batchA.id)).toBe(8);
-    const movements = await prisma.movimientoStock.findMany({
-      where: { referenciaId: orderA.id },
-    });
-    expect(movements).toHaveLength(1);
-    expect(movements[0].empresaId).toBe(companyA.id);
-    expect(movements[0].usuarioId).toBe(crossUsuario.id);
+    const order = await prisma.pedido.findUniqueOrThrow({ where: { id: orderA.id } });
+    expect(order.estado).toBe('RECIBIDO');
+    expect(order.usuarioId).toBeNull();
+    expect(await batchQuantity(batchA.id)).toBe(10);
   });
 
   it('OBC-14: a member of B only sees B orders (symmetric isolation)', async () => {

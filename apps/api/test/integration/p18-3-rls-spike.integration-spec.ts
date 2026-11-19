@@ -3,7 +3,6 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { companyScopeExtension } from '../../src/prisma/company-scope.extension';
-import { RELATIONS_WITH_OWNERSHIP } from '../../src/prisma/relation-ownership';
 import { businessPerOperation, forCompanyWithRls, setBusiness } from './p18-3-rls/business-context';
 
 /**
@@ -67,18 +66,6 @@ function examplePerOperation(Prisma: any, businessId: string) {
       },
     }),
   );
-}
-
-/** PR 4 deletes the registry entries: the composite keys check the same thing in the database. */
-async function withoutRegistryEntry<T>(model: string, run: () => Promise<T>): Promise<T> {
-  const registry = RELATIONS_WITH_OWNERSHIP as Record<string, readonly string[]>;
-  const saved = registry[model];
-  delete registry[model];
-  try {
-    return await run();
-  } finally {
-    registry[model] = saved;
-  }
 }
 
 async function measure(n: number, run: () => Promise<unknown>) {
@@ -285,32 +272,30 @@ async function measure(n: number, run: () => Promise<unknown>) {
 
     it('fixed once at the start, it reaches reads, nested creates and raw SQL, Serializable too', async () => {
       const db = forCompanyWithRls(app, A);
-      const result = await withoutRegistryEntry('VentaItem', () =>
-        db.$transaction(
-          async (tx: any) => {
-            const max = await tx.venta.aggregate({ _max: { numero: true } });
-            const venta = await tx.venta.create({
-              data: {
-                clienteId: cA.id,
-                total: 10,
-                numero: (max._max.numero ?? 0) + 1,
-                VentaItem: { create: [{ productoId: pA.id, cantidad: 2 }] },
-              },
-              include: { VentaItem: true },
-            });
-            // Like inventory.service.ts: raw SQL on the transaction client.
-            const raw = await tx.$queryRawUnsafe(
-              `SELECT count(*)::int AS n FROM ${table('VentaItem')} WHERE "ventaId" = $1`,
-              venta.id,
-            );
-            const seen = await tx.venta.findUniqueOrThrow({
-              where: { id: venta.id },
-              include: { VentaItem: true, Cliente: true },
-            });
-            return { venta, raw, seen };
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-        ),
+      const result = await db.$transaction(
+        async (tx: any) => {
+          const max = await tx.venta.aggregate({ _max: { numero: true } });
+          const venta = await tx.venta.create({
+            data: {
+              clienteId: cA.id,
+              total: 10,
+              numero: (max._max.numero ?? 0) + 1,
+              VentaItem: { create: [{ productoId: pA.id, cantidad: 2 }] },
+            },
+            include: { VentaItem: true },
+          });
+          // Like inventory.service.ts: raw SQL on the transaction client.
+          const raw = await tx.$queryRawUnsafe(
+            `SELECT count(*)::int AS n FROM ${table('VentaItem')} WHERE "ventaId" = $1`,
+            venta.id,
+          );
+          const seen = await tx.venta.findUniqueOrThrow({
+            where: { id: venta.id },
+            include: { VentaItem: true, Cliente: true },
+          });
+          return { venta, raw, seen };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
       expect(result.venta.empresaId).toBe(A);
       expect(result.venta.VentaItem).toEqual([expect.objectContaining({ empresaId: A })]);
@@ -336,23 +321,17 @@ async function measure(n: number, run: () => Promise<unknown>) {
       expect(() => db.$transaction([db.cliente.count()])).toThrow(/transacciones por lote/);
     });
 
-    it('until PR 4 replaces it, the ownership registry looks outside the transaction and finds nothing', async () => {
-      // Its lookups run on the client without the business, outside the transaction: under RLS they
-      // see no rows. PR 4 removes the registry; PR 5 cannot ship before it.
+    it('with sales lines out of the ownership registry (PR 4), a nested create works inside a transaction', async () => {
+      // The registry looked up outside the transaction, where RLS showed it nothing (P2025). PR 4
+      // removes its entries module by module; the composite keys check the same in the database.
       const db = forCompanyWithRls(app, A);
-      await expect(
-        db.$transaction((tx: any) =>
-          tx.venta.create({
-            data: { total: 1, VentaItem: { create: [{ productoId: pA.id, cantidad: 1 }] } },
-          }),
-        ),
-      ).rejects.toMatchObject({ code: 'P2025' });
-      // Outside a transaction its lookups do carry the business.
-      const venta = await db.venta.create({
-        data: { total: 1, VentaItem: { create: [{ productoId: pA.id, cantidad: 1 }] } },
-        include: { VentaItem: true },
-      });
-      expect(venta.VentaItem).toHaveLength(1);
+      const venta = await db.$transaction((tx: any) =>
+        tx.venta.create({
+          data: { total: 1, VentaItem: { create: [{ productoId: pA.id, cantidad: 1 }] } },
+          include: { VentaItem: true },
+        }),
+      );
+      expect(venta.VentaItem).toEqual([expect.objectContaining({ empresaId: A })]);
     });
   });
 

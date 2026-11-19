@@ -118,7 +118,7 @@ describe('F-01 — canonical BusinessContext actors', () => {
       { id: 'membership-a', businessId: 'business-a', role: 'OWNER', status: 'ACTIVE' },
     ]);
     prisma.empresa.findUnique.mockResolvedValue({ id: 'business-a' });
-    prisma.usuario.findUnique.mockResolvedValue({ usuarioPermisos: [] });
+    prisma.usuario.findUnique.mockResolvedValue({ empresaId: 'business-a', UsuarioPermiso: [] });
 
     const context = await service.resolveForAuthenticatedUser({
       id: 'legacy-user-a',
@@ -134,6 +134,28 @@ describe('F-01 — canonical BusinessContext actors', () => {
     expect(context.actorType).toBe('USER');
     expect(context.customerId).toBeNull();
     expect(context.businessId).toBe('business-a');
+  });
+
+  it('refuses a legacy Usuario of another business (ADR-DAT-020)', async () => {
+    membershipService.findUserByLegacyUserId.mockResolvedValue({ id: 'user-a' });
+    membershipService.getMembershipsForUser.mockResolvedValue([
+      { id: 'membership-a', businessId: 'business-a', role: 'OWNER', status: 'ACTIVE' },
+    ]);
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'business-a' });
+    prisma.usuario.findUnique.mockResolvedValue({ empresaId: 'business-b', UsuarioPermiso: [] });
+
+    await expect(
+      service.resolveForAuthenticatedUser({
+        id: 'legacy-user-b',
+        email: 'user@example.test',
+        nombre: 'User B',
+        empresaId: 'business-b',
+        permisos: [],
+        rol: 'OWNER',
+        estadoLegajo: 'APROBADO',
+        type: 'usuario',
+      }),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('preserves fail-closed behavior for multiple ACTIVE Memberships', async () => {

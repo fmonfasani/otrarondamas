@@ -16,10 +16,15 @@ import { Prisma } from '@prisma/client';
  *
  * Key: model that owns the relation. Value: relation field names (the FK is
  * derived from the schema via DMMF).
+ *
+ * INIT-019 PR 4 (ADR-DAT-020) replaces this registry module by module: a
+ * composite reference (empresaId, id) makes the database reject a row of
+ * another business, whichever role writes it. Sales and orders (VentaItem,
+ * PedidoItem) already left it. The registry must be empty before row-level
+ * security (PR 5): it looks up outside interactive transactions, where RLS
+ * shows it nothing (p18-3-rls-spike).
  */
 export const RELATIONS_WITH_OWNERSHIP: Readonly<Record<string, readonly string[]>> = {
-  VentaItem: ['Producto', 'ReglaFidelizacion'],
-  PedidoItem: ['Producto', 'ReglaFidelizacion'],
   CompraItem: ['Producto'],
   DevolucionProveedorItem: ['Producto', 'Lote'],
   Producto: ['Familia', 'Subfamilia', 'Tipo', 'Subtipo'],
