@@ -796,3 +796,69 @@
 .ws-photos__actions button:disabled { opacity: .5; cursor: default; }
 .ws-photos__upload { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); }
 .ws-photos__upload input[type="file"] { max-width: 100%; font-size: 12px; }
+
+/* ---------------------------------------------- Conteo físico y carga inicial (OR-B4-046 D8) */
+.ws-page__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.ws-sheet__select {
+  min-height: 40px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: 14px var(--font-sans);
+}
+.ws-table--sheet td { vertical-align: middle; }
+.ws-table--sheet tr.is-lot td { border-top-style: dashed; }
+.ws-sheet__name, .ws-sheet__lot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-sheet__name small, .ws-sheet__lot small { font-size: 11px; }
+.ws-sheet__none { color: var(--text-muted); }
+.ws-sheet-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 84px;
+  max-width: 150px;
+  min-height: 36px;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-small);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: 14px var(--font-sans);
+}
+.ws-sheet-input:focus { outline: 0; border-color: var(--text-primary); box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.25); }
+.ws-table--sheet .is-num .ws-sheet-input { display: block; margin-left: auto; text-align: right; }
+.ws-sheet__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.ws-sheet__summary { margin: 0; font-size: 13px; }
+/* On a phone each row is a small card: the product (and its lot) on top, the numbers below with
+   their labels, so the name stays in sight while typing what was counted. */
+@media (max-width: 639px) {
+  .ws-table--sheet thead { display: none; }
+  .ws-table--sheet, .ws-table--sheet tbody, .ws-table--sheet td { display: block; }
+  .ws-table--sheet tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-8) var(--space-12);
+    align-items: start;
+    padding: var(--space-12) 0;
+    border-top: 1px solid rgba(176, 174, 165, 0.45);
+  }
+  .ws-table--opening tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws-table--sheet tr.is-lot { border-top-style: dashed; }
+  .ws-table--sheet td { padding: 0; border: 0; }
+  .ws-table--sheet td.ws-sheet__wide { grid-column: 1 / -1; }
+  .ws-table--sheet td.is-empty { display: none; }
+  .ws-table--sheet td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: var(--space-4);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-align: left;
+  }
+  .ws-table--sheet .is-num { text-align: left; }
+  .ws-table--sheet .is-num .ws-sheet-input,
+  .ws-table--sheet .ws-sheet-input { max-width: none; margin-left: 0; }
+  .ws-sheet__foot .ws-button { width: 100%; }
+}

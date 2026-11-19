@@ -31,6 +31,8 @@ export type AuditAction =
   | 'PRODUCTO_PUBLICADO'
   | 'PRODUCTO_DESPUBLICADO'
   | 'STOCK_AJUSTE'
+  | 'STOCK_CARGA_INICIAL'
+  | 'STOCK_CONTEO'
   | 'CAJA_ABIERTA'
   | 'CAJA_MOVIMIENTO'
   | 'CAJA_ARQUEO'
@@ -59,6 +61,8 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_PUBLICADO: { tema: 'precios', nombre: 'Publicó un producto en la tienda' },
   PRODUCTO_DESPUBLICADO: { tema: 'precios', nombre: 'Sacó un producto de la tienda' },
   STOCK_AJUSTE: { tema: 'stock', nombre: 'Ajustó el stock' },
+  STOCK_CARGA_INICIAL: { tema: 'stock', nombre: 'Cargó el stock inicial' },
+  STOCK_CONTEO: { tema: 'stock', nombre: 'Registró un conteo físico' },
   CAJA_ABIERTA: { tema: 'caja', nombre: 'Abrió la caja' },
   CAJA_MOVIMIENTO: { tema: 'caja', nombre: 'Registró un movimiento de caja' },
   CAJA_ARQUEO: { tema: 'caja', nombre: 'Hizo un arqueo' },
@@ -176,7 +180,7 @@ type AuditBatchWriter = {
   };
 };
 
-type AuditEntry = {
+export type AuditEntry = {
   accion: AuditAction;
   entidad: string;
   entidadId?: string | null;

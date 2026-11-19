@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { BusinessContextService } from '../../src/business-context/business-context.service';
 import { InventoryController } from '../../src/inventory/inventory.controller';
 import { InventoryService } from '../../src/inventory/inventory.service';
+import { StockEntriesService } from '../../src/inventory/stock-entries.service';
 import { MembershipService } from '../../src/membership/membership.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -82,10 +83,12 @@ describe('S-V1-05 — BusinessContext en Inventory (integración, BD real)', () 
     await prisma.$connect();
     prismaFactory = new CompanyScopedPrismaService(prisma);
     businessContext = new BusinessContextService(new MembershipService(prisma), prisma);
+    const inventoryService = new InventoryService(prismaFactory);
     inventory = new InventoryController(
-      new InventoryService(prismaFactory),
+      inventoryService,
       prismaFactory,
       businessContext,
+      new StockEntriesService(prismaFactory, inventoryService),
     );
     suffix = Date.now();
 

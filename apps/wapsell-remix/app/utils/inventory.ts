@@ -179,3 +179,192 @@ export function adjustmentFrom(form: FormData): { ok: true; cantidad: number; mo
   if (!motivo) return { ok: false, message: 'Indica el motivo del ajuste.' };
   return { ok: true, cantidad: form.get('direccion') === 'salida' ? -qty : qty, motivo };
 }
+
+/* ---------------------------------------------------------------- Opening stock and count (D8) */
+
+/** GET /inventario/conteo: the sheet to count on (OR-B4-046 D8). */
+export interface CountSheetRow {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  unidadBase: string;
+  controlaVencimiento: boolean;
+  stockTotal: number;
+  lotes: Array<{ id: string; numeroLote: string; vencimiento: string | null; cantidad: string }>;
+}
+export interface CountSheet {
+  hayMas: boolean;
+  productos: CountSheetRow[];
+}
+export interface CountResult {
+  referenciaId: string;
+  contados: number;
+  ajustados: number;
+  diferencias: Array<{ productoId: string; nombre: string; lote: string | null; sistema: number; contado: number; diferencia: number }>;
+}
+
+/** GET /inventario/carga-inicial: the products that can still take an opening stock. */
+export interface OpeningRow {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  unidadBase: string;
+  controlaVencimiento: boolean;
+  costo: string;
+  stockTotal: number;
+}
+export interface OpeningSheet {
+  total: number;
+  productos: OpeningRow[];
+}
+
+/** One line of the count sheet: a whole product, one of its lots, or a lot the count finds. */
+export interface CountLine {
+  key: string;
+  kind: 'producto' | 'lote' | 'nuevo';
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  loteId: string;
+  label: string;
+  sistema: number;
+  /** The first line of its product (the name is shown once). */
+  first: boolean;
+}
+
+/**
+ * The lines to count: a product that controls expiry is counted lot by lot, plus one line for a lot
+ * the count finds (it needs its date); any other product is counted as a whole.
+ */
+export function countLinesOf(rows: CountSheetRow[]): CountLine[] {
+  const lines: CountLine[] = [];
+  for (const row of rows) {
+    const base = { productoId: row.productoId, nombre: row.nombre, codigoInterno: row.codigoInterno };
+    if (!row.controlaVencimiento) {
+      lines.push({ ...base, key: row.productoId, kind: 'producto', loteId: '', label: '', sistema: row.stockTotal, first: true });
+      continue;
+    }
+    row.lotes.forEach((lot, i) => {
+      lines.push({
+        ...base,
+        key: lot.id,
+        kind: 'lote',
+        loteId: lot.id,
+        label: `Lote ${lot.numeroLote} · ${expiryLabel(lot.vencimiento).label}`,
+        sistema: Number(lot.cantidad),
+        first: i === 0,
+      });
+    });
+    lines.push({ ...base, key: `${row.productoId}:nuevo`, kind: 'nuevo', loteId: '', label: 'Otro lote', sistema: 0, first: row.lotes.length === 0 });
+  }
+  return lines;
+}
+
+/** The difference between what was counted and the system: null when blank, NaN when not a valid count. */
+export function countDifference(sistema: number, counted: string): number | null {
+  const value = parseArsNumber(counted);
+  if (value === null) return null;
+  if (Number.isNaN(value) || value < 0) return Number.NaN;
+  return Math.round((value - sistema) * 1000) / 1000;
+}
+
+export type CountItem = {
+  productoId: string;
+  loteId?: string;
+  vencimiento?: string;
+  cantidadSistema: number;
+  cantidadContada: number;
+};
+
+/**
+ * Count rows (fila[], productoId[], nombre[], loteId[], vence[], sistema[], contado[]); a blank count is
+ * skipped, so whoever counts by parts only sends what they counted.
+ */
+export function countItemsFrom(form: FormData): { ok: true; items: CountItem[] } | { ok: false; message: string } {
+  const kinds = form.getAll('fila').map(String);
+  const products = form.getAll('productoId').map(String);
+  const names = form.getAll('nombre').map(String);
+  const lots = form.getAll('loteId').map(String);
+  const dates = form.getAll('vence').map((v) => String(v).trim());
+  const systems = form.getAll('sistema').map(String);
+  const counts = form.getAll('contado');
+  const items: CountItem[] = [];
+  for (let i = 0; i < products.length; i++) {
+    const counted = parseArsNumber(counts[i]);
+    if (counted === null) continue;
+    const name = `«${names[i] || 'un producto'}»`;
+    if (Number.isNaN(counted) || counted < 0) return { ok: false, message: `Lo contado de ${name} tiene que ser un número, 0 o más.` };
+    if (kinds[i] === 'nuevo') {
+      if (counted === 0) continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dates[i] ?? '')) return { ok: false, message: `Indicá la fecha del otro lote de ${name}.` };
+      items.push({ productoId: products[i], vencimiento: dates[i], cantidadSistema: 0, cantidadContada: counted });
+      continue;
+    }
+    items.push({
+      productoId: products[i],
+      ...(kinds[i] === 'lote' ? { loteId: lots[i] } : {}),
+      cantidadSistema: Number(systems[i]),
+      cantidadContada: counted,
+    });
+  }
+  if (items.length === 0) return { ok: false, message: 'Escribí lo que contaste en al menos un renglón.' };
+  return { ok: true, items };
+}
+
+export type OpeningItem = {
+  productoId: string;
+  cantidad: number;
+  vencimiento?: string;
+  numeroLote?: string;
+  costoUnitario?: number;
+};
+
+/** Opening rows (productoId[], nombre[], controla[], cantidad[], vence[], lote[], costo[]); a blank or 0 quantity is skipped. */
+export function openingItemsFrom(form: FormData): { ok: true; items: OpeningItem[] } | { ok: false; message: string } {
+  const products = form.getAll('productoId').map(String);
+  const names = form.getAll('nombre').map(String);
+  const controls = form.getAll('controla').map(String);
+  const quantities = form.getAll('cantidad');
+  const dates = form.getAll('vence').map((v) => String(v).trim());
+  const lots = form.getAll('lote').map((v) => String(v).trim());
+  const costs = form.getAll('costo');
+  const items: OpeningItem[] = [];
+  for (let i = 0; i < products.length; i++) {
+    const cantidad = parseArsNumber(quantities[i]);
+    if (cantidad === null || cantidad === 0) continue;
+    const name = `«${names[i] || 'un producto'}»`;
+    if (Number.isNaN(cantidad) || cantidad < 0) return { ok: false, message: `La cantidad de ${name} tiene que ser un número positivo.` };
+    const date = dates[i] ?? '';
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, message: `La fecha de ${name} no es válida.` };
+    const controlled = controls[i] === '1';
+    if (controlled && !date) return { ok: false, message: `${name} controla vencimiento: indicá la fecha del lote.` };
+    const costo = parseArsNumber(costs[i]);
+    if (costo !== null && (Number.isNaN(costo) || costo < 0)) return { ok: false, message: `El costo de ${name} no es válido.` };
+    items.push({
+      productoId: products[i],
+      cantidad,
+      ...(controlled ? { vencimiento: date } : {}),
+      ...(lots[i] ? { numeroLote: lots[i] } : {}),
+      ...(costo !== null ? { costoUnitario: costo } : {}),
+    });
+  }
+  if (items.length === 0) return { ok: false, message: 'Escribí la cantidad de al menos un producto.' };
+  return { ok: true, items };
+}
+
+export function countMessage(result: Pick<CountResult, 'contados' | 'ajustados'>): string {
+  if (result.ajustados === 0) return 'Conteo registrado: todo lo que contaste coincide con el sistema.';
+  return `Conteo registrado: ajustamos el stock de ${result.ajustados} de ${result.contados} ${result.contados === 1 ? 'renglón contado' : 'renglones contados'}.`;
+}
+
+export function openingMessage(result: { productos: number; lotes: number }): string {
+  const products = `${result.productos} ${result.productos === 1 ? 'producto' : 'productos'}`;
+  return result.lotes === result.productos
+    ? `Cargamos el stock inicial de ${products}.`
+    : `Cargamos el stock inicial de ${products} (${result.lotes} lotes).`;
+}
+
+/** A quantity or a cost as the person writes it (es-AR decimals, no thousands separator). */
+export function editableNumber(value: string | number): string {
+  return Number(value).toLocaleString('es-AR', { maximumFractionDigits: 4, useGrouping: false });
+}
