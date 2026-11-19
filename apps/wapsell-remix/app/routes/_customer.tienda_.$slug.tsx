@@ -22,7 +22,7 @@ import {
   type CartLine,
   type StoreProduct,
 } from '~/utils/store';
-import { EMPTY_LISTING, appendPage, linkWith, listingQuery, productHref, type StoreListing } from '~/utils/store-browse';
+import { EMPTY_LISTING, appendPage, linkWith, listingQuery, productHref, storePhotoSrc, type StoreListing } from '~/utils/store-browse';
 
 /**
  * Store of one Business — /tienda/:slug (STORE-V1-03).
@@ -367,7 +367,11 @@ function Catalog({
       {products.map((product) => (
         <article className="product-card" key={product.productoId}>
           <Link className="product-visual" to={productHref(slug, product.productoId)} aria-label={`Ver ${product.nombre}`}>
-            <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
+            {product.foto ? (
+              <img className="product-photo" src={storePhotoSrc(slug, product.productoId, product.foto)} alt="" loading="lazy" />
+            ) : (
+              <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
+            )}
             {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
             {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
             {product.destacado ? <span className="featured-tag">Destacado</span> : null}

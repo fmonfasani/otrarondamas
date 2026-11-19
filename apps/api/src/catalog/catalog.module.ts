@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CatalogController } from './catalog.controller';
 import { CatalogHierarchyController } from './catalog-hierarchy.controller';
 import { CatalogStructureService } from './catalog-structure.service';
+import { ProductPhotosService } from './product-photos.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 
@@ -12,6 +13,6 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 @Module({
   imports: [PrismaModule, BusinessContextModule],
   controllers: [CatalogController, CatalogHierarchyController],
-  providers: [CatalogStructureService],
+  providers: [CatalogStructureService, ProductPhotosService],
 })
 export class CatalogModule {}

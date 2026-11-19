@@ -25,6 +25,8 @@ type StoreRow = CatalogRow & {
   precio: string;
   precioSinDescuento: string | null;
   descuentoPorcentaje: number | null;
+  /** The first photo (OR-B4-046 rule 12), shown in the store's list. */
+  foto: string | null;
 };
 
 /** What the store shows of a product in a list (no cost, no internal counts). */
@@ -37,6 +39,7 @@ const publicItem = (row: StoreRow) => ({
   subfamiliaId: row.subfamiliaId,
   unidadBase: row.unidadBase,
   destacado: row.destacado,
+  foto: row.foto,
   precio: row.precio,
   precioSinDescuento: row.precioSinDescuento,
   descuentoPorcentaje: row.descuentoPorcentaje,
@@ -69,7 +72,7 @@ export class StoreCatalogService {
     const db = this.prismaFactory.forCompany(companyId);
     const published = { activo: true, publicado: true };
     const since = new Date(Date.now() - BEST_SELLERS_DAYS * 24 * 60 * 60 * 1000);
-    const [products, batches, sales, orders] = await Promise.all([
+    const [products, batches, photos, sales, orders] = await Promise.all([
       db.producto.findMany({
         where: published,
         select: {
@@ -90,6 +93,11 @@ export class StoreCatalogService {
         where: { Producto: published },
         select: { productoId: true, cantidad: true },
       }),
+      db.productoFoto.findMany({
+        where: { Producto: published },
+        orderBy: { orden: 'asc' },
+        select: { id: true, productoId: true },
+      }),
       options.withSales
         ? db.ventaItem.findMany({
             where: { Venta: { estado: 'CONFIRMADA', createdAt: { gte: since } } },
@@ -105,6 +113,9 @@ export class StoreCatalogService {
     ]);
     const stock = sumBy(batches);
     const sold = sumBy([...sales, ...orders]);
+    const cover = new Map<string, string>();
+    for (const photo of photos)
+      if (!cover.has(photo.productoId)) cover.set(photo.productoId, photo.id);
     const rows = products.map((p) => {
       const price = storePrice(p.precioMinorista, p.descuentoPorcentaje);
       return {
@@ -120,6 +131,7 @@ export class StoreCatalogService {
         precioCentavos: Math.round(Number(price.precio) * 100),
         stockTotal: stock.get(p.id) ?? 0,
         vendidos: sold.get(p.id) ?? 0,
+        foto: cover.get(p.id) ?? null,
         ...price,
       };
     });
@@ -192,6 +204,7 @@ export class StoreCatalogService {
         descuentoPorcentaje: true,
         Familia: { select: { id: true, nombre: true } },
         Subfamilia: { select: { id: true, nombre: true, prefijo: true } },
+        ProductoFoto: { orderBy: { orden: 'asc' }, select: { id: true } },
       },
     });
     if (!product) throw new NotFoundException('Producto no encontrado');
@@ -208,6 +221,7 @@ export class StoreCatalogService {
       descripcion: product.descripcion,
       unidadBase: product.unidadBase,
       destacado: product.destacado,
+      fotos: product.ProductoFoto.map((f) => f.id),
       categoria: product.Familia,
       subcategoria:
         product.Subfamilia.prefijo === 'GEN'

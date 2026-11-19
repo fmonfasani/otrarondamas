@@ -99,6 +99,27 @@ export async function proxyFile(token: string, path: string): Promise<Response> 
   return new Response(response.body, { status: 200, headers });
 }
 
+/**
+ * OR-B4-046 rule 12 — passes a public file of the store (a product photo) from the API to the
+ * browser, keeping its type and its cache (photos never change).
+ */
+export async function proxyPublicFile(path: string): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`);
+  } catch {
+    return new Response('No pudimos traer la foto.', { status: 503 });
+  }
+  if (!response.ok) return new Response('Foto no encontrada', { status: response.status === 503 ? 503 : 404 });
+  const headers = new Headers();
+  for (const name of ['content-type', 'cache-control', 'content-length']) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  headers.set('X-Content-Type-Options', 'nosniff');
+  return new Response(response.body, { status: 200, headers });
+}
+
 /** Runs several reads; a failed one yields `null` instead of failing the whole page. */
 export async function settle<T>(promise: Promise<T>): Promise<T | null> {
   try {

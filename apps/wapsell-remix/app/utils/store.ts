@@ -10,6 +10,8 @@ export type StoreProduct = {
   descuentoPorcentaje?: number | null;
   /** OR-B4-046: featured products come first and carry a mark. */
   destacado?: boolean;
+  /** Its first photo (OR-B4-046 rule 12), if it has any. */
+  foto?: string | null;
   disponible: boolean;
   stockTotal: number;
 };
