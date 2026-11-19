@@ -1,5 +1,6 @@
 import { ApiError, apiRequest, getApiBaseUrl } from './api.server';
-import type { ServerCart, StoreProduct } from '~/utils/store';
+import type { ServerCart } from '~/utils/store';
+import { EMPTY_LISTING, type StoreListing, type StoreProductDetail, type Suggestions } from '~/utils/store-browse';
 
 /** Server-side calls of the per-Business store (/tienda/:slug). */
 
@@ -25,10 +26,28 @@ export const fetchStore = (slug: string) =>
     contacto?: { telefono: string; direccion: string; horario: string; descripcion: string };
   }>(storePath(slug));
 
-export async function fetchCatalog(slug: string, search: string) {
-  const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  return (await publicGet<StoreProduct[]>(storePath(slug, `/productos${query}`))) ?? [];
+/**
+ * OR-B4-047 — one page of the store listing, with the categories, brands and price range the
+ * customer can still pick from. `query` comes from listingQuery() (already cleaned).
+ */
+export async function fetchStoreCatalog(slug: string, query: URLSearchParams) {
+  const qs = query.toString();
+  return (await publicGet<StoreListing>(storePath(slug, `/catalogo${qs ? `?${qs}` : ''}`))) ?? EMPTY_LISTING;
 }
+
+/** A few products and categories while the customer types. */
+export async function fetchSuggestions(slug: string, q: string): Promise<Suggestions> {
+  return (
+    (await publicGet<Suggestions>(storePath(slug, `/sugerencias?q=${encodeURIComponent(q)}`))) ?? {
+      productos: [],
+      categorias: [],
+    }
+  );
+}
+
+/** The product page; null when the product is not published in this store. */
+export const fetchStoreProduct = (slug: string, productoId: string) =>
+  publicGet<StoreProductDetail>(storePath(slug, `/productos/${encodeURIComponent(productoId)}`));
 
 /** The signed-in customer's cart (created if missing). */
 export const loadServerCart = (jwt: string) => apiRequest<ServerCart>(jwt, '/cart', { method: 'POST' });

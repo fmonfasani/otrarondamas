@@ -22,7 +22,9 @@ import {
 } from '../authorization/canonical-permission.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CustomerOrderDto } from './dto/customer-order.dto';
+import { BrowseCatalogDto } from './dto/browse-catalog.dto';
 import { StoreService } from './store.service';
+import { StoreCatalogService } from './store-catalog.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
@@ -45,6 +47,7 @@ export class PublicStoreController {
   constructor(
     private readonly businessContext: BusinessContextService,
     private readonly storeService: StoreService,
+    private readonly storeCatalog: StoreCatalogService,
     private readonly prisma: PrismaService,
     private readonly mercadoPago: MercadoPagoAccountService,
     private readonly checkout: MercadoPagoCheckoutService,
@@ -53,6 +56,15 @@ export class PublicStoreController {
 
   private async companyId(businessSlug: string): Promise<string> {
     return (await this.businessContext.resolveForAnonymous(businessSlug)).businessId;
+  }
+
+  /** OR-B4-046 rule 3: whether the Business hides published products without stock. */
+  private async storeSettings(businessId: string) {
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: businessId },
+      select: { configuracion: true },
+    });
+    return { hideOutOfStock: storeSettingsOf(business?.configuracion ?? null).ocultarSinStock };
   }
 
   /** The signed-in customer, checked against the store's Business. */
@@ -96,14 +108,61 @@ export class PublicStoreController {
     @Query('subfamiliaId') subfamilyId?: string,
   ) {
     const businessId = await this.companyId(businessSlug);
-    // OR-B4-046 rule 3: the Business may hide published products without stock.
-    const business = await this.prisma.empresa.findUnique({
-      where: { id: businessId },
-      select: { configuracion: true },
-    });
-    return this.storeService.catalog(search, familyId, subfamilyId, businessId, {
-      hideOutOfStock: storeSettingsOf(business?.configuracion ?? null).ocultarSinStock,
-    });
+    return this.storeService.catalog(
+      search,
+      familyId,
+      subfamilyId,
+      businessId,
+      await this.storeSettings(businessId),
+    );
+  }
+
+  /**
+   * GET /:slug/tienda/catalogo — OR-B4-047: the practical store. Search without accents,
+   * categories with counts, brand, price and stock filters, order (featured, best sellers, price,
+   * newest) and pages of 24, with the facets the customer can still pick from.
+   */
+  @Public()
+  @Get('catalogo')
+  async browse(@Param('businessSlug') businessSlug: string, @Query() query: BrowseCatalogDto) {
+    const businessId = await this.companyId(businessSlug);
+    return this.storeCatalog.browse(
+      businessId,
+      {
+        q: query.q,
+        cat: query.cat,
+        sub: query.sub,
+        marcas: query.marca,
+        min: query.min,
+        max: query.max,
+        conStock: Boolean(query.stock),
+        orden: query.orden,
+        pagina: query.pagina,
+      },
+      await this.storeSettings(businessId),
+    );
+  }
+
+  /** GET /:slug/tienda/sugerencias?q= — a few products and categories while the customer types. */
+  @Public()
+  @Get('sugerencias')
+  async suggestions(@Param('businessSlug') businessSlug: string, @Query('q') q?: string) {
+    const businessId = await this.companyId(businessSlug);
+    return this.storeCatalog.suggestions(
+      businessId,
+      String(q ?? '').slice(0, 100),
+      await this.storeSettings(businessId),
+    );
+  }
+
+  /** GET /:slug/tienda/productos/:productoId — the product page of a published product. */
+  @Public()
+  @Get('productos/:productoId')
+  async product(
+    @Param('businessSlug') businessSlug: string,
+    @Param('productoId') productId: string,
+  ) {
+    return this.storeCatalog.product(await this.companyId(businessSlug), productId);
   }
 
   @Public()

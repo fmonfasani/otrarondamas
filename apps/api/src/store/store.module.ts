@@ -4,6 +4,7 @@ import { PublicStoreController } from './public-store.controller';
 import { StoreOrderController } from './store-order.controller';
 import { StoreApiController } from './store-api.controller';
 import { StoreService } from './store.service';
+import { StoreCatalogService } from './store-catalog.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
@@ -29,7 +30,7 @@ import { CustomerNoticesModule } from '../customer-notices/customer-notices.modu
     CustomerNoticesModule,
   ],
   controllers: [StoreController, PublicStoreController, StoreOrderController, StoreApiController],
-  providers: [StoreService],
+  providers: [StoreService, StoreCatalogService],
   exports: [StoreService],
 })
 export class StoreModule {}
