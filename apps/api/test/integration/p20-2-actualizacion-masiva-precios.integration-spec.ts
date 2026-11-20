@@ -218,9 +218,10 @@ describe('P20-2 — actualización masiva de precios', () => {
       valor: 5,
       redondeo: 1,
     }).expect(200);
-    expect(byBrand.body.productos.map((p: { productoId: string }) => p.productoId).sort()).toEqual(
-      [ids.Fideos, ids.Queso, ids.Yerba].sort(),
-    );
+    const byId = (a: string, b: string) => a.localeCompare(b);
+    expect(
+      byBrand.body.productos.map((p: { productoId: string }) => p.productoId).sort(byId),
+    ).toEqual([ids.Fideos, ids.Queso, ids.Yerba].sort(byId));
     const bySupplier = await api('/catalogo/precios/vista-previa', 'owner', {
       proveedorId: ids.supplier,
       modo: 'porcentaje',
