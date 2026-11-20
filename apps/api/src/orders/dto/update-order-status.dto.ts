@@ -1,11 +1,17 @@
 import { IsIn } from 'class-validator';
 
-// Only the two transitions that the orders inbox manages today — see
-// orders.service.ts. The rest of EstadoPedido (EN_PREPARACION, LISTO,
-// ASIGNADO, EN_CAMINO, ENTREGADO, PARCIALMENTE_ENTREGADO, ENTREGA_FALLIDA)
-// is left for when RF-13 (Deliveries) is implemented — no value is exposed
-// that no real flow produces yet.
-export const ORDER_TRANSITIONS = ['CONFIRMADO', 'CANCELADO'] as const;
+// #168 and OR-B4-049: the states an order can be moved to (where it can go from each one is
+// NEXT_STATES in order-states.ts). ASIGNADO and PARCIALMENTE_ENTREGADO are not exposed yet: they
+// need the delivery person and the quantities delivered per item.
+export const ORDER_TRANSITIONS = [
+  'CONFIRMADO',
+  'CANCELADO',
+  'EN_PREPARACION',
+  'LISTO',
+  'EN_CAMINO',
+  'ENTREGADO',
+  'ENTREGA_FALLIDA',
+] as const;
 
 /* eslint-disable indent */
 export class UpdateOrderStatusDto {

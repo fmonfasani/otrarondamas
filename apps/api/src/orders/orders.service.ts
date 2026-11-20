@@ -7,19 +7,40 @@ import {
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { reservedByProduct } from '../inventory/reservations';
+import { recordAudit } from '../auditoria/audit-catalog';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { CANCELLABLE_STATES, NEXT_STATES, stockLeaves, stockReturns } from './order-states';
+
+// Same pattern as inventory.service.ts: the real types of the company-scoped client.
+type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
+type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']>[0]>[0];
+type OrderItem = { productoId: string; cantidad: Prisma.Decimal; Producto: { nombre: string } };
+
+/** Quantities in Decimal(18,4): sums of Numbers are rounded back to 4 places. */
+const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+
+/** What an order asks for, per product (a product may come in more than one line). */
+function wantedOf(items: OrderItem[]) {
+  const wanted = new Map<string, { nombre: string; cantidad: number }>();
+  for (const item of items) {
+    const current = wanted.get(item.productoId);
+    wanted.set(item.productoId, {
+      nombre: item.Producto.nombre,
+      cantidad: round4((current?.cantidad ?? 0) + Number(item.cantidad)),
+    });
+  }
+  return wanted;
+}
 
 /**
  * Phase 4 of the Online Store (RF-06): the seller's counterpart — the
  * inbox where they view and manage what came in through the public store
- * (store.controller.ts, canalOrigen='web') or, in the future, through
- * WhatsApp (RF-07, canalOrigen='WhatsApp'). Without this module, an online
- * store order stays RECIBIDO without anyone in the panel seeing it.
+ * (store.controller.ts, canalOrigen='web') or the chat.
  *
- * Only two transitions implemented today (see UpdateOrderStatusDto):
- * RECIBIDO -> CONFIRMADO (takes the order, deducts stock) or CANCELADO
- * (releases the order without touching stock). The rest of the lifecycle
- * (preparation, assignment, delivery) is RF-13, not implemented.
+ * #168 and OR-B4-049: the order moves along NEXT_STATES (order-states.ts). Confirming reserves
+ * the stock; the stock leaves the business at the first of EN_CAMINO / ENTREGADO; a failed delivery
+ * brings it back, still reserved; cancelling is possible until the stock leaves.
  */
 @Injectable()
 export class OrdersService {
@@ -89,123 +110,97 @@ export class OrdersService {
     };
   }
 
+  /**
+   * #168 and OR-B4-049: moves an order to the next state, with its stock effect.
+   * - CONFIRMADO (ORDER_CONFIRM) reserves: each product needs what the order asks for, free of the
+   *   other orders' reservations. Nothing physical moves (R8-ORD-002 B1: confirming is not the
+   *   stock exit).
+   * - The first of EN_CAMINO / ENTREGADO is the stock exit: what the order has not taken out yet
+   *   leaves through deductStock (FEFO with a date, FIFO without one), as 'Venta' movements of the
+   *   order with their cost.
+   * - ENTREGA_FALLIDA brings the goods back to the lots they left from; they stay reserved for the
+   *   order until it is sent again, picked up or cancelled.
+   * - CANCELADO goes through cancelOrder (the same rules as POST /pedidos/:id/cancel).
+   *
+   * The transition is claimed with the current state as a predicate inside a SERIALIZABLE
+   * transaction: two people moving the same order, or two orders competing for the last units, end
+   * with exactly one winner (the other gets a 400 and nothing changes).
+   */
   async updateStatus(id: string, companyId: string, dto: UpdateOrderStatusDto, userId: string) {
-    const db = this.prismaFactory.forCompany(companyId);
-    const order = await db.pedido.findUnique({
-      where: { id },
-      include: { PedidoItem: true },
-    });
-    if (!order) {
-      throw new NotFoundException('Pedido no encontrado');
-    }
-
-    // Only orders not yet taken are managed — prevents two sellers from
-    // confirming/cancelling the same order twice (e.g. an already CONFIRMADO
-    // order does not deduct stock again on a second click).
-    if (order.estado !== 'RECIBIDO') {
-      throw new BadRequestException(
-        `El pedido está en estado ${order.estado}, no se puede pasar a ${dto.estado} desde ahí.`,
-      );
-    }
-
-    // State transitions must be claimed atomically. The earlier read above
-    // is useful for a clear error, but cannot prevent two concurrent requests
-    // from both observing RECIBIDO. updateMany with the current state as a
-    // predicate makes exactly one request win; the loser never deducts stock.
     if (dto.estado === 'CANCELADO') {
-      const transition = await db.pedido.updateMany({
-        where: { id, estado: 'RECIBIDO' },
-        data: { estado: 'CANCELADO', usuarioId: userId },
-      });
-      if (transition.count !== 1) {
-        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
-      }
-      const order = await db.pedido.findUniqueOrThrow({
-        where: { id },
-        include: { PedidoItem: true },
-      });
-      return order;
+      return this.cancelOrder(id, companyId, userId);
     }
-
-    // CONFIRMADO: atomically update with Prisma SERIALIZABLE isolation +
-    // conditional updateMany. The updateMany will fail (count=0) if the order
-    // is not RECIBIDO, ensuring exactly one concurrent request succeeds.
+    const db = this.prismaFactory.forCompany(companyId);
     try {
       return await db.$transaction(
         async (tx) => {
-          // Atomic: only transition if estado is RECIBIDO. This is the gate.
-          const updated = await tx.pedido.updateMany({
-            where: { id, estado: 'RECIBIDO' },
-            data: { estado: 'CONFIRMADO', usuarioId: userId },
+          const order = await tx.pedido.findUnique({
+            where: { id },
+            include: { PedidoItem: { include: { Producto: { select: { nombre: true } } } } },
           });
-
-          if (updated.count === 0) {
+          if (!order) {
+            throw new NotFoundException('Pedido no encontrado');
+          }
+          if (!NEXT_STATES[order.estado].includes(dto.estado)) {
+            throw new BadRequestException(
+              `El pedido está en estado ${order.estado}, no se puede pasar a ${dto.estado} desde ahí.`,
+            );
+          }
+          const claimed = await tx.pedido.updateMany({
+            where: { id, estado: order.estado },
+            data: { estado: dto.estado, usuarioId: userId },
+          });
+          if (claimed.count !== 1) {
             throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
           }
 
-          const confirmedOrder = await tx.pedido.findUniqueOrThrow({
-            where: { id },
-            include: { PedidoItem: true },
-          });
-
-          for (const item of confirmedOrder.PedidoItem) {
-            await this.inventoryService.deductStock(
-              tx,
-              companyId,
-              item.productoId,
-              Number(item.cantidad),
-              'Venta',
-              confirmedOrder.id,
-              userId,
-            );
+          if (dto.estado === 'CONFIRMADO') {
+            await this.reserve(tx, companyId, order.id, order.PedidoItem);
+          } else if (stockLeaves(order.estado, dto.estado)) {
+            await this.takeOut(tx, companyId, order.id, order.PedidoItem, userId);
+          } else if (stockReturns(order.estado, dto.estado)) {
+            await this.bringBack(tx, companyId, order.id, userId, 'Entrega fallida');
           }
 
-          return confirmedOrder;
+          await recordAudit(tx, companyId, userId, {
+            accion: 'PEDIDO_ESTADO',
+            entidad: 'Pedido',
+            entidadId: id,
+            antes: { estado: order.estado },
+            despues: { estado: dto.estado },
+          });
+          return tx.pedido.findUniqueOrThrow({ where: { id }, include: { PedidoItem: true } });
         },
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
-      // PostgreSQL SERIALIZABLE can abort the losing concurrent confirmation
-      // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.
-      // This is an expected state conflict, not an internal server error.
+      // PostgreSQL SERIALIZABLE can abort the losing concurrent move with SQLSTATE 40001
+      // (Prisma P2034): the same order moved twice, or two orders taking the same last units.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-        throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
+        throw new BadRequestException(
+          'El pedido ya fue gestionado por otro usuario, o su stock cambió al mismo tiempo. Actualizá y probá de nuevo.',
+        );
       }
       throw error;
     }
   }
 
   /**
-   * P2-3: Cancel an order with stock reversal and audit logging.
+   * P2-3: Cancel an order, with an optional reason and audit logging.
    *
-   * Allowed preconditions: RECIBIDO, CONFIRMADO, ENTREGA_FALLIDA
-   * Blocked states: EN_PREPARACION, LISTO, ASIGNADO, EN_CAMINO, ENTREGADO, PARCIALMENTE_ENTREGADO
+   * OR-B4-049 / R8-ORD-002 D1: an order is cancelled before its stock leaves (RECIBIDO,
+   * CONFIRMADO, EN_PREPARACION, LISTO, ASIGNADO) or after a failed delivery (ENTREGA_FALLIDA).
+   * Cancelling releases the reservation (a CANCELADO order holds nothing) without inventing a
+   * movement. Whatever of the order is still out of the business comes back once, at the cost it
+   * left with: an order confirmed before stage B3 had its stock deducted when it was confirmed. A
+   * failed delivery already brought its goods back, so nothing comes back twice.
+   * Once the stock left (EN_CAMINO, ENTREGADO, PARCIALMENTE_ENTREGADO) the answer is 409.
    *
-   * Stock reversal algorithm (if CONFIRMADO or ENTREGA_FALLIDA — stock was
-   * deducted when the order was confirmed, and a failed delivery keeps it out):
-   * - Find all MovimientoStock entries of type 'Salida' (EGRESO) for this order
-   * - For each EGRESO: create matching ENTRADA in same batch with same quantity
-   * - Update Lote.cantidad: qty += EGRESO.cantidad (stock reversal)
-   * - Validate: stock never goes negative after reversal
-   * - Idempotent: cancelling a CANCELADO order answers 200 with stockReversedItems 0
-   *   (owner decision 2026-11-09), and stock is never reversed twice
-   *
-   * Audit logging:
-   * - Event type: CANCELAR_ORDEN
-   * - Logged fields: actor, timestamp, order state, stock reversed items count, refund status
-   * - Link to order: entidadId=order.id, entidadAfectada=Pedido
-   *
-   * Concurrency safety:
-   * - SERIALIZABLE isolation level prevents race conditions
-   * - Exactly one concurrent cancellation reverses stock; the losing request
-   *   (count 0 or P2034) re-reads the order and answers the idempotent result
-   *
-   * Error handling:
-   * - 404 Not Found: Order not found
-   * - 409 Conflict: Order in non-cancellable state (EN_PREP+)
-   * - 422 Unprocessable: Stock reversal would violate constraints
+   * - Idempotent: cancelling a CANCELADO order answers 200 with stockReversedItems 0 (owner
+   *   decision 2026-11-09), and stock is never reversed twice.
+   * - Audit: CANCELAR_ORDEN, with the state, the items and how many lots came back.
+   * - Concurrency: SERIALIZABLE; exactly one concurrent cancellation wins, the loser re-reads the
+   *   order and answers the idempotent result.
    */
   async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<any> {
     const db = this.prismaFactory.forCompany(companyId);
@@ -213,7 +208,6 @@ export class OrdersService {
     try {
       return await db.$transaction(
         async (tx) => {
-          // Initial read to validate order exists and check state
           const order = await tx.pedido.findUnique({
             where: { id },
             include: { PedidoItem: true },
@@ -224,8 +218,6 @@ export class OrdersService {
           }
 
           // Idempotency first: an already-cancelled order is a no-op success.
-          // (It used to be checked after the state guard below, which rejects
-          // CANCELADO, so a repeated cancel answered 409.)
           if (order.estado === 'CANCELADO') {
             return {
               ...order,
@@ -233,16 +225,13 @@ export class OrdersService {
             };
           }
 
-          // Check if order is in a cancellable state
-          const cancellableStates = ['RECIBIDO', 'CONFIRMADO', 'ENTREGA_FALLIDA'];
-          if (!cancellableStates.includes(order.estado)) {
+          if (!CANCELLABLE_STATES.includes(order.estado)) {
             throw new ConflictException(
-              `El pedido está en estado ${order.estado} y no puede ser cancelado. Solo se pueden cancelar pedidos en estados: RECIBIDO, CONFIRMADO o ENTREGA_FALLIDA.`,
+              `El pedido está en estado ${order.estado} y no puede ser cancelado: su mercadería ya salió del local. Se cancela antes de que salga, o después de una entrega fallida.`,
             );
           }
 
-          // Atomic state transition: only transition if not yet CANCELADO
-          // This ensures exactly one concurrent cancellation succeeds
+          // Atomic state transition: exactly one concurrent cancellation succeeds.
           const transition = await tx.pedido.updateMany({
             where: { id, estado: { not: 'CANCELADO' } },
             data: { estado: 'CANCELADO', usuarioId: userId, updatedAt: new Date() },
@@ -253,61 +242,14 @@ export class OrdersService {
             throw new ConcurrentCancellation();
           }
 
-          // Stock reversal: stock was deducted on confirmation, so reverse it
-          // for CONFIRMADO and for ENTREGA_FALLIDA (a failed delivery).
-          let stockReversedItems = 0;
-          if (order.estado === 'CONFIRMADO' || order.estado === 'ENTREGA_FALLIDA') {
-            // Find all EGRESO movements for this order
-            const egressos = await tx.movimientoStock.findMany({
-              where: {
-                empresaId: companyId,
-                referenciaId: id,
-                tipoMovimiento: 'Salida',
-              },
-              include: { Lote: true },
-            });
+          const stockReversedItems = await this.bringBack(
+            tx,
+            companyId,
+            id,
+            userId,
+            `Reversión por cancelación de pedido: ${motivo || 'sin motivo especificado'}`,
+          );
 
-            // Create matching ENTRADA for each EGRESO to reverse stock
-            for (const egreso of egressos) {
-              // Verify batch still exists and get current state
-              const batch = await tx.lote.findUnique({
-                where: { id: egreso.loteId },
-              });
-
-              if (!batch) {
-                throw new BadRequestException(
-                  `Lote ${egreso.loteId} no encontrado durante reversión de stock.`,
-                );
-              }
-
-              // Create ENTRADA to reverse the EGRESO
-              await tx.movimientoStock.create({
-                data: {
-                  empresaId: companyId,
-                  productoId: egreso.productoId,
-                  loteId: egreso.loteId,
-                  tipoMovimiento: 'Entrada',
-                  cantidad: egreso.cantidad,
-                  motivo: `Reversión por cancelación de pedido: ${motivo || 'sin motivo especificado'}`,
-                  referenciaId: id,
-                  usuarioId: userId,
-                  loteVencidoAlMomento: false, // Reversing stock, not expired
-                  // ADR-DAT-009: it comes back at the cost it left with.
-                  costoUnitario: egreso.costoUnitario,
-                },
-              });
-
-              // Update batch quantity: add back the reversed amount
-              await tx.lote.update({
-                where: { id: egreso.loteId },
-                data: { cantidad: { increment: egreso.cantidad } },
-              });
-
-              stockReversedItems += 1;
-            }
-          }
-
-          // Create audit log entry
           await tx.auditLog.create({
             data: {
               empresaId: companyId,
@@ -316,6 +258,7 @@ export class OrdersService {
               entidadAfectada: 'Pedido',
               entidadId: id,
               motivo: motivo || undefined,
+              valoresAnteriores: { estado: order.estado },
               valoresPosteriores: {
                 estado: 'CANCELADO',
                 stockReversedItems,
@@ -324,7 +267,6 @@ export class OrdersService {
             },
           });
 
-          // Return the cancelled order with cancellation metadata
           const cancelledOrder = await tx.pedido.findUniqueOrThrow({
             where: { id },
             include: { PedidoItem: true },
@@ -360,6 +302,140 @@ export class OrdersService {
       }
       throw error;
     }
+  }
+
+  /** OR-B4-049: confirming reserves; every product needs what the order asks for, free of others. */
+  private async reserve(
+    tx: CompanyScopedTx,
+    companyId: string,
+    orderId: string,
+    items: OrderItem[],
+  ) {
+    const wanted = wantedOf(items);
+    const productIds = [...wanted.keys()];
+    const lots = await tx.lote.findMany({
+      where: { empresaId: companyId, productoId: { in: productIds } },
+      select: { productoId: true, cantidad: true },
+    });
+    const stock = new Map<string, number>();
+    for (const lot of lots) {
+      stock.set(lot.productoId, (stock.get(lot.productoId) ?? 0) + Number(lot.cantidad));
+    }
+    const reserved = await reservedByProduct(tx, productIds, orderId);
+    for (const [productId, want] of wanted) {
+      const available = round4((stock.get(productId) ?? 0) - (reserved.get(productId) ?? 0));
+      if (available < want.cantidad) {
+        throw new BadRequestException(
+          `Stock insuficiente para «${want.nombre}»: disponible ${Math.max(0, available)}, pedido ${want.cantidad}.`,
+        );
+      }
+    }
+  }
+
+  /** OR-B4-049: the stock exit. What the order has not taken out yet leaves FEFO/FIFO, with its cost. */
+  private async takeOut(
+    tx: CompanyScopedTx,
+    companyId: string,
+    orderId: string,
+    items: OrderItem[],
+    userId: string,
+  ) {
+    const out = await this.outOf(tx, companyId, orderId);
+    for (const [productId, want] of wantedOf(items)) {
+      const pending = round4(want.cantidad - (out.get(productId) ?? 0));
+      if (pending > 0) {
+        await this.inventoryService.deductStock(
+          tx,
+          companyId,
+          productId,
+          pending,
+          'Venta',
+          orderId,
+          userId,
+        );
+      }
+    }
+  }
+
+  /** What of the order is out of the business, per product: its exits minus what came back. */
+  private async outOf(tx: CompanyScopedTx, companyId: string, orderId: string) {
+    const movements = await tx.movimientoStock.findMany({
+      where: { empresaId: companyId, referenciaId: orderId },
+      select: { productoId: true, tipoMovimiento: true, cantidad: true },
+    });
+    const out = new Map<string, number>();
+    for (const m of movements) {
+      const sign = m.tipoMovimiento === 'Salida' ? 1 : -1;
+      out.set(m.productoId, round4((out.get(m.productoId) ?? 0) + sign * Number(m.cantidad)));
+    }
+    return out;
+  }
+
+  /**
+   * What of the order is out of the business comes back to the lots it left from, at the cost it
+   * left with (ADR-DAT-009). Returns how many lots got something back.
+   */
+  private async bringBack(
+    tx: CompanyScopedTx,
+    companyId: string,
+    orderId: string,
+    userId: string,
+    reason: string,
+  ) {
+    const movements = await tx.movimientoStock.findMany({
+      where: { empresaId: companyId, referenciaId: orderId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        productoId: true,
+        loteId: true,
+        tipoMovimiento: true,
+        cantidad: true,
+        costoUnitario: true,
+      },
+    });
+    const byLot = new Map<
+      string,
+      { productoId: string; net: number; costo: Prisma.Decimal | null }
+    >();
+    for (const m of movements) {
+      if (!m.loteId) continue;
+      const entry = byLot.get(m.loteId) ?? { productoId: m.productoId, net: 0, costo: null };
+      if (m.tipoMovimiento === 'Salida') {
+        entry.net = round4(entry.net + Number(m.cantidad));
+        entry.costo = entry.costo ?? m.costoUnitario;
+      } else {
+        entry.net = round4(entry.net - Number(m.cantidad));
+      }
+      byLot.set(m.loteId, entry);
+    }
+
+    let lots = 0;
+    for (const [loteId, entry] of byLot) {
+      if (entry.net <= 0) continue;
+      await tx.movimientoStock.create({
+        data: {
+          empresaId: companyId,
+          productoId: entry.productoId,
+          loteId,
+          tipoMovimiento: 'Entrada',
+          cantidad: entry.net,
+          motivo: reason,
+          referenciaId: orderId,
+          usuarioId: userId,
+          loteVencidoAlMomento: false,
+          costoUnitario: entry.costo,
+        },
+      });
+      const added = await tx.lote.updateMany({
+        where: { id: loteId, empresaId: companyId },
+        data: { cantidad: { increment: entry.net } },
+      });
+      if (added.count !== 1) {
+        throw new BadRequestException(`Lote ${loteId} no encontrado al devolver el stock.`);
+      }
+      lots += 1;
+    }
+    return lots;
   }
 }
 

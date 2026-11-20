@@ -5,29 +5,28 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { PedidoResponseDto } from './dto/order.response.dto';
 
 /**
- * C5A/C5B Phase 3: POST /store/order — Order creation with stock deduction and idempotency.
+ * C5A/C5B Phase 3: POST /store/order — Order creation with idempotency.
  *
  * Accepts CreateOrderDto (email, nombre, telefono, items) and X-Idempotency-Key header.
- * Creates Pedido atomically with stock deduction.
- * Supports both anonymous checkout and authenticated flows.
+ * OR-B4-049 / R8-ORD-002: the order is RECIBIDO and does not touch stock; confirming it reserves
+ * the stock and it leaves when the order goes on its way or is delivered.
  */
 @Controller('store')
 export class StoreOrderController {
   constructor(private readonly storeService: StoreService) {}
 
   /**
-   * POST /store/order — Create order with automatic customer resolution and stock deduction.
+   * POST /store/order — Create order with automatic customer resolution.
    *
    * Body: { email, nombre, telefono, items: [{productoId, cantidad}] }
    * Header: X-Idempotency-Key (optional, for idempotency)
    *
-   * Response (201): Pedido with estado='RECIBIDO', stock deducted atomically
+   * Response (201): Pedido with estado='RECIBIDO' (the stock is checked, not deducted)
    * Response (400): Validation or stock error (no changes)
    * Response (409): Conflict on duplicate idempotency key with different payload
    *
-   * Stock deduction happens within the transaction that creates the order.
    * Idempotency: if X-Idempotency-Key is provided and a pedido already exists with that key,
-   * returns the existing pedido without creating a new one or deducting stock again.
+   * returns the existing pedido without creating a new one.
    */
   @Public()
   @Post('order')
@@ -37,13 +36,7 @@ export class StoreOrderController {
     @Headers('x-idempotency-key') idempotencyKey?: string,
   ) {
     const businessId = process.env.TIENDA_EMPRESA_ID || '';
-    const pedido = await this.storeService.createOrder(
-      dto,
-      businessId,
-      'web',
-      idempotencyKey,
-      true,
-    );
+    const pedido = await this.storeService.createOrder(dto, businessId, 'web', idempotencyKey);
     return new PedidoResponseDto(pedido);
   }
 

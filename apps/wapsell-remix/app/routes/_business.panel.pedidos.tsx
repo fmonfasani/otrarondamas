@@ -20,6 +20,10 @@ const FILTERS = [
   { value: '', label: 'Todos' },
   { value: 'RECIBIDO', label: 'Por confirmar' },
   { value: 'CONFIRMADO', label: 'Confirmados' },
+  { value: 'EN_PREPARACION', label: 'En preparación' },
+  { value: 'LISTO', label: 'Listos' },
+  { value: 'EN_CAMINO', label: 'En camino' },
+  { value: 'ENTREGA_FALLIDA', label: 'Entrega fallida' },
   { value: 'ENTREGADO', label: 'Entregados' },
   { value: 'CANCELADO', label: 'Cancelados' },
 ];

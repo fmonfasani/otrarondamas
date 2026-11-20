@@ -221,6 +221,8 @@ export default function InventoryPage() {
                     <th>Producto</th>
                     <th>Código</th>
                     <th className="is-num">Stock</th>
+                    <th className="is-num">Reservado</th>
+                    <th className="is-num">Disponible</th>
                     <th className="is-num">Mínimo</th>
                     <th>Estado</th>
                   </tr>
@@ -233,12 +235,16 @@ export default function InventoryPage() {
                       </td>
                       <td className="ws-catalog__code">{row.codigoInterno}</td>
                       <td className="is-num">{qty(row.stockTotal)}</td>
+                      <td className="is-num">{row.reservado > 0 ? qty(row.reservado) : '—'}</td>
+                      <td className="is-num">{qty(row.disponible)}</td>
                       <td className="is-num">{row.stockMinimo > 0 ? qty(row.stockMinimo) : '—'}</td>
                       <td>
                         {row.stockBajo ? (
                           <span className="ws-chip ws-chip--warning">Stock bajo</span>
                         ) : row.stockTotal <= 0 ? (
                           <span className="ws-chip ws-chip--muted">Sin stock</span>
+                        ) : row.disponible <= 0 ? (
+                          <span className="ws-chip ws-chip--secondary">Todo reservado</span>
                         ) : (
                           <span className="ws-chip ws-chip--success">OK</span>
                         )}
@@ -263,6 +269,11 @@ export default function InventoryPage() {
             <p className="ws-meta">
               <span>{selected.codigoInterno}</span>
               <b>Stock total: {qty(selected.stockTotal)}</b>
+              {selected.reservado > 0 && (
+                <span>
+                  Reservado para pedidos: {qty(selected.reservado)} · disponible: {qty(selected.disponible)}
+                </span>
+              )}
             </p>
 
             <div className="ws-context__group">

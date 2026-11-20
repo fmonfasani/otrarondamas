@@ -10,6 +10,10 @@ export interface StockRow {
   codigoInterno: string;
   unidadBase: string;
   stockTotal: number;
+  /** OR-B4-049: held by confirmed orders that have not left the business. */
+  reservado: number;
+  /** What can still be sold: stock minus what is reserved. */
+  disponible: number;
   stockMinimo: number;
   stockBajo: boolean;
 }

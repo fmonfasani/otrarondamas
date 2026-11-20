@@ -242,6 +242,8 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    // Stage B3 (#168): every order transition is in the audit trail.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
@@ -343,7 +345,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     expect(await prisma.movimientoStock.count({ where: { referenciaId: orderB.id } })).toBe(0);
   });
 
-  it('OBC-06: confirm (RECIBIDO→CONFIRMADO) deducts stock and creates MovimientoStock in A only', async () => {
+  it('OBC-06: confirm reserves; the exit deducts and creates MovimientoStock in A only (OR-B4-049)', async () => {
     const freshProduct = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, freshProduct.id, 10);
     const batchB = await mkBatch(companyB.id, productB.id, 10);
@@ -360,6 +362,15 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     expect(result.estado).toBe('CONFIRMADO');
     expect(result.empresaId).toBe(companyA.id);
     expect(result.usuarioId).toBe(usuarioA.id);
+    // Reserved, not deducted.
+    expect(await batchQuantity(batchA.id)).toBe(10);
+    expect(await prisma.movimientoStock.count({ where: { referenciaId: orderA.id } })).toBe(0);
+
+    await orders.updateStatus(
+      orderA.id,
+      { estado: 'EN_CAMINO' },
+      sessionOf(usuarioA.id, companyB.id),
+    );
     expect(await batchQuantity(batchA.id)).toBe(6);
     expect(await batchQuantity(batchB.id)).toBe(10);
 
@@ -423,7 +434,7 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
     expect(await prisma.movimientoStock.count({ where: { referenciaId: orderA.id } })).toBe(0);
   });
 
-  it('OBC-09: double confirmation → BadRequest, no second deduction or movement', async () => {
+  it('OBC-09: double confirmation → BadRequest; the exit deducts once (OR-B4-049)', async () => {
     const freshProduct = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, freshProduct.id, 10);
     const orderA = await mkOrder(companyA.id, customerA.id, [
@@ -437,6 +448,13 @@ describe('S-V1-06 — BusinessContext en Orders (integración, BD real)', () => 
       BadRequestException,
     );
 
+    expect(await batchQuantity(batchA.id)).toBe(before);
+    expect(await prisma.movimientoStock.count({ where: { referenciaId: orderA.id } })).toBe(0);
+
+    await orders.updateStatus(orderA.id, { estado: 'EN_CAMINO' }, session);
+    await expect(orders.updateStatus(orderA.id, { estado: 'EN_CAMINO' }, session)).rejects.toThrow(
+      BadRequestException,
+    );
     expect(await batchQuantity(batchA.id)).toBe(before - 2);
     expect(await prisma.movimientoStock.count({ where: { referenciaId: orderA.id } })).toBe(1);
   });

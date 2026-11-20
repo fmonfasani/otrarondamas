@@ -295,6 +295,8 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    // Stage B3 (#168): every order transition is in the audit trail.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
@@ -315,7 +317,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     if (server && !server.killed) server.kill();
   });
 
-  it('P1.3 E2E: public store → order inbox → confirm → stock movement exactly once', async () => {
+  it('P1.3 E2E: public store → order inbox → confirm (reserves) → on its way → stock movement exactly once', async () => {
     const product = await mkProduct(companyA.id, hierA);
     const batch = await mkBatch(companyA.id, product.id, 10);
     const startingQuantity = await batchQuantity(batch.id);
@@ -358,14 +360,30 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     expect(confirmed.body.estado).toBe('CONFIRMADO');
     expect(confirmed.body.usuarioId).toBe(legacyUserA.id);
-    expect(await batchQuantity(batch.id)).toBe(startingQuantity - 2);
-    expect(await movementCount(orderId)).toBe(1);
+    // OR-B4-049: confirming reserves; nothing physical moves yet.
+    expect(await batchQuantity(batch.id)).toBe(startingQuantity);
+    expect(await movementCount(orderId)).toBe(0);
 
-    // Retry must not deduct inventory again.
+    // A retried confirmation changes nothing.
     await request(BASE)
       .patch(`/pedidos/${orderId}/estado`)
       .set('Authorization', auth)
       .send({ estado: 'CONFIRMADO' })
+      .expect(400);
+    expect(await movementCount(orderId)).toBe(0);
+
+    // The stock leaves when the order leaves the business, and only once.
+    await request(BASE)
+      .patch(`/pedidos/${orderId}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'EN_CAMINO' })
+      .expect(200);
+    expect(await batchQuantity(batch.id)).toBe(startingQuantity - 2);
+    expect(await movementCount(orderId)).toBe(1);
+    await request(BASE)
+      .patch(`/pedidos/${orderId}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'EN_CAMINO' })
       .expect(400);
     expect(await batchQuantity(batch.id)).toBe(startingQuantity - 2);
     expect(await movementCount(orderId)).toBe(1);
@@ -528,6 +546,12 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
 
     expect(res.body.estado).toBe('CONFIRMADO');
     expect(res.body.empresaId).toBe(companyA.id);
+    // OR-B4-049: the stock leaves at the exit (here, the customer picks it up).
+    await request(BASE)
+      .patch(`/pedidos/${orderA.id}/estado`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyB.id)}`)
+      .send({ estado: 'ENTREGADO' })
+      .expect(200);
     expect(await batchQuantity(batchA.id)).toBe(6);
     const movements = await prisma.movimientoStock.findMany({
       where: { referenciaId: orderA.id },
@@ -594,7 +618,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     expect(await movementCount(orderA.id)).toBe(0);
   });
 
-  it('SV6-H-10: doble confirmación → 400 y sin segunda salida de stock', async () => {
+  it('SV6-H-10: doble confirmación → 400; la salida de stock ocurre una sola vez', async () => {
     const productA = await mkProduct(companyA.id, hierA);
     const batchA = await mkBatch(companyA.id, productA.id, 10);
     const orderA = await mkOrder(companyA.id, customerA.id, [
@@ -612,12 +636,26 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       .set('Authorization', auth)
       .send({ estado: 'CONFIRMADO' })
       .expect(400);
+    // OR-B4-049: reserved, not deducted.
+    expect(await batchQuantity(batchA.id)).toBe(10);
+    expect(await movementCount(orderA.id)).toBe(0);
+
+    await request(BASE)
+      .patch(`/pedidos/${orderA.id}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'ENTREGADO' })
+      .expect(200);
+    await request(BASE)
+      .patch(`/pedidos/${orderA.id}/estado`)
+      .set('Authorization', auth)
+      .send({ estado: 'ENTREGADO' })
+      .expect(400);
 
     expect(await batchQuantity(batchA.id)).toBe(8);
     expect(await movementCount(orderA.id)).toBe(1);
   });
 
-  it('SV6-H-10b: concurrent confirmation only deducts stock once', async () => {
+  it('SV6-H-10b: concurrent confirmation reserves once, and a concurrent exit deducts once', async () => {
     const product = await mkProduct(companyA.id, hierA);
     const batch = await mkBatch(companyA.id, product.id, 10);
     const order = await mkOrder(companyA.id, customerA.id, [
@@ -642,6 +680,21 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       include: { PedidoItem: true },
     });
     expect(persisted.estado).toBe('CONFIRMADO');
+    // OR-B4-049: reserved, not deducted.
+    expect(await batchQuantity(batch.id)).toBe(10);
+    expect(await movementCount(order.id)).toBe(0);
+
+    const exits = await Promise.all([
+      request(BASE)
+        .patch(`/pedidos/${order.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'EN_CAMINO' }),
+      request(BASE)
+        .patch(`/pedidos/${order.id}/estado`)
+        .set('Authorization', auth)
+        .send({ estado: 'EN_CAMINO' }),
+    ]);
+    expect(exits.map((response) => response.status).sort()).toEqual([200, 400]);
     expect(await batchQuantity(batch.id)).toBe(8);
     expect(await movementCount(order.id)).toBe(1);
   });
