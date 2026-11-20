@@ -13,7 +13,8 @@ import { join } from 'node:path';
  */
 const SCHEMA = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
 
-const QUANTITY = /^(cantidad\w*|costo|costoUnitario|factor\w*|stockMinimo)$/;
+// costoPromedio (stage C1) is a unit cost too: the moving weighted average of ADR-DAT-009.
+const QUANTITY = /^(cantidad\w*|costo|costoUnitario|costoPromedio|factor\w*|stockMinimo)$/;
 const PERCENT = /(Porcentaje|^tasa\w*)$/;
 
 function expectedPrecision(field: string): string {
@@ -70,11 +71,12 @@ describe('amount precision (ADR-DAT-017)', () => {
         'costoTotal',
         'cantidad',
         'costoUnitario',
+        'costoPromedio',
         'factorConversion',
         'stockMinimo',
         'descuentoPorcentaje',
         'tasaClick',
       ].map(expectedPrecision),
-    ).toEqual(['18,2', '18,2', '18,2', '18,4', '18,4', '18,4', '18,4', '5,2', '5,2']);
+    ).toEqual(['18,2', '18,2', '18,2', '18,4', '18,4', '18,4', '18,4', '18,4', '5,2', '5,2']);
   });
 });

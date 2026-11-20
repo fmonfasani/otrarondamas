@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { recordAuditMany, type AuditEntry } from '../auditoria/audit-catalog';
+import { applyEntryCosts, valuationCost } from '../catalog/product-cost';
 import { InventoryService } from './inventory.service';
 import { OpeningStockDto } from './dto/opening-stock.dto';
 import { StockCountDto, StockCountItemDto } from './dto/stock-count.dto';
@@ -21,6 +22,7 @@ type ProductRow = {
   id: string;
   nombre: string;
   costo: Prisma.Decimal;
+  costoPromedio: Prisma.Decimal | null;
   controlaVencimiento: boolean;
 };
 type LotRow = {
@@ -248,7 +250,16 @@ export class StockEntriesService {
           const stock = await this.stockOf(tx, ids);
           const now = new Date();
           const rows = new Map<string, number>();
-          const audit: AuditEntry[] = [];
+          // OR-B4-046 stage C1: what enters with a cost updates the product's cost (ADR-DAT-009).
+          const audit: AuditEntry[] = await applyEntryCosts(
+            tx,
+            dto.items.map((item) => ({
+              productoId: item.productoId,
+              cantidad: item.cantidad,
+              costoUnitario: item.costoUnitario ?? must(products.get(item.productoId)).costo,
+            })),
+            OPENING_REASON,
+          );
           for (const item of dto.items) {
             const product = must(products.get(item.productoId));
             const row = (rows.get(product.id) ?? 0) + 1;
@@ -553,8 +564,8 @@ export class StockEntriesService {
         referenciaId: options.referenceId,
         usuarioId: userId,
         loteVencidoAlMomento: options.expired ?? false,
-        // ADR-DAT-009: what enters or leaves in a count is valued at the product's current cost.
-        costoUnitario: product.costo,
+        // ADR-DAT-009: what enters or leaves in a count is valued at the product's average cost.
+        costoUnitario: valuationCost(product),
       },
     });
   }
@@ -563,7 +574,13 @@ export class StockEntriesService {
     const unique = [...new Set(ids)];
     const rows: ProductRow[] = await tx.producto.findMany({
       where: { id: { in: unique } },
-      select: { id: true, nombre: true, costo: true, controlaVencimiento: true },
+      select: {
+        id: true,
+        nombre: true,
+        costo: true,
+        costoPromedio: true,
+        controlaVencimiento: true,
+      },
     });
     if (rows.length !== unique.length) {
       throw new NotFoundException('Producto no encontrado');

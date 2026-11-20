@@ -6,6 +6,9 @@ import {
   catalogAbilities,
   categoryOptions,
   chainFor,
+  hasPriceToReview,
+  markupLabel,
+  markupOf,
   matchesFilters,
   parseAmount,
   productPayload,
@@ -283,10 +286,47 @@ describe('catalog route', () => {
     expect(api).not.toHaveBeenCalled();
   });
 
+  it('applies the suggested price, or keeps the current one (D10, stage C1)', async () => {
+    api.mockResolvedValueOnce(ok({ ...product, precioMinorista: '1100', precioSugerido: null }));
+    const applied = await post({ intent: 'reviewPrice', productId: 'p-1', aplicar: 'true' });
+    expect(api.mock.calls[0]).toEqual([
+      'http://api.test/catalogo/productos/p-1/precio-sugerido',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ aplicar: true }) }),
+    ]);
+    await expect(applied.json()).resolves.toEqual({ ok: true, message: expect.stringMatching(/^Listo: el precio ahora es \$\s?1\.100/) });
+
+    api.mockResolvedValueOnce(ok({ ...product, precioSugerido: null }));
+    const kept = await post({ intent: 'reviewPrice', productId: 'p-1', aplicar: 'false' });
+    expect(api.mock.calls[1][1]?.body).toBe(JSON.stringify({ aplicar: false }));
+    await expect(kept.json()).resolves.toEqual({ ok: true, message: 'Listo: el precio quedó como estaba.' });
+  });
+
   it('deactivates a product', async () => {
     api.mockResolvedValueOnce(ok({ ...product, activo: false }));
     await post({ intent: 'toggleActive', productId: 'p-1', activo: 'false' });
     expect(api.mock.calls[0]).toEqual(['http://api.test/catalogo/productos/p-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ activo: false }) })]);
+  });
+});
+
+describe('cost and price (stage C1)', () => {
+  it('reads the markup over cost, and a loss', () => {
+    expect(markupOf(900, 500)).toBe(80);
+    expect(markupOf('150', '100')).toBe(50);
+    expect(markupOf(900, 0)).toBeNull();
+    expect(markupOf(null, 500)).toBeNull();
+    expect(markupLabel(80)).toBe('Ganancia: 80 % sobre el costo.');
+    expect(markupLabel(-10)).toBe('Pérdida: 10 % por debajo del costo.');
+    expect(markupLabel(null)).toBe('Cargá el costo para ver la ganancia.');
+  });
+
+  it('lists only the active products with a price to review', () => {
+    const pending = { ...product, precioSugerido: '1100' };
+    expect(hasPriceToReview(pending)).toBe(true);
+    expect(hasPriceToReview({ ...pending, activo: false })).toBe(false);
+    expect(hasPriceToReview(product)).toBe(false);
+    const filters = { category: null, status: 'todos', review: true };
+    expect(matchesFilters(pending, filters)).toBe(true);
+    expect(matchesFilters(product, filters)).toBe(false);
   });
 });
 

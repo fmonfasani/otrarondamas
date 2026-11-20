@@ -198,8 +198,10 @@ describe('P19-4 — stock: lote opcional y costo en cada movimiento', () => {
       where: { referenciaId: `p19-4-${suffix}`, productoId: plain },
       select: { loteVencidoAlMomento: true, costoUnitario: true },
     });
+    // Stage C1 (ADR-DAT-009): what leaves is valued at the average cost. The only entry with a cost
+    // was the first test's reception of 4 at 7, with nothing on hand, so the average is 7.
     expect(
-      outs.every((m) => m.loteVencidoAlMomento === false && Number(m.costoUnitario) === 10),
+      outs.every((m) => m.loteVencidoAlMomento === false && Number(m.costoUnitario) === 7),
     ).toBe(true);
 
     // The dated product: the lot expiring sooner leaves first, even if it arrived later.
@@ -238,7 +240,8 @@ describe('P19-4 — stock: lote opcional y costo en cada movimiento', () => {
       { loteId: target.id, cantidad: -2, motivo: 'Rotura' },
       user,
     );
-    expect(Number(movement.costoUnitario)).toBe(10);
+    // At the average cost (stage C1), 7: see the test above.
+    expect(Number(movement.costoUnitario)).toBe(7);
     const entry = await prisma.auditLog.findFirstOrThrow({
       where: { empresaId: company, accion: 'STOCK_AJUSTE', entidadId: plain },
       orderBy: { fechaHora: 'desc' },

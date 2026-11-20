@@ -25,6 +25,8 @@ export type Topic = keyof typeof TOPICS;
 export type AuditAction =
   | 'PRODUCTO_CREADO'
   | 'PRODUCTO_PRECIO_CAMBIADO'
+  | 'PRODUCTO_COSTO_CAMBIADO'
+  | 'PRODUCTO_PRECIO_SUGERIDO_DESCARTADO'
   | 'PRODUCTO_EDITADO'
   | 'PRODUCTO_ACTIVADO'
   | 'PRODUCTO_DESACTIVADO'
@@ -56,6 +58,8 @@ export type AuditAction =
 const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_CREADO: { tema: 'precios', nombre: 'Creó un producto' },
   PRODUCTO_PRECIO_CAMBIADO: { tema: 'precios', nombre: 'Cambió un precio' },
+  PRODUCTO_COSTO_CAMBIADO: { tema: 'precios', nombre: 'Actualizó el costo de un producto' },
+  PRODUCTO_PRECIO_SUGERIDO_DESCARTADO: { tema: 'precios', nombre: 'Descartó un precio sugerido' },
   PRODUCTO_EDITADO: { tema: 'precios', nombre: 'Editó un producto' },
   PRODUCTO_ACTIVADO: { tema: 'precios', nombre: 'Activó un producto' },
   PRODUCTO_DESACTIVADO: { tema: 'precios', nombre: 'Desactivó un producto' },

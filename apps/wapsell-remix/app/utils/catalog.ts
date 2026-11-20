@@ -17,10 +17,15 @@ export interface Product {
   tipoId: string;
   subtipoId: string;
   unidadBase: string;
+  /** The last cost that entered (a purchase, the opening stock), or the one typed in. */
   costo: string;
+  /** ADR-DAT-009: moving weighted average; null until something enters with a cost. */
+  costoPromedio?: string | null;
   precioMinorista: string;
   precioMayorista: string | null;
   descuentoPorcentaje: string | null;
+  /** D10: the price that keeps the markup after a new cost, for a person to apply or dismiss. */
+  precioSugerido?: string | null;
   activo: boolean;
   /** In the store (the Catálogo). Only an active product is published. */
   publicado: boolean;
@@ -196,7 +201,11 @@ export function productPayload(
 /** Store filter of the list: in the store, outside it, or both (null). */
 export type StoreFilter = 'publicados' | 'sin-publicar' | null;
 
-export function matchesFilters(product: Product, filters: { category: string | null; status: string; store?: StoreFilter }) {
+export function matchesFilters(
+  product: Product,
+  filters: { category: string | null; status: string; store?: StoreFilter; review?: boolean },
+) {
+  if (filters.review && !hasPriceToReview(product)) return false;
   if (filters.category && product.familiaId !== filters.category) return false;
   if (filters.status === 'activos' && !product.activo) return false;
   if (filters.status === 'inactivos' && product.activo) return false;
@@ -217,4 +226,27 @@ export function publishMessage(updated: number, publicado: boolean) {
   }
   const products = updated === 1 ? '1 producto' : `${updated} productos`;
   return publicado ? `Listo: ${products} en la tienda.` : `Listo: ${products} fuera de la tienda.`;
+}
+
+/** D10 (stage C1): an active product whose cost changed and whose price nobody reviewed yet. */
+export const hasPriceToReview = (product: Product) => product.activo && Boolean(product.precioSugerido);
+
+/** Markup over cost, in whole percent; null when there is no cost or the numbers are not valid. */
+export function markupOf(price: number | string | null | undefined, cost: number | string | null | undefined): number | null {
+  const p = Number(price);
+  const c = Number(cost);
+  if (!Number.isFinite(p) || !Number.isFinite(c) || c <= 0 || price === null || price === '' || price === undefined) return null;
+  return Math.round(((p - c) / c) * 100);
+}
+
+/** «Ganancia: 50 % sobre el costo» and friends, for the editor. */
+export function markupLabel(markup: number | null): string {
+  if (markup === null) return 'Cargá el costo para ver la ganancia.';
+  if (markup < 0) return `Pérdida: ${Math.abs(markup)} % por debajo del costo.`;
+  return `Ganancia: ${markup} % sobre el costo.`;
+}
+
+/** What the person reads after applying or dismissing a suggested price. */
+export function reviewMessage(applied: boolean, price: string | null | undefined, format: (v: string) => string) {
+  return applied && price ? `Listo: el precio ahora es ${format(price)}.` : 'Listo: el precio quedó como estaba.';
 }

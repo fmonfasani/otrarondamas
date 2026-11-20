@@ -10,6 +10,7 @@ import {
   pendingOf,
   purchaseItemsFrom,
   receiptItemsFrom,
+  receptionMessage,
   suggestedBatchNumber,
 } from '../app/utils/inventory';
 
@@ -141,5 +142,14 @@ describe('inventory and purchases routes', () => {
     api.mockResolvedValueOnce(ok({ id: 'prov-1' }));
     await post(purchasesAction, 'compras', [['intent', 'createSupplier'], ['nombre', 'Distribuidora Sur'], ['telefono', '11 4444 5555'], ['email', '']]);
     expect(JSON.parse(String(api.mock.calls[0][1]?.body))).toEqual({ nombre: 'Distribuidora Sur', telefono: '11 4444 5555' });
+  });
+});
+
+describe('reception message (stage C1, D10)', () => {
+  it('says how many products came with another cost', () => {
+    expect(receptionMessage(0)).toBe('Mercadería recibida. El stock ya está actualizado.');
+    expect(receptionMessage(undefined)).toBe('Mercadería recibida. El stock ya está actualizado.');
+    expect(receptionMessage(1)).toBe('Mercadería recibida. El stock ya está actualizado. 1 producto entró con otro costo: su precio se revisa en Mercadería.');
+    expect(receptionMessage(3)).toContain('3 productos entraron con otro costo');
   });
 });

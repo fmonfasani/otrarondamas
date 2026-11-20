@@ -372,3 +372,11 @@ export function openingMessage(result: { productos: number; lotes: number }): st
 export function editableNumber(value: string | number): string {
   return Number(value).toLocaleString('es-AR', { maximumFractionDigits: 4, useGrouping: false });
 }
+
+/** What the person reads after receiving goods; D10: the prices left to review in Mercadería. */
+export function receptionMessage(pricesToReview: number | undefined): string {
+  const base = 'Mercadería recibida. El stock ya está actualizado.';
+  if (!pricesToReview) return base;
+  const which = pricesToReview === 1 ? '1 producto entró' : `${pricesToReview} productos entraron`;
+  return `${base} ${which} con otro costo: su precio se revisa en Mercadería.`;
+}

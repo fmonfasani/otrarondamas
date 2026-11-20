@@ -5,7 +5,22 @@ import { PurchasesService } from './purchases.service';
 describe('PurchasesService.receivePurchase', () => {
   const tx = {
     recepcionCompra: { create: jest.fn() },
-    lote: { create: jest.fn() },
+    // OR-B4-046 stage C1: the reception reads the product's cost and its stock first.
+    producto: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'prod-1',
+          nombre: 'Yerba',
+          costo: new Prisma.Decimal(10),
+          costoPromedio: null,
+          precioMinorista: new Prisma.Decimal(15),
+          precioSugerido: null,
+        },
+      ]),
+      update: jest.fn(),
+    },
+    lote: { create: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
+    auditLog: { createMany: jest.fn() },
   };
   const db = {
     compra: {
@@ -13,7 +28,13 @@ describe('PurchasesService.receivePurchase', () => {
         id: 'compra-1',
         estado: 'EMITIDA',
         CompraItem: [
-          { id: 'item-1', productoId: 'prod-1', cantidadPedida: 10, cantidadRecibida: 0 },
+          {
+            id: 'item-1',
+            productoId: 'prod-1',
+            cantidadPedida: 10,
+            cantidadRecibida: 0,
+            costoUnitario: new Prisma.Decimal(10),
+          },
         ],
       }),
     },

@@ -534,6 +534,18 @@
 .ws-catalog__store .ws-field__control { align-items: stretch; }
 .ws-catalog__store textarea { flex: 1 0 0; min-width: 1px; width: 100%; border: 0; outline: 0; padding: 0; background: transparent; resize: vertical; color: var(--text-primary); font: inherit; font-size: 14px; line-height: 1.45; }
 .ws-chip svg { vertical-align: -1px; }
+/* OR-B4-046 stage C1: markup, and the price to review after a new cost (D10). */
+.ws-catalog__markup { margin: calc(-1 * var(--space-4)) 0 0; font-size: 13px; color: var(--text-muted); }
+.ws-catalog__markup.is-loss { color: var(--text-primary); font-weight: 600; }
+.ws-catalog__suggested { display: grid; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-control); background: var(--feedback-warning); color: var(--text-primary); }
+.ws-catalog__suggested h3 { margin: 0; font-size: 15px; }
+.ws-catalog__suggested p { margin: 0; font-size: 14px; line-height: 1.45; }
+.ws-catalog__suggested-actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.ws-catalog__review-mark { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.ws-catalog__review { gap: var(--space-8); }
+.ws-catalog__review .ws-button { align-self: flex-start; justify-self: start; }
+/* A stable slot keeps the editor's children in place whether or not there is a suggestion. */
+.ws-catalog__suggested-slot:empty { display: none; }
 @media (min-width: 1024px) {
   .ws-catalog { grid-template-columns: 220px minmax(0, 1fr); }
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }

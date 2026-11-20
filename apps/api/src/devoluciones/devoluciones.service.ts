@@ -1,3 +1,4 @@
+import { valuationCost } from '../catalog/product-cost';
 import {
   BadRequestException,
   ConflictException,
@@ -582,13 +583,12 @@ export class DevolucionesService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const productCost =
-      (
-        await tx.producto.findFirst({
-          where: { id: productId, empresaId: companyId },
-          select: { costo: true },
-        })
-      )?.costo ?? null;
+    // ADR-DAT-009: what comes back is valued at the product's average cost.
+    const costed = await tx.producto.findFirst({
+      where: { id: productId, empresaId: companyId },
+      select: { costo: true, costoPromedio: true },
+    });
+    const productCost = costed ? valuationCost(costed) : null;
     let remaining = quantity;
     const targets: Array<{ loteId: string; cantidad: number }> = [];
     for (const out of outflows) {
