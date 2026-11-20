@@ -19,6 +19,9 @@ import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { InventoryService } from './inventory.service';
 import { RegisterAdjustmentDto } from './dto/register-adjustment.dto';
+import { OpeningStockDto } from './dto/opening-stock.dto';
+import { StockCountDto } from './dto/stock-count.dto';
+import { StockEntriesService } from './stock-entries.service';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
 /**
@@ -26,7 +29,8 @@ import { CanonicalPermission } from '../authorization/canonical-permission.decor
  * queries. Phase 2 (INV-AJ-*): manual adjustments. Phase 3 (batch intake)
  * redefined — receiving a purchase (apps/api/src/purchases) already covers
  * that case, no separate endpoint was added here. Phase 4 (INV-AL-*):
- * low stock and expiry alerts.
+ * low stock and expiry alerts. OR-B4-046 D8: the opening stock and the physical count, stock that
+ * does not come from a purchase (stock-entries.service.ts).
  */
 @ApiTags('inventario')
 @ApiBearerAuth()
@@ -37,6 +41,7 @@ export class InventoryController {
     private readonly inventoryService: InventoryService,
     private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly businessContext: BusinessContextService,
+    private readonly stockEntries: StockEntriesService,
   ) {}
 
   private async resolveCompanyIdFromContext(user: AuthenticatedUser): Promise<string> {
@@ -116,6 +121,52 @@ export class InventoryController {
       dto,
       user.id,
     );
+  }
+
+  // OR-B4-046 D8: the opening stock. The sheet lists the active products that can still take one
+  // (no sale, purchase, adjustment or count yet), with their cost.
+  @RequirePermission('inventario.ajustes')
+  @CanonicalPermission('INVENTORY_ADJUST')
+  @Get('carga-inicial')
+  async openingSheet(@CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
+    return this.stockEntries.openingSheet(await this.resolveCompanyIdFromContext(user), search);
+  }
+
+  @RequirePermission('inventario.ajustes')
+  @CanonicalPermission('INVENTORY_ADJUST')
+  @Post('carga-inicial')
+  @HttpCode(HttpStatus.CREATED)
+  async openingStock(@Body() dto: OpeningStockDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.stockEntries.openingStock(
+      await this.resolveCompanyIdFromContext(user),
+      dto,
+      user.id,
+    );
+  }
+
+  // OR-B4-046 D8: the physical count. The sheet shows the stock to count against (lot by lot for
+  // products that control expiry); the count sets the stock to what was counted.
+  @RequirePermission('inventario.ajustes')
+  @CanonicalPermission('INVENTORY_ADJUST')
+  @Get('conteo')
+  async countSheet(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('search') search?: string,
+    @Query('familiaId') familyId?: string,
+  ) {
+    return this.stockEntries.countSheet(
+      await this.resolveCompanyIdFromContext(user),
+      search,
+      familyId,
+    );
+  }
+
+  @RequirePermission('inventario.ajustes')
+  @CanonicalPermission('INVENTORY_ADJUST')
+  @Post('conteos')
+  @HttpCode(HttpStatus.CREATED)
+  async count(@Body() dto: StockCountDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.stockEntries.count(await this.resolveCompanyIdFromContext(user), dto, user.id);
   }
 
   // INV-AL-01/02/03: low-stock products and batches about to expire, in a

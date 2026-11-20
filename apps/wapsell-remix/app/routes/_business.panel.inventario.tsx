@@ -1,6 +1,6 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
-import { AlertTriangle, CalendarClock, Search, Truck, X } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ClipboardCheck, PackagePlus, Search, Truck, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import { formatDateTime, parseArsNumber } from '~/utils/format';
@@ -129,13 +129,27 @@ export default function InventoryPage() {
         <div className="ws-page__titles">
           <p className="ws-page__eyebrow">{layout?.user.empresaNombre.toUpperCase()}</p>
           <h1 className="ws-page__title">Inventario</h1>
-          <p className="ws-page__lead">Stock por producto, sumando todos sus lotes. La mercadería entra desde Compras.</p>
+          <p className="ws-page__lead">
+            Stock por producto, sumando todos sus lotes. La mercadería entra con una compra, con la carga inicial o con un conteo.
+          </p>
         </div>
-        {can.purchases && (
-          <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/compras?nueva=1`}>
-            <Truck size={16} aria-hidden="true" /> Cargar compra
-          </Link>
-        )}
+        <div className="ws-page__actions">
+          {can.adjust && (
+            <>
+              <Link className="ws-button ws-button--outline ws-button--auto" to="/panel/inventario/conteo">
+                <ClipboardCheck size={16} aria-hidden="true" /> Contar stock
+              </Link>
+              <Link className="ws-button ws-button--outline ws-button--auto" to="/panel/inventario/carga-inicial">
+                <PackagePlus size={16} aria-hidden="true" /> Carga inicial
+              </Link>
+            </>
+          )}
+          {can.purchases && (
+            <Link className="ws-button ws-button--outline ws-button--auto" to={`/panel/compras?nueva=1`}>
+              <Truck size={16} aria-hidden="true" /> Cargar compra
+            </Link>
+          )}
+        </div>
       </div>
 
       {result && <p className={result.ok ? 'ws-success-note' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
@@ -197,7 +211,7 @@ export default function InventoryPage() {
           {data.rows.length === 0 ? (
             <div className="ws-empty">
               <b>{onlyLow ? 'No hay productos con stock bajo.' : 'No hay productos activos.'}</b>
-              {!onlyLow && 'Carga productos en Mercadería y su stock entrando una compra.'}
+              {!onlyLow && 'Carga productos en Mercadería; su stock entra con la carga inicial o con una compra.'}
             </div>
           ) : (
             <div className="ws-table-wrap">
@@ -254,7 +268,7 @@ export default function InventoryPage() {
             <div className="ws-context__group">
               <span>LOTES</span>
               {data.batches.length === 0 ? (
-                <p className="ws-page__lead">Sin lotes. El stock entra al recibir una compra.</p>
+                <p className="ws-page__lead">Sin lotes. El stock entra con una compra, la carga inicial o un conteo.</p>
               ) : (
                 <ul className="ws-batches">
                   {data.batches.map((batch) => {

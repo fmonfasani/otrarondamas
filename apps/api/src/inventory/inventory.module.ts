@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
+import { StockEntriesService } from './stock-entries.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 
 @Module({
   imports: [PrismaModule, BusinessContextModule],
   controllers: [InventoryController],
-  providers: [InventoryService],
+  providers: [InventoryService, StockEntriesService],
   // StoreModule reuses consolidatedStock() for public availability (RF-06)
   // — see store.service.ts.
   exports: [InventoryService],
