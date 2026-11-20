@@ -68,6 +68,9 @@ export const MODELS_WITH_COMPANY_ID = [
   'ProductoFoto',
   // OR-B4-015 (#166): stock locations, born with their business (ADR-DAT-020).
   'Ubicacion',
+  // OR-B4-046 §4.4 (stage C3): offers and their products, born with their business.
+  'Oferta',
+  'OfertaProducto',
 ] as const;
 
 /**

@@ -23,8 +23,8 @@ import {
 describe('canonical authorization model (Authorization spec v0.2)', () => {
   const sorted = (xs: Iterable<string>) => [...xs].sort();
 
-  it('has 40 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025 + PAYMENTS_CONFIGURE of OR-B4-033 + RETURNS_RECEIVE of OR-B4-035)', () => {
-    expect(PERMISSIONS).toHaveLength(40);
+  it('has 41 unique canonical permissions (36 of OR-B4-024 + RETURNS_VIEW, PURCHASES_VIEW of OR-B4-025 + PAYMENTS_CONFIGURE of OR-B4-033 + RETURNS_RECEIVE of OR-B4-035 + PROMOTIONS_MANAGE of OR-B4-046)', () => {
+    expect(PERMISSIONS).toHaveLength(41);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
   });
 
@@ -95,6 +95,13 @@ describe('canonical authorization model (Authorization spec v0.2)', () => {
       ];
       for (const p of gestor) expect(roleHasPermission('GESTOR_DE_STOCK', p)).toBe(true);
       for (const p of notGestor) expect(roleHasPermission('GESTOR_DE_STOCK', p)).toBe(false);
+    });
+
+    it('lets only the Owner and the Admin create and end offers (OR-B4-046 §4.11)', () => {
+      expect(roleHasPermission('OWNER', 'PROMOTIONS_MANAGE')).toBe(true);
+      expect(roleHasPermission('ADMIN', 'PROMOTIONS_MANAGE')).toBe(true);
+      expect(roleHasPermission('VENDEDOR', 'PROMOTIONS_MANAGE')).toBe(false);
+      expect(roleHasPermission('GESTOR_DE_STOCK', 'PROMOTIONS_MANAGE')).toBe(false);
     });
 
     it('pins the exact rows of the two delegated roles', () => {

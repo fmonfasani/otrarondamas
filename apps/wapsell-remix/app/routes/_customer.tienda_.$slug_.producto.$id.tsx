@@ -6,7 +6,7 @@ import { ApiError } from '~/services/api.server';
 import { getStoreCustomer } from '~/services/customer-session.server';
 import { addToServerCart, fetchStore, fetchStoreProduct } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
-import { addToCart, readStoredCart, writeStoredCart } from '~/utils/store';
+import { addToCart, offerUntil, readStoredCart, writeStoredCart } from '~/utils/store';
 import { storePhotoSrc } from '~/utils/store-browse';
 
 /**
@@ -96,7 +96,11 @@ export default function ProductPage() {
               ) : (
                 <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
               )}
-              {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
+              {product.oferta ? (
+              <span className="discount-tag offer-tag">Oferta -{product.descuentoPorcentaje}%</span>
+            ) : product.descuentoPorcentaje ? (
+              <span className="discount-tag">-{product.descuentoPorcentaje}%</span>
+            ) : null}
               {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
               {product.destacado ? <span className="featured-tag">Destacado</span> : null}
             </div>
@@ -129,6 +133,11 @@ export default function ProductPage() {
               {product.precioSinDescuento ? <del>{formatMoney(product.precioSinDescuento)}</del> : null}
               <small>{product.unidadBase || 'Unidad'}</small>
             </div>
+            {product.oferta ? (
+              <p className="product-page__offer">
+                <b>{product.oferta.nombre}</b> · {offerUntil(product.oferta.hasta)}
+              </p>
+            ) : null}
             <p className={`product-page__stock ${product.disponible ? 'is-in' : 'is-out'}`}>
               {product.disponible ? 'Disponible' : 'Sin stock por ahora'}
             </p>

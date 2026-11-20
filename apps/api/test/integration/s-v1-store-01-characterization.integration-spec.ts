@@ -310,6 +310,8 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         'unidadBase',
         // OR-B4-046: featured products go first, and the store marks them.
         'destacado',
+        // OR-B4-046 §4.4 (stage C3): the offer that sets the price (null without one).
+        'oferta',
         'precio',
         'precioSinDescuento',
         'descuentoPorcentaje',

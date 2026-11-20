@@ -62,6 +62,11 @@ export class BrowseCatalogDto {
   @IsIn(['1', 'true'])
   stock?: string;
 
+  /** «En oferta» (OR-B4-047, from stage C3): an offer or the product's discount lowers its price. */
+  @IsOptional()
+  @IsIn(['1', 'true'])
+  oferta?: string;
+
   @IsOptional()
   @IsIn(ORDERS)
   orden?: CatalogOrder;

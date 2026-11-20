@@ -12,7 +12,8 @@ import { InventoryService } from '../inventory/inventory.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { CustomersService } from '../customers/customers.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { priceWithDiscount } from './store-price';
+import { currentOffers } from '../offers/current-offers';
+import { sellingPrice } from '../offers/offer-price';
 
 // Same pattern as sales.service.ts/inventory.service.ts: the client of
 // CompanyScopedPrismaService.forCompany() is a dynamic type from Prisma
@@ -95,9 +96,11 @@ export class StoreService {
 
     const products = await db.producto.findMany({
       where: { id: { in: stock.map((s) => s.productoId) } },
-      select: { id: true, precioMinorista: true, descuentoPorcentaje: true },
+      select: { id: true, familiaId: true, precioMinorista: true, descuentoPorcentaje: true },
     });
     const productById = new Map(products.map((p) => [p.id, p]));
+    // OR-B4-046 §4.4, stage C3: the store sees every offer in force.
+    const offers = await currentOffers(db, products, 'tienda');
 
     // Cost, stockMinimo or any other internal field is never exposed —
     // consolidatedStock() already filters to activo=true, here only the public
@@ -106,8 +109,11 @@ export class StoreService {
     // undefined).
     return stock.map((item) => {
       const product = productById.get(item.productoId);
-      const basePrice = product?.precioMinorista ?? new Prisma.Decimal(0);
-      const discountPercentage = product?.descuentoPorcentaje ?? null;
+      const price = sellingPrice(
+        product?.precioMinorista ?? new Prisma.Decimal(0),
+        product?.descuentoPorcentaje ?? null,
+        offers.get(item.productoId) ?? [],
+      );
       return {
         productoId: item.productoId,
         nombre: item.nombre,
@@ -118,10 +124,7 @@ export class StoreService {
         subtipoId: item.subtipoId,
         unidadBase: item.unidadBase,
         destacado: item.destacado,
-        precio: priceWithDiscount(basePrice, discountPercentage),
-        precioSinDescuento:
-          discountPercentage && !discountPercentage.isZero() ? basePrice.toFixed(2) : null,
-        descuentoPorcentaje: discountPercentage?.toNumber() ?? null,
+        ...price,
         disponible: item.disponible > 0,
         stockTotal: item.disponible,
       };
@@ -200,6 +203,13 @@ export class StoreService {
       ? await this.customersService.calculateLevel(resolvedCompanyId, existingCustomer.id)
       : 'NUEVO';
     const activeRules = await this.loyaltyService.listActiveRules(resolvedCompanyId);
+    // OR-B4-046 §4.4, stage C3: the store (web) sees every offer in force; an order taken in the
+    // chat skips the «solo tienda» ones. The product's discount and the offer never add up.
+    const offers = await currentOffers(
+      db,
+      products,
+      channelOrigen === 'web' ? 'tienda' : 'mostrador',
+    );
 
     // Price frozen from the catalog at the time of the order — same criterion
     // as SalesService (INV-12): a price sent by the client is never accepted.
@@ -209,7 +219,12 @@ export class StoreService {
     // combined, the larger one is not chosen).
     const itemsWithPrice = dto.items.map((item) => {
       const product = productById.get(item.productoId)!;
-      const unitPrice = priceWithDiscount(product.precioMinorista, product.descuentoPorcentaje);
+      const price = sellingPrice(
+        product.precioMinorista,
+        product.descuentoPorcentaje,
+        offers.get(product.id) ?? [],
+      );
+      const unitPrice = price.precio;
       const loyaltyDiscount = this.loyaltyService.calculateApplicableDiscount(
         activeRules,
         customerLevel,
@@ -225,6 +240,7 @@ export class StoreService {
       return {
         ...item,
         precioUnitario: unitPrice,
+        ofertaId: price.oferta?.id ?? null,
         descuentoFidelizacionPorcentaje: loyaltyDiscount?.descuentoPorcentaje ?? null,
         reglaFidelizacionId: loyaltyDiscount?.reglaId ?? null,
       };
@@ -310,6 +326,7 @@ export class StoreService {
               productoId: item.productoId,
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
+              ofertaId: item.ofertaId,
               descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
               reglaFidelizacionId: item.reglaFidelizacionId,
             })),

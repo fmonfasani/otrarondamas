@@ -380,6 +380,9 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .product-page__info h1 { margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: -.04em; text-wrap: balance; }
 .product-page__brand { margin: 0; color: #77736d; font-size: 14px; }
 .product-page__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-top: 6px; }
+/* OR-B4-046 §4.4 (stage C3): an offer's mark and its last day. */
+.offer-tag { background: #c2410c; text-transform: uppercase; letter-spacing: 0.02em; }
+.product-page__offer { margin: 6px 0 0; font-size: 14px; color: #c2410c; }
 .product-page__price strong { font-size: 30px; letter-spacing: -.03em; }
 .product-page__price del { color: #8b8882; font-size: 15px; }
 .product-page__price small { color: #8b8882; font-size: 10px; font-weight: 700; letter-spacing: .1em; }

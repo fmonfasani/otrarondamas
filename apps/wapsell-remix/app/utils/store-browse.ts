@@ -90,6 +90,7 @@ export function listingQuery(url: URL): URLSearchParams {
     if (amount !== null) out.set(key, String(amount));
   }
   if (from.get('stock') === '1') out.set('stock', '1');
+  if (from.get('oferta') === '1') out.set('oferta', '1');
   const orden = from.get('orden');
   if (orden && orden !== 'destacados' && ORDER_OPTIONS.some((o) => o.value === orden)) out.set('orden', orden);
   const pagina = Number(from.get('pagina'));
@@ -131,12 +132,17 @@ export function activeFilters(base: string, query: URLSearchParams, facets: Stor
   if (min) chips.push({ label: `Desde ${formatMoney(min)}`, href: linkWith(base, query, { min: null }) });
   if (max) chips.push({ label: `Hasta ${formatMoney(max)}`, href: linkWith(base, query, { max: null }) });
   if (query.get('stock') === '1') chips.push({ label: 'Con stock', href: linkWith(base, query, { stock: null }) });
+  if (query.get('oferta') === '1') chips.push({ label: 'En oferta', href: linkWith(base, query, { oferta: null }) });
   return chips;
 }
 
-/** How many of the filters inside the «Filtros» panel are in use (brand, price, stock). */
+/** How many of the filters inside the «Filtros» panel are in use (brand, price, stock, offer). */
 export const panelFilterCount = (query: URLSearchParams) =>
-  query.getAll('marca').length + (query.get('min') ? 1 : 0) + (query.get('max') ? 1 : 0) + (query.get('stock') === '1' ? 1 : 0);
+  query.getAll('marca').length +
+  (query.get('min') ? 1 : 0) +
+  (query.get('max') ? 1 : 0) +
+  (query.get('stock') === '1' ? 1 : 0) +
+  (query.get('oferta') === '1' ? 1 : 0);
 
 /** The products of a later page joined to what is already on screen, without repeating any. */
 export function appendPage(shown: StoreProduct[], next: StoreProduct[]) {

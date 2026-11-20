@@ -8,7 +8,8 @@ import {
   type BrowseParams,
   type CatalogRow,
 } from './store-catalog';
-import { storePrice } from './store-price';
+import { currentOffers } from '../offers/current-offers';
+import { sellingPrice, type PriceShown } from '../offers/offer-price';
 import { reservedByProduct } from '../inventory/reservations';
 
 /** Orders whose units count as sold: from confirmed on, and not cancelled or failed. */
@@ -26,6 +27,8 @@ type StoreRow = CatalogRow & {
   precio: string;
   precioSinDescuento: string | null;
   descuentoPorcentaje: number | null;
+  /** The offer that sets the price (stage C3), with its end, for the «Oferta» mark. */
+  oferta: PriceShown['oferta'];
   /** The first photo (OR-B4-046 rule 12), shown in the store's list. */
   foto: string | null;
 };
@@ -44,6 +47,7 @@ const publicItem = (row: StoreRow) => ({
   precio: row.precio,
   precioSinDescuento: row.precioSinDescuento,
   descuentoPorcentaje: row.descuentoPorcentaje,
+  oferta: row.oferta,
   disponible: row.stockTotal > 0,
   stockTotal: row.stockTotal,
 });
@@ -119,11 +123,13 @@ export class StoreCatalogService {
       stock.set(productId, Math.max(0, (stock.get(productId) ?? 0) - quantity));
     }
     const sold = sumBy([...sales, ...orders]);
+    // OR-B4-046 §4.4, stage C3: the store sees every offer in force, «solo tienda» included.
+    const offers = await currentOffers(db, products, 'tienda');
     const cover = new Map<string, string>();
     for (const photo of photos)
       if (!cover.has(photo.productoId)) cover.set(photo.productoId, photo.id);
     const rows = products.map((p) => {
-      const price = storePrice(p.precioMinorista, p.descuentoPorcentaje);
+      const price = sellingPrice(p.precioMinorista, p.descuentoPorcentaje, offers.get(p.id) ?? []);
       return {
         productoId: p.id,
         nombre: p.nombre,
@@ -139,6 +145,7 @@ export class StoreCatalogService {
         vendidos: sold.get(p.id) ?? 0,
         foto: cover.get(p.id) ?? null,
         ...price,
+        enOferta: price.precioSinDescuento !== null,
       };
     });
     return options.hideOutOfStock ? rows.filter((r) => r.stockTotal > 0) : rows;
@@ -208,6 +215,7 @@ export class StoreCatalogService {
         destacado: true,
         precioMinorista: true,
         descuentoPorcentaje: true,
+        familiaId: true,
         Familia: { select: { id: true, nombre: true } },
         Subfamilia: { select: { id: true, nombre: true, prefijo: true } },
         ProductoFoto: { orderBy: { orden: 'asc' }, select: { id: true } },
@@ -238,7 +246,13 @@ export class StoreCatalogService {
         product.Subfamilia.prefijo === 'GEN'
           ? null
           : { id: product.Subfamilia.id, nombre: product.Subfamilia.nombre },
-      ...storePrice(product.precioMinorista, product.descuentoPorcentaje),
+      ...sellingPrice(
+        product.precioMinorista,
+        product.descuentoPorcentaje,
+        (await currentOffers(db, [{ id: product.id, familiaId: product.familiaId }], 'tienda')).get(
+          product.id,
+        ) ?? [],
+      ),
       disponible: stockTotal > 0,
       stockTotal,
     };

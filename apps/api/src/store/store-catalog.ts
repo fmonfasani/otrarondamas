@@ -31,6 +31,8 @@ export type CatalogRow = {
   stockTotal: number;
   /** Units sold in the last 30 days; only loaded when ordering by best sellers. */
   vendidos: number;
+  /** Something lowers its price today: an offer or the product's discount (stage C3). */
+  enOferta?: boolean;
 };
 
 export type BrowseParams = {
@@ -42,6 +44,7 @@ export type BrowseParams = {
   min?: number;
   max?: number;
   conStock?: boolean;
+  enOferta?: boolean;
   orden?: CatalogOrder;
   pagina?: number;
 };
@@ -157,7 +160,8 @@ export function browse<T extends CatalogRow>(
       (brands.size === 0 || brands.has(normalize(r.marca ?? ''))) &&
       (minCents === undefined || r.precioCentavos >= minCents) &&
       (maxCents === undefined || r.precioCentavos <= maxCents) &&
-      (!params.conStock || r.stockTotal > 0),
+      (!params.conStock || r.stockTotal > 0) &&
+      (!params.enOferta || Boolean(r.enOferta)),
   );
   const sorted = sortRows(filtered, params.orden);
   const paginas = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));

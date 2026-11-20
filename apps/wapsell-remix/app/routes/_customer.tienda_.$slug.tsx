@@ -14,6 +14,7 @@ import {
   cartTotal,
   linesFromServer,
   mergeCarts,
+  offerUntil,
   parseItems,
   readStoredCart,
   setQuantity,
@@ -372,7 +373,11 @@ function Catalog({
             ) : (
               <span className="product-initial">{product.nombre.trim().charAt(0).toUpperCase()}</span>
             )}
-            {product.descuentoPorcentaje ? <span className="discount-tag">-{product.descuentoPorcentaje}%</span> : null}
+            {product.oferta ? (
+              <span className="discount-tag offer-tag">Oferta -{product.descuentoPorcentaje}%</span>
+            ) : product.descuentoPorcentaje ? (
+              <span className="discount-tag">-{product.descuentoPorcentaje}%</span>
+            ) : null}
             {product.disponible ? null : <span className="unavailable-tag">Sin stock</span>}
             {product.destacado ? <span className="featured-tag">Destacado</span> : null}
           </Link>
@@ -383,7 +388,7 @@ function Catalog({
               <div>
                 <strong>{formatMoney(product.precio)}</strong>
                 {product.precioSinDescuento ? <del>{formatMoney(product.precioSinDescuento)}</del> : null}
-                <small>{product.unidadBase || 'Unidad'}</small>
+                <small>{product.oferta ? `Oferta ${offerUntil(product.oferta.hasta)}` : product.unidadBase || 'Unidad'}</small>
               </div>
               <button type="button" className="add-button" disabled={!product.disponible} onClick={() => onAdd(product)} aria-label={`Agregar ${product.nombre}`}>+</button>
             </div>

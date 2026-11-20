@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   'CATALOG_VIEW',
   'CATALOG_MANAGE',
   'PRICING_CHANGE',
+  'PROMOTIONS_MANAGE', // OR-B4-046 §4.11 (stage C3): create and end offers
   'ORDERS_VIEW',
   'ORDERS_MANAGE',
   'ORDER_CONFIRM',
