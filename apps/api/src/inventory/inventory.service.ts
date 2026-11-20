@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
+import { valuationCost } from '../catalog/product-cost';
 import { recordAudit } from '../auditoria/audit-catalog';
 import { reservedByProduct } from './reservations';
 import { RegisterAdjustmentDto } from './dto/register-adjustment.dto';
@@ -237,7 +238,7 @@ export class InventoryService {
 
     const batch = await db.lote.findUnique({
       where: { id: dto.loteId },
-      include: { Producto: { select: { nombre: true, costo: true } } },
+      include: { Producto: { select: { nombre: true, costo: true, costoPromedio: true } } },
     });
     if (!batch) {
       throw new NotFoundException('Lote no encontrado');
@@ -265,7 +266,7 @@ export class InventoryService {
           cantidad: Math.abs(dto.cantidad),
           motivo: `AjusteManual: ${dto.motivo}`,
           usuarioId: userId,
-          costoUnitario: batch.Producto.costo,
+          costoUnitario: valuationCost(batch.Producto),
         },
       });
       // OR-B4-041 / OR-B4-046 rule 8: every stock adjustment is in the audit trail.
@@ -355,10 +356,10 @@ export class InventoryService {
       where: { empresaId: companyId, productoId: productId, cantidad: { gt: 0 } },
       orderBy: [{ vencimiento: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
-    // ADR-DAT-009: each movement keeps the cost of what leaves (the product's current cost).
+    // ADR-DAT-009: each movement keeps the cost of what leaves (the product's average cost).
     const product = await tx.producto.findFirst({
       where: { id: productId },
-      select: { costo: true },
+      select: { costo: true, costoPromedio: true },
     });
 
     const stockTotal = batches.reduce((acc, l) => acc + Number(l.cantidad), 0);
@@ -413,7 +414,7 @@ export class InventoryService {
           referenciaId: referenceId,
           usuarioId: userId,
           loteVencidoAlMomento: expiredBatch,
-          costoUnitario: product?.costo ?? null,
+          costoUnitario: product ? valuationCost(product) : null,
         },
       });
 

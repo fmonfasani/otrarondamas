@@ -12,6 +12,7 @@ import {
   pendingOf,
   purchaseItemsFrom,
   receiptItemsFrom,
+  receptionMessage,
   suggestedBatchNumber,
   type Purchase,
   type Supplier,
@@ -87,11 +88,11 @@ export async function action({ request }: ActionFunctionArgs) {
     if (intent === 'receive') {
       const parsed = receiptItemsFrom(form);
       if (!parsed.ok) return fail(parsed.message);
-      await apiRequest(token, `/compras/${encodeURIComponent(text('compraId'))}/recepciones`, {
+      const reception = await apiRequest<{ preciosARevisar?: number }>(token, `/compras/${encodeURIComponent(text('compraId'))}/recepciones`, {
         method: 'POST',
         body: JSON.stringify({ items: parsed.items, ...(text('observaciones') ? { observaciones: text('observaciones') } : {}) }),
       });
-      return json<ActionData>({ ok: true, message: 'Mercadería recibida. El stock ya está actualizado.' });
+      return json<ActionData>({ ok: true, message: receptionMessage(reception?.preciosARevisar) });
     }
     return fail('Acción desconocida.');
   } catch (error) {

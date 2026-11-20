@@ -30,6 +30,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PublishProductsDto } from './dto/publish-products.dto';
+import { ReviewSuggestedPriceDto } from './dto/review-suggested-price.dto';
 import { CatalogStructureService } from './catalog-structure.service';
 import { NEW_PRODUCT_FLAGS, nextCatalogFlags } from './catalog-flags';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
@@ -264,6 +265,8 @@ export class CatalogController {
       ...dto,
       ...flags,
       ...(dto.descripcion === undefined ? {} : { descripcion: descriptionOf(dto.descripcion) }),
+      // D10: a person set the price, so the pending suggestion is answered.
+      ...(dto.precioMinorista === undefined ? {} : { precioSugerido: null }),
     };
     // OR-B4-041: price changes, (de)activations, store changes and edits, with before and after.
     return db.$transaction(async (tx) => {
@@ -316,6 +319,55 @@ export class CatalogController {
         })),
       );
       return { actualizados: products.length };
+    });
+  }
+
+  /**
+   * D10 (OR-B4-046 stage C1) — after a new cost, Wapsell suggests the price that keeps the markup;
+   * a person applies it (the price changes, recorded like any price change) or keeps the current
+   * price (the suggestion is dropped, and that is recorded too).
+   */
+  @RequirePermission('productos.gestionar')
+  @CanonicalPermission('PRICING_CHANGE')
+  @Post(':id/precio-sugerido')
+  @HttpCode(200)
+  async reviewSuggestedPrice(
+    @Param('id') id: string,
+    @Body() dto: ReviewSuggestedPriceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    const db = this.prismaFactory.forCompany(companyId);
+    return db.$transaction(async (tx) => {
+      const existing = await tx.producto.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundException('Producto no encontrado');
+      if (existing.precioSugerido === null) {
+        throw new ConflictException('Este producto no tiene un precio sugerido para revisar.');
+      }
+      const updated = await tx.producto.update({
+        where: { id },
+        data: dto.aplicar
+          ? { precioMinorista: existing.precioSugerido, precioSugerido: null }
+          : { precioSugerido: null },
+      });
+      const entry = dto.aplicar
+        ? productAuditEntry(existing, updated)
+        : {
+            accion: 'PRODUCTO_PRECIO_SUGERIDO_DESCARTADO' as const,
+            entidad: 'Producto',
+            entidadId: id,
+            antes: {
+              nombre: existing.nombre,
+              precioMinorista: existing.precioMinorista.toNumber(),
+              precioSugerido: existing.precioSugerido.toNumber(),
+            },
+            despues: {
+              nombre: existing.nombre,
+              precioMinorista: existing.precioMinorista.toNumber(),
+            },
+          };
+      if (entry) await recordAudit(tx, companyId, user.id, entry);
+      return updated;
     });
   }
 

@@ -4,13 +4,17 @@ import { Plus, Search, Star, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
-import { formatMoney } from '~/utils/format';
+import { formatMoney, parseArsNumber } from '~/utils/format';
 import { ProductPhotos } from '~/components/panel/ProductPhotos';
 import {
   DESCRIPTION_MAX,
   UNITS,
   catalogAbilities,
   categoryLabel,
+  hasPriceToReview,
+  markupLabel,
+  markupOf,
+  reviewMessage,
   categoryOptions,
   matchesFilters,
   productPayload,
@@ -38,6 +42,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const category = url.searchParams.get('cat');
   const status = url.searchParams.get('estado') ?? 'activos';
   const store = storeFilterOf(url.searchParams.get('tienda'));
+  // D10 (stage C1): only the products whose cost changed and whose price nobody reviewed yet.
+  const review = url.searchParams.get('precio') === 'revisar';
   const selectedId = url.searchParams.get('p');
 
   const [products, hierarchy, selected, photos] = await Promise.all([
@@ -48,7 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     selectedId ? settle(apiRequest<ProductPhoto[]>(token, `/catalogo/productos/${encodeURIComponent(selectedId)}/fotos`)) : null,
   ]);
 
-  const filtered = (products ?? []).filter((p) => matchesFilters(p, { category, status, store }));
+  const filtered = (products ?? []).filter((p) => matchesFilters(p, { category, status, store, review }));
   const countByCategory: Record<string, number> = {};
   for (const product of products ?? []) countByCategory[product.familiaId] = (countByCategory[product.familiaId] ?? 0) + 1;
   // OR-B4-046: how much of the Mercadería the store shows.
@@ -62,6 +68,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     total: filtered.length,
     activeCount: active.length,
     published,
+    toReview: active.filter(hasPriceToReview).length,
     countByCategory,
     selected,
     selectedId,
@@ -113,6 +120,17 @@ export async function action({ request }: ActionFunctionArgs) {
               body: JSON.stringify(built.body),
             });
       return redirect(`${base}?p=${saved.id}&guardado=1`);
+    }
+
+    // D10 (stage C1): apply the price Wapsell suggested after a new cost, or keep the current one.
+    if (intent === 'reviewPrice') {
+      const productId = String(form.get('productId') ?? '');
+      const aplicar = form.get('aplicar') === 'true';
+      const saved = await apiRequest<Product>(token, `/catalogo/productos/${encodeURIComponent(productId)}/precio-sugerido`, {
+        method: 'POST',
+        body: JSON.stringify({ aplicar }),
+      });
+      return json<ActionData>({ ok: true, message: reviewMessage(aplicar, saved.precioMinorista, formatMoney) });
     }
 
     if (intent === 'toggleActive') {
@@ -238,6 +256,20 @@ export default function MercaderiaPage() {
         </section>
       )}
 
+      {can.changePrices && data.toReview > 0 && searchParams.get('precio') !== 'revisar' && (
+        <section className="ws-card ws-catalog__review" aria-labelledby="price-review">
+          <h2 id="price-review" className="ws-card__title">
+            {data.toReview === 1 ? '1 producto entró con otro costo' : `${data.toReview} productos entraron con otro costo`}
+          </h2>
+          <p className="ws-page__lead">
+            Wapsell calculó el precio que mantiene tu ganancia. Revisalo: el precio no cambia hasta que lo confirmes.
+          </p>
+          <Link className="ws-button ws-button--outline ws-button--auto" to={hrefWith({ precio: 'revisar', p: null, nuevo: null })}>
+            Revisar precios
+          </Link>
+        </section>
+      )}
+
       {!hasCategories ? (
         <section className="ws-card" aria-labelledby="first-category">
           <h2 id="first-category" className="ws-card__title">Empecemos por las categorías</h2>
@@ -318,6 +350,16 @@ export default function MercaderiaPage() {
                   </Link>
                 ))}
               </div>
+              {(data.toReview > 0 || searchParams.get('precio') === 'revisar') && (
+                <div className="ws-tabs" aria-label="Precios">
+                  <Link
+                    className={`ws-chip ${searchParams.get('precio') === 'revisar' ? 'ws-chip--secondary' : ''}`}
+                    to={hrefWith({ precio: searchParams.get('precio') === 'revisar' ? null : 'revisar' })}
+                  >
+                    Precio a revisar ({data.toReview})
+                  </Link>
+                </div>
+              )}
             </div>
             {can.editProducts && data.products.length > 0 && (
               <div className="ws-bulkbar">
@@ -350,7 +392,13 @@ export default function MercaderiaPage() {
             )}
             {data.products.length === 0 ? (
               <div className="ws-empty">
-                <b>{searchParams.get('q') ? 'Nada coincide con la búsqueda.' : 'Todavía no hay productos acá.'}</b>
+                <b>
+                  {searchParams.get('precio') === 'revisar'
+                    ? 'No hay precios para revisar.'
+                    : searchParams.get('q')
+                      ? 'Nada coincide con la búsqueda.'
+                      : 'Todavía no hay productos acá.'}
+                </b>
                 {can.createProducts && !searchParams.get('q') && 'Usa "Nuevo producto" para cargar el primero.'}
               </div>
             ) : (
@@ -402,7 +450,10 @@ export default function MercaderiaPage() {
                         </td>
                         <td className="ws-catalog__code">{product.codigoInterno}</td>
                         <td>{categoryLabel(data.hierarchy, product)}</td>
-                        <td className="is-num">{formatMoney(product.precioMinorista)}</td>
+                        <td className="is-num">
+                          {formatMoney(product.precioMinorista)}
+                          {hasPriceToReview(product) && <small className="ws-catalog__review-mark">Revisar</small>}
+                        </td>
                         <td>
                           <StoreChip product={product} />
                         </td>
@@ -427,6 +478,11 @@ export default function MercaderiaPage() {
                 <Link className="ws-icon-button" to={hrefWith({ nuevo: null, p: null })} aria-label="Cerrar">
                   <X size={18} aria-hidden="true" />
                 </Link>
+              </div>
+              <div className="ws-catalog__suggested-slot">
+                {!creating && editing && hasPriceToReview(editing) && (
+                  <SuggestedPrice product={editing} canPrice={can.changePrices} busy={busy} />
+                )}
               </div>
               <ProductForm
                 key={creating ? 'new' : editing?.id}
@@ -557,14 +613,7 @@ function ProductForm({
         </label>
         {canPrice ? (
           <>
-            <div className="ws-catalog__pair">
-              <Field label="Costo">
-                <input name="costo" inputMode="decimal" required defaultValue={amount(product?.costo)} />
-              </Field>
-              <Field label="Precio de venta">
-                <input name="precioMinorista" inputMode="decimal" required defaultValue={amount(product?.precioMinorista)} />
-              </Field>
-            </div>
+            <PriceFields product={product} amount={amount} />
             <div className="ws-catalog__pair">
               <Field label="Precio mayorista (opcional)">
                 <input name="precioMayorista" inputMode="decimal" defaultValue={amount(product?.precioMayorista)} />
@@ -633,5 +682,58 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <span className="ws-field__control">{children}</span>
       {hint && <span className="ws-field__hint">{hint}</span>}
     </label>
+  );
+}
+
+/** Cost and price, with the markup as they are typed and the average cost (ADR-DAT-009). */
+function PriceFields({ product, amount }: { product: Product | null; amount: (value: string | null | undefined) => string }) {
+  const [cost, setCost] = useState(amount(product?.costo));
+  const [price, setPrice] = useState(amount(product?.precioMinorista));
+  const markup = markupOf(parseArsNumber(price), parseArsNumber(cost));
+  const average = product?.costoPromedio;
+  return (
+    <>
+      <div className="ws-catalog__pair">
+        <Field label="Costo" hint={average ? `Promedio: ${formatMoney(average)}` : undefined}>
+          <input name="costo" inputMode="decimal" required value={cost} onChange={(e) => setCost(e.target.value)} />
+        </Field>
+        <Field label="Precio de venta">
+          <input name="precioMinorista" inputMode="decimal" required value={price} onChange={(e) => setPrice(e.target.value)} />
+        </Field>
+      </div>
+      <p className={`ws-catalog__markup${markup !== null && markup < 0 ? ' is-loss' : ''}`} aria-live="polite">
+        {markupLabel(markup)}
+      </p>
+    </>
+  );
+}
+
+/** D10: the price that keeps the markup after a new cost; applied or dismissed by who sets prices. */
+function SuggestedPrice({ product, canPrice, busy }: { product: Product; canPrice: boolean; busy: boolean }) {
+  const suggested = product.precioSugerido ?? '';
+  const markup = markupOf(product.precioMinorista, product.costo);
+  const today = markup === null ? 'no hay ganancia para calcular' : markup < 0 ? `perdés ${Math.abs(markup)} %` : `ganás ${markup} %`;
+  return (
+    <section className="ws-catalog__suggested" aria-labelledby="suggested-title">
+      <h3 id="suggested-title">Entró con otro costo</h3>
+      <p>
+        El costo ahora es {formatMoney(product.costo)}. Con el precio de hoy ({formatMoney(product.precioMinorista)}) {today}. Para
+        mantener tu ganancia, el precio sugerido es <b>{formatMoney(suggested)}</b>.
+      </p>
+      {canPrice ? (
+        <Form method="post" className="ws-catalog__suggested-actions">
+          <input type="hidden" name="intent" value="reviewPrice" />
+          <input type="hidden" name="productId" value={product.id} />
+          <button className="ws-button ws-button--primary ws-button--auto" name="aplicar" value="true" disabled={busy}>
+            Usar {formatMoney(suggested)}
+          </button>
+          <button className="ws-button ws-button--outline ws-button--auto" name="aplicar" value="false" disabled={busy}>
+            Dejar el precio
+          </button>
+        </Form>
+      ) : (
+        <p className="ws-meta">Los precios los cambia el Owner o un Administrador.</p>
+      )}
+    </section>
   );
 }

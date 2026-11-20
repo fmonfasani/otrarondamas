@@ -129,13 +129,14 @@ describe('P19-5 — stock: carga inicial y conteo físico', () => {
     expect(entry.valoresPosteriores).toMatchObject({ cantidad: 2, lote: lot.numeroLote });
 
     // Until it operates, a product may take another opening load; without a cost, the product's.
+    // Since stage C1 the product's cost is the last one that entered: the 8 of the first load.
     await entries.openingStock(company, { items: [{ productoId: plain, cantidad: 3 }] }, user);
     const lots = await lotsOf(plain);
     expect(lots.map((l) => Number(l.cantidad))).toEqual([2, 3]);
     const second = await prisma.movimientoStock.findFirstOrThrow({
       where: { loteId: lots[1].id },
     });
-    expect(Number(second.costoUnitario)).toBe(10);
+    expect(Number(second.costoUnitario)).toBe(8);
   });
 
   it('the opening stock follows the expiry rule, and refuses a product that already operated', async () => {
@@ -221,7 +222,8 @@ describe('P19-5 — stock: carga inicial y conteo físico', () => {
       where: { referenciaId: down.referenciaId },
     });
     expect(out).toMatchObject({ tipoMovimiento: 'Salida', motivo: `${COUNT_REASON}: depósito` });
-    expect(Number(out.costoUnitario)).toBe(10);
+    // Since stage C1 a count is valued at the average cost: both opening loads entered at 8.
+    expect(Number(out.costoUnitario)).toBe(8);
 
     const up = await entries.count(
       company,
