@@ -27,6 +27,8 @@ export type AuditAction =
   | 'PRODUCTO_PRECIO_CAMBIADO'
   | 'PRODUCTO_COSTO_CAMBIADO'
   | 'PRODUCTO_PRECIO_SUGERIDO_DESCARTADO'
+  | 'OFERTA_CREADA'
+  | 'OFERTA_TERMINADA'
   | 'PRODUCTO_EDITADO'
   | 'PRODUCTO_ACTIVADO'
   | 'PRODUCTO_DESACTIVADO'
@@ -60,6 +62,8 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_PRECIO_CAMBIADO: { tema: 'precios', nombre: 'Cambió un precio' },
   PRODUCTO_COSTO_CAMBIADO: { tema: 'precios', nombre: 'Actualizó el costo de un producto' },
   PRODUCTO_PRECIO_SUGERIDO_DESCARTADO: { tema: 'precios', nombre: 'Descartó un precio sugerido' },
+  OFERTA_CREADA: { tema: 'precios', nombre: 'Creó una oferta' },
+  OFERTA_TERMINADA: { tema: 'precios', nombre: 'Terminó una oferta' },
   PRODUCTO_EDITADO: { tema: 'precios', nombre: 'Editó un producto' },
   PRODUCTO_ACTIVADO: { tema: 'precios', nombre: 'Activó un producto' },
   PRODUCTO_DESACTIVADO: { tema: 'precios', nombre: 'Desactivó un producto' },

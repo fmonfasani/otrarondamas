@@ -100,9 +100,13 @@ export function CatalogControls({ base, query, listing }: Readonly<{ base: strin
               <input type="checkbox" name="stock" value="1" defaultChecked={query.get('stock') === '1'} />
               <span>Solo con stock</span>
             </label>
+            <label className="catalog-check">
+              <input type="checkbox" name="oferta" value="1" defaultChecked={query.get('oferta') === '1'} />
+              <span>En oferta</span>
+            </label>
             <div className="catalog-filters__actions">
               <button type="submit">Ver resultados</button>
-              <Link to={linkWith(base, query, { marca: null, min: null, max: null, stock: null })} preventScrollReset>
+              <Link to={linkWith(base, query, { marca: null, min: null, max: null, stock: null, oferta: null })} preventScrollReset>
                 Limpiar
               </Link>
             </div>
@@ -117,7 +121,7 @@ export function CatalogControls({ base, query, listing }: Readonly<{ base: strin
           preventScrollReset
           onChange={(event) => submit(event.currentTarget, { preventScrollReset: true })}
         >
-          {keep(['q', 'cat', 'sub', 'marca', 'min', 'max', 'stock'])}
+          {keep(['q', 'cat', 'sub', 'marca', 'min', 'max', 'stock', 'oferta'])}
           <label>
             <span>Ordenar por</span>
             <select name="orden" defaultValue={query.get('orden') ?? 'destacados'}>

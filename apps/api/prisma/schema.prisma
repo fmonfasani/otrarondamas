@@ -553,6 +553,8 @@ model Empresa {
   Subtipo                 Subtipo[]
   Tipo                    Tipo[]
   Ubicacion               Ubicacion[]
+  Oferta                  Oferta[]
+  OfertaProducto          OfertaProducto[]
   Usuario                 Usuario[]
   UserEmpresa             UserEmpresa[]
   Venta                   Venta[]
@@ -658,9 +660,12 @@ model Familia {
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Subfamilia        Subfamilia[]
+  Oferta            Oferta[]
 
   @@unique([empresaId, nombre])
   @@unique([empresaId, prefijo])
+  /// ADR-DAT-020: lets a new reference carry the business (Oferta, stage C3).
+  @@unique([empresaId, id])
 }
 
 model Invitacion {
@@ -953,6 +958,9 @@ model PedidoItem {
   updatedAt                       DateTime           @updatedAt
   descuentoFidelizacionPorcentaje Decimal?           @db.Decimal(5, 2)
   reglaFidelizacionId             String?
+  /// OR-B4-046 §4.4 (stage C3): the offer that set this line's price, if any.
+  ofertaId                        String?
+  Oferta                          Oferta?            @relation(fields: [empresaId, ofertaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Pedido                          Pedido             @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Producto                        Producto           @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   ReglaFidelizacion               ReglaFidelizacion? @relation(fields: [empresaId, reglaFidelizacionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -1033,9 +1041,58 @@ model Producto {
   ProductoProveedor       ProductoProveedor[]
   VentaItem               VentaItem[]
   ProductoFoto            ProductoFoto[]
+  OfertaProducto          OfertaProducto[]
 
   @@unique([empresaId, codigoInterno])
   @@unique([empresaId, id])
+}
+
+/// OR-B4-046 §4.4 (D4, stage C3): a special price between two dates, which the customer sees as
+/// «Oferta». A percent off, or an offer price, for some products or (percent only) a whole category.
+/// It rules in the store, at the counter and in the chat, or only in the store. An offer is never
+/// deleted: it ends (`hasta`), and the lines it priced keep pointing at it.
+model Oferta {
+  id                  String           @id @default(uuid())
+  empresaId           String
+  nombre              String
+  tipo                TipoOferta
+  /// PORCENTAJE: the percent off the list price.
+  descuentoPorcentaje Decimal?         @db.Decimal(5, 2)
+  /// PRECIO: the price each product of the offer is sold at.
+  precioOferta        Decimal?         @db.Decimal(18, 2)
+  desde               DateTime
+  hasta               DateTime
+  soloTienda          Boolean          @default(false)
+  /// Ended (or cancelled before starting) by a person; the dates stay as they were set.
+  terminadaEn         DateTime?
+  /// A whole category (PORCENTAJE only); otherwise its products are in OfertaProducto.
+  familiaId           String?
+  usuarioId           String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  Empresa             Empresa          @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  Familia             Familia?         @relation(fields: [empresaId, familiaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  OfertaProducto      OfertaProducto[]
+  PedidoItem          PedidoItem[]
+  VentaItem           VentaItem[]
+
+  @@unique([empresaId, id])
+  @@index([empresaId, hasta])
+}
+
+/// The products of an offer that is not by category.
+model OfertaProducto {
+  id         String   @id @default(uuid())
+  empresaId  String
+  ofertaId   String
+  productoId String
+  createdAt  DateTime @default(now())
+  Empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  Oferta     Oferta   @relation(fields: [empresaId, ofertaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Producto   Producto @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ofertaId, productoId])
+  @@index([productoId])
 }
 
 /// OR-B4-046 rule 12: up to 5 photos per product, for the store. The file lives on the server's
@@ -1459,6 +1516,9 @@ model VentaItem {
   updatedAt                       DateTime                @updatedAt
   descuentoFidelizacionPorcentaje Decimal?                @db.Decimal(5, 2)
   reglaFidelizacionId             String?
+  /// OR-B4-046 §4.4 (stage C3): the offer that set this line's price, if any.
+  ofertaId                        String?
+  Oferta                          Oferta?                 @relation(fields: [empresaId, ofertaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   DevolucionClienteItem           DevolucionClienteItem[]
   Producto                        Producto                @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   ReglaFidelizacion               ReglaFidelizacion?      @relation(fields: [empresaId, reglaFidelizacionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -1607,6 +1667,12 @@ enum DigestPeriod {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+/// OR-B4-046 §4.4: a percent off, or a fixed offer price.
+enum TipoOferta {
+  PORCENTAJE
+  PRECIO
 }
 
 enum UnidadBase {

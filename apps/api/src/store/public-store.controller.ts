@@ -140,6 +140,7 @@ export class PublicStoreController {
         min: query.min,
         max: query.max,
         conStock: Boolean(query.stock),
+        enOferta: Boolean(query.oferta),
         orden: query.orden,
         pagina: query.pagina,
       },

@@ -220,7 +220,15 @@ describe('P18-4 — claves compuestas: ventas y pedidos (ADR-DAT-020)', () => {
       WHERE c.contype = 'f' AND t.relname::text = ANY(${MODULE_TABLES}) AND r.relname <> 'Empresa'
       ORDER BY 1`;
 
-    expect(fks).toHaveLength(23);
+    // Stage C3 (OR-B4-046 §4.4) adds VentaItem → Oferta and PedidoItem → Oferta: 23 + 2. The
+    // property below holds for them too: they carry the business and restrict both ways.
+    expect(fks).toHaveLength(25);
+    expect(fks.map((fk) => fk.name)).toEqual(
+      expect.arrayContaining([
+        'VentaItem_empresaId_ofertaId_fkey',
+        'PedidoItem_empresaId_ofertaId_fkey',
+      ]),
+    );
     const wrong = fks
       .filter((fk) => {
         const at = fk.columns.findIndex((c) => c === 'empresaId' || c === 'businessId');

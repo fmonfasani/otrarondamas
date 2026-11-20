@@ -9,6 +9,7 @@ import {
   COLLECTION_STATES,
   PAYMENT_METHODS,
   addLine,
+  counterPrice,
   changeFor,
   parseNumber,
   parseSaleLines,
@@ -228,7 +229,10 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
                   <b>{product.nombre}</b>
                   <small>{product.codigoInterno ?? ''} · Stock {product.stockDisponible}</small>
                 </span>
-                <span>{formatMoney(product.precioMinorista)}</span>
+                <span className="ws-pos__price">
+                  {formatMoney(counterPrice(product))}
+                  {product.oferta ? <small className="ws-pos__offer">Oferta</small> : null}
+                </span>
               </button>
             </li>
           ))}

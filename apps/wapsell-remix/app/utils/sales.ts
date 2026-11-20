@@ -6,9 +6,15 @@ export type SearchProduct = {
   nombre: string;
   codigoInterno: string | null;
   precioMinorista: string;
+  /** OR-B4-046 §4.4 (stage C3): what the counter charges today, with an offer in force. */
+  precioVenta?: string;
+  oferta?: { id: string; nombre: string; hasta: string } | null;
   unidadBase: string | null;
   stockDisponible: number;
 };
+
+/** The price the counter charges today: the offer's when there is one, else the list price. */
+export const counterPrice = (product: SearchProduct) => String(product.precioVenta ?? product.precioMinorista);
 
 /** One line of the sale being built. Prices shown here are only a preview: the API prices it. */
 export type SaleLine = { productoId: string; nombre: string; precio: string; cantidad: number; stock: number };
@@ -60,7 +66,7 @@ export function addLine(lines: SaleLine[], product: SearchProduct): SaleLine[] {
   }
   return [
     ...lines,
-    { productoId: product.id, nombre: product.nombre, precio: String(product.precioMinorista), cantidad: 1, stock: product.stockDisponible },
+    { productoId: product.id, nombre: product.nombre, precio: counterPrice(product), cantidad: 1, stock: product.stockDisponible },
   ];
 }
 

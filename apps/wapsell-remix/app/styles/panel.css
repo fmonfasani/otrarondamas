@@ -553,6 +553,19 @@
 .ws-bulkprice > .ws-button { justify-self: start; }
 .ws-bulkprice__loss { font-weight: 600; }
 .ws-table--bulkprice tr.is-muted td { color: var(--text-muted); }
+/* OR-B4-046 §4.4 (stage C3): offers. */
+.ws-pos__price { display: inline-flex; flex-direction: column; align-items: flex-end; }
+.ws-pos__offer { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+.ws-offer { display: grid; gap: var(--space-16); }
+.ws-offer__group { display: grid; gap: var(--space-8); margin: 0; padding: 0; border: 0; min-width: 0; }
+.ws-offer__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-12); }
+.ws-offer__picker { display: grid; gap: var(--space-8); min-width: 0; }
+.ws-offer__list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); }
+.ws-offer__list li + li { border-top: 1px solid var(--background-default); }
+.ws-offer__item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12); cursor: pointer; }
+.ws-offer__item small { color: var(--text-muted); }
+.ws-offer > .ws-button { justify-self: start; }
+.ws-table--offers tr.is-muted td { color: var(--text-muted); }
 @media (min-width: 1024px) {
   .ws-catalog { grid-template-columns: 220px minmax(0, 1fr); }
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }

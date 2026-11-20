@@ -7,6 +7,7 @@ import { I18nModule } from './i18n/i18n.module';
 import { AuthModule } from './auth/auth.module';
 import { BusinessModule } from './business/business.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { OffersModule } from './offers/offers.module';
 import { SalesModule } from './sales/sales.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MercadoPagoModule } from './payments/mercadopago/mercadopago.module';
@@ -52,6 +53,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     I18nModule,
     AuthModule,
     CatalogModule,
+    OffersModule,
     SalesModule,
     PaymentsModule,
     MercadoPagoModule,

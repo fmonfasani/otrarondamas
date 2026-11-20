@@ -1,3 +1,5 @@
+import { currentOffers } from '../offers/current-offers';
+import { sellingPrice } from '../offers/offer-price';
 import {
   BadRequestException,
   ConflictException,
@@ -74,6 +76,9 @@ export class SalesService {
       ? await this.customersService.calculateLevel(companyId, customerId)
       : null;
     const activeRules = customerLevel ? await this.loyaltyService.listActiveRules(companyId) : [];
+    // OR-B4-046 §4.4, stage C3: an offer in force (not «solo tienda») sets the counter price. The
+    // product's own discount stays a store discount until the combination rule of stage C4.
+    const offers = await currentOffers(db, products, 'mostrador');
 
     return items.map((item) => {
       const product = productById.get(item.productoId)!;
@@ -89,9 +94,11 @@ export class SalesService {
           cantidad: item.cantidad,
         },
       );
+      const price = sellingPrice(product.precioMinorista, null, offers.get(product.id) ?? []);
       return {
         ...item,
-        precioUnitario: product.precioMinorista,
+        precioUnitario: new Prisma.Decimal(price.precio),
+        ofertaId: price.oferta?.id ?? null,
         descuentoFidelizacionPorcentaje: loyaltyDiscount?.descuentoPorcentaje ?? null,
         reglaFidelizacionId: loyaltyDiscount?.reglaId ?? null,
       };
@@ -182,6 +189,7 @@ export class SalesService {
                 ? new Prisma.Decimal(item.descuentoFidelizacionPorcentaje.toString())
                 : null,
               reglaFidelizacionId: item.reglaFidelizacionId,
+              ofertaId: item.ofertaId,
             })),
           },
         },
@@ -545,6 +553,7 @@ export class SalesService {
       },
       orderBy: { nombre: 'asc' },
     });
+    const offers = await currentOffers(db, products, 'mostrador');
 
     return products.map((p) => ({
       id: p.id,
@@ -553,6 +562,10 @@ export class SalesService {
       codigoBarras: p.codigoBarras,
       marca: p.marca,
       precioMinorista: p.precioMinorista,
+      // Stage C3: what the counter charges today, and the offer behind it.
+      ...(({ precio, oferta }) => ({ precioVenta: precio, oferta }))(
+        sellingPrice(p.precioMinorista, null, offers.get(p.id) ?? []),
+      ),
       unidadBase: p.unidadBase,
       activo: p.activo,
       familia: p.Familia,

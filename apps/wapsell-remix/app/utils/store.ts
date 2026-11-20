@@ -12,9 +12,21 @@ export type StoreProduct = {
   destacado?: boolean;
   /** Its first photo (OR-B4-046 rule 12), if it has any. */
   foto?: string | null;
+  /** OR-B4-046 §4.4 (stage C3): the offer that sets today's price, and when it ends. */
+  oferta?: { id: string; nombre: string; hasta: string } | null;
   disponible: boolean;
   stockTotal: number;
 };
+
+/**
+ * The last day of an offer, as the customer reads it («hasta el 30/11»). The API keeps the end as
+ * the next midnight in Argentina, so the last day is the moment before it.
+ */
+export function offerUntil(hasta: string): string {
+  const last = new Date(new Date(hasta).getTime() - 1);
+  const day = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' }).format(last);
+  return `hasta el ${day}`;
+}
 
 /** One line of the cart, kept the same in the browser and when read back from the server. */
 export type CartLine = { productoId: string; nombre: string; precio: string; cantidad: number };
@@ -25,6 +37,8 @@ export type ServerCart = {
     productoId: string;
     cantidad: string | number;
     Producto?: { nombre?: string; precioMinorista?: string | number } | null;
+    /** Stage C3: the price the store charges today (discount or offer), when the API sends it. */
+    precio?: string | number | null;
   }>;
 };
 
@@ -35,7 +49,7 @@ export function linesFromServer(cart: ServerCart | null | undefined): CartLine[]
   return (cart?.CartItem ?? []).map((item) => ({
     productoId: item.productoId,
     nombre: item.Producto?.nombre ?? 'Producto',
-    precio: String(item.Producto?.precioMinorista ?? '0'),
+    precio: String(item.precio ?? item.Producto?.precioMinorista ?? '0'),
     cantidad: Number(item.cantidad),
   }));
 }

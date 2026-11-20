@@ -1,6 +1,6 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
-import { Percent, Plus, Search, Star, X } from 'lucide-react';
+import { Percent, Plus, Search, Star, Tag, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -232,6 +232,11 @@ export default function MercaderiaPage() {
           </p>
         </div>
         <div className="ws-page__actions">
+          {hasCategories && data.activeCount > 0 && (
+            <Link className="ws-button ws-button--outline ws-button--auto" to="/panel/mercaderia/ofertas">
+              <Tag size={16} aria-hidden="true" /> Ofertas
+            </Link>
+          )}
           {can.changePrices && hasCategories && data.activeCount > 0 && (
             <Link className="ws-button ws-button--outline ws-button--auto" to="/panel/mercaderia/precios">
               <Percent size={16} aria-hidden="true" /> Actualizar precios

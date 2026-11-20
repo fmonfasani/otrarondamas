@@ -1,9 +1,12 @@
+import { Prisma } from '@prisma/client';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { currentOffers } from '../offers/current-offers';
+import { sellingPrice } from '../offers/offer-price';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 
@@ -229,6 +232,7 @@ export class CartService {
               select: {
                 id: true,
                 nombre: true,
+                familiaId: true,
                 precioMinorista: true,
                 descuentoPorcentaje: true,
               },
@@ -243,7 +247,41 @@ export class CartService {
       throw new NotFoundException('Carrito no encontrado');
     }
 
-    return cart;
+    return this.withPrices(db, cart);
+  }
+
+  /**
+   * OR-B4-046 §4.4, stage C3: each line carries the price the store charges today (`precio`), with
+   * the product's discount or the best offer in force (never both), and the offer behind it.
+   */
+  private async withPrices<
+    C extends {
+      CartItem: Array<{
+        Producto: {
+          id: string;
+          familiaId: string;
+          precioMinorista: Prisma.Decimal;
+          descuentoPorcentaje: Prisma.Decimal | null;
+        };
+      }>;
+    },
+  >(db: ReturnType<CompanyScopedPrismaService['forCompany']>, cart: C) {
+    const offers = await currentOffers(
+      db,
+      cart.CartItem.map((item) => item.Producto),
+      'tienda',
+    );
+    return {
+      ...cart,
+      CartItem: cart.CartItem.map((item) => {
+        const price = sellingPrice(
+          item.Producto.precioMinorista,
+          item.Producto.descuentoPorcentaje,
+          offers.get(item.Producto.id) ?? [],
+        );
+        return { ...item, precio: price.precio, oferta: price.oferta };
+      }),
+    };
   }
 
   async clearCart(cartId: string, businessId: string) {
@@ -274,6 +312,7 @@ export class CartService {
               select: {
                 id: true,
                 nombre: true,
+                familiaId: true,
                 precioMinorista: true,
                 descuentoPorcentaje: true,
               },
@@ -284,7 +323,7 @@ export class CartService {
       },
     });
 
-    return cart;
+    return cart ? this.withPrices(db, cart) : cart;
   }
 
   async assertCartBelongsToCustomer(cartId: string, customerId: string, businessId: string) {
