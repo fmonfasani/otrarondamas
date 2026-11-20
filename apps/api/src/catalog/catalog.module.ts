@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CatalogController } from './catalog.controller';
 import { CatalogHierarchyController } from './catalog-hierarchy.controller';
+import { CatalogPricesController } from './catalog-prices.controller';
 import { CatalogStructureService } from './catalog-structure.service';
 import { ProductPhotosService } from './product-photos.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -12,7 +13,7 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 // imported explicitly because the controllers use it directly.
 @Module({
   imports: [PrismaModule, BusinessContextModule],
-  controllers: [CatalogController, CatalogHierarchyController],
+  controllers: [CatalogController, CatalogHierarchyController, CatalogPricesController],
   providers: [CatalogStructureService, ProductPhotosService],
 })
 export class CatalogModule {}

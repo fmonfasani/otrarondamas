@@ -250,3 +250,78 @@ export function markupLabel(markup: number | null): string {
 export function reviewMessage(applied: boolean, price: string | null | undefined, format: (v: string) => string) {
   return applied && price ? `Listo: el precio ahora es ${format(price)}.` : 'Listo: el precio quedó como estaba.';
 }
+
+/** OR-B4-046 §4.3, stage C2: the rule of a bulk price update, as the API takes it. */
+export type BulkRule = {
+  familiaId?: string;
+  marca?: string;
+  proveedorId?: string;
+  modo: 'porcentaje' | 'margen';
+  valor: number;
+  redondeo: 1 | 10 | 100;
+};
+
+export type BulkPreview = {
+  regla: string;
+  cambian: number;
+  productos: Array<{
+    productoId: string;
+    nombre: string;
+    codigoInterno: string;
+    marca: string | null;
+    costo: number;
+    precioActual: number;
+    precioNuevo: number | null;
+    cambia: boolean;
+  }>;
+};
+
+/** Reads the rule from the page's address or form; null while there is no value to apply yet. */
+export function bulkRuleFrom(params: URLSearchParams): { ok: true; rule: BulkRule } | { ok: false; message: string } | null {
+  const raw = params.get('valor')?.trim() ?? '';
+  if (!raw) return null;
+  const valor = parseArsNumber(raw.replace(/%/g, ''));
+  const modo = params.get('modo') === 'margen' ? 'margen' : 'porcentaje';
+  if (valor === null || Number.isNaN(valor)) return { ok: false, message: 'Escribí un número para el porcentaje.' };
+  if (modo === 'porcentaje' && (valor < -90 || valor > 1000)) {
+    return { ok: false, message: 'El porcentaje va de −90 a 1000.' };
+  }
+  if (modo === 'margen' && (valor < 0 || valor > 1000)) return { ok: false, message: 'La ganancia va de 0 a 1000 %.' };
+  if (modo === 'porcentaje' && valor === 0) return { ok: false, message: 'Un 0 % no cambia ningún precio.' };
+  const step = Number(params.get('redondeo'));
+  const rule: BulkRule = {
+    modo,
+    valor: Math.round(valor * 100) / 100,
+    redondeo: step === 10 || step === 100 ? step : 1,
+  };
+  const familiaId = params.get('cat')?.trim();
+  const marca = params.get('marca')?.trim();
+  const proveedorId = params.get('proveedor')?.trim();
+  if (familiaId) rule.familiaId = familiaId;
+  if (marca) rule.marca = marca;
+  if (proveedorId) rule.proveedorId = proveedorId;
+  return { ok: true, rule };
+}
+
+/** The products the person confirms, with the price they saw. */
+export function bulkItemsFrom(form: FormData): Array<{ productoId: string; precioActual: number }> {
+  const ids = form.getAll('productoId').map(String);
+  const prices = form.getAll('precioActual').map((v) => Number(v));
+  return ids.map((productoId, i) => ({ productoId, precioActual: prices[i] })).filter((i) => i.productoId && Number.isFinite(i.precioActual));
+}
+
+/** What the person reads after applying. */
+export function bulkMessage(updated: number, rule: string): string {
+  if (updated === 0) return 'No cambió ningún precio.';
+  return `Listo: ${updated === 1 ? '1 precio actualizado' : `${updated} precios actualizados`} (${rule}).`;
+}
+
+/** The brands of the products, without repeats, in order. */
+export function brandsOf(products: Array<{ marca: string | null }>): string[] {
+  const seen = new Map<string, string>();
+  for (const p of products) {
+    const brand = p.marca?.trim();
+    if (brand && !seen.has(brand.toLowerCase())) seen.set(brand.toLowerCase(), brand);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}

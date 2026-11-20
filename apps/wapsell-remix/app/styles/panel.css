@@ -546,6 +546,13 @@
 .ws-catalog__review .ws-button { align-self: flex-start; justify-self: start; }
 /* A stable slot keeps the editor's children in place whether or not there is a suggestion. */
 .ws-catalog__suggested-slot:empty { display: none; }
+/* OR-B4-046 stage C2: bulk price update. */
+.ws-bulkprice { display: grid; gap: var(--space-16); }
+.ws-bulkprice__which { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-12); }
+.ws-bulkprice__how { display: grid; gap: var(--space-8); margin: 0; padding: 0; border: 0; min-width: 0; }
+.ws-bulkprice > .ws-button { justify-self: start; }
+.ws-bulkprice__loss { font-weight: 600; }
+.ws-table--bulkprice tr.is-muted td { color: var(--text-muted); }
 @media (min-width: 1024px) {
   .ws-catalog { grid-template-columns: 220px minmax(0, 1fr); }
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }
