@@ -182,7 +182,9 @@ describe('P18-5 — claves compuestas: compras y stock (ADR-DAT-020)', () => {
       WHERE c.contype = 'f' AND t.relname::text = ANY(${MODULE_TABLES}) AND r.relname <> 'Empresa'
       ORDER BY 1`;
 
-    expect(fks).toHaveLength(22);
+    // 22 from module 2, plus Lote -> Ubicacion (stage B4, #166), composite and restricted too.
+    expect(fks).toHaveLength(23);
+    expect(fks.map((fk) => fk.name)).toContain('Lote_empresaId_ubicacionId_fkey');
     const wrong = fks
       .filter((fk) => {
         const at = fk.columns.indexOf('empresaId');

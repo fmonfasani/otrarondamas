@@ -552,6 +552,7 @@ model Empresa {
   Subfamilia              Subfamilia[]
   Subtipo                 Subtipo[]
   Tipo                    Tipo[]
+  Ubicacion               Ubicacion[]
   Usuario                 Usuario[]
   UserEmpresa             UserEmpresa[]
   Venta                   Venta[]
@@ -705,15 +706,21 @@ model Lote {
   /// Only for products that control expiry (OR-B4-046 rule 9); null for the rest.
   vencimiento             DateTime?
   cantidad                Decimal                   @db.Decimal(18, 4)
+  /// OR-B4-015 / R8-INV-003 (#166): where the lot is. A lot created without a location goes to its
+  /// business's main location (database trigger, migration 20261120010000), so every path that
+  /// creates lots keeps working as it is.
+  ubicacionId             String                    @default(dbgenerated())
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   DevolucionProveedorItem DevolucionProveedorItem[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   Producto                Producto                  @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Ubicacion               Ubicacion                 @relation(fields: [empresaId, ubicacionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   MovimientoStock         MovimientoStock[]
 
   @@unique([productoId, numeroLote, empresaId])
   @@unique([empresaId, id])
+  @@index([ubicacionId])
 }
 
 model Membership {
@@ -1222,6 +1229,27 @@ model Tipo {
 
   @@unique([subfamiliaId, nombre])
   @@unique([subfamiliaId, prefijo])
+}
+
+/// OR-B4-015 / R8-INV-003 (#166): where the stock is. Every business has one main location
+/// («Principal», created with the business by a database trigger; one per business by the partial
+/// unique index "Ubicacion_una_principal_por_negocio"), and every lot is in a location. More
+/// locations and transfers between them come later (TO-BE §4.6).
+/// Deleting a whole business deletes its locations (OR-B4-050, the only exception to ADR-DAT-020
+/// D3); a location that still holds lots cannot be deleted.
+model Ubicacion {
+  id        String   @id @default(uuid())
+  empresaId String
+  nombre    String
+  principal Boolean  @default(false)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  Lote      Lote[]
+
+  @@unique([empresaId, id])
+  @@unique([empresaId, nombre])
 }
 
 model User {

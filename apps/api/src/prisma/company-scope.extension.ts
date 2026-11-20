@@ -66,6 +66,8 @@ export const MODELS_WITH_COMPANY_ID = [
   'DevolucionProveedorItem',
   // OR-B4-046 rule 12: product photos, born with their business (ADR-DAT-020).
   'ProductoFoto',
+  // OR-B4-015 (#166): stock locations, born with their business (ADR-DAT-020).
+  'Ubicacion',
 ] as const;
 
 /**
