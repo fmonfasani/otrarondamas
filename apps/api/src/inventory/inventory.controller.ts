@@ -74,7 +74,8 @@ export class InventoryController {
     }
     return db.lote.findMany({
       where: { productoId: productId },
-      orderBy: { vencimiento: 'asc' },
+      // Lots with a date first, expiring first; lots without one in arrival order.
+      orderBy: [{ vencimiento: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
   }
 

@@ -281,6 +281,8 @@ describe('S-V1-05 — BusinessContext en Inventory (integración, BD real)', () 
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    // Stage B1 (OR-B4-041): every stock adjustment is in the audit trail.
+    await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.producto.deleteMany({ where: { empresaId: { in: companies } } });

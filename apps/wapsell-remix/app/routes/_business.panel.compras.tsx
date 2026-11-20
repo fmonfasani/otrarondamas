@@ -39,7 +39,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     selected,
     selectedId,
     composing,
-    products: (products ?? []).map((p) => ({ id: p.id, nombre: p.nombre, codigoInterno: p.codigoInterno, costo: p.costo })),
+    products: (products ?? []).map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      codigoInterno: p.codigoInterno,
+      costo: p.costo,
+      controlaVencimiento: p.controlaVencimiento,
+    })),
   });
 }
 
@@ -106,6 +112,7 @@ export default function PurchasesPage() {
   const base = `/panel/compras`;
   const tab = searchParams.get('tab') === 'proveedores' ? 'proveedores' : 'compras';
   const productName = (id: string) => data.products.find((p) => p.id === id)?.nombre ?? 'Producto';
+  const controlsExpiry = (id: string) => Boolean(data.products.find((p) => p.id === id)?.controlaVencimiento);
 
   if (!data.available) {
     return (
@@ -258,18 +265,24 @@ export default function PurchasesPage() {
                             <small>Pedido {Number(item.cantidadPedida)} · recibido {Number(item.cantidadRecibida)}</small>
                           </legend>
                           <input type="hidden" name="compraItemId" value={item.id} />
+                          <input type="hidden" name="controlaVencimiento" value={controlsExpiry(item.productoId) ? '1' : '0'} />
                           <label className="ws-field">
                             <span className="ws-field__label">Llegaron</span>
                             <span className="ws-field__control"><input name="recibido" inputMode="decimal" defaultValue={pending ? String(pending) : '0'} /></span>
                           </label>
                           <label className="ws-field">
-                            <span className="ws-field__label">Lote</span>
+                            <span className="ws-field__label">Lote (opcional)</span>
                             <span className="ws-field__control"><input name="lote" defaultValue={suggestedBatchNumber(data.selected!)} /></span>
                           </label>
-                          <label className="ws-field">
-                            <span className="ws-field__label">Vence</span>
-                            <span className="ws-field__control"><input name="vencimiento" type="date" /></span>
-                          </label>
+                          {controlsExpiry(item.productoId) ? (
+                            <label className="ws-field">
+                              <span className="ws-field__label">Vence</span>
+                              <span className="ws-field__control"><input name="vencimiento" type="date" required /></span>
+                            </label>
+                          ) : (
+                            // OR-B4-046 rule 9: no date for a product that does not control expiry.
+                            <input type="hidden" name="vencimiento" value="" />
+                          )}
                         </fieldset>
                       );
                     })}

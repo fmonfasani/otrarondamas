@@ -10,6 +10,7 @@ export const TOPICS = {
   pedidos: 'Pedidos',
   devoluciones: 'Devoluciones y reembolsos',
   precios: 'Productos y precios',
+  stock: 'Stock',
   caja: 'Caja',
   equipo: 'Equipo',
   negocio: 'Ajustes del negocio',
@@ -29,6 +30,7 @@ export type AuditAction =
   | 'PRODUCTO_DESACTIVADO'
   | 'PRODUCTO_PUBLICADO'
   | 'PRODUCTO_DESPUBLICADO'
+  | 'STOCK_AJUSTE'
   | 'CAJA_ABIERTA'
   | 'CAJA_MOVIMIENTO'
   | 'CAJA_ARQUEO'
@@ -56,6 +58,7 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   PRODUCTO_DESACTIVADO: { tema: 'precios', nombre: 'Desactivó un producto' },
   PRODUCTO_PUBLICADO: { tema: 'precios', nombre: 'Publicó un producto en la tienda' },
   PRODUCTO_DESPUBLICADO: { tema: 'precios', nombre: 'Sacó un producto de la tienda' },
+  STOCK_AJUSTE: { tema: 'stock', nombre: 'Ajustó el stock' },
   CAJA_ABIERTA: { tema: 'caja', nombre: 'Abrió la caja' },
   CAJA_MOVIMIENTO: { tema: 'caja', nombre: 'Registró un movimiento de caja' },
   CAJA_ARQUEO: { tema: 'caja', nombre: 'Hizo un arqueo' },

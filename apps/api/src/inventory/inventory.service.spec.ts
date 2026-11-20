@@ -18,6 +18,10 @@ describe('InventoryService.deductStock', () => {
     movimientoStock: {
       create: jest.fn().mockResolvedValue({ id: 'movement-a' }),
     },
+    // ADR-DAT-009: the movement keeps the product's current cost.
+    producto: {
+      findFirst: jest.fn().mockResolvedValue({ costo: 7 }),
+    },
   });
 
   const service = new InventoryService({} as never);
@@ -64,6 +68,7 @@ describe('InventoryService.deductStock', () => {
         cantidad: 3,
         motivo: 'Venta',
         referenciaId: 'sale-a',
+        costoUnitario: 7,
       }),
     });
   });

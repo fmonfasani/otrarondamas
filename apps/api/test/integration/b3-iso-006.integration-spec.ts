@@ -179,6 +179,10 @@ describe('B3 ISO-006 — transaction and raw SQL isolation', () => {
   });
 
   afterAll(async () => {
+    // Stage B1 (OR-B4-041): every stock adjustment is in the audit trail.
+    await prisma.auditLog.deleteMany({
+      where: { empresaId: { in: [companyA.id, companyB.id] } },
+    });
     await prisma.movimientoStock.deleteMany({
       where: { loteId: { in: [batchA.id, batchB.id] } },
     });

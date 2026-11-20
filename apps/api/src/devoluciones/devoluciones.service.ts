@@ -582,6 +582,13 @@ export class DevolucionesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    const productCost =
+      (
+        await tx.producto.findFirst({
+          where: { id: productId, empresaId: companyId },
+          select: { costo: true },
+        })
+      )?.costo ?? null;
     let remaining = quantity;
     const targets: Array<{ loteId: string; cantidad: number }> = [];
     for (const out of outflows) {
@@ -595,7 +602,7 @@ export class DevolucionesService {
       // movements existed): the rest goes to the product's newest lot.
       const newest = await tx.lote.findFirst({
         where: { empresaId: companyId, productoId: productId },
-        orderBy: { vencimiento: 'desc' },
+        orderBy: [{ vencimiento: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
       });
       if (!newest)
         throw new ConflictException('El producto no tiene lotes donde reingresar el stock');
@@ -616,6 +623,8 @@ export class DevolucionesService {
           motivo: `Devolución${returnNumber ? ` #${returnNumber}` : ''}`,
           referenciaId: returnId,
           usuarioId: userId,
+          // ADR-DAT-009: what comes back enters at the product's current cost.
+          costoUnitario: productCost,
         },
       });
     }

@@ -546,6 +546,15 @@ function ProductForm({
             ))}
           </select>
         </Field>
+        {/* OR-B4-046 rule 9: lots with an expiry date only for products that control it. */}
+        <input type="hidden" name="controlaVencimiento" value="false" />
+        <label className="ws-check">
+          <input type="checkbox" name="controlaVencimiento" value="true" defaultChecked={product?.controlaVencimiento ?? false} />
+          <span>
+            <b>Controla vencimiento</b>
+            <small>Al recibir mercadería pide la fecha de cada lote, y sale primero lo que vence antes.</small>
+          </span>
+        </label>
         {canPrice ? (
           <>
             <div className="ws-catalog__pair">

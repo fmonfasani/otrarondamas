@@ -1,4 +1,12 @@
-import { IsDateString, IsNumber, IsPositive, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 /* eslint-disable indent */
 export class ReceivePurchaseItemDto {
@@ -16,18 +24,16 @@ export class ReceivePurchaseItemDto {
   @IsPositive()
   cantidadRecibida: number;
 
-  // D-09: required field in Lote.vencimiento (not nullable in the schema) —
-  // every receipt must declare an expiry, even a distant one for
-  // non-perishable products (same criterion already used in the seed for the
-  // demo catalog).
+  // OR-B4-046 rule 9 (D9): only a product that controls expiry needs the lot's date (the
+  // service checks it); the rest enter without one and leave in arrival order.
+  @IsOptional()
   @IsDateString()
-  vencimiento: string;
+  vencimiento?: string;
 
-  // Free-text identifier of the physical batch entering with this receipt
-  // (e.g. the one on the supplier's delivery note). No default value is
-  // invented — D-07/D-08 of the SDD: 'equivalences are not computed by
-  // assumption'.
+  // Identifier of the physical batch (e.g. the one on the supplier's delivery note). Optional:
+  // without it, the reception names the lot (REC-<day>-<reception>).
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  numeroLote: string;
+  @MaxLength(60)
+  numeroLote?: string;
 }

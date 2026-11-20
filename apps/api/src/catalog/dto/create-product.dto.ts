@@ -91,6 +91,11 @@ export class CreateProductDto {
   @IsBoolean()
   destacado?: boolean;
 
+  // OR-B4-046 rule 9 (D9): whether its lots carry an expiry date (FEFO) or not (FIFO).
+  @IsOptional()
+  @IsBoolean()
+  controlaVencimiento?: boolean;
+
   // Rule 12: what the customer reads on the product page.
   @IsOptional()
   @IsString()

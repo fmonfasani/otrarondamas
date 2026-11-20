@@ -28,6 +28,8 @@ export interface Product {
   destacado: boolean;
   /** What the customer reads on the product page. */
   descripcion: string | null;
+  /** OR-B4-046 rule 9: its lots carry an expiry date (FEFO); otherwise they leave in arrival order. */
+  controlaVencimiento: boolean;
 }
 
 /** Longest store description the API takes. */
@@ -178,6 +180,10 @@ export function productPayload(
     return { ok: false, message: 'Solo un producto publicado en la tienda puede ser destacado.' };
   }
   if (publicado !== undefined && publicado !== Boolean(options.current?.publicado)) body.publicado = publicado;
+  const controlaVencimiento = flag('controlaVencimiento');
+  if (controlaVencimiento !== undefined && controlaVencimiento !== Boolean(options.current?.controlaVencimiento)) {
+    body.controlaVencimiento = controlaVencimiento;
+  }
   if (destacado !== undefined && destacado !== Boolean(options.current?.destacado)) body.destacado = destacado;
   if (fields.descripcion !== undefined && fields.descripcion !== null) {
     const descripcion = text('descripcion');

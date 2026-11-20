@@ -206,6 +206,21 @@ export class PurchasesService {
     }
 
     const db = this.prismaFactory.forCompany(companyId);
+    // OR-B4-046 rule 9: only a product that controls expiry needs the lot's date.
+    const products = await db.producto.findMany({
+      where: { id: { in: purchase.CompraItem.map((item) => item.productoId) } },
+      select: { id: true, nombre: true, controlaVencimiento: true },
+    });
+    const productById = new Map(products.map((p) => [p.id, p]));
+    for (const receipt of dto.items) {
+      const productId = itemsById.get(receipt.compraItemId)?.productoId;
+      const product = productId ? productById.get(productId) : undefined;
+      if (product?.controlaVencimiento && !receipt.vencimiento) {
+        throw new BadRequestException(
+          `«${product.nombre}» controla vencimiento: indicá la fecha del lote.`,
+        );
+      }
+    }
     try {
       return await db.$transaction(async (tx) => {
         const receptionPayload: Prisma.RecepcionCompraUncheckedCreateInput = {
@@ -222,8 +237,9 @@ export class PurchasesService {
           const batchPayload: Prisma.LoteUncheckedCreateInput = {
             empresaId: companyId,
             productoId: item.productoId,
-            numeroLote: receipt.numeroLote,
-            vencimiento: new Date(receipt.vencimiento),
+            // Without a number, the reception names the lot (one line per product per reception).
+            numeroLote: receipt.numeroLote?.trim() || receptionLotNumber(reception),
+            vencimiento: receipt.vencimiento ? new Date(receipt.vencimiento) : null,
             cantidad: receipt.cantidadRecibida,
           };
           const batch = await tx.lote.create({ data: batchPayload });
@@ -239,6 +255,8 @@ export class PurchasesService {
               referenciaId: purchaseId,
               usuarioId: userId,
               recepcionCompraId: reception.id,
+              // ADR-DAT-009: what enters keeps the cost of the purchase line.
+              costoUnitario: item.costoUnitario,
             },
           });
 
@@ -429,7 +447,8 @@ export class PurchasesService {
                   empresaId: companyId,
                   productoId: item.productoId,
                 },
-                orderBy: [{ vencimiento: 'asc' }, { createdAt: 'asc' }],
+                // Lots with a date first, expiring first; lots without one in arrival order.
+                orderBy: [{ vencimiento: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
                 select: { id: true, cantidad: true },
               })
             : [];
@@ -502,6 +521,7 @@ export class PurchasesService {
             motivo: 'Devolucion',
             referenciaId: returnRecord.id,
             usuarioId: userId,
+            costoUnitario: item.costoUnitario,
           },
         });
       }
@@ -509,4 +529,16 @@ export class PurchasesService {
       return returnRecord;
     });
   }
+}
+
+/**
+ * The lot name of a reception when the person did not type one: the day and a piece of the
+ * reception's id, so it is unique per product (one line per product in each reception).
+ */
+function receptionLotNumber(reception: { id: string; fecha?: Date | null; createdAt?: Date }) {
+  const day = (reception.fecha ?? reception.createdAt ?? new Date())
+    .toISOString()
+    .slice(0, 10)
+    .replace(/-/g, '');
+  return `REC-${day}-${reception.id.slice(0, 6).toUpperCase()}`;
 }
