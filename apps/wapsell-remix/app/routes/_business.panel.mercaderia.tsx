@@ -1,6 +1,6 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData, useSearchParams } from '@remix-run/react';
-import { Plus, Search, Star, X } from 'lucide-react';
+import { Percent, Plus, Search, Star, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
@@ -231,11 +231,18 @@ export default function MercaderiaPage() {
             {data.activeCount === 1 ? 'producto activo' : 'productos activos'}.
           </p>
         </div>
-        {can.createProducts && hasCategories && (
-          <Link className="ws-button ws-button--primary ws-button--auto" to={hrefWith({ nuevo: '1', p: null })}>
-            <Plus size={16} aria-hidden="true" /> Nuevo producto
-          </Link>
-        )}
+        <div className="ws-page__actions">
+          {can.changePrices && hasCategories && data.activeCount > 0 && (
+            <Link className="ws-button ws-button--outline ws-button--auto" to="/panel/mercaderia/precios">
+              <Percent size={16} aria-hidden="true" /> Actualizar precios
+            </Link>
+          )}
+          {can.createProducts && hasCategories && (
+            <Link className="ws-button ws-button--primary ws-button--auto" to={hrefWith({ nuevo: '1', p: null })}>
+              <Plus size={16} aria-hidden="true" /> Nuevo producto
+            </Link>
+          )}
+        </div>
       </div>
 
       {result && <p className={result.ok ? 'ws-success-note' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>{result.message}</p>}
