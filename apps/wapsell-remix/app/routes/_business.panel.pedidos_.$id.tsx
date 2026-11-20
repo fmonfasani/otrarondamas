@@ -1,9 +1,18 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
+import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoaderData } from '@remix-run/react';
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest } from '~/services/api.server';
-import { formatDateTime, formatMoney, orderState } from '~/utils/format';
+import { formatDateTime, formatMoney, orderState, type OrderState } from '~/utils/format';
+import {
+  CANCELLABLE_ORDER_STATES,
+  MOVABLE_STATES,
+  ORDER_MOVES,
+  moveMessage,
+  orderAbilities,
+  stockNote,
+} from '~/utils/orders';
+import type { loader as businessLoader } from './_business';
 
 export const meta: MetaFunction = () => [{ title: 'Pedido · Wapsell' }];
 
@@ -31,9 +40,6 @@ const PAYMENT_STATES: Record<string, { label: string; tone: string }> = {
 };
 const MEDIOS: Record<string, string> = { MERCADOPAGO: 'Mercado Pago' };
 
-/** API rule (orders.service cancelOrder): these states can still be cancelled. */
-const CANCELLABLE = new Set(['RECIBIDO', 'CONFIRMADO', 'ENTREGA_FALLIDA']);
-
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
   try {
@@ -59,6 +65,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
       return json<ActionData>({ ok: true, message: 'Pedido confirmado. El stock quedó reservado.' });
     }
+    if (intent === 'move') {
+      // #168 / OR-B4-049: preparation, ready, on the way, delivered or failed delivery.
+      const estado = String(form.get('estado') ?? '');
+      if (!MOVABLE_STATES.has(estado)) {
+        return json<ActionData>({ ok: false, message: 'Ese cambio de estado no existe.' }, { status: 400 });
+      }
+      await apiRequest(token, `/pedidos/${id}/estado`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estado }),
+      });
+      return json<ActionData>({ ok: true, message: moveMessage(estado) });
+    }
     if (intent === 'cancel') {
       const motivo = String(form.get('motivo') ?? '').trim();
       await apiRequest(token, `/pedidos/${id}/cancel`, {
@@ -74,15 +92,24 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 }
 
-/** Order detail (GET /pedidos/:id) with confirm (ORDER_CONFIRM) and cancel (ORDER_CANCEL). */
+/**
+ * Order detail (GET /pedidos/:id): confirm (ORDER_CONFIRM), the fulfillment moves (ORDERS_MANAGE)
+ * and cancel (ORDER_CANCEL), each offered to the roles that hold it.
+ */
 export default function OrderPage() {
   const { order } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
+  const layout = useRouteLoaderData<typeof businessLoader>('routes/_business');
+  const can = orderAbilities(layout?.user.rol ?? '');
   const navigation = useNavigation();
   const busy = navigation.state === 'submitting';
   const state = orderState(order.estado);
   const payments = order.Pago ?? [];
   const paid = payments.filter((p) => p.estado === 'APROBADO').reduce((sum, p) => sum + Number(p.monto), 0);
+  const moves = can.fulfill ? (ORDER_MOVES[order.estado as OrderState] ?? []) : [];
+  const confirmable = can.confirm && order.estado === 'RECIBIDO';
+  const cancellable = can.cancel && CANCELLABLE_ORDER_STATES.has(order.estado);
+  const note = stockNote(order.estado);
 
   return (
     <div className="ws-page">
@@ -176,22 +203,39 @@ export default function OrderPage() {
             {paid > 0 && (
               <p className="ws-meta">
                 {paid >= Number(order.total) ? 'Pagado completo.' : `Pagado ${formatMoney(paid)} de ${formatMoney(order.total)}.`}
-                {CANCELLABLE.has(order.estado) && ' Si lo cancelás, devolvé el dinero desde Mercado Pago: Wapsell no lo reembolsa solo.'}
+                {CANCELLABLE_ORDER_STATES.has(order.estado) && ' Si lo cancelás, devolvé el dinero desde Mercado Pago: Wapsell no lo reembolsa solo.'}
               </p>
             )}
           </section>
 
-          {(order.estado === 'RECIBIDO' || CANCELLABLE.has(order.estado)) && (
+          {(note || confirmable || moves.length > 0 || cancellable) && (
             <section className="ws-card" aria-labelledby="actions-title">
               <h2 id="actions-title" className="ws-card__title">Acciones</h2>
-              {order.estado === 'RECIBIDO' && (
+              {note && <p className="ws-meta">{note}</p>}
+              {confirmable && (
                 <Form method="post">
                   <button className="ws-button ws-button--primary" name="intent" value="confirm" disabled={busy}>
                     <Check size={16} aria-hidden="true" /> Confirmar pedido
                   </button>
                 </Form>
               )}
-              {CANCELLABLE.has(order.estado) && (
+              {moves.length > 0 && (
+                <Form method="post" className="ws-order-moves">
+                  <input type="hidden" name="intent" value="move" />
+                  {moves.map((move) => (
+                    <button
+                      key={move.to}
+                      className={`ws-button ${move.primary ? 'ws-button--primary' : 'ws-button--outline'}`}
+                      name="estado"
+                      value={move.to}
+                      disabled={busy}
+                    >
+                      {move.label}
+                    </button>
+                  ))}
+                </Form>
+              )}
+              {cancellable && (
                 <Form method="post" className="ws-form">
                   <label className="ws-field">
                     <span className="ws-field__label">Motivo de cancelación (opcional)</span>

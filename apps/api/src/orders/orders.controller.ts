@@ -94,16 +94,19 @@ export class OrdersController {
       );
     } else if (order.estado === 'CANCELADO') {
       await this.orderNotices?.cancelled(companyId, order);
+    } else {
+      // #168: preparation, ready, on the way, delivered, failed delivery.
+      await this.orderNotices?.status(companyId, order, order.estado);
     }
     return order;
   }
 
   /**
-   * P2-3: Cancel an order with optional reason and automatic stock reversal.
+   * P2-3: Cancel an order with optional reason.
    *
-   * Allowed states: RECIBIDO, CONFIRMADO, ENTREGA_FALLIDA
-   * Blocked states: EN_PREPARACION+ (409 Conflict)
-   * Stock reversal: If CONFIRMADO, creates ENTRADA for each EGRESO
+   * OR-B4-049: allowed before the stock leaves (RECIBIDO, CONFIRMADO, EN_PREPARACION, LISTO) or
+   * after a failed delivery; once the order is on its way or delivered, 409 Conflict.
+   * It releases the reservation; anything of the order still out of the business comes back once
    * Audit: Full event logging with actor, timestamp, stock status
    * Idempotency: Cancelling twice is safe (no double-reversal)
    * Concurrency: SERIALIZABLE isolation prevents race conditions

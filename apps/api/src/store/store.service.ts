@@ -90,7 +90,8 @@ export class StoreService {
       subfamilyId,
       { publishedOnly: true },
     );
-    const stock = options.hideOutOfStock ? listed.filter((s) => s.stockTotal > 0) : listed;
+    // OR-B4-049: the store offers what is available (what confirmed orders reserved is promised).
+    const stock = options.hideOutOfStock ? listed.filter((s) => s.disponible > 0) : listed;
 
     const products = await db.producto.findMany({
       where: { id: { in: stock.map((s) => s.productoId) } },
@@ -121,8 +122,8 @@ export class StoreService {
         precioSinDescuento:
           discountPercentage && !discountPercentage.isZero() ? basePrice.toFixed(2) : null,
         descuentoPorcentaje: discountPercentage?.toNumber() ?? null,
-        disponible: item.stockTotal > 0,
-        stockTotal: item.stockTotal,
+        disponible: item.disponible > 0,
+        stockTotal: item.disponible,
       };
     });
   }
@@ -144,22 +145,16 @@ export class StoreService {
   }
 
   /**
-   * Creates an online store Pedido. Without stock reservation (confirmed
-   * owner decision, see roadmap): this does NOT deduct stock by default — the
-   * deduction only happens when a seller confirms the order from the panel
-   * (Phase 4) or when the payment is confirmed (Phase 5). Here it only
-   * validates that there is stock available at the time of ordering, without
-   * setting it aside.
-   *
-   * Phase 3 (/store/order): deductStock = true → deducts atomically.
-   * Phase 1-3 (legacy /tienda/pedidos): deductStock = false → validates only.
+   * Creates an online store Pedido (RECIBIDO): the customer's intent. OR-B4-049 / R8-ORD-002:
+   * it neither reserves nor deducts stock. The Business confirming it reserves the stock, and the
+   * stock leaves when the order goes on its way or is delivered. Here it only validates that the
+   * units are available at the time of ordering (without what confirmed orders reserved).
    */
   async createOrder(
     dto: CreateOrderDto,
     companyId?: string,
     channelOrigen = 'web',
     idempotencyKey?: string,
-    deductStock = false,
     { catalogOnly = true }: { catalogOnly?: boolean } = {},
   ) {
     const resolvedCompanyId = this.companyId(companyId);
@@ -180,14 +175,12 @@ export class StoreService {
       }
     }
 
-    // Validate stock availability (always validate, deduction only if deductStock=true).
-    // Phase 1-3 (/tienda/pedidos, deductStock=false): validate only, no deduction.
-    // Phase 3 (/store/order, deductStock=true): validate + deduct atomically in transaction.
+    // Validate stock availability (no deduction and no reservation: see above).
     const productsWithStock = await this.inventoryService.consolidatedStock(resolvedCompanyId);
     for (const item of dto.items) {
       const product = productsWithStock.find((p) => p.productoId === item.productoId);
-      if (!product || product.stockTotal < item.cantidad) {
-        const available = product?.stockTotal ?? 0;
+      if (!product || product.disponible < item.cantidad) {
+        const available = product?.disponible ?? 0;
         throw new BadRequestException(
           `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
         );
@@ -325,24 +318,6 @@ export class StoreService {
         include: { PedidoItem: true },
       });
 
-      // C5A: Deduct stock for each item in the order (within same transaction).
-      // Only if deductStock flag is true (Phase 3 /store/order).
-      // Ensures atomic order creation + stock deduction: either both succeed or
-      // both roll back on conflict/insufficient stock.
-      if (deductStock) {
-        for (const item of order.PedidoItem) {
-          await this.inventoryService.deductStock(
-            tx,
-            resolvedCompanyId,
-            item.productoId,
-            Number(item.cantidad),
-            'Orden comercial', // reason
-            order.id, // referenceId
-            null, // userId (not yet assigned, Phase 4 of roadmap)
-          );
-        }
-      }
-
       return order;
     });
     // OR-B4-037: the customer reads in their chat that the order arrived (once per order).
@@ -381,7 +356,6 @@ export class StoreService {
       companyId,
       'web',
       undefined,
-      false,
       // Products shared in the chat can be ordered even when they are not in the Catálogo.
       { catalogOnly: false },
     );

@@ -493,6 +493,7 @@
   .ws-table--catalog:not(.has-pick) th:nth-child(6), .ws-table--catalog:not(.has-pick) td:nth-child(6),
   .ws-table--catalog.has-pick th:nth-child(7), .ws-table--catalog.has-pick td:nth-child(7),
   .ws-table--stock th:nth-child(2), .ws-table--stock td:nth-child(2),
+  .ws-table--stock th:nth-child(6), .ws-table--stock td:nth-child(6),
   .ws-table--customers th:nth-child(2), .ws-table--customers td:nth-child(2) { display: none; }
 }
 .ws-catalog__categories { gap: var(--space-12); }
@@ -862,3 +863,6 @@
   .ws-table--sheet .ws-sheet-input { max-width: none; margin-left: 0; }
   .ws-sheet__foot .ws-button { width: 100%; }
 }
+
+/* ---------------------------------------------- Pedidos: preparación y entrega (#168, OR-B4-049) */
+.ws-order-moves { display: flex; flex-direction: column; gap: var(--space-8); }

@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { reservedByProduct } from '../inventory/reservations';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { CustomersService } from '../customers/customers.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
@@ -205,6 +206,11 @@ export class SalesService {
         },
       });
 
+      // OR-B4-049: the counter cannot sell what confirmed orders reserved.
+      const reserved = await reservedByProduct(
+        tx,
+        itemsWithPrice.map((item) => item.productoId),
+      );
       const productsWithExpiredBatch = new Set<string>();
       for (const item of itemsWithPrice) {
         const hasExpiredBatchNow = await this.inventoryService.deductStock(
@@ -215,6 +221,7 @@ export class SalesService {
           'Venta',
           sale.id,
           userId,
+          reserved.get(item.productoId) ?? 0,
         );
         if (hasExpiredBatchNow) {
           productsWithExpiredBatch.add(item.productoId);

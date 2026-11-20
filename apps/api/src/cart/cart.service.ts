@@ -88,10 +88,11 @@ export class CartService {
       throw new NotFoundException('Producto no encontrado o inactivo en este negocio');
     }
 
-    // Verify stock availability (informative only, no reservation)
+    // Verify stock availability (informative only, the cart does not reserve). OR-B4-049: what
+    // confirmed orders reserved is not available.
     const stocks = await this.inventoryService.consolidatedStock(businessId);
     const productStock = stocks.find((s) => s.productoId === productoId);
-    const availableStock = productStock?.stockTotal ?? 0;
+    const availableStock = productStock?.disponible ?? 0;
     if (availableStock < cantidad) {
       throw new BadRequestException(
         `Stock insuficiente para ${product.nombre}. Disponible: ${availableStock}`,
@@ -166,10 +167,10 @@ export class CartService {
       throw new NotFoundException('Item del carrito no encontrado');
     }
 
-    // Verify stock availability
+    // Verify stock availability (OR-B4-049: without what confirmed orders reserved)
     const stocks = await this.inventoryService.consolidatedStock(businessId);
     const productStock = stocks.find((s) => s.productoId === item.productoId);
-    const availableStock = productStock?.stockTotal ?? 0;
+    const availableStock = productStock?.disponible ?? 0;
     if (availableStock < cantidad) {
       throw new BadRequestException(`Stock insuficiente. Disponible: ${availableStock}`);
     }

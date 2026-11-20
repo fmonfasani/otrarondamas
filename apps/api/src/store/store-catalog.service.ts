@@ -9,6 +9,7 @@ import {
   type CatalogRow,
 } from './store-catalog';
 import { storePrice } from './store-price';
+import { reservedByProduct } from '../inventory/reservations';
 
 /** Orders whose units count as sold: from confirmed on, and not cancelled or failed. */
 const SOLD_ORDER_STATES: EstadoPedido[] = [
@@ -112,6 +113,11 @@ export class StoreCatalogService {
         : [],
     ]);
     const stock = sumBy(batches);
+    // OR-B4-049: the store offers what is available; what confirmed orders reserved is promised.
+    const reserved = await reservedByProduct(db, [...stock.keys()]);
+    for (const [productId, quantity] of reserved) {
+      stock.set(productId, Math.max(0, (stock.get(productId) ?? 0) - quantity));
+    }
     const sold = sumBy([...sales, ...orders]);
     const cover = new Map<string, string>();
     for (const photo of photos)
@@ -212,7 +218,12 @@ export class StoreCatalogService {
       where: { productoId: product.id },
       select: { cantidad: true },
     });
-    const stockTotal = batches.reduce((sum, b) => sum + Number(b.cantidad), 0);
+    // OR-B4-049: what confirmed orders reserved is not available.
+    const reserved = await reservedByProduct(db, [product.id]);
+    const stockTotal = Math.max(
+      0,
+      batches.reduce((sum, b) => sum + Number(b.cantidad), 0) - (reserved.get(product.id) ?? 0),
+    );
     return {
       productoId: product.id,
       nombre: product.nombre,

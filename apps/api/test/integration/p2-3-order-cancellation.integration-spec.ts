@@ -218,6 +218,43 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   const entradaCount = (orderId: string) =>
     prisma.movimientoStock.count({ where: { referenciaId: orderId, tipoMovimiento: 'Entrada' } });
 
+  /**
+   * An order confirmed before stage B3 (OR-B4-049): the old confirmation deducted its stock at
+   * once, as 'Venta' exits of the order. It is the only case where cancelling brings stock back.
+   */
+  const legacyConfirmed = async (
+    orderId: string,
+    exits: { batchId: string; productId: string; quantity: number }[],
+  ) => {
+    await prisma.pedido.update({ where: { id: orderId }, data: { estado: 'CONFIRMADO' } });
+    for (const exit of exits) {
+      await prisma.lote.update({
+        where: { id: exit.batchId },
+        data: { cantidad: { decrement: exit.quantity } },
+      });
+      await prisma.movimientoStock.create({
+        data: {
+          empresaId: companyA.id,
+          productoId: exit.productId,
+          loteId: exit.batchId,
+          tipoMovimiento: 'Salida',
+          cantidad: exit.quantity,
+          motivo: 'Venta',
+          referenciaId: orderId,
+          usuarioId: legacyUserA.id,
+          costoUnitario: 5,
+        },
+      });
+    }
+  };
+
+  const moveTo = (orderId: string, estado: string) =>
+    request(BASE)
+      .patch(`/pedidos/${orderId}/estado`)
+      .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
+      .send({ estado })
+      .expect(200);
+
   const auditLogCount = (orderId: string) =>
     prisma.auditLog.count({
       where: { entidadId: orderId, accion: 'CANCELAR_ORDEN' },
@@ -356,7 +393,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       expect(await auditLogCount(order.id)).toBe(1);
     });
 
-    it('P2-3-002: CONFIRMADO → CANCELADO (with stock reversal)', async () => {
+    it('P2-3-002: CONFIRMADO → CANCELADO releases the reservation without a movement (OR-B4-049)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch = await mkBatch(companyA.id, product.id, 100);
       const startQuantity = await batchQuantity(batch.id);
@@ -365,17 +402,17 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 10 },
       ]);
 
-      // Confirm the order (deducts stock)
+      // Confirming reserves: nothing physical moves.
       await request(BASE)
         .patch(`/pedidos/${order.id}/estado`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({ estado: 'CONFIRMADO' })
         .expect(200);
 
-      expect(await batchQuantity(batch.id)).toBe(startQuantity - 10);
-      expect(await movementCount(order.id)).toBe(1); // EGRESO
+      expect(await batchQuantity(batch.id)).toBe(startQuantity);
+      expect(await movementCount(order.id)).toBe(0);
 
-      // Cancel the order (reverses stock)
+      // Cancelling before the exit only releases the reservation (R8-ORD-002 D1).
       const response = await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
@@ -383,40 +420,32 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         .expect(200);
 
       expect(response.body.estado).toBe('CANCELADO');
-      expect(response.body.stockReversedItems).toBe(1);
-      expect(await batchQuantity(batch.id)).toBe(startQuantity); // Stock restored
-      expect(await movementCount(order.id)).toBe(2); // EGRESO + ENTRADA
-      expect(await entradaCount(order.id)).toBe(1);
+      expect(response.body.stockReversedItems).toBe(0);
+      expect(await batchQuantity(batch.id)).toBe(startQuantity);
+      expect(await movementCount(order.id)).toBe(0);
       expect(await auditLogCount(order.id)).toBe(1);
     });
 
-    it('P2-3-003: ENTREGA_FALLIDA → CANCELADO (with stock reversal)', async () => {
+    it('P2-3-003: ENTREGA_FALLIDA → CANCELADO: the failed delivery already brought the goods back', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch = await mkBatch(companyA.id, product.id, 100);
       const startQuantity = await batchQuantity(batch.id);
 
-      // Create order in ENTREGA_FALLIDA state (simulating prior confirmation)
       const order = await mkOrder(companyA.id, customerA.id, [
         { productId: product.id, quantity: 3 },
       ]);
 
-      // First confirm to deduct stock
+      // Confirm, send it (the stock leaves) and fail the delivery (the stock comes back).
       await request(BASE)
         .patch(`/pedidos/${order.id}/estado`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({ estado: 'CONFIRMADO' })
         .expect(200);
+      await moveTo(order.id, 'EN_CAMINO');
+      expect(await batchQuantity(batch.id)).toBe(startQuantity - 3);
+      await moveTo(order.id, 'ENTREGA_FALLIDA');
+      expect(await batchQuantity(batch.id)).toBe(startQuantity);
 
-      // Manually set to ENTREGA_FALLIDA to simulate delivery failure
-      await prisma.pedido.update({
-        where: { id: order.id },
-        data: { estado: 'ENTREGA_FALLIDA' },
-      });
-
-      const quantityBefore = await batchQuantity(batch.id);
-      expect(quantityBefore).toBe(startQuantity - 3);
-
-      // Now cancel from ENTREGA_FALLIDA
       const response = await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
@@ -424,8 +453,11 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         .expect(200);
 
       expect(response.body.estado).toBe('CANCELADO');
-      expect(response.body.stockReversedItems).toBe(1);
+      // Nothing comes back twice: the only entry is the failed delivery's.
+      expect(response.body.stockReversedItems).toBe(0);
       expect(await batchQuantity(batch.id)).toBe(startQuantity);
+      expect(await movementCount(order.id)).toBe(2);
+      expect(await entradaCount(order.id)).toBe(1);
     });
   });
 
@@ -458,28 +490,29 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       }
     });
 
-    it('P2-3-006: 409 Conflict (EN_PREPARACION state)', async () => {
+    it('P2-3-006: EN_PREPARACION can still be cancelled: the stock has not left (OR-B4-049)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const order = await mkOrder(companyA.id, customerA.id, [
         { productId: product.id, quantity: 1 },
       ]);
 
-      // Manually set to EN_PREPARACION
       await prisma.pedido.update({
         where: { id: order.id },
         data: { estado: 'EN_PREPARACION' },
       });
 
-      await request(BASE)
+      const response = await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({})
-        .expect(409);
+        .expect(200);
 
-      expect(await orderStatus(order.id)).toBe('EN_PREPARACION');
+      expect(response.body.stockReversedItems).toBe(0);
+      expect(await orderStatus(order.id)).toBe('CANCELADO');
+      expect(await movementCount(order.id)).toBe(0);
     });
 
-    it('P2-3-007: 409 Conflict (LISTO state)', async () => {
+    it('P2-3-007: LISTO can still be cancelled: the stock has not left (OR-B4-049)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const order = await mkOrder(companyA.id, customerA.id, [
         { productId: product.id, quantity: 1 },
@@ -490,16 +523,18 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         data: { estado: 'LISTO' },
       });
 
-      await request(BASE)
+      const response = await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({})
-        .expect(409);
+        .expect(200);
 
-      expect(await orderStatus(order.id)).toBe('LISTO');
+      expect(response.body.stockReversedItems).toBe(0);
+      expect(await orderStatus(order.id)).toBe('CANCELADO');
+      expect(await movementCount(order.id)).toBe(0);
     });
 
-    it('P2-3-008: 409 Conflict (ASIGNADO state)', async () => {
+    it('P2-3-008: ASIGNADO can still be cancelled: the stock has not left (OR-B4-049)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const order = await mkOrder(companyA.id, customerA.id, [
         { productId: product.id, quantity: 1 },
@@ -510,11 +545,15 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         data: { estado: 'ASIGNADO' },
       });
 
-      await request(BASE)
+      const response = await request(BASE)
         .post(`/pedidos/${order.id}/cancel`)
         .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
         .send({})
-        .expect(409);
+        .expect(200);
+
+      expect(response.body.stockReversedItems).toBe(0);
+      expect(await orderStatus(order.id)).toBe('CANCELADO');
+      expect(await movementCount(order.id)).toBe(0);
     });
 
     it('P2-3-009: 409 Conflict (EN_CAMINO state)', async () => {
@@ -573,7 +612,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
   });
 
   describe('Stock Reversal Validation', () => {
-    it('P2-3-012: Stock quantities correct after CONFIRMADO cancel', async () => {
+    it('P2-3-012: an order confirmed before B3 gets its deducted stock back on cancel', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch = await mkBatch(companyA.id, product.id, 50);
       const startQuantity = await batchQuantity(batch.id);
@@ -582,12 +621,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 15 },
       ]);
 
-      // Confirm
-      await request(BASE)
-        .patch(`/pedidos/${order.id}/estado`)
-        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
-        .send({ estado: 'CONFIRMADO' })
-        .expect(200);
+      await legacyConfirmed(order.id, [{ batchId: batch.id, productId: product.id, quantity: 15 }]);
 
       expect(await batchQuantity(batch.id)).toBe(startQuantity - 15);
 
@@ -601,7 +635,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       expect(await batchQuantity(batch.id)).toBe(startQuantity);
     });
 
-    it('P2-3-013: Multiple batches reversed correctly (FIFO)', async () => {
+    it('P2-3-013: Multiple batches reversed correctly (an order confirmed before B3, FIFO)', async () => {
       const product = await mkProduct(companyA.id, hierA);
       const batch1 = await mkBatch(companyA.id, product.id, 5);
       const batch2 = await mkBatch(companyA.id, product.id, 5);
@@ -612,12 +646,11 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 8 },
       ]);
 
-      // Confirm (FIFO: 5 from batch1, 3 from batch2)
-      await request(BASE)
-        .patch(`/pedidos/${order.id}/estado`)
-        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
-        .send({ estado: 'CONFIRMADO' })
-        .expect(200);
+      // Confirmed before B3, which deducted FIFO: 5 from batch1, 3 from batch2.
+      await legacyConfirmed(order.id, [
+        { batchId: batch1.id, productId: product.id, quantity: 5 },
+        { batchId: batch2.id, productId: product.id, quantity: 3 },
+      ]);
 
       expect(await batchQuantity(batch1.id)).toBe(0);
       expect(await batchQuantity(batch2.id)).toBe(2);
@@ -672,12 +705,8 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 20 },
       ]);
 
-      // Confirm
-      await request(BASE)
-        .patch(`/pedidos/${order.id}/estado`)
-        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
-        .send({ estado: 'CONFIRMADO' })
-        .expect(200);
+      // Confirmed before B3: its stock is out of the business.
+      await legacyConfirmed(order.id, [{ batchId: batch.id, productId: product.id, quantity: 20 }]);
 
       expect(await batchQuantity(batch.id)).toBe(startQuantity - 20);
 
@@ -713,12 +742,9 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
         { productId: product.id, quantity: 10 },
       ]);
 
-      // Confirm first
-      await request(BASE)
-        .patch(`/pedidos/${order.id}/estado`)
-        .set('Authorization', `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`)
-        .send({ estado: 'CONFIRMADO' })
-        .expect(200);
+      // Confirmed before B3: its stock is out, so a cancellation brings it back (exactly once).
+      await legacyConfirmed(order.id, [{ batchId: batch.id, productId: product.id, quantity: 10 }]);
+      expect(await batchQuantity(batch.id)).toBe(startQuantity - 10);
 
       const token = `Bearer ${tokenFor(legacyUserA.id, companyA.id)}`;
 
@@ -785,9 +811,10 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       expect(audit.usuarioId).toBe(legacyUserA.id);
       expect(audit.motivo).toBe('Testing audit trail');
       expect(audit.empresaId).toBe(companyA.id);
+      expect(audit.valoresAnteriores).toMatchObject({ estado: 'CONFIRMADO' });
       expect(audit.valoresPosteriores).toMatchObject({
         estado: 'CANCELADO',
-        stockReversedItems: 1,
+        stockReversedItems: 0,
       });
       expect(audit.fechaHora).toBeDefined();
     });

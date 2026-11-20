@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { recordAudit } from '../auditoria/audit-catalog';
+import { reservedByProduct } from './reservations';
 import { RegisterAdjustmentDto } from './dto/register-adjustment.dto';
 
 // Same pattern as sales.service.ts: the client of
@@ -17,8 +18,8 @@ type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']
  * Phase 2 (INV-AJ-*): manual adjustments — adds registerAdjustment().
  * `deductStock()` (moved here from SalesService in Phase 4 of the Online
  * Store, RF-06) is the ONLY automatic stock deduction mechanism of the
- * system — used by both SalesService (in-person sale) and OrdersService
- * (confirming an online order). INV-DISP-01/INV-INV-04: reuse, never
+ * system — used by SalesService (in-person sale), OrdersService (an order
+ * leaving the business, OR-B4-049) and the physical count. INV-DISP-01/INV-INV-04: reuse, never
  * duplicate that logic in a second place. A manual adjustment
  * (registerAdjustment) is a different, explicit operation, initiated by a
  * person on a batch they choose — it does not replace or imitate the
@@ -104,8 +105,13 @@ export class InventoryService {
       stockByProduct.set(batch.productoId, current + Number(batch.cantidad));
     }
 
+    // OR-B4-049: what confirmed orders hold is not available to anyone else.
+    const reserved = await reservedByProduct(db, productIds);
+
     const result = products.map((product) => {
       const stockTotal = stockByProduct.get(product.id) ?? 0;
+      const reservedQuantity = reserved.get(product.id) ?? 0;
+      const available = Math.max(0, stockTotal - reservedQuantity);
       const minimumStock = Number(product.stockMinimo);
       return {
         productoId: product.id,
@@ -118,12 +124,15 @@ export class InventoryService {
         unidadBase: product.unidadBase,
         destacado: product.destacado,
         stockTotal,
+        reservado: reservedQuantity,
+        disponible: available,
         stockMinimo: minimumStock,
         // INV-AL-01: stockMinimo=0 (default of the whole existing catalog, see
         // migration) never triggers the alert — a product without an explicitly
         // configured threshold is not considered 'low stock', even if its
-        // stockTotal is also 0.
-        stockBajo: minimumStock > 0 && stockTotal <= minimumStock,
+        // stockTotal is also 0. OR-B4-049: it looks at what is available, since
+        // reserved units are already promised.
+        stockBajo: minimumStock > 0 && available <= minimumStock,
       };
     });
 
@@ -164,15 +173,21 @@ export class InventoryService {
       stockByProduct.set(batch.productoId, current + Number(batch.cantidad));
     }
 
+    const reserved = await reservedByProduct(db, productIds);
     const lowStock = products
-      .map((product) => ({
-        productoId: product.id,
-        nombre: product.nombre,
-        codigoInterno: product.codigoInterno,
-        stockTotal: stockByProduct.get(product.id) ?? 0,
-        stockMinimo: Number(product.stockMinimo),
-      }))
-      .filter((p) => p.stockTotal <= p.stockMinimo);
+      .map((product) => {
+        const stockTotal = stockByProduct.get(product.id) ?? 0;
+        return {
+          productoId: product.id,
+          nombre: product.nombre,
+          codigoInterno: product.codigoInterno,
+          stockTotal,
+          disponible: Math.max(0, stockTotal - (reserved.get(product.id) ?? 0)),
+          stockMinimo: Number(product.stockMinimo),
+        };
+      })
+      // OR-B4-049: reserved units are already promised, so the alert looks at what is available.
+      .filter((p) => p.disponible <= p.stockMinimo);
 
     const expiryLimit = new Date();
     expiryLimit.setDate(expiryLimit.getDate() + noticeDays);
@@ -319,6 +334,10 @@ export class InventoryService {
    * available quantity across all of the product's batches is not enough —
    * D-09 left this unchanged: insufficient stock is still always rejected,
    * it has no exception/authorization mechanism.
+   *
+   * OR-B4-049: `reservedByOthers` is what confirmed orders hold of this product. A counter sale
+   * passes it, so it cannot sell reserved units; an order leaving the business passes 0 (its own
+   * reserved units are the ones that leave).
    */
   async deductStock(
     tx: CompanyScopedTx,
@@ -328,6 +347,7 @@ export class InventoryService {
     reason: string,
     referenceId: string,
     userId: string | null,
+    reservedByOthers = 0,
   ): Promise<boolean> {
     // OR-B4-046 rule 9: lots with a date leave first expiring first (FEFO); lots without a date
     // (products that do not control expiry) leave in arrival order (FIFO).
@@ -342,9 +362,12 @@ export class InventoryService {
     });
 
     const stockTotal = batches.reduce((acc, l) => acc + Number(l.cantidad), 0);
-    if (stockTotal < requiredQuantity) {
+    const available = stockTotal - reservedByOthers;
+    if (available < requiredQuantity) {
       throw new BadRequestException(
-        `Stock insuficiente para el producto ${productId}: disponible ${stockTotal}, requerido ${requiredQuantity}`,
+        reservedByOthers > 0
+          ? `Stock insuficiente para el producto ${productId}: disponible ${Math.max(0, available)} (${reservedByOthers} reservado para pedidos), requerido ${requiredQuantity}`
+          : `Stock insuficiente para el producto ${productId}: disponible ${stockTotal}, requerido ${requiredQuantity}`,
       );
     }
 
