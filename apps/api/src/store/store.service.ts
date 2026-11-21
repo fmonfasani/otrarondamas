@@ -14,6 +14,7 @@ import { CustomersService } from '../customers/customers.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { currentOffers } from '../offers/current-offers';
 import { sellingPrice } from '../offers/offer-price';
+import { bestLinePrice } from '../offers/best-price';
 
 // Same pattern as sales.service.ts/inventory.service.ts: the client of
 // CompanyScopedPrismaService.forCompany() is a dynamic type from Prisma
@@ -213,18 +214,10 @@ export class StoreService {
 
     // Price frozen from the catalog at the time of the order — same criterion
     // as SalesService (INV-12): a price sent by the client is never accepted.
-    // Phase 6: the frozen price ALREADY includes the product's discount if it
-    // had one. Phase 5 of Loyalty: the automatic % is applied ON TOP of that
-    // already discounted price (confirmed with the owner: both discounts are
-    // combined, the larger one is not chosen).
+    // OR-B4-051 rule 2 replaces the earlier owner confirmation that the loyalty % stacked on top of
+    // the product's discount: now every discount competes and the lowest price wins (D5).
     const itemsWithPrice = dto.items.map((item) => {
       const product = productById.get(item.productoId)!;
-      const price = sellingPrice(
-        product.precioMinorista,
-        product.descuentoPorcentaje,
-        offers.get(product.id) ?? [],
-      );
-      const unitPrice = price.precio;
       const loyaltyDiscount = this.loyaltyService.calculateApplicableDiscount(
         activeRules,
         customerLevel,
@@ -237,12 +230,25 @@ export class StoreService {
           cantidad: item.cantidad,
         },
       );
+      // OR-B4-051 (D5, D6): the product's discount, the offer, a wholesale customer's price and the
+      // loyalty discount compete; the lowest wins and nothing adds up (no payment-method discount
+      // in orders: rule 1 keeps it at the counter).
+      const price = bestLinePrice({
+        list: product.precioMinorista,
+        productDiscount: product.descuentoPorcentaje,
+        offers: offers.get(product.id) ?? [],
+        wholesale: existingCustomer?.esMayorista ? product.precioMayorista : null,
+        loyalty: loyaltyDiscount
+          ? { reglaId: loyaltyDiscount.reglaId, porcentaje: loyaltyDiscount.descuentoPorcentaje }
+          : null,
+      });
       return {
         ...item,
-        precioUnitario: unitPrice,
-        ofertaId: price.oferta?.id ?? null,
-        descuentoFidelizacionPorcentaje: loyaltyDiscount?.descuentoPorcentaje ?? null,
-        reglaFidelizacionId: loyaltyDiscount?.reglaId ?? null,
+        precioUnitario: price.precioUnitario.toFixed(2),
+        ofertaId: price.ofertaId,
+        origenPrecio: price.origen,
+        descuentoFidelizacionPorcentaje: price.descuentoFidelizacionPorcentaje,
+        reglaFidelizacionId: price.reglaFidelizacionId,
       };
     });
 
@@ -327,6 +333,7 @@ export class StoreService {
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
               ofertaId: item.ofertaId,
+              origenPrecio: item.origenPrecio,
               descuentoFidelizacionPorcentaje: item.descuentoFidelizacionPorcentaje,
               reglaFidelizacionId: item.reglaFidelizacionId,
             })),

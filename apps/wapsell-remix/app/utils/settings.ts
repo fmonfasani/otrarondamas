@@ -11,7 +11,39 @@ export type Business = {
   /** OR-B4-046 rule 3: hide published products without stock instead of showing «Sin stock». */
   ocultarSinStock: boolean;
   puedeEditar: boolean;
+  /** OR-B4-051 rule 1: the counter's discount for paying the whole sale in cash / by transfer. */
+  descuentoEfectivo?: number;
+  descuentoTransferencia?: number;
+  /** Who changes prices (Owner, Admin) sets those discounts. */
+  puedeEditarPrecios?: boolean;
 };
+
+/** Reads the two payment-method discounts (0 to 50 %, empty is 0). */
+export function paymentDiscountsFrom(
+  form: FormData,
+): { ok: true; body: { descuentoEfectivo: number; descuentoTransferencia: number } } | { ok: false; message: string } {
+  const read = (name: string) => {
+    const raw = String(form.get(name) ?? '').replace('%', '').replace(',', '.').trim();
+    if (raw === '') return 0;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 50 ? Math.round(n * 100) / 100 : null;
+  };
+  const descuentoEfectivo = read('descuentoEfectivo');
+  const descuentoTransferencia = read('descuentoTransferencia');
+  if (descuentoEfectivo === null || descuentoTransferencia === null) {
+    return { ok: false, message: 'Cada descuento va de 0 a 50 %.' };
+  }
+  return { ok: true, body: { descuentoEfectivo, descuentoTransferencia } };
+}
+
+/** What the person reads after saving them. */
+export function paymentDiscountsMessage(body: { descuentoEfectivo: number; descuentoTransferencia: number }): string {
+  const parts = [
+    body.descuentoEfectivo > 0 ? `${String(body.descuentoEfectivo).replace('.', ',')} % en efectivo` : null,
+    body.descuentoTransferencia > 0 ? `${String(body.descuentoTransferencia).replace('.', ',')} % por transferencia` : null,
+  ].filter(Boolean);
+  return parts.length ? `Listo: el mostrador descuenta ${parts.join(' y ')}.` : 'Listo: sin descuentos por medio de pago.';
+}
 
 export const CONTACT_FIELDS = [
   { name: 'telefono', label: 'Teléfono o WhatsApp', max: 40, placeholder: 'Ej.: 11 5555-0000' },

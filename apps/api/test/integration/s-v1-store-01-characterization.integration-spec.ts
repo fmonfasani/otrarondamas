@@ -497,7 +497,7 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     });
   });
 
-  it('STORE-03d: fidelización AS-IS — la regla activa de A (NUEVO 10%) se aplica sobre el precio ya descontado; la regla de B (40%) no', async () => {
+  it('STORE-03d: fidelización — la regla activa de A (NUEVO 10%) compite con el descuento del producto y gana el precio más bajo (OR-B4-051); la regla de B (40%) no', async () => {
     await prisma.reglaFidelizacion.update({ where: { id: ruleA.id }, data: { activo: true } });
     await prisma.reglaFidelizacion.update({ where: { id: ruleB.id }, data: { activo: true } });
     try {
@@ -512,15 +512,24 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
         .expect(201);
 
       expect(res.body.PedidoItem).toHaveLength(2);
-      for (const item of res.body.PedidoItem) {
-        expect(Number(item.descuentoFidelizacionPorcentaje)).toBe(10);
-        expect(item.reglaFidelizacionId).toBe(ruleA.id);
-      }
-      const itemA1 = res.body.PedidoItem.find(
-        (i: { productoId: string }) => i.productoId === productA1.id,
-      );
-      expect(Number(itemA1.precioUnitario)).toBe(90); // frozen price excludes loyalty %
-      expect(Number(res.body.total)).toBeCloseTo(297, 5); // (2×90 + 3×50) × 0.9
+      const line = (id: string) =>
+        res.body.PedidoItem.find((i: { productoId: string }) => i.productoId === id);
+      // OR-B4-051 rule 2 replaces the earlier rule (loyalty on top of the discounted price): they
+      // compete. A1: its own 10 % (90) ties with loyalty (90): the product's discount stays.
+      expect(line(productA1.id)).toMatchObject({
+        origenPrecio: 'DESCUENTO_PRODUCTO',
+        descuentoFidelizacionPorcentaje: null,
+        reglaFidelizacionId: null,
+      });
+      expect(Number(line(productA1.id).precioUnitario)).toBe(90);
+      // A2 has no discount of its own: loyalty wins, kept as the list price plus the percent.
+      expect(line(productA2.id)).toMatchObject({
+        origenPrecio: 'FIDELIZACION',
+        reglaFidelizacionId: ruleA.id,
+      });
+      expect(Number(line(productA2.id).precioUnitario)).toBe(50);
+      expect(Number(line(productA2.id).descuentoFidelizacionPorcentaje)).toBe(10);
+      expect(Number(res.body.total)).toBeCloseTo(315, 5); // 2×90 + 3×50×0.9 (was 297 when they stacked)
     } finally {
       await prisma.reglaFidelizacion.update({ where: { id: ruleA.id }, data: { activo: false } });
       await prisma.reglaFidelizacion.update({ where: { id: ruleB.id }, data: { activo: false } });

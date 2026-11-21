@@ -1,5 +1,7 @@
 import { currentOffers } from '../offers/current-offers';
+import { bestLinePrice } from '../offers/best-price';
 import { sellingPrice } from '../offers/offer-price';
+import { paymentDiscountFor, pricingSettingsOf } from '../negocio/pricing-settings';
 import {
   BadRequestException,
   ConflictException,
@@ -57,6 +59,7 @@ export class SalesService {
     companyId: string,
     items: Array<{ productoId: string; cantidad: number; descuentoItem?: number }>,
     customerId?: string,
+    paymentMethod?: string,
   ) {
     const db = this.prismaFactory.forCompany(companyId);
 
@@ -76,9 +79,19 @@ export class SalesService {
       ? await this.customersService.calculateLevel(companyId, customerId)
       : null;
     const activeRules = customerLevel ? await this.loyaltyService.listActiveRules(companyId) : [];
-    // OR-B4-046 §4.4, stage C3: an offer in force (not «solo tienda») sets the counter price. The
-    // product's own discount stays a store discount until the combination rule of stage C4.
+    // OR-B4-046 §4.4 (C3): the offers in force at the counter (not «solo tienda»).
     const offers = await currentOffers(db, products, 'mostrador');
+    // OR-B4-051 (C4): a wholesale customer's price (D6) and the payment-method discount compete
+    // with the rest; nothing adds up (D5).
+    const wholesale = customerId
+      ? ((await db.cliente.findFirst({ where: { id: customerId }, select: { esMayorista: true } }))
+          ?.esMayorista ?? false)
+      : false;
+    const settings = pricingSettingsOf(
+      (await db.empresa.findUnique({ where: { id: companyId }, select: { configuracion: true } }))
+        ?.configuracion ?? null,
+    );
+    const paymentDiscount = paymentDiscountFor(settings, paymentMethod);
 
     return items.map((item) => {
       const product = productById.get(item.productoId)!;
@@ -94,13 +107,23 @@ export class SalesService {
           cantidad: item.cantidad,
         },
       );
-      const price = sellingPrice(product.precioMinorista, null, offers.get(product.id) ?? []);
+      const price = bestLinePrice({
+        list: product.precioMinorista,
+        productDiscount: product.descuentoPorcentaje,
+        offers: offers.get(product.id) ?? [],
+        wholesale: wholesale ? product.precioMayorista : null,
+        paymentDiscount,
+        loyalty: loyaltyDiscount
+          ? { reglaId: loyaltyDiscount.reglaId, porcentaje: loyaltyDiscount.descuentoPorcentaje }
+          : null,
+      });
       return {
         ...item,
-        precioUnitario: new Prisma.Decimal(price.precio),
-        ofertaId: price.oferta?.id ?? null,
-        descuentoFidelizacionPorcentaje: loyaltyDiscount?.descuentoPorcentaje ?? null,
-        reglaFidelizacionId: loyaltyDiscount?.reglaId ?? null,
+        precioUnitario: price.precioUnitario,
+        ofertaId: price.ofertaId,
+        origenPrecio: price.origen,
+        descuentoFidelizacionPorcentaje: price.descuentoFidelizacionPorcentaje,
+        reglaFidelizacionId: price.reglaFidelizacionId,
       };
     });
   }
@@ -142,7 +165,16 @@ export class SalesService {
       if (!customer.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
     }
 
-    const itemsWithPrice = await this.resolveItems(companyId, dto.items, dto.clienteId);
+    const itemsWithPrice = await this.resolveItems(
+      companyId,
+      dto.items,
+      dto.clienteId,
+      dto.medioPago,
+    );
+    // OR-B4-051 rule 1: a sale priced with a payment-method discount must be paid with that method.
+    const discountedMethod = itemsWithPrice.some((item) => item.origenPrecio === 'MEDIO_PAGO')
+      ? (dto.medioPago ?? null)
+      : null;
 
     // Inc-2: total with Decimal
     const total = itemsWithPrice.reduce((acc, item) => {
@@ -179,6 +211,7 @@ export class SalesService {
           numero: sequenceNumber,
           estado: 'CONFIRMADA',
           idempotencyKey: dto.idempotencyKey ?? null,
+          medioPagoDescuento: discountedMethod,
           VentaItem: {
             create: itemsWithPrice.map((item) => ({
               productoId: item.productoId,
@@ -190,6 +223,7 @@ export class SalesService {
                 : null,
               reglaFidelizacionId: item.reglaFidelizacionId,
               ofertaId: item.ofertaId,
+              origenPrecio: item.origenPrecio,
             })),
           },
         },
@@ -251,7 +285,12 @@ export class SalesService {
       if (!customer.activo) throw new NotFoundException('CLIENTE_NO_ENCONTRADO');
     }
 
-    const itemsWithPrice = await this.resolveItems(companyId, dto.items, dto.clienteId);
+    const itemsWithPrice = await this.resolveItems(
+      companyId,
+      dto.items,
+      dto.clienteId,
+      dto.medioPago,
+    );
 
     const lines = itemsWithPrice.map((item) => {
       const priceDecimal = new Prisma.Decimal(item.precioUnitario.toString());
@@ -270,6 +309,8 @@ export class SalesService {
         productoId: item.productoId,
         precioUnitario: priceDecimal.toString(),
         cantidad: quantityDecimal.toString(),
+        // OR-B4-051: which discount won, so the counter can say why each line costs what it costs.
+        origenPrecio: item.origenPrecio,
         descuentoFidelizacionPorcentaje: loyaltyPct?.toString() ?? null,
         reglaFidelizacionId: item.reglaFidelizacionId ?? null,
         descuentoItem: manualDiscount.toString(),
@@ -315,6 +356,10 @@ export class SalesService {
     if (!sale) throw new NotFoundException('Venta no encontrada');
     if (sale.empresaId !== companyId) throw new NotFoundException('Venta no encontrada');
     if (sale.estado === 'ANULADA') throw new ConflictException('VENTA_ANULADA');
+    // OR-B4-051 rule 1: the payment-method discount holds only if the sale is paid with that method.
+    if (sale.medioPagoDescuento && dto.medio !== sale.medioPagoDescuento) {
+      throw new ConflictException('MEDIO_PAGO_DEL_DESCUENTO');
+    }
 
     const totalPaid = sale.Pago.reduce((s, p) => s.plus(p.monto), new Prisma.Decimal(0));
     const balance = new Prisma.Decimal(sale.total.toString()).minus(totalPaid);
@@ -564,7 +609,8 @@ export class SalesService {
       precioMinorista: p.precioMinorista,
       // Stage C3: what the counter charges today, and the offer behind it.
       ...(({ precio, oferta }) => ({ precioVenta: precio, oferta }))(
-        sellingPrice(p.precioMinorista, null, offers.get(p.id) ?? []),
+        // OR-B4-051 rule 3: the product's own discount applies at the counter too.
+        sellingPrice(p.precioMinorista, p.descuentoPorcentaje, offers.get(p.id) ?? []),
       ),
       unidadBase: p.unidadBase,
       activo: p.activo,

@@ -13,6 +13,11 @@ export class QuoteSaleDto {
   @IsUUID()
   clienteId?: string;
 
+  /** OR-B4-051 rule 1: the method the whole sale is paid with, which may carry a discount. */
+  @IsOptional()
+  @IsIn(['efectivo', 'transferencia', 'QR'])
+  medioPago?: 'efectivo' | 'transferencia' | 'QR';
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

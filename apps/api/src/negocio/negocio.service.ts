@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { recordAudit } from '../auditoria/audit-catalog';
+import { pricingSettingsOf, type PricingSettings } from './pricing-settings';
 
 /** What a customer can see of the Business: kept in Empresa.configuracion.negocio. */
 export type BusinessContact = {
@@ -54,7 +56,34 @@ export class NegocioService {
       slug: business.slug,
       ...contactOf(business.configuracion),
       ...storeSettingsOf(business.configuracion),
+      ...pricingSettingsOf(business.configuracion),
     };
+  }
+
+  /** OR-B4-051 rule 1: the payment-method discounts, kept in configuracion.precios, audited. */
+  async updatePricing(companyId: string, userId: string, data: PricingSettings) {
+    return this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUnique({
+        where: { id: companyId },
+        select: { configuracion: true },
+      });
+      if (!business) throw new NotFoundException('Negocio no encontrado');
+      const before = pricingSettingsOf(business.configuracion);
+      const after = pricingSettingsOf({ precios: data } as Prisma.JsonValue);
+      const current = (business.configuracion ?? {}) as Record<string, unknown>;
+      await tx.empresa.update({
+        where: { id: companyId },
+        data: { configuracion: { ...current, precios: after } as Prisma.InputJsonValue },
+      });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'NEGOCIO_DESCUENTOS_MEDIO_PAGO',
+        entidad: 'Empresa',
+        entidadId: companyId,
+        antes: before,
+        despues: after,
+      });
+      return after;
+    });
   }
 
   async update(

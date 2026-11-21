@@ -566,6 +566,8 @@
 .ws-offer__item small { color: var(--text-muted); }
 .ws-offer > .ws-button { justify-self: start; }
 .ws-table--offers tr.is-muted td { color: var(--text-muted); }
+/* OR-B4-051 (stage C4): payment-method discounts in Ajustes. */
+.ws-settings-fields--pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-12); }
 @media (min-width: 1024px) {
   .ws-catalog { grid-template-columns: 220px minmax(0, 1fr); }
   .ws-catalog__cats { flex-direction: column; flex-wrap: nowrap; }

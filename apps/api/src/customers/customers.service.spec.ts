@@ -19,6 +19,9 @@ describe('CustomersService — staff view never exposes customer credentials', (
     },
     venta: { count: jest.fn().mockResolvedValue(0) },
     pedido: { count: jest.fn().mockResolvedValue(0) },
+    auditLog: { create: jest.fn() },
+    // OR-B4-051: create and update run in a transaction (the wholesale mark is audited with them).
+    $transaction: jest.fn((callback: (tx: unknown) => unknown) => callback(db)),
   };
   const service = new CustomersService({ forCompany: () => db } as never);
 

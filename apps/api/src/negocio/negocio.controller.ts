@@ -1,6 +1,15 @@
 import { Body, Controller, ForbiddenException, Get, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
@@ -45,6 +54,19 @@ export class UpdateNegocioDto {
 }
 /* eslint-enable indent */
 
+/** OR-B4-051 rule 1: the payment-method discounts (0 means none). */
+export class UpdatePricingDto {
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(50)
+  descuentoEfectivo: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(50)
+  descuentoTransferencia: number;
+}
+
 /**
  * Ajustes del negocio. GET /negocio: any member of the Business's team. PATCH /negocio: the
  * Owner (BRAND_MANAGE — the Business's identity), checked against the role matrix here so
@@ -76,6 +98,7 @@ export class NegocioController {
     return {
       ...(await this.negocio.get(companyId)),
       puedeEditar: hasCanonicalPermission(role, 'BRAND_MANAGE'),
+      puedeEditarPrecios: hasCanonicalPermission(role, 'PRICING_CHANGE'),
     };
   }
 
@@ -87,6 +110,25 @@ export class NegocioController {
     if (!hasCanonicalPermission(role, 'BRAND_MANAGE')) {
       throw new ForbiddenException('Solo el Owner cambia los datos del negocio');
     }
-    return { ...(await this.negocio.update(companyId, user.id, dto)), puedeEditar: true };
+    return {
+      ...(await this.negocio.update(companyId, user.id, dto)),
+      puedeEditar: true,
+      puedeEditarPrecios: true,
+    };
+  }
+
+  /**
+   * OR-B4-051 rule 1 (stage C4) — the payment-method discounts. They are prices, so whoever changes
+   * prices sets them (PRICING_CHANGE: Owner and Admin), checked here in every authorization mode.
+   */
+  @CanonicalPermission('PRICING_CHANGE')
+  @Patch('precios')
+  @ApiOperation({ summary: 'Change the payment-method discounts (Owner, Admin)' })
+  async updatePricing(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdatePricingDto) {
+    const { companyId, role } = await this.context(user);
+    if (!hasCanonicalPermission(role, 'PRICING_CHANGE')) {
+      throw new ForbiddenException('Solo el Owner o un Administrador cambian los precios');
+    }
+    return this.negocio.updatePricing(companyId, user.id, dto);
   }
 }

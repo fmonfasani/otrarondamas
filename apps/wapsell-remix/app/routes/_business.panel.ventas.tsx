@@ -16,6 +16,8 @@ import {
   paymentBody,
   paymentFrom,
   previewTotal,
+  quotedLine,
+  type QuoteLine,
   saleErrorMessage,
   saleNumber,
   startOfTodayBA,
@@ -73,7 +75,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-type ActionData = { intent: string; ok: boolean; message?: string; total?: string };
+type ActionData = { intent: string; ok: boolean; message?: string; total?: string; lineas?: QuoteLine[] };
 
 export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
@@ -89,12 +91,17 @@ export async function action({ request }: ActionFunctionArgs) {
   })();
   if (!items) return json<ActionData>({ intent, ok: false, message: 'Agregá al menos un producto.' }, { status: 400 });
   const clienteId = String(form.get('clienteId') ?? '') || undefined;
-  const body = { canal: 'presencial', items, ...(clienteId ? { clienteId } : {}) };
+  // OR-B4-051 rule 1: the method the whole sale is paid with may carry a discount; the API prices it.
+  const medioPago = String(form.get('medio') ?? '') || undefined;
+  const body = { canal: 'presencial', items, ...(clienteId ? { clienteId } : {}), ...(medioPago ? { medioPago } : {}) };
 
   try {
     if (intent === 'quote') {
-      const quote = await apiRequest<{ total: string }>(token, '/ventas/cotizacion', { method: 'POST', body: JSON.stringify(body) });
-      return json<ActionData>({ intent, ok: true, total: quote.total });
+      const quote = await apiRequest<{ total: string; lineas?: QuoteLine[] }>(token, '/ventas/cotizacion', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      return json<ActionData>({ intent, ok: true, total: quote.total, lineas: quote.lineas });
     }
     if (intent !== 'sell') return json<ActionData>({ intent, ok: false, message: 'Acción desconocida.' }, { status: 400 });
 
@@ -190,10 +197,10 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
     // No quote while the sale is being charged: its revalidation could interrupt the
     // redirect to the receipt, leaving the seller on this screen after a recorded sale.
     if (!lines.length || sell.state !== 'idle') return;
-    const timer = window.setTimeout(() => quote.submit({ intent: 'quote', items, clienteId }, { method: 'post' }), 300);
+    const timer = window.setTimeout(() => quote.submit({ intent: 'quote', items, clienteId, medio }, { method: 'post' }), 300);
     return () => window.clearTimeout(timer);
-    // Re-quote when the lines or the customer change.
-  }, [items, clienteId, sell.state]);
+    // Re-quote when the lines, the customer or the payment method change (OR-B4-051).
+  }, [items, clienteId, medio, sell.state]);
 
   const results = search.data?.kind === 'search' && query.trim().length >= 2 ? search.data.results : [];
   const total = lines.length && quote.data?.ok && quote.data.total ? Number(quote.data.total) : previewTotal(lines);
@@ -246,11 +253,17 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
         <p className="ws-empty">Buscá un producto para empezar la venta.</p>
       ) : (
         <ul className="ws-pos__lines">
-          {lines.map((line) => (
+          {lines.map((line) => {
+            // OR-B4-051: the API's quote says what each line costs and why (customer, payment method).
+            const quoted = quote.data?.ok ? quotedLine(line, quote.data.lineas) : null;
+            return (
             <li key={line.productoId}>
               <span className="ws-pos__line-name">
                 <b>{line.nombre}</b>
-                <small>{formatMoney(line.precio)} c/u</small>
+                <small>
+                  {formatMoney(quoted ? quoted.unit : line.precio)} c/u
+                  {quoted?.reason ? ` · ${quoted.reason}` : ''}
+                </small>
               </span>
               <span className="ws-pos__qty">
                 <button type="button" aria-label={`Restar ${line.nombre}`} onClick={() => setLines((ls) => ls.map((l) => (l.productoId === line.productoId ? { ...l, cantidad: Math.max(1, l.cantidad - 1) } : l)))}>
@@ -261,12 +274,13 @@ function NewSale({ customers, cashOpen, lang }: Readonly<{ customers: Customer[]
                   <Plus size={14} aria-hidden="true" />
                 </button>
               </span>
-              <b className="ws-pos__line-total">{formatMoney(Number(line.precio) * line.cantidad)}</b>
+              <b className="ws-pos__line-total">{formatMoney(quoted ? quoted.total : Number(line.precio) * line.cantidad)}</b>
               <button type="button" className="ws-icon-button" aria-label={`Quitar ${line.nombre}`} onClick={() => setLines((ls) => ls.filter((l) => l.productoId !== line.productoId))}>
                 <Trash2 size={16} aria-hidden="true" />
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

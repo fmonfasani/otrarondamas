@@ -70,6 +70,25 @@ export function addLine(lines: SaleLine[], product: SearchProduct): SaleLine[] {
   ];
 }
 
+/** One line of the API's quote (OR-B4-051): what it costs and which discount won. */
+export type QuoteLine = { productoId: string; cantidad: string; subtotal: string; origenPrecio?: string | null };
+
+const ORIGIN_LABELS: Record<string, string> = {
+  DESCUENTO_PRODUCTO: 'Descuento',
+  OFERTA: 'Oferta',
+  MAYORISTA: 'Mayorista',
+  MEDIO_PAGO: 'Por medio de pago',
+  FIDELIZACION: 'Cliente frecuente',
+};
+
+/** The price of a line as the API quoted it, with the reason, or null while there is no quote for it. */
+export function quotedLine(line: SaleLine, quote: QuoteLine[] | undefined): { unit: number; total: number; reason: string | null } | null {
+  const q = quote?.find((l) => l.productoId === line.productoId && Number(l.cantidad) === line.cantidad);
+  if (!q) return null;
+  const total = Number(q.subtotal);
+  return { unit: Math.round((total / line.cantidad) * 100) / 100, total, reason: ORIGIN_LABELS[q.origenPrecio ?? ''] ?? null };
+}
+
 export const previewTotal = (lines: SaleLine[]) => round2(lines.reduce((sum, l) => sum + Number(l.precio) * l.cantidad, 0));
 
 export type PaymentInput =
@@ -108,6 +127,7 @@ export function changeFor(total: number, received: number | null): number | null
 
 const CODES: Record<string, string> = {
   CAJA_CERRADA: 'La caja está cerrada. Abrila en Caja para cobrar en efectivo.',
+  MEDIO_PAGO_DEL_DESCUENTO: 'Esta venta tiene el descuento de un medio de pago: cobrala con ese medio.',
   PAGO_EXCEDE_SALDO: 'El pago supera lo que falta cobrar.',
   MONTO_RECIBIDO_INSUFICIENTE: 'Lo que entrega el cliente no alcanza para el total.',
   PRODUCTO_NO_ENCONTRADO: 'Uno de los productos ya no existe.',

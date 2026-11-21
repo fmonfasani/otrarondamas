@@ -960,6 +960,8 @@ model PedidoItem {
   reglaFidelizacionId             String?
   /// OR-B4-046 §4.4 (stage C3): the offer that set this line's price, if any.
   ofertaId                        String?
+  /// OR-B4-051 (stage C4): which discount won (D5: they never add up); null on older lines.
+  origenPrecio                    OrigenPrecio?
   Oferta                          Oferta?            @relation(fields: [empresaId, ofertaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Pedido                          Pedido             @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Producto                        Producto           @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -1478,27 +1480,29 @@ model UsuarioPermiso {
 }
 
 model Venta {
-  id                String              @id @default(uuid())
-  empresaId         String
-  usuarioId         String
-  clienteId         String?
-  canal             String
-  total             Decimal             @db.Decimal(18, 2)
-  descuento         Decimal             @default(0) @db.Decimal(18, 2)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  estado            EstadoVenta         @default(CONFIRMADA)
-  idempotencyKey    String?             @unique
-  numero            Int?
-  AuditLog          AuditLog[]
-  Deuda             Deuda[]
-  DevolucionCliente DevolucionCliente[]
-  Pago              Pago[]
-  Payment           Payment[]
-  Cliente           Cliente?            @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
-  Empresa           Empresa             @relation(fields: [empresaId], references: [id])
-  Usuario           Usuario             @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  VentaItem         VentaItem[]
+  id                 String              @id @default(uuid())
+  empresaId          String
+  usuarioId          String
+  clienteId          String?
+  canal              String
+  total              Decimal             @db.Decimal(18, 2)
+  descuento          Decimal             @default(0) @db.Decimal(18, 2)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  estado             EstadoVenta         @default(CONFIRMADA)
+  idempotencyKey     String?             @unique
+  /// OR-B4-051 (stage C4): the payment method whose discount priced this sale; it must be paid with it.
+  medioPagoDescuento String?
+  numero             Int?
+  AuditLog           AuditLog[]
+  Deuda              Deuda[]
+  DevolucionCliente  DevolucionCliente[]
+  Pago               Pago[]
+  Payment            Payment[]
+  Cliente            Cliente?            @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Empresa            Empresa             @relation(fields: [empresaId], references: [id])
+  Usuario            Usuario             @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  VentaItem          VentaItem[]
 
   @@unique([empresaId, id])
   @@index([empresaId, numero])
@@ -1518,6 +1522,8 @@ model VentaItem {
   reglaFidelizacionId             String?
   /// OR-B4-046 §4.4 (stage C3): the offer that set this line's price, if any.
   ofertaId                        String?
+  /// OR-B4-051 (stage C4): which discount won (D5: they never add up); null on older lines.
+  origenPrecio                    OrigenPrecio?
   Oferta                          Oferta?                 @relation(fields: [empresaId, ofertaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   DevolucionClienteItem           DevolucionClienteItem[]
   Producto                        Producto                @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -1667,6 +1673,16 @@ enum DigestPeriod {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+/// OR-B4-051 (D5): where a line's price came from. The lowest candidate wins; only one applies.
+enum OrigenPrecio {
+  LISTA
+  DESCUENTO_PRODUCTO
+  OFERTA
+  MAYORISTA
+  MEDIO_PAGO
+  FIDELIZACION
 }
 
 /// OR-B4-046 §4.4: a percent off, or a fixed offer price.
