@@ -420,6 +420,7 @@ export class SalesService {
 
         await tx.movimientoCaja.create({
           data: {
+            empresaId: companyId,
             cajaId: cashRegister.id,
             aperturaCajaId: opening.id,
             usuarioId: userId,

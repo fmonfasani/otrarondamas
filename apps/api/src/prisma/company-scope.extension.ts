@@ -72,6 +72,12 @@ export const MODELS_WITH_COMPANY_ID = [
   // OR-B4-046 §4.4 (stage C3): offers and their products, born with their business.
   'Oferta',
   'OfertaProducto',
+  // INIT-019 PR 4, module 4a: cash openings, counts, closings, movements and payment applications.
+  'AperturaCaja',
+  'ArqueoCaja',
+  'CierreCaja',
+  'MovimientoCaja',
+  'AplicacionPago',
 ] as const;
 
 /**

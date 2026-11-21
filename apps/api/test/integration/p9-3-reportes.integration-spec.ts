@@ -126,7 +126,12 @@ describe('P9-3 — reportes', () => {
       data: { empresaId: company.id, fondoFijo: 0, estado: 'ABIERTA' },
     });
     await prisma.aperturaCaja.create({
-      data: { cajaId: caja.id, usuarioId: people.owner.usuarioId, montoInicial: 0 },
+      data: {
+        empresaId: caja.empresaId,
+        cajaId: caja.id,
+        usuarioId: people.owner.usuarioId,
+        montoInicial: 0,
+      },
     });
 
     server = spawnApi({ PORT });

@@ -304,11 +304,17 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     // Business B starts with an open shift, a movement and an UNAUTHORIZED cash
     // count (difference 10000 > 5000): cross-tenant targets for A.
     openingB = await prisma.aperturaCaja.create({
-      data: { cajaId: cashB.id, usuarioId: legacyUserB.id, montoInicial: 2000 },
+      data: {
+        empresaId: companyB.id,
+        cajaId: cashB.id,
+        usuarioId: legacyUserB.id,
+        montoInicial: 2000,
+      },
       select: { id: true },
     });
     movementB = await prisma.movimientoCaja.create({
       data: {
+        empresaId: companyB.id,
         cajaId: cashB.id,
         aperturaCajaId: openingB.id,
         usuarioId: legacyUserB.id,
@@ -320,6 +326,7 @@ describe('S-V1-13 — Cash + /autorizaciones (HTTP, stack real)', () => {
     });
     cashCountB = await prisma.arqueoCaja.create({
       data: {
+        empresaId: companyB.id,
         cajaId: cashB.id,
         aperturaCajaId: openingB.id,
         usuarioId: legacyUserB.id,
