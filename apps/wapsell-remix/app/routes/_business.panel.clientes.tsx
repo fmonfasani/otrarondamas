@@ -16,6 +16,8 @@ export interface Customer {
   telefono: string | null;
   direccion: string | null;
   activo: boolean;
+  /** OR-B4-046 D6: pays the wholesale price (stage C4). */
+  esMayorista?: boolean;
   nivel?: 'NUEVO' | 'FRECUENTE' | 'VIP';
   createdAt: string;
 }
@@ -45,7 +47,11 @@ export const LEVELS: Record<string, { label: string; tone: string }> = {
 
 /** Mirrors the matrix: Owner, Admin and Vendedor manage customers; the API decides. */
 export function customerAbilities(role: string) {
-  return { manage: ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role) };
+  return {
+    manage: ['OWNER', 'ADMIN', 'VENDEDOR', 'ASISTENTE_LOCAL'].includes(role),
+    // OR-B4-051: marking a wholesale customer is a price decision (PRICING_CHANGE).
+    wholesale: ['OWNER', 'ADMIN'].includes(role),
+  };
 }
 
 /** Light shape check (one "@", a dot after it, no spaces); the API validates for real. */
@@ -55,7 +61,10 @@ export function looksLikeEmail(value: string): boolean {
 }
 
 /** Body for POST/PATCH /clientes: trimmed, empty optional fields left out (or cleared on edit). */
-export function customerBody(form: FormData, editing: boolean): { ok: true; body: Record<string, string> } | { ok: false; message: string } {
+export function customerBody(
+  form: FormData,
+  editing: boolean,
+): { ok: true; body: Record<string, string | boolean> } | { ok: false; message: string } {
   const text = (key: string) => {
     const raw = form.get(key);
     return typeof raw === 'string' ? raw.trim() : '';
@@ -63,12 +72,14 @@ export function customerBody(form: FormData, editing: boolean): { ok: true; body
   if (!text('nombre')) return { ok: false, message: 'El nombre es obligatorio.' };
   const email = text('email');
   if (email && !looksLikeEmail(email)) return { ok: false, message: 'El email no es válido.' };
-  const body: Record<string, string> = { nombre: text('nombre') };
+  const body: Record<string, string | boolean> = { nombre: text('nombre') };
   for (const key of ['email', 'telefono', 'direccion']) {
     // The API validates `email` as an email, so an empty one is never sent.
     if (text(key)) body[key] = text(key);
     else if (editing && key !== 'email') body[key] = '';
   }
+  // Only sent when the form shows it (who may change prices): a hidden "false" and the checkbox.
+  if (form.has('esMayorista')) body.esMayorista = form.getAll('esMayorista').includes('true');
   return { ok: true, body };
 }
 
@@ -207,7 +218,10 @@ export default function CustomersPage() {
                           <Link className="ws-catalog__name" to={withQuery({ c: customer.id })}>{customer.nombre}</Link>
                         </td>
                         <td>{[customer.telefono, customer.email].filter(Boolean).join(' · ') || '—'}</td>
-                        <td><span className={`ws-chip ws-chip--${level.tone}`}>{level.label}</span></td>
+                        <td>
+                          <span className={`ws-chip ws-chip--${level.tone}`}>{level.label}</span>
+                          {customer.esMayorista && <span className="ws-chip ws-chip--secondary">Mayorista</span>}
+                        </td>
                       </tr>
                     );
                   })}
@@ -230,6 +244,7 @@ export default function CustomersPage() {
               <>
                 <p className="ws-meta">
                   <span className={`ws-chip ws-chip--${LEVELS[data.selected.nivel ?? 'NUEVO'].tone}`}>Cliente {LEVELS[data.selected.nivel ?? 'NUEVO'].label.toLowerCase()}</span>
+                  {data.selected.esMayorista && <span className="ws-chip ws-chip--secondary">Mayorista</span>}
                   <span>Desde {formatDateTime(data.selected.createdAt)}</span>
                 </p>
                 <Form method="post">
@@ -264,6 +279,18 @@ export default function CustomersPage() {
                     </span>
                   </label>
                 ))}
+                {can.wholesale && (
+                  <>
+                    <input type="hidden" name="esMayorista" value="false" />
+                    <label className="ws-check">
+                      <input type="checkbox" name="esMayorista" value="true" defaultChecked={!creating && Boolean(data.selected?.esMayorista)} />
+                      <span>
+                        <b>Mayorista</b>
+                        <small>Paga el precio mayorista de cada producto que lo tenga, si es el más bajo.</small>
+                      </span>
+                    </label>
+                  </>
+                )}
                 {can.manage && <button className="ws-button ws-button--primary" disabled={busy}>{creating ? 'Crear cliente' : 'Guardar cambios'}</button>}
               </fieldset>
             </Form>

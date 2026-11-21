@@ -131,6 +131,16 @@ export const CASH_MANUAL_MOVEMENT = byBodyValue(
   'CASH_EXPENSE',
 );
 
+/**
+ * `POST /clientes`, `PATCH /clientes/:id` — marking a customer as wholesale gives them the wholesale
+ * price (OR-B4-046 D6, OR-B4-051), so it also needs PRICING_CHANGE.
+ */
+export const CUSTOMER_WRITE = plusWhenBodyHas(
+  'CUSTOMERS_MANAGE',
+  ['esMayorista'],
+  'PRICING_CHANGE',
+);
+
 /** `PATCH /catalogo/productos/:id` — changing a price also needs PRICING_CHANGE. */
 export const PRODUCT_UPDATE = plusWhenBodyHas(
   'CATALOG_MANAGE',

@@ -76,6 +76,8 @@ describe('sales routes', () => {
     expect(JSON.parse(String(api.mock.calls[1][1]?.body))).toEqual({
       canal: 'presencial',
       items: [{ productoId: 'p-1', cantidad: 2 }],
+      // OR-B4-051 rule 1: the API prices the sale knowing the method it is paid with.
+      medioPago: 'transferencia',
       idempotencyKey: 'key-1',
     });
     expect(api.mock.calls[2][0]).toBe('http://api.test/ventas/venta-1/pagos');

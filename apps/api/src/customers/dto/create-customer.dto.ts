@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 /* eslint-disable indent -- known false positive of the base `indent` rule
    with decorators on class properties, see the rest of the project DTOs
@@ -24,4 +24,9 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   direccion?: string;
+
+  /** OR-B4-046 D6 (stage C4): pays the wholesale price. Only who changes prices sets it. */
+  @IsOptional()
+  @IsBoolean()
+  esMayorista?: boolean;
 }

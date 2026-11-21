@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -8,7 +18,11 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { ApprovedDossierGuard } from '../dossier/guards/approved-dossier.guard';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import {
+  CanonicalPermission,
+  CUSTOMER_WRITE,
+} from '../authorization/canonical-permission.decorator';
+import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 
 /**
  * Phase 1 of the Loyalty roadmap: minimal Cliente CRUD.
@@ -72,21 +86,32 @@ export class CustomersController {
     return this.customersService.get(await this.contextCompanyId(user), id);
   }
 
-  @RequirePermission('clientes.gestionar')
-  @CanonicalPermission('CUSTOMERS_MANAGE')
-  @Post()
-  async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.customersService.create(await this.contextCompanyId(user), dto);
+  /** OR-B4-051: the wholesale mark is a price decision; checked here so it holds in every mode. */
+  private async assertCanSetWholesale(user: AuthenticatedUser, dto: { esMayorista?: boolean }) {
+    if (dto.esMayorista === undefined) return;
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    if (!context.role || !hasCanonicalPermission(context.role, 'PRICING_CHANGE')) {
+      throw new ForbiddenException('Solo el Owner o un Administrador marcan clientes mayoristas');
+    }
   }
 
   @RequirePermission('clientes.gestionar')
-  @CanonicalPermission('CUSTOMERS_MANAGE')
+  @CanonicalPermission(CUSTOMER_WRITE)
+  @Post()
+  async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.assertCanSetWholesale(user, dto);
+    return this.customersService.create(await this.contextCompanyId(user), dto, user.id);
+  }
+
+  @RequirePermission('clientes.gestionar')
+  @CanonicalPermission(CUSTOMER_WRITE)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateCustomerDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.customersService.update(await this.contextCompanyId(user), id, dto);
+    await this.assertCanSetWholesale(user, dto);
+    return this.customersService.update(await this.contextCompanyId(user), id, dto, user.id);
   }
 }

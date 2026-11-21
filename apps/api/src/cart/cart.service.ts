@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { currentOffers } from '../offers/current-offers';
 import { sellingPrice } from '../offers/offer-price';
+import { bestLinePrice } from '../offers/best-price';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 
@@ -234,6 +235,7 @@ export class CartService {
                 nombre: true,
                 familiaId: true,
                 precioMinorista: true,
+                precioMayorista: true,
                 descuentoPorcentaje: true,
               },
             },
@@ -262,8 +264,10 @@ export class CartService {
           familiaId: string;
           precioMinorista: Prisma.Decimal;
           descuentoPorcentaje: Prisma.Decimal | null;
+          precioMayorista: Prisma.Decimal | null;
         };
       }>;
+      customerId?: string | null;
     },
   >(db: ReturnType<CompanyScopedPrismaService['forCompany']>, cart: C) {
     const offers = await currentOffers(
@@ -271,15 +275,34 @@ export class CartService {
       cart.CartItem.map((item) => item.Producto),
       'tienda',
     );
+    // OR-B4-051 (D6): a wholesale customer sees their price; the lowest candidate wins (D5).
+    const wholesale = cart.customerId
+      ? ((
+          await db.cliente.findFirst({
+            where: { id: cart.customerId },
+            select: { esMayorista: true },
+          })
+        )?.esMayorista ?? false)
+      : false;
     return {
       ...cart,
       CartItem: cart.CartItem.map((item) => {
-        const price = sellingPrice(
+        const shown = sellingPrice(
           item.Producto.precioMinorista,
           item.Producto.descuentoPorcentaje,
           offers.get(item.Producto.id) ?? [],
         );
-        return { ...item, precio: price.precio, oferta: price.oferta };
+        const line = bestLinePrice({
+          list: item.Producto.precioMinorista,
+          productDiscount: item.Producto.descuentoPorcentaje,
+          offers: offers.get(item.Producto.id) ?? [],
+          wholesale: wholesale ? item.Producto.precioMayorista : null,
+        });
+        return {
+          ...item,
+          precio: line.precioEfectivo.toFixed(2),
+          oferta: line.origen === 'OFERTA' ? shown.oferta : null,
+        };
       }),
     };
   }
@@ -314,6 +337,7 @@ export class CartService {
                 nombre: true,
                 familiaId: true,
                 precioMinorista: true,
+                precioMayorista: true,
                 descuentoPorcentaje: true,
               },
             },

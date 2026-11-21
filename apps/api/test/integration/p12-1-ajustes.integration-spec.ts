@@ -153,6 +153,7 @@ describe('P12-1 — mi perfil y ajustes del negocio', () => {
       slug: `p12-1-a-${suffix}`,
       telefono: '',
       puedeEditar: false,
+      puedeEditarPrecios: false,
     });
     const body = {
       nombre: `Almacén Ronda ${suffix}`,
@@ -181,7 +182,11 @@ describe('P12-1 — mi perfil y ajustes del negocio', () => {
       ...body,
       slug: `p12-1-a-${suffix}`,
       ocultarSinStock: false,
+      // OR-B4-051 (stage C4): the payment-method discounts ride along too, unchanged unless set.
+      descuentoEfectivo: 0,
+      descuentoTransferencia: 0,
       puedeEditar: true,
+      puedeEditarPrecios: true,
     });
 
     // The rest of the configuration is kept, and the store shows the contact details.

@@ -2,7 +2,14 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFuncti
 import { Form, Link, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
-import { CONTACT_FIELDS, businessFrom, storeUrl, type Business } from '~/utils/settings';
+import {
+  CONTACT_FIELDS,
+  businessFrom,
+  paymentDiscountsFrom,
+  paymentDiscountsMessage,
+  storeUrl,
+  type Business,
+} from '~/utils/settings';
 import { RETURN_WINDOW_DAYS, canManageReturns, windowDaysFrom } from '~/utils/returns';
 import { quickRepliesFrom, type QuickReply } from '~/utils/messaging';
 
@@ -42,6 +49,13 @@ export async function action({ request }: ActionFunctionArgs) {
       if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
       await apiRequest(token, '/negocio', { method: 'PATCH', body: JSON.stringify(parsed.data) });
       return json({ intent, ok: true, message: 'Listo, guardamos los datos del negocio.' });
+    }
+    // OR-B4-051 rule 1: the counter's discount for paying in cash / by transfer.
+    if (intent === 'payment-discounts') {
+      const parsed = paymentDiscountsFrom(form);
+      if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
+      await apiRequest(token, '/negocio/precios', { method: 'PATCH', body: JSON.stringify(parsed.body) });
+      return json({ intent, ok: true, message: paymentDiscountsMessage(parsed.body) });
     }
     if (intent === 'returns') {
       const days = windowDaysFrom(form.get('plazoDias'));
@@ -116,6 +130,37 @@ export default function Ajustes() {
           {notice('business')}
           {business.puedeEditar && (
             <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Guardar datos</button>
+          )}
+        </Form>
+      </section>
+
+      <section className="ws-card" aria-labelledby="payment-title">
+        <h2 id="payment-title" className="ws-card__title">Descuento por medio de pago</h2>
+        <p className="ws-meta">
+          Se aplica en el mostrador cuando toda la venta se paga con ese medio. No se suma a otras rebajas: el cliente paga el
+          precio más bajo.{business.puedeEditarPrecios ? '' : ' Lo cambian el Owner o un Administrador.'}
+        </p>
+        <Form method="post" className="ws-pos__checkout">
+          <input type="hidden" name="intent" value="payment-discounts" />
+          <fieldset disabled={!business.puedeEditarPrecios} className="ws-settings-fields ws-settings-fields--pair">
+            <label className="ws-field">
+              <span className="ws-field__label">Pagando en efectivo</span>
+              <span className="ws-field__control">
+                <input name="descuentoEfectivo" inputMode="decimal" defaultValue={business.descuentoEfectivo || ''} placeholder="0" />
+                <span aria-hidden="true">%</span>
+              </span>
+            </label>
+            <label className="ws-field">
+              <span className="ws-field__label">Pagando por transferencia</span>
+              <span className="ws-field__control">
+                <input name="descuentoTransferencia" inputMode="decimal" defaultValue={business.descuentoTransferencia || ''} placeholder="0" />
+                <span aria-hidden="true">%</span>
+              </span>
+            </label>
+          </fieldset>
+          {notice('payment-discounts')}
+          {business.puedeEditarPrecios && (
+            <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Guardar descuentos</button>
           )}
         </Form>
       </section>

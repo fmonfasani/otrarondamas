@@ -1,3 +1,4 @@
+import { recordAudit } from '../auditoria/audit-catalog';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
@@ -109,7 +110,7 @@ export class CustomersService {
     return 'NUEVO';
   }
 
-  async create(companyId: string, dto: CreateCustomerDto) {
+  async create(companyId: string, dto: CreateCustomerDto, userId?: string) {
     const db = this.prismaFactory.forCompany(companyId);
     if (dto.email) {
       await this.verifyEmailAvailable(companyId, dto.email);
@@ -119,10 +120,14 @@ export class CustomersService {
     // cannot resolve the Exact<XOR<...>> that Prisma requires for `create`
     // (same pattern as Proveedor/Producto).
     const data: Prisma.ClienteUncheckedCreateInput = { ...dto, empresaId: companyId };
-    return toCustomerView(await db.cliente.create({ data }));
+    return db.$transaction(async (tx) => {
+      const created = await tx.cliente.create({ data });
+      if (created.esMayorista) await this.auditWholesale(tx, companyId, userId, created, false);
+      return toCustomerView(created);
+    });
   }
 
-  async update(companyId: string, id: string, dto: UpdateCustomerDto) {
+  async update(companyId: string, id: string, dto: UpdateCustomerDto, userId?: string) {
     const db = this.prismaFactory.forCompany(companyId);
     const existing = await db.cliente.findUnique({ where: { id } });
     if (!existing) {
@@ -131,7 +136,32 @@ export class CustomersService {
     if (dto.email && dto.email !== existing.email) {
       await this.verifyEmailAvailable(companyId, dto.email, id);
     }
-    return toCustomerView(await db.cliente.update({ where: { id }, data: dto }));
+    return db.$transaction(async (tx) => {
+      const updated = await tx.cliente.update({ where: { id }, data: dto });
+      if (updated.esMayorista !== existing.esMayorista) {
+        await this.auditWholesale(tx, companyId, userId, updated, existing.esMayorista);
+      }
+      return toCustomerView(updated);
+    });
+  }
+
+  /** OR-B4-051: marking (or unmarking) a wholesale customer changes what they pay: audited. */
+  private auditWholesale(
+    tx: Parameters<
+      Parameters<ReturnType<CompanyScopedPrismaService['forCompany']>['$transaction']>[0]
+    >[0],
+    companyId: string,
+    userId: string | undefined,
+    customer: { id: string; nombre: string; esMayorista: boolean },
+    before: boolean,
+  ) {
+    return recordAudit(tx, companyId, userId ?? null, {
+      accion: 'CLIENTE_MAYORISTA',
+      entidad: 'Cliente',
+      entidadId: customer.id,
+      antes: { nombre: customer.nombre, esMayorista: before },
+      despues: { nombre: customer.nombre, esMayorista: customer.esMayorista },
+    });
   }
 
   /**
