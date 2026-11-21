@@ -1116,15 +1116,22 @@ model ProductoFoto {
 }
 
 model ProductoProveedor {
-  id          String    @id @default(uuid())
-  empresaId   String
-  productoId  String
-  proveedorId String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  Empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  Producto    Producto  @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  Proveedor   Proveedor @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  id              String    @id @default(uuid())
+  empresaId       String
+  productoId      String
+  proveedorId     String
+  /// OR-B4-052 (stage D1): the supplier's own code for the product.
+  codigoProveedor String?
+  /// The last unit cost the supplier charged (updated by each reception).
+  costoUnitario   Decimal?  @db.Decimal(18, 4)
+  ultimaCompra    DateTime?
+  /// The usual supplier of the product (at most one per product); the purchase suggestion groups by it.
+  habitual        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  Empresa         Empresa   @relation(fields: [empresaId], references: [id])
+  Producto        Producto  @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Proveedor       Proveedor @relation(fields: [empresaId, proveedorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([productoId, proveedorId])
 }
@@ -1136,6 +1143,11 @@ model Proveedor {
   email               String?
   telefono            String?
   direccion           String?
+  /// OR-B4-052 (stage D1): the supplier's tax and commercial data.
+  cuit                String?
+  condicionIva        CondicionIva?
+  /// Days to pay: 0 is cash, 30 is «30 días».
+  plazoPagoDias       Int?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   Compra              Compra[]
@@ -1673,6 +1685,14 @@ enum DigestPeriod {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+/// OR-B4-052: the supplier's VAT condition (Argentina).
+enum CondicionIva {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+  CONSUMIDOR_FINAL
 }
 
 /// OR-B4-051 (D5): where a line's price came from. The lowest candidate wins; only one applies.

@@ -44,6 +44,91 @@ export interface Supplier {
   email: string | null;
   telefono: string | null;
   direccion: string | null;
+  /** OR-B4-052 (stage D1): tax and commercial data. */
+  cuit?: string | null;
+  condicionIva?: IvaCondition | null;
+  plazoPagoDias?: number | null;
+}
+
+export type IvaCondition = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO' | 'CONSUMIDOR_FINAL';
+export const IVA_CONDITIONS: Array<{ value: IvaCondition; label: string }> = [
+  { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable inscripto' },
+  { value: 'MONOTRIBUTO', label: 'Monotributo' },
+  { value: 'EXENTO', label: 'Exento' },
+  { value: 'CONSUMIDOR_FINAL', label: 'Consumidor final' },
+];
+
+/** «30-71234567-1»: a CUIT kept as 11 digits, shown with its dashes. */
+export function formatCuit(cuit: string | null | undefined): string {
+  if (!cuit || !/^\d{11}$/.test(cuit)) return cuit ?? '';
+  return `${cuit.slice(0, 2)}-${cuit.slice(2, 10)}-${cuit.slice(10)}`;
+}
+
+/** «Contado», «30 días». */
+export function paymentTerms(days: number | null | undefined): string | null {
+  if (days === null || days === undefined) return null;
+  return days === 0 ? 'Contado' : `${days} días`;
+}
+
+/** Body for POST/PATCH /proveedores: trimmed; on edit an empty field clears it. The API verifies the CUIT. */
+export function supplierBody(form: FormData, editing: boolean): { ok: true; body: Record<string, string | number | null> } | { ok: false; message: string } {
+  const text = (key: string) => String(form.get(key) ?? '').trim();
+  if (!text('nombre')) return { ok: false, message: 'El nombre del proveedor es obligatorio.' };
+  const body: Record<string, string | number | null> = { nombre: text('nombre') };
+  for (const key of ['email', 'telefono', 'direccion', 'cuit']) {
+    if (text(key)) body[key] = text(key);
+    else if (editing && key !== 'email') body[key] = '';
+  }
+  const cuit = text('cuit').replace(/[\s-]/g, '');
+  if (cuit && !/^\d{11}$/.test(cuit)) return { ok: false, message: 'El CUIT son 11 números (con o sin guiones).' };
+  if (text('condicionIva')) body.condicionIva = text('condicionIva');
+  if (text('plazoPagoDias')) {
+    const days = Number(text('plazoPagoDias'));
+    if (!Number.isInteger(days) || days < 0 || days > 365) return { ok: false, message: 'El plazo de pago va de 0 (contado) a 365 días.' };
+    body.plazoPagoDias = days;
+  }
+  return { ok: true, body };
+}
+
+/** OR-B4-052: a product the supplier provides. */
+export type SupplierProduct = {
+  productoId: string;
+  nombre: string;
+  codigoInterno: string;
+  codigoProveedor: string | null;
+  costoUnitario: number | null;
+  ultimaCompra: string | null;
+  habitual: boolean;
+};
+
+/** OR-B4-052: the purchase suggestion, one group per usual supplier (null: without one). */
+export type SuggestionGroup = {
+  proveedor: { id: string; nombre: string } | null;
+  productos: Array<{
+    productoId: string;
+    nombre: string;
+    codigoInterno: string;
+    codigoProveedor: string | null;
+    disponible: number;
+    stockMinimo: number;
+    cantidadSugerida: number;
+    costoUnitario: number | null;
+  }>;
+};
+
+/** The products of one supplier's suggestion the person keeps (quantity above 0). */
+export function suggestionItemsFrom(form: FormData): { ok: true; items: Array<{ productoId: string; cantidad: number }> } | { ok: false; message: string } {
+  const ids = form.getAll('productoId').map(String);
+  const quantities = form.getAll('cantidad').map((v) => num(v));
+  const items: Array<{ productoId: string; cantidad: number }> = [];
+  for (let i = 0; i < ids.length; i++) {
+    const q = quantities[i];
+    if (q === null || q === 0) continue;
+    if (!(q > 0)) return { ok: false, message: `La cantidad de la fila ${i + 1} tiene que ser mayor a cero.` };
+    items.push({ productoId: ids[i], cantidad: q });
+  }
+  if (items.length === 0) return { ok: false, message: 'Dejá al menos un producto con cantidad.' };
+  return { ok: true, items };
 }
 export interface PurchaseItem {
   id: string;
