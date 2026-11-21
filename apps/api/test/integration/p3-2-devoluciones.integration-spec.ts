@@ -128,7 +128,12 @@ describe('P3-2 — devoluciones', () => {
       data: { empresaId: company.id, fondoFijo: 0, estado: 'ABIERTA' },
     });
     await prisma.aperturaCaja.create({
-      data: { cajaId: caja.id, usuarioId: people.owner.usuarioId, montoInicial: 1000 },
+      data: {
+        empresaId: company.id,
+        cajaId: caja.id,
+        usuarioId: people.owner.usuarioId,
+        montoInicial: 1000,
+      },
     });
 
     server = spawnApi({ PORT });

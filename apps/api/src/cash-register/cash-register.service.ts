@@ -69,7 +69,12 @@ export class CashRegisterService {
     const db = this.prismaFactory.forCompany(companyId);
     return db.$transaction(async (tx) => {
       const opening = await tx.aperturaCaja.create({
-        data: { cajaId: cashRegister.id, usuarioId: userId, montoInicial: dto.montoInicial },
+        data: {
+          empresaId: companyId,
+          cajaId: cashRegister.id,
+          usuarioId: userId,
+          montoInicial: dto.montoInicial,
+        },
       });
       await tx.caja.update({ where: { id: cashRegister.id }, data: { estado: 'ABIERTA' } });
       await recordAudit(tx, companyId, userId, {
@@ -95,6 +100,7 @@ export class CashRegisterService {
     return db.$transaction(async (tx) => {
       const movement = await tx.movimientoCaja.create({
         data: {
+          empresaId: companyId,
           cajaId: cashRegister.id,
           aperturaCajaId: opening.id,
           usuarioId: userId,
@@ -189,6 +195,7 @@ export class CashRegisterService {
     return db.$transaction(async (tx) => {
       const cashCount = await tx.arqueoCaja.create({
         data: {
+          empresaId: companyId,
           cajaId: cashRegister.id,
           aperturaCajaId: opening.id,
           usuarioId: outgoingUserId,
@@ -314,6 +321,7 @@ export class CashRegisterService {
     return db.$transaction(async (tx) => {
       const closing = await tx.cierreCaja.create({
         data: {
+          empresaId: companyId,
           aperturaCajaId: opening.id,
           usuarioId: userId,
           montoFinal: lastCashCount.efectivoContado,

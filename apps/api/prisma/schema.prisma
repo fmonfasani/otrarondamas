@@ -10,6 +10,7 @@ datasource db {
 
 model AperturaCaja {
   id             String           @id @default(uuid())
+  empresaId      String
   cajaId         String
   usuarioId      String
   montoInicial   Decimal          @db.Decimal(18, 2)
@@ -17,28 +18,33 @@ model AperturaCaja {
   fechaCierre    DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
-  Caja           Caja             @relation(fields: [cajaId], references: [id])
-  Usuario        Usuario          @relation(fields: [usuarioId], references: [id])
+  Caja           Caja             @relation(fields: [empresaId, cajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario        Usuario          @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   ArqueoCaja     ArqueoCaja[]
   CierreCaja     CierreCaja?
   MovimientoCaja MovimientoCaja[]
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model AplicacionPago {
   id            String   @id @default(uuid())
+  empresaId     String
   pagoId        String
   deudaId       String
   montoAplicado Decimal  @db.Decimal(18, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  Deuda         Deuda    @relation(fields: [deudaId], references: [id])
-  Pago          Pago     @relation(fields: [pagoId], references: [id])
+  Deuda         Deuda    @relation(fields: [empresaId, deudaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Pago          Pago     @relation(fields: [empresaId, pagoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([pagoId, deudaId])
 }
 
 model ArqueoCaja {
   id                                            String        @id @default(uuid())
+  empresaId                                     String
   cajaId                                        String
   aperturaCajaId                                String
   usuarioId                                     String
@@ -54,11 +60,11 @@ model ArqueoCaja {
   createdAt                                     DateTime      @default(now())
   updatedAt                                     DateTime      @updatedAt
   usuarioEntranteId                             String
-  AperturaCaja                                  AperturaCaja  @relation(fields: [aperturaCajaId], references: [id])
-  Autorizacion                                  Autorizacion? @relation(fields: [autorizacionId], references: [id])
-  Caja                                          Caja          @relation(fields: [cajaId], references: [id])
-  Usuario_ArqueoCaja_usuarioEntranteIdToUsuario Usuario       @relation("ArqueoCaja_usuarioEntranteIdToUsuario", fields: [usuarioEntranteId], references: [id])
-  Usuario_ArqueoCaja_usuarioIdToUsuario         Usuario       @relation("ArqueoCaja_usuarioIdToUsuario", fields: [usuarioId], references: [id])
+  AperturaCaja                                  AperturaCaja  @relation(fields: [empresaId, aperturaCajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Autorizacion                                  Autorizacion? @relation(fields: [empresaId, autorizacionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Caja                                          Caja          @relation(fields: [empresaId, cajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario_ArqueoCaja_usuarioEntranteIdToUsuario Usuario       @relation("ArqueoCaja_usuarioEntranteIdToUsuario", fields: [empresaId, usuarioEntranteId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario_ArqueoCaja_usuarioIdToUsuario         Usuario       @relation("ArqueoCaja_usuarioIdToUsuario", fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Attachment {
@@ -112,8 +118,11 @@ model Autorizacion {
   updatedAt         DateTime     @updatedAt
   ArqueoCaja        ArqueoCaja[]
   AuditLog          AuditLog[]
-  Usuario           Usuario      @relation(fields: [autorizadorId], references: [id])
+  Usuario           Usuario      @relation(fields: [empresaId, autorizadorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa           Empresa      @relation(fields: [empresaId], references: [id])
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model Caja {
@@ -128,6 +137,9 @@ model Caja {
   ArqueoCaja     ArqueoCaja[]
   Empresa        Empresa          @relation(fields: [empresaId], references: [id])
   MovimientoCaja MovimientoCaja[]
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model CapabilityDefinition {
@@ -189,14 +201,18 @@ model CartItem {
 
 model CierreCaja {
   id             String       @id @default(uuid())
+  empresaId      String
   aperturaCajaId String       @unique
   usuarioId      String
   fechaCierre    DateTime     @default(now())
   montoFinal     Decimal      @db.Decimal(18, 2)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  AperturaCaja   AperturaCaja @relation(fields: [aperturaCajaId], references: [id])
-  Usuario        Usuario      @relation(fields: [usuarioId], references: [id])
+  AperturaCaja   AperturaCaja @relation(fields: [empresaId, aperturaCajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario        Usuario      @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): the one-to-one reference carries the business.
+  @@unique([empresaId, aperturaCajaId])
 }
 
 model Cliente {
@@ -345,12 +361,14 @@ model CuentaCorriente {
   saldo     Decimal  @default(0) @db.Decimal(18, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  Cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  Cliente   Cliente  @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
   Empresa   Empresa  @relation(fields: [empresaId], references: [id])
   Deuda     Deuda[]
   Pago      Pago[]
 
   @@unique([empresaId, clienteId])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model Deuda {
@@ -365,10 +383,13 @@ model Deuda {
   updatedAt         DateTime         @updatedAt
   cuentaCorrienteId String?
   AplicacionPago    AplicacionPago[]
-  Cliente           Cliente          @relation(fields: [clienteId], references: [id])
-  CuentaCorriente   CuentaCorriente? @relation(fields: [cuentaCorrienteId], references: [id])
+  Cliente           Cliente          @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  CuentaCorriente   CuentaCorriente? @relation(fields: [empresaId, cuentaCorrienteId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa           Empresa          @relation(fields: [empresaId], references: [id])
-  Venta             Venta?           @relation(fields: [ventaId], references: [id])
+  Venta             Venta?           @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model DevolucionCliente {
@@ -828,6 +849,7 @@ model MessagingReadPreference {
 
 model MovimientoCaja {
   id             String        @id @default(uuid())
+  empresaId      String
   cajaId         String
   aperturaCajaId String?
   usuarioId      String
@@ -837,9 +859,9 @@ model MovimientoCaja {
   referenciaId   String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  AperturaCaja   AperturaCaja? @relation(fields: [aperturaCajaId], references: [id])
-  Caja           Caja          @relation(fields: [cajaId], references: [id])
-  Usuario        Usuario       @relation(fields: [usuarioId], references: [id])
+  AperturaCaja   AperturaCaja? @relation(fields: [empresaId, aperturaCajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Caja           Caja          @relation(fields: [empresaId, cajaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario        Usuario       @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model MovimientoStock {
@@ -897,11 +919,14 @@ model Pago {
   vuelto          Decimal?         @db.Decimal(18, 2)
   referencia      String?
   AplicacionPago  AplicacionPago[]
-  CuentaCorriente CuentaCorriente? @relation(fields: [deudaId], references: [id])
+  CuentaCorriente CuentaCorriente? @relation(fields: [empresaId, deudaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa         Empresa          @relation(fields: [empresaId], references: [id])
-  Pedido          Pedido?          @relation(fields: [pedidoId], references: [id])
-  Usuario         Usuario?         @relation(fields: [usuarioId], references: [id])
-  Venta           Venta?           @relation(fields: [ventaId], references: [id])
+  Pedido          Pedido?          @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario         Usuario?         @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Venta           Venta?           @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model PagoProveedor {

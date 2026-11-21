@@ -323,7 +323,12 @@ describe('S-V1-07 — Ventas y Pagos (HTTP, stack real)', () => {
       select: { id: true },
     });
     openingA = await prisma.aperturaCaja.create({
-      data: { cajaId: cashRegisterA.id, usuarioId: legacyUserA.id, montoInicial: 0 },
+      data: {
+        empresaId: companyA.id,
+        cajaId: cashRegisterA.id,
+        usuarioId: legacyUserA.id,
+        montoInicial: 0,
+      },
       select: { id: true },
     });
 

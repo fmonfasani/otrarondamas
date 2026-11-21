@@ -666,6 +666,7 @@ export class DevolucionesService {
           const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
           await tx.movimientoCaja.create({
             data: {
+              empresaId: companyId,
               cajaId,
               aperturaCajaId,
               usuarioId: userId,
@@ -808,6 +809,7 @@ export class DevolucionesService {
           const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
           await tx.movimientoCaja.create({
             data: {
+              empresaId: companyId,
               cajaId,
               aperturaCajaId,
               usuarioId: userId,
@@ -945,6 +947,7 @@ export class DevolucionesService {
           const { cajaId, aperturaCajaId } = await this.openRegister(tx, companyId);
           await tx.movimientoCaja.create({
             data: {
+              empresaId: companyId,
               cajaId,
               aperturaCajaId,
               usuarioId: userId,
