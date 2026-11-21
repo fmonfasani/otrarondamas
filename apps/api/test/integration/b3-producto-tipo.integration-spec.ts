@@ -9,6 +9,10 @@ type Hierarchy = {
   subtipoId: string;
 };
 
+// INIT-019 PR 4, module 3 (ADR-DAT-020): the catalog left the relation registry, which is gone.
+// Its references are composite, so the database rejects a row of another business or one that
+// does not exist (P2003), whichever role writes. Before, the registry answered P2025 from the
+// application.
 describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
   let prisma: PrismaService;
   let scopedPrisma: CompanyScopedPrismaService;
@@ -128,18 +132,18 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
     expect(created.tipoId).toBe(hierA.tipoId);
   });
 
-  it('TP-02: cross-Business Tipo create rejects with P2025 and no persistence', async () => {
+  it('TP-02: cross-Business Tipo create rejects with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('02');
 
     expect(
       await rejectionCode(db.producto.create({ data: productData(hierA, hierB.tipoId, code) })),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
-  it('TP-03: cross-Business Tipo update rejects with P2025 and preserves the relation', async () => {
+  it('TP-03: cross-Business Tipo update rejects with P2003 and preserves the relation', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const product = await prisma.producto.create({
       data: productData(hierA, hierA.tipoId, uniqueCode('03')),
@@ -150,7 +154,7 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
       await rejectionCode(
         db.producto.update({ where: { id: product.id }, data: { tipoId: hierB.tipoId } }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     const persisted = await prisma.producto.findUnique({
       where: { id: product.id },
@@ -182,14 +186,14 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
           await tx.producto.create({ data: productData(hierA, hierB.tipoId, invalid) });
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
     ).toBe(0);
   });
 
-  it('TP-06: nonexistent Tipo fails closed with P2025 and no persistence', async () => {
+  it('TP-06: nonexistent Tipo fails closed with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('06');
 
@@ -197,12 +201,12 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
       await rejectionCode(
         db.producto.create({ data: productData(hierA, `no-existe-${suffix}`, code) }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
-  it('TP-07: mixed createMany rejects with P2025 without partial persistence', async () => {
+  it('TP-07: mixed createMany rejects with P2003 without partial persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const valid = uniqueCode('07-OK');
     const invalid = uniqueCode('07-BAD');
@@ -216,14 +220,14 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
           ],
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
     ).toBe(0);
   });
 
-  it('TP-08: control — duplicate codigoInterno is P2002, distinguishable from the ownership rejection P2025', async () => {
+  it('TP-08: control — duplicate codigoInterno is P2002, distinguishable from the foreign key rejection P2003', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('08');
     await db.producto.create({ data: productData(hierA, hierA.tipoId, code) });
@@ -235,6 +239,6 @@ describe('B3 relation isolation — Producto.tipo ownership candidate', () => {
       await rejectionCode(
         db.producto.create({ data: productData(hierA, hierB.tipoId, uniqueCode('08-X')) }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
   });
 });

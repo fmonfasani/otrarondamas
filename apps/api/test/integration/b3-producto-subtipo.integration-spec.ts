@@ -9,6 +9,10 @@ type Hierarchy = {
   subtipoId: string;
 };
 
+// INIT-019 PR 4, module 3 (ADR-DAT-020): the catalog left the relation registry, which is gone.
+// Its references are composite, so the database rejects a row of another business or one that
+// does not exist (P2003), whichever role writes. Before, the registry answered P2025 from the
+// application.
 describe('B3 relation isolation — Producto.subtipo ownership candidate', () => {
   let prisma: PrismaService;
   let scopedPrisma: CompanyScopedPrismaService;
@@ -128,18 +132,18 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
     expect(created.subtipoId).toBe(hierA.subtipoId);
   });
 
-  it('ST-02: cross-Business Subtipo create rejects with P2025 and no persistence', async () => {
+  it('ST-02: cross-Business Subtipo create rejects with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('02');
 
     expect(
       await rejectionCode(db.producto.create({ data: productData(hierA, hierB.subtipoId, code) })),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
-  it('ST-03: cross-Business Subtipo update rejects with P2025 and preserves the relation', async () => {
+  it('ST-03: cross-Business Subtipo update rejects with P2003 and preserves the relation', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const product = await prisma.producto.create({
       data: productData(hierA, hierA.subtipoId, uniqueCode('03')),
@@ -150,7 +154,7 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
       await rejectionCode(
         db.producto.update({ where: { id: product.id }, data: { subtipoId: hierB.subtipoId } }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     const persisted = await prisma.producto.findUnique({
       where: { id: product.id },
@@ -182,14 +186,14 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
           await tx.producto.create({ data: productData(hierA, hierB.subtipoId, invalid) });
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
     ).toBe(0);
   });
 
-  it('ST-06: nonexistent Subtipo fails closed with P2025 and no persistence', async () => {
+  it('ST-06: nonexistent Subtipo fails closed with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('06');
 
@@ -197,12 +201,12 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
       await rejectionCode(
         db.producto.create({ data: productData(hierA, `no-existe-${suffix}`, code) }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.producto.count({ where: { codigoInterno: code } })).toBe(0);
   });
 
-  it('ST-07: mixed createMany rejects with P2025 without partial persistence', async () => {
+  it('ST-07: mixed createMany rejects with P2003 without partial persistence', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const valid = uniqueCode('07-OK');
     const invalid = uniqueCode('07-BAD');
@@ -216,14 +220,14 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
           ],
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.producto.count({ where: { codigoInterno: { in: [valid, invalid] } } }),
     ).toBe(0);
   });
 
-  it('ST-08: control — duplicate codigoInterno is P2002, distinguishable from the ownership rejection P2025', async () => {
+  it('ST-08: control — duplicate codigoInterno is P2002, distinguishable from the foreign key rejection P2003', async () => {
     const db = scopedPrisma.forCompany(hierA.empresaId);
     const code = uniqueCode('08');
     await db.producto.create({ data: productData(hierA, hierA.subtipoId, code) });
@@ -235,12 +239,15 @@ describe('B3 relation isolation — Producto.subtipo ownership candidate', () =>
       await rejectionCode(
         db.producto.create({ data: productData(hierA, hierB.subtipoId, uniqueCode('08-X')) }),
       ),
-    ).toBe('P2025');
-    // A duplicate codigoInterno AND a foreign Subtipo at the same time: the
-    // ownership must win over the unique (if P2002 masked the check, this
-    // would return P2002).
+    ).toBe('P2003');
+    // A duplicate codigoInterno AND a foreign Subtipo at the same time. Both are database rules now
+    // (module 3): Postgres checks the unique index before the foreign key, so it answers P2002. What
+    // matters holds either way: the row with the foreign Subtipo is never written.
     expect(
       await rejectionCode(db.producto.create({ data: productData(hierA, hierB.subtipoId, code) })),
-    ).toBe('P2025');
+    ).toBe('P2002');
+    expect(
+      await prisma.producto.count({ where: { codigoInterno: code, subtipoId: hierB.subtipoId } }),
+    ).toBe(0);
   });
 });

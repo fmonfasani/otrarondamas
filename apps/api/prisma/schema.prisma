@@ -987,7 +987,7 @@ model Presentacion {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   Empresa          Empresa  @relation(fields: [empresaId], references: [id])
-  Producto         Producto @relation(fields: [productoId], references: [id])
+  Producto         Producto @relation(fields: [empresaId, productoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([productoId, nombre])
 }
@@ -1036,10 +1036,10 @@ model Producto {
   PedidoItem              PedidoItem[]
   Presentacion            Presentacion[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
-  Familia                 Familia                   @relation(fields: [familiaId], references: [id])
-  Subfamilia              Subfamilia                @relation(fields: [subfamiliaId], references: [id])
-  Subtipo                 Subtipo                   @relation(fields: [subtipoId], references: [id])
-  Tipo                    Tipo                      @relation(fields: [tipoId], references: [id])
+  Familia                 Familia                   @relation(fields: [empresaId, familiaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Subfamilia              Subfamilia                @relation(fields: [empresaId, subfamiliaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Subtipo                 Subtipo                   @relation(fields: [empresaId, subtipoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Tipo                    Tipo                      @relation(fields: [empresaId, tipoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   ProductoProveedor       ProductoProveedor[]
   VentaItem               VentaItem[]
   ProductoFoto            ProductoFoto[]
@@ -1207,10 +1207,10 @@ model ReglaFidelizacion {
   subtipoId           String?
   PedidoItem          PedidoItem[]
   Empresa             Empresa        @relation(fields: [empresaId], references: [id])
-  Familia             Familia?       @relation(fields: [familiaId], references: [id])
-  Subfamilia          Subfamilia?    @relation(fields: [subfamiliaId], references: [id])
-  Subtipo             Subtipo?       @relation(fields: [subtipoId], references: [id])
-  Tipo                Tipo?          @relation(fields: [tipoId], references: [id])
+  Familia             Familia?       @relation(fields: [empresaId, familiaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Subfamilia          Subfamilia?    @relation(fields: [empresaId, subfamiliaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Subtipo             Subtipo?       @relation(fields: [empresaId, subtipoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Tipo                Tipo?          @relation(fields: [empresaId, tipoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   VentaItem           VentaItem[]
 
   @@unique([empresaId, id])
@@ -1264,11 +1264,13 @@ model Subfamilia {
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
-  Familia           Familia             @relation(fields: [familiaId], references: [id])
+  Familia           Familia             @relation(fields: [empresaId, familiaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Tipo              Tipo[]
 
   @@unique([familiaId, nombre])
   @@unique([familiaId, prefijo])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 3): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model Subtipo {
@@ -1283,10 +1285,12 @@ model Subtipo {
   Producto          Producto[]
   ReglaFidelizacion ReglaFidelizacion[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
-  Tipo              Tipo                @relation(fields: [tipoId], references: [id])
+  Tipo              Tipo                @relation(fields: [empresaId, tipoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tipoId, nombre])
   @@unique([tipoId, prefijo])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 3): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 model Tipo {
@@ -1302,10 +1306,12 @@ model Tipo {
   ReglaFidelizacion ReglaFidelizacion[]
   Subtipo           Subtipo[]
   Empresa           Empresa             @relation(fields: [empresaId], references: [id])
-  Subfamilia        Subfamilia          @relation(fields: [subfamiliaId], references: [id])
+  Subfamilia        Subfamilia          @relation(fields: [empresaId, subfamiliaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([subfamiliaId, nombre])
   @@unique([subfamiliaId, prefijo])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 3): lets references carry the business.
+  @@unique([empresaId, id])
 }
 
 /// OR-B4-015 / R8-INV-003 (#166): where the stock is. Every business has one main location

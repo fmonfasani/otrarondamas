@@ -523,9 +523,11 @@ describe('B3 tenant isolation — execution candidates', () => {
             },
           },
         }),
-        // The relation is composite: Prisma looks the product up with the line's business (A),
-        // does not find B's product and fails before writing anything (P2025).
-      ).rejects.toMatchObject({ code: 'P2025' });
+        // The relation is composite: Prisma looks the product up with the line's business (A) and
+        // does not find B's product; the product it would create instead points at B's categories,
+        // which the composite keys of the catalog refuse (P2003, INIT-019 PR 4 module 3). Before,
+        // the relation registry refused it earlier (P2025). Either way nothing is written.
+      ).rejects.toMatchObject({ code: 'P2003' });
 
       expect(await countSales(channel)).toBe(0);
       expect(await prisma.producto.count({ where: { nombre: 'SHOULD-NOT-CREATE' } })).toBe(0);
