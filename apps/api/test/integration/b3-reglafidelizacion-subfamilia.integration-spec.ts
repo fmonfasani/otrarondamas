@@ -2,6 +2,10 @@ import { LoyaltyService } from '../../src/loyalty/loyalty.service';
 import { CompanyScopedPrismaService } from '../../src/prisma/company-scoped-prisma.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
+// INIT-019 PR 4, module 3 (ADR-DAT-020): the catalog left the relation registry, which is gone.
+// Its references are composite, so the database rejects a row of another business or one that
+// does not exist (P2003), whichever role writes. Before, the registry answered P2025 from the
+// application.
 describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candidate', () => {
   let prisma: PrismaService;
   let scopedPrisma: CompanyScopedPrismaService;
@@ -123,7 +127,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
     expect(created.subfamiliaId).toBe(subfamilyA.id);
   });
 
-  it('RS-F-02: cross-Business Subfamilia create rejects with P2025 and no persistence', async () => {
+  it('RS-F-02: cross-Business Subfamilia create rejects with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const name = uniqueName('02');
 
@@ -131,12 +135,12 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
       await rejectionCode(
         db.reglaFidelizacion.create({ data: ruleData(companyA.id, subfamilyB.id, name) }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.reglaFidelizacion.count({ where: { nombre: name } })).toBe(0);
   });
 
-  it('RS-F-03: cross-Business Subfamilia update rejects with P2025 and preserves the relation', async () => {
+  it('RS-F-03: cross-Business Subfamilia update rejects with P2003 and preserves the relation', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const rule = await prisma.reglaFidelizacion.create({
       data: ruleData(companyA.id, subfamilyA.id, uniqueName('03-base')),
@@ -150,7 +154,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
           data: { subfamiliaId: subfamilyB.id },
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     const persisted = await prisma.reglaFidelizacion.findUnique({
       where: { id: rule.id },
@@ -159,7 +163,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
     expect(persisted?.subfamiliaId).toBe(subfamilyA.id);
   });
 
-  it('RS-F-04: nonexistent Subfamilia fails closed with P2025 and no persistence', async () => {
+  it('RS-F-04: nonexistent Subfamilia fails closed with P2003 and no persistence', async () => {
     const db = scopedPrisma.forCompany(companyA.id);
     const name = uniqueName('04');
 
@@ -169,7 +173,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
           data: ruleData(companyA.id, `no-existe-${suffix}`, name),
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(await prisma.reglaFidelizacion.count({ where: { nombre: name } })).toBe(0);
   });
@@ -188,7 +192,7 @@ describe('B3 relation isolation — ReglaFidelizacion.subfamilia ownership candi
           });
         }),
       ),
-    ).toBe('P2025');
+    ).toBe('P2003');
 
     expect(
       await prisma.reglaFidelizacion.count({ where: { nombre: { in: [valid, invalid] } } }),

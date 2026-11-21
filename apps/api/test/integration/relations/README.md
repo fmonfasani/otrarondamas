@@ -2,12 +2,13 @@
 
 This directory contains automatically generated test suites for tenant-scoped relations.
 
-> **INIT-019 PR 4 (ADR-DAT-020).** Composite keys replace the relation registry module by module:
+> **INIT-019 PR 4 (ADR-DAT-020).** Composite keys replaced the relation registry module by module:
 > the database rejects a reference to another business, whichever role writes it. Sales and order
-> lines (module 1) and purchases and stock (module 2) left the registry, and their generated suites
-> were removed. The module tests are in `p18-4-claves-compuestas-ventas.integration-spec.ts` and
-> `p18-5-claves-compuestas-compras.integration-spec.ts`, and `src/prisma/composite-references.spec.ts`
-> checks the whole schema. The examples below show the generated format.
+> lines (module 1), purchases and stock (module 2) and the catalog and loyalty rules (module 3) left
+> it; with module 3 the registry was empty and was removed, together with the generator of these
+> suites (`generate-relation-tests.ts`). The module tests are in `p18-4`, `p18-5` and
+> `p18-6-claves-compuestas-catalogo.integration-spec.ts`, and `src/prisma/composite-references.spec.ts`
+> checks the whole schema. The examples below show the format the generator used.
 
 ## Purpose
 

@@ -1,5 +1,4 @@
 import { Prisma } from '@prisma/client';
-import { collectRelationalReferences, type RelationalReference } from './relation-ownership';
 
 /**
  * Multi-company isolation (INV-01, section 5 of the SDD) implemented as a
@@ -7,8 +6,10 @@ import { collectRelationalReferences, type RelationalReference } from './relatio
  * to filter by empresaId by hand.
  *
  * Models with a direct empresaId or businessId are scoped here. Models that inherit scope
- * through relations must still be queried through an already-scoped parent;
- * the explicit relation registry validates ownership for registered writes.
+ * through relations must still be queried through an already-scoped parent. A reference to
+ * another business's row is refused by the database itself: every reference between business
+ * tables carries the business in its key (ADR-DAT-020, Fase 2 PR 4), which replaced the
+ * relation-ownership registry this extension used to consult.
  */
 export const MODELS_WITH_COMPANY_ID = [
   'Usuario',
@@ -168,31 +169,6 @@ export async function isUniqueReadOwnedByTenant(
   return !owner || owner[tenantField] === tenantId;
 }
 
-async function verifyRelationalOwnership(
-  client: unknown,
-  companyId: string,
-  references: RelationalReference[],
-): Promise<void> {
-  for (const { model, where } of references) {
-    const tenantField = tenantFieldForModel(model);
-    if (!tenantField) {
-      throw new Error(
-        `companyScopeExtension: la relación hacia '${model}' no tiene tenant verificable.`,
-      );
-    }
-    const delegate = (client as Record<string, DelegateWithTenantId>)[
-      model.charAt(0).toLowerCase() + model.slice(1)
-    ];
-    const found = await delegate.findUnique({ where, select: { [tenantField]: true } });
-    if (!found || found[tenantField] !== companyId) {
-      throw new Prisma.PrismaClientKnownRequestError(`No ${model} found`, {
-        code: 'P2025',
-        clientVersion: Prisma.prismaVersion.client,
-      });
-    }
-  }
-}
-
 /**
  * Creates a Prisma extension bound to a concrete company. It is instantiated
  * per request, never as a global singleton.
@@ -208,11 +184,6 @@ export function companyScopeExtension(companyId: string) {
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
-            const references = collectRelationalReferences(model, operation, args);
-            if (references.length > 0) {
-              await verifyRelationalOwnership(client, companyId, references);
-            }
-
             const tenantField = tenantFieldForModel(model);
             if (!tenantField) {
               return query(args);
