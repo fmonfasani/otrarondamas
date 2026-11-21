@@ -176,6 +176,8 @@ describe('P20-1 — costo promedio y precio sugerido', () => {
     await prisma.compraItem.deleteMany({ where: { empresaId } });
     await prisma.compra.deleteMany({ where: { empresaId } });
     await prisma.lote.deleteMany({ where: { empresaId } });
+    // Stage D1: each reception links the product to its supplier.
+    await prisma.productoProveedor.deleteMany({ where: { empresaId } });
     await prisma.proveedor.deleteMany({ where: { empresaId } });
     await prisma.producto.deleteMany({ where: { empresaId } });
     await prisma.subtipo.deleteMany({ where: { empresaId } });

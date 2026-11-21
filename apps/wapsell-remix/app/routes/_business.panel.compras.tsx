@@ -4,11 +4,18 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useRouteLoader
 import { Plus, Trash2, X } from 'lucide-react';
 import { requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
-import { formatDateTime, formatMoney } from '~/utils/format';
+import { formatDateTime, formatMoney, parseArsNumber } from '~/utils/format';
 import type { Product } from '~/utils/catalog';
 import {
+  IVA_CONDITIONS,
   PURCHASE_STATES,
+  formatCuit,
   inventoryAbilities,
+  paymentTerms,
+  supplierBody,
+  suggestionItemsFrom,
+  type SuggestionGroup,
+  type SupplierProduct,
   pendingOf,
   purchaseItemsFrom,
   receiptItemsFrom,
@@ -26,12 +33,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const selectedId = url.searchParams.get('c');
   const composing = url.searchParams.get('nueva') === '1';
+  const tab = url.searchParams.get('tab');
+  // OR-B4-052 (stage D1): a supplier's record and the products it provides; the purchase suggestion.
+  const supplierId = tab === 'proveedores' ? url.searchParams.get('p') : null;
 
-  const [purchases, suppliers, selected, products] = await Promise.all([
+  const [purchases, suppliers, selected, products, supplierProducts, suggestion] = await Promise.all([
     settle(apiRequest<Purchase[]>(token, '/compras')),
     settle(apiRequest<Supplier[]>(token, '/proveedores')),
     selectedId ? settle(apiRequest<Purchase>(token, `/compras/${encodeURIComponent(selectedId)}`)) : null,
-    composing || selectedId ? settle(apiRequest<Product[]>(token, '/catalogo/productos?activo=true')) : null,
+    composing || selectedId || supplierId ? settle(apiRequest<Product[]>(token, '/catalogo/productos?activo=true')) : null,
+    supplierId ? settle(apiRequest<SupplierProduct[]>(token, `/proveedores/${encodeURIComponent(supplierId)}/productos`)) : null,
+    tab === 'sugerencia' ? settle(apiRequest<SuggestionGroup[]>(token, '/sugerencia-compra')) : null,
   ]);
   return json({
     available: purchases !== null && suppliers !== null,
@@ -40,6 +52,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     selected,
     selectedId,
     composing,
+    supplierId,
+    supplierProducts: supplierProducts ?? [],
+    suggestion: suggestion ?? [],
     products: (products ?? []).map((p) => ({
       id: p.id,
       nombre: p.nombre,
@@ -61,11 +76,48 @@ export async function action({ request }: ActionFunctionArgs) {
   const text = (key: string) => String(form.get(key) ?? '').trim();
   try {
     if (intent === 'createSupplier') {
-      if (!text('nombre')) return fail('El nombre del proveedor es obligatorio.');
-      const body: Record<string, string> = { nombre: text('nombre') };
-      for (const key of ['email', 'telefono', 'direccion']) if (text(key)) body[key] = text(key);
-      await apiRequest(token, '/proveedores', { method: 'POST', body: JSON.stringify(body) });
-      return json<ActionData>({ ok: true, message: `Proveedor "${body.nombre}" agregado.` });
+      const parsed = supplierBody(form, false);
+      if (!parsed.ok) return fail(parsed.message);
+      await apiRequest(token, '/proveedores', { method: 'POST', body: JSON.stringify(parsed.body) });
+      return json<ActionData>({ ok: true, message: `Proveedor "${parsed.body.nombre}" agregado.` });
+    }
+    // OR-B4-052 (stage D1): the supplier's data, the products it provides and the suggestion.
+    if (intent === 'updateSupplier') {
+      const parsed = supplierBody(form, true);
+      if (!parsed.ok) return fail(parsed.message);
+      await apiRequest(token, `/proveedores/${encodeURIComponent(text('proveedorId'))}`, { method: 'PATCH', body: JSON.stringify(parsed.body) });
+      return json<ActionData>({ ok: true, message: 'Datos del proveedor guardados.' });
+    }
+    if (intent === 'saveSupplierProduct') {
+      const productoId = text('productoId');
+      if (!productoId) return fail('Elegí el producto.');
+      const cost = parseArsNumber(text('costoUnitario'));
+      const body: Record<string, string | number | boolean | null> = { codigoProveedor: text('codigoProveedor') || null };
+      if (cost !== null) {
+        if (!(cost >= 0)) return fail('El costo tiene que ser un número.');
+        body.costoUnitario = cost;
+      }
+      if (form.get('habitual') === 'true') body.habitual = true;
+      await apiRequest(token, `/proveedores/${encodeURIComponent(text('proveedorId'))}/productos/${encodeURIComponent(productoId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      return json<ActionData>({ ok: true, message: 'Producto del proveedor guardado.' });
+    }
+    if (intent === 'removeSupplierProduct') {
+      await apiRequest(token, `/proveedores/${encodeURIComponent(text('proveedorId'))}/productos/${encodeURIComponent(text('productoId'))}`, {
+        method: 'DELETE',
+      });
+      return json<ActionData>({ ok: true, message: 'Producto quitado del proveedor.' });
+    }
+    if (intent === 'draftFromSuggestion') {
+      const parsed = suggestionItemsFrom(form);
+      if (!parsed.ok) return fail(parsed.message);
+      const created = await apiRequest<Purchase>(token, '/sugerencia-compra/orden', {
+        method: 'POST',
+        body: JSON.stringify({ proveedorId: text('proveedorId'), items: parsed.items }),
+      });
+      return redirect(`${base}?c=${created.id}`);
     }
     if (intent === 'createPurchase') {
       const proveedorId = text('proveedorId');
@@ -111,7 +163,9 @@ export default function PurchasesPage() {
   const busy = navigation.state !== 'idle';
   const [searchParams] = useSearchParams();
   const base = `/panel/compras`;
-  const tab = searchParams.get('tab') === 'proveedores' ? 'proveedores' : 'compras';
+  const tabParam = searchParams.get('tab');
+  const tab = tabParam === 'proveedores' || tabParam === 'sugerencia' ? tabParam : 'compras';
+  const supplier = data.suppliers.find((s) => s.id === data.supplierId) ?? null;
   const productName = (id: string) => data.products.find((p) => p.id === id)?.nombre ?? 'Producto';
   const controlsExpiry = (id: string) => Boolean(data.products.find((p) => p.id === id)?.controlaVencimiento);
 
@@ -144,6 +198,7 @@ export default function PurchasesPage() {
       <div className="ws-tabs">
         <Link className={`ws-chip ${tab === 'compras' ? 'ws-chip--secondary' : ''}`} to={base}>Compras · {data.purchases.length}</Link>
         <Link className={`ws-chip ${tab === 'proveedores' ? 'ws-chip--secondary' : ''}`} to={`${base}?tab=proveedores`}>Proveedores · {data.suppliers.length}</Link>
+        <Link className={`ws-chip ${tab === 'sugerencia' ? 'ws-chip--secondary' : ''}`} to={`${base}?tab=sugerencia`}>Sugerencia de compra</Link>
       </div>
 
       {tab === 'proveedores' || data.suppliers.length === 0 ? (
@@ -155,17 +210,30 @@ export default function PurchasesPage() {
             ) : (
               <div className="ws-list">
                 {data.suppliers.map((s) => (
-                  <div key={s.id} className="ws-list__row">
+                  <Link key={s.id} className={`ws-list__row${s.id === data.supplierId ? ' is-selected' : ''}`} to={`${base}?tab=proveedores&p=${s.id}`}>
                     <span className="ws-list__main">
                       <b>{s.nombre}</b>
-                      <span>{[s.telefono, s.email, s.direccion].filter(Boolean).join(' · ') || 'Sin datos de contacto'}</span>
+                      <span>
+                        {[formatCuit(s.cuit) ? `CUIT ${formatCuit(s.cuit)}` : null, paymentTerms(s.plazoPagoDias), s.telefono, s.email]
+                          .filter(Boolean)
+                          .join(' · ') || 'Sin datos de contacto'}
+                      </span>
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
           </section>
-          {can.purchases && (
+          {supplier ? (
+            <SupplierRecord
+              supplier={supplier}
+              products={data.supplierProducts}
+              catalog={data.products}
+              canEdit={can.purchases}
+              busy={busy}
+              close={`${base}?tab=proveedores`}
+            />
+          ) : can.purchases && (
             <section className="ws-card" aria-labelledby="new-supplier">
               <h2 id="new-supplier" className="ws-card__title">Agregar proveedor</h2>
               <Form method="post" className="ws-form" key={data.suppliers.length}>
@@ -183,11 +251,14 @@ export default function PurchasesPage() {
                     </span>
                   </label>
                 ))}
+                <TaxFields />
                 <button className="ws-button ws-button--primary" disabled={busy}>Agregar</button>
               </Form>
             </section>
           )}
         </div>
+      ) : tab === 'sugerencia' ? (
+        <Suggestion groups={data.suggestion} canEdit={can.purchases} busy={busy} />
       ) : data.composing && can.purchases ? (
         <NewPurchase suppliers={data.suppliers} products={data.products} busy={busy} close={base} />
       ) : (
@@ -427,5 +498,240 @@ function NewPurchase({
         </Form>
       )}
     </section>
+  );
+}
+
+/** OR-B4-052: CUIT, VAT condition and payment terms, empty or with the supplier's values. */
+function TaxFields({ supplier }: { supplier?: Supplier }) {
+  return (
+    <>
+      <label className="ws-field">
+        <span className="ws-field__label">CUIT (opcional)</span>
+        <span className="ws-field__control"><input name="cuit" inputMode="numeric" placeholder="30-71234567-1" defaultValue={formatCuit(supplier?.cuit)} /></span>
+      </label>
+      <label className="ws-field">
+        <span className="ws-field__label">Condición de IVA (opcional)</span>
+        <span className="ws-field__control">
+          <select name="condicionIva" defaultValue={supplier?.condicionIva ?? ''}>
+            <option value="">Sin indicar</option>
+            {IVA_CONDITIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </span>
+      </label>
+      <label className="ws-field">
+        <span className="ws-field__label">Plazo de pago en días (opcional)</span>
+        <span className="ws-field__control">
+          <input name="plazoPagoDias" inputMode="numeric" placeholder="0 = contado" defaultValue={supplier?.plazoPagoDias ?? ''} />
+        </span>
+      </label>
+    </>
+  );
+}
+
+/** OR-B4-052: a supplier's data and the products it provides (code, last cost, usual supplier). */
+function SupplierRecord({
+  supplier,
+  products,
+  catalog,
+  canEdit,
+  busy,
+  close,
+}: {
+  supplier: Supplier;
+  products: SupplierProduct[];
+  catalog: Array<{ id: string; nombre: string; codigoInterno: string }>;
+  canEdit: boolean;
+  busy: boolean;
+  close: string;
+}) {
+  const linked = new Set(products.map((p) => p.productoId));
+  return (
+    <section className="ws-card ws-supplier" aria-labelledby="supplier-title">
+      <div className="ws-card__head">
+        <h2 id="supplier-title" className="ws-card__title">{supplier.nombre}</h2>
+        <Link className="ws-icon-button" to={close} aria-label="Cerrar"><X size={18} aria-hidden="true" /></Link>
+      </div>
+      <Form method="post" className="ws-form" key={`${supplier.id}-${supplier.cuit ?? ''}-${supplier.plazoPagoDias ?? ''}`}>
+        <input type="hidden" name="intent" value="updateSupplier" />
+        <input type="hidden" name="proveedorId" value={supplier.id} />
+        <fieldset disabled={!canEdit} className="ws-form ws-catalog__fields">
+          {[
+            ['nombre', 'Nombre', true, supplier.nombre],
+            ['telefono', 'Teléfono (opcional)', false, supplier.telefono],
+            ['email', 'Email (opcional)', false, supplier.email],
+            ['direccion', 'Dirección (opcional)', false, supplier.direccion],
+          ].map(([name, label, required, value]) => (
+            <label key={String(name)} className="ws-field">
+              <span className="ws-field__label">{label}</span>
+              <span className="ws-field__control">
+                <input name={String(name)} required={Boolean(required)} type={name === 'email' ? 'email' : 'text'} defaultValue={String(value ?? '')} />
+              </span>
+            </label>
+          ))}
+          <TaxFields supplier={supplier} />
+          {canEdit && <button className="ws-button ws-button--primary ws-button--auto" disabled={busy}>Guardar datos</button>}
+        </fieldset>
+      </Form>
+
+      <h3 className="ws-supplier__subtitle">Productos que provee</h3>
+      {products.length === 0 ? (
+        <p className="ws-meta">Todavía ninguno. Se agregan solos al recibir una compra, o a mano acá abajo.</p>
+      ) : (
+        <div className="ws-table-wrap">
+          <table className="ws-table ws-table--sheet ws-table--supplier">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Su código</th>
+                <th className="is-num">Último costo</th>
+                <th>Última compra</th>
+                <th>Habitual</th>
+                {canEdit && <th aria-label="Acciones" />}
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => (
+                <tr key={p.productoId}>
+                  <td className="ws-sheet__wide">
+                    <span className="ws-sheet__name"><b>{p.nombre}</b><small>{p.codigoInterno}</small></span>
+                  </td>
+                  <td data-label="Su código">{p.codigoProveedor ?? '—'}</td>
+                  <td className="is-num" data-label="Último costo">{p.costoUnitario === null ? '—' : formatMoney(p.costoUnitario)}</td>
+                  <td data-label="Última compra">{p.ultimaCompra ? formatDateTime(p.ultimaCompra) : '—'}</td>
+                  <td data-label="Habitual">
+                    {p.habitual ? (
+                      <span className="ws-chip ws-chip--success">Habitual</span>
+                    ) : canEdit ? (
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="saveSupplierProduct" />
+                        <input type="hidden" name="proveedorId" value={supplier.id} />
+                        <input type="hidden" name="productoId" value={p.productoId} />
+                        <input type="hidden" name="codigoProveedor" value={p.codigoProveedor ?? ''} />
+                        <input type="hidden" name="habitual" value="true" />
+                        <button className="ws-button ws-button--outline ws-button--auto" disabled={busy}>Hacerlo habitual</button>
+                      </Form>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  {canEdit && (
+                    <td className="ws-sheet__wide">
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="removeSupplierProduct" />
+                        <input type="hidden" name="proveedorId" value={supplier.id} />
+                        <input type="hidden" name="productoId" value={p.productoId} />
+                        <button className="ws-icon-button" aria-label={`Quitar ${p.nombre}`} disabled={busy}><Trash2 size={16} aria-hidden="true" /></button>
+                      </Form>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canEdit && (
+        <Form method="post" className="ws-supplier__add" key={products.length}>
+          <input type="hidden" name="intent" value="saveSupplierProduct" />
+          <input type="hidden" name="proveedorId" value={supplier.id} />
+          <label className="ws-field">
+            <span className="ws-field__label">Agregar un producto</span>
+            <span className="ws-field__control">
+              <select name="productoId" required defaultValue="">
+                <option value="" disabled>Elegí un producto</option>
+                {catalog.filter((c) => !linked.has(c.id)).map((c) => <option key={c.id} value={c.id}>{c.nombre} · {c.codigoInterno}</option>)}
+              </select>
+            </span>
+          </label>
+          <label className="ws-field">
+            <span className="ws-field__label">Su código (opcional)</span>
+            <span className="ws-field__control"><input name="codigoProveedor" maxLength={60} /></span>
+          </label>
+          <label className="ws-field">
+            <span className="ws-field__label">Costo (opcional)</span>
+            <span className="ws-field__control"><input name="costoUnitario" inputMode="decimal" /></span>
+          </label>
+          <label className="ws-check">
+            <input type="checkbox" name="habitual" value="true" />
+            <span><b>Es su proveedor habitual</b></span>
+          </label>
+          <button className="ws-button ws-button--outline ws-button--auto" disabled={busy}>Agregar producto</button>
+        </Form>
+      )}
+    </section>
+  );
+}
+
+/** OR-B4-052: what is under its minimum stock, by usual supplier, ready to become a draft purchase. */
+function Suggestion({ groups, canEdit, busy }: { groups: SuggestionGroup[]; canEdit: boolean; busy: boolean }) {
+  if (groups.length === 0) {
+    return (
+      <section className="ws-card">
+        <div className="ws-empty">
+          <b>No hay productos debajo de su stock mínimo.</b>
+          Definí el stock mínimo de cada producto en Inventario para recibir sugerencias.
+        </div>
+      </section>
+    );
+  }
+  return (
+    <>
+      <p className="ws-page__lead">
+        Los productos debajo de su stock mínimo, por su proveedor habitual. Sugerimos llevar cada uno al doble del mínimo; cambiá
+        las cantidades (0 lo saca) y armá la orden.
+      </p>
+      {groups.map((group) => (
+        <section key={group.proveedor?.id ?? 'none'} className="ws-card" aria-label={group.proveedor?.nombre ?? 'Sin proveedor habitual'}>
+          <h2 className="ws-card__title">{group.proveedor?.nombre ?? 'Sin proveedor habitual'}</h2>
+          <Form method="post" className="ws-form">
+            <input type="hidden" name="intent" value="draftFromSuggestion" />
+            {group.proveedor && <input type="hidden" name="proveedorId" value={group.proveedor.id} />}
+            <div className="ws-table-wrap">
+              <table className="ws-table ws-table--sheet">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th className="is-num">Disponible</th>
+                    <th className="is-num">Mínimo</th>
+                    <th className="is-num">Costo</th>
+                    <th className="is-num">Pedir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.productos.map((p) => (
+                    <tr key={p.productoId}>
+                      <td className="ws-sheet__wide">
+                        <span className="ws-sheet__name">
+                          <b>{p.nombre}</b>
+                          <small>{[p.codigoInterno, p.codigoProveedor ? `su código ${p.codigoProveedor}` : null].filter(Boolean).join(' · ')}</small>
+                        </span>
+                        <input type="hidden" name="productoId" value={p.productoId} />
+                      </td>
+                      <td className="is-num" data-label="Disponible">{p.disponible}</td>
+                      <td className="is-num" data-label="Mínimo">{p.stockMinimo}</td>
+                      <td className="is-num" data-label="Costo">{p.costoUnitario === null ? '—' : formatMoney(p.costoUnitario)}</td>
+                      <td className="is-num" data-label="Pedir">
+                        <input className="ws-sheet-input" name="cantidad" inputMode="decimal" defaultValue={p.cantidadSugerida} aria-label={`Cantidad de ${p.nombre}`} disabled={!group.proveedor} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="ws-sheet__foot">
+              <p className="ws-sheet__summary">
+                {group.proveedor
+                  ? 'La orden queda en borrador, al último costo de este proveedor: revisala y emitila.'
+                  : 'Estos productos no tienen proveedor habitual: marcalo en Proveedores para que aparezcan con él.'}
+              </p>
+              {canEdit && group.proveedor && (
+                <button className="ws-button ws-button--primary ws-button--auto" disabled={busy}>Armar orden</button>
+              )}
+            </div>
+          </Form>
+        </section>
+      ))}
+    </>
   );
 }

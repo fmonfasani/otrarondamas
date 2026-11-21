@@ -566,6 +566,17 @@
 .ws-offer__item small { color: var(--text-muted); }
 .ws-offer > .ws-button { justify-self: start; }
 .ws-table--offers tr.is-muted td { color: var(--text-muted); }
+/* OR-B4-052 (stage D1): a supplier's record and the products it provides. */
+a.ws-list__row { color: inherit; text-decoration: none; border-radius: var(--radius-control); }
+a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-default); }
+.ws-supplier { display: grid; gap: var(--space-16); min-width: 0; }
+.ws-supplier__subtitle { margin: var(--space-8) 0 0; font-size: 16px; }
+.ws-supplier__add { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-12); align-items: end; }
+.ws-table--supplier .ws-icon-button { margin-left: auto; }
+@media (min-width: 1024px) {
+  /* An open supplier record takes the wide column; the list narrows. */
+  .ws-columns:has(.ws-supplier) { grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); }
+}
 /* OR-B4-051 (stage C4): payment-method discounts in Ajustes. */
 .ws-settings-fields--pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-12); }
 @media (min-width: 1024px) {

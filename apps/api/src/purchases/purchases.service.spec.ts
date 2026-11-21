@@ -20,6 +20,12 @@ describe('PurchasesService.receivePurchase', () => {
       update: jest.fn(),
     },
     lote: { create: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
+    // OR-B4-052 (stage D1): the reception keeps what the supplier charged for each product.
+    productoProveedor: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     auditLog: { createMany: jest.fn() },
   };
   const db = {

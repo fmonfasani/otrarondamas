@@ -221,6 +221,8 @@ describe('B3 relation isolation — MovimientoStock.producto ownership candidate
     await prisma.compraItem.deleteMany({ where: { compraId: purchaseA.id } });
     await prisma.compra.deleteMany({ where: { id: purchaseA.id } });
     await prisma.lote.deleteMany({ where: { empresaId: { in: companies } } });
+    // Stage D1: each reception links the product to its supplier.
+    await prisma.productoProveedor.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.producto.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.proveedor.deleteMany({ where: { id: supplierA.id } });
     await prisma.usuario.deleteMany({ where: { id: userA.id } });
