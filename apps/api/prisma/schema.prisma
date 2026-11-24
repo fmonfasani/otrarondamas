@@ -70,6 +70,7 @@ model ArqueoCaja {
 model Attachment {
   id          String    @id @default(uuid())
   messageId   String
+  businessId  String
   storageKey  String
   filename    String
   mimeType    String
@@ -78,7 +79,7 @@ model Attachment {
   metadata    Json?
   createdAt   DateTime  @default(now())
   deletedAt   DateTime?
-  Message     Message   @relation(fields: [messageId], references: [id])
+  Message     Message   @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([messageId, deletedAt])
   @@index([storageKey])
@@ -325,7 +326,7 @@ model ConversationAssociation {
   reason         String?
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
-  Conversation   Conversation             @relation(fields: [conversationId, businessId], references: [id, businessId])
+  Conversation   Conversation             @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([businessId, conversationId, active])
   @@index([businessId, entityType, entityId])
@@ -333,20 +334,18 @@ model ConversationAssociation {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model ConversationParticipant {
-  id                   String       @id @default(uuid())
-  conversationId       String
-  businessId           String
-  userId               String?
-  membershipBusinessId String?
-  customerId           String?
-  customerBusinessId   String?
-  joinedAt             DateTime     @default(now())
-  leftAt               DateTime?
-  removedAt            DateTime?
-  isAdmin              Boolean      @default(false)
-  Conversation         Conversation @relation(fields: [conversationId, businessId], references: [id, businessId])
-  Cliente              Cliente?     @relation(fields: [customerId, customerBusinessId], references: [id, empresaId])
-  Membership           Membership?  @relation(fields: [userId, membershipBusinessId], references: [userId, businessId])
+  id             String       @id @default(uuid())
+  conversationId String
+  businessId     String
+  userId         String?
+  customerId     String?
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  removedAt      DateTime?
+  isAdmin        Boolean      @default(false)
+  Conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Cliente        Cliente?     @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Membership     Membership?  @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([businessId, customerId])
   @@index([businessId, userId])
@@ -771,30 +770,28 @@ model Membership {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model Message {
-  id                         String               @id @default(uuid())
-  conversationId             String
-  businessId                 String
-  authorUserId               String?
-  authorMembershipBusinessId String?
-  authorCustomerId           String?
-  authorCustomerBusinessId   String?
-  sequence                   BigInt
-  clientMessageId            String
-  type                       MessagingMessageType
-  content                    String?
-  createdAt                  DateTime             @default(now())
-  deliveredAt                DateTime?
-  readAt                     DateTime?
-  editedAt                   DateTime?
-  deletedAt                  DateTime?
-  deletedByUserId            String?
-  replyToMessageId           String?
-  Attachment                 Attachment[]
-  Cliente                    Cliente?             @relation(fields: [authorCustomerId, authorCustomerBusinessId], references: [id, empresaId])
-  Membership                 Membership?          @relation(fields: [authorUserId, authorMembershipBusinessId], references: [userId, businessId])
-  Conversation               Conversation         @relation(fields: [conversationId, businessId], references: [id, businessId])
-  MessageReadReceipt         MessageReadReceipt[]
-  Reaction                   Reaction[]
+  id                 String               @id @default(uuid())
+  conversationId     String
+  businessId         String
+  authorUserId       String?
+  authorCustomerId   String?
+  sequence           BigInt
+  clientMessageId    String
+  type               MessagingMessageType
+  content            String?
+  createdAt          DateTime             @default(now())
+  deliveredAt        DateTime?
+  readAt             DateTime?
+  editedAt           DateTime?
+  deletedAt          DateTime?
+  deletedByUserId    String?
+  replyToMessageId   String?
+  Attachment         Attachment[]
+  Cliente            Cliente?             @relation(fields: [authorCustomerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Membership         Membership?          @relation(fields: [authorUserId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Conversation       Conversation         @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  MessageReadReceipt MessageReadReceipt[]
+  Reaction           Reaction[]
 
   @@unique([conversationId, clientMessageId, authorCustomerId])
   @@unique([conversationId, clientMessageId, authorUserId])
@@ -806,18 +803,16 @@ model Message {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model MessageReadReceipt {
-  id                   String      @id @default(uuid())
-  messageId            String
-  businessId           String
-  userId               String?
-  membershipBusinessId String?
-  customerId           String?
-  customerBusinessId   String?
-  readAt               DateTime    @default(now())
-  Empresa              Empresa     @relation(fields: [businessId], references: [id])
-  Cliente              Cliente?    @relation(fields: [customerId, customerBusinessId], references: [id, empresaId])
-  Message              Message     @relation(fields: [messageId, businessId], references: [id, businessId])
-  Membership           Membership? @relation(fields: [userId, membershipBusinessId], references: [userId, businessId])
+  id         String      @id @default(uuid())
+  messageId  String
+  businessId String
+  userId     String?
+  customerId String?
+  readAt     DateTime    @default(now())
+  Empresa    Empresa     @relation(fields: [businessId], references: [id])
+  Cliente    Cliente?    @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Message    Message     @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Membership Membership? @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([messageId, customerId])
   @@unique([messageId, userId])
@@ -828,18 +823,16 @@ model MessageReadReceipt {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model MessagingReadPreference {
-  id                   String      @id @default(uuid())
-  businessId           String
-  userId               String?
-  membershipBusinessId String?
-  customerId           String?
-  customerBusinessId   String?
-  enabled              Boolean     @default(true)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-  Empresa              Empresa     @relation(fields: [businessId], references: [id])
-  Cliente              Cliente?    @relation(fields: [customerId, customerBusinessId], references: [id, empresaId])
-  Membership           Membership? @relation(fields: [userId, membershipBusinessId], references: [userId, businessId])
+  id         String      @id @default(uuid())
+  businessId String
+  userId     String?
+  customerId String?
+  enabled    Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  Empresa    Empresa     @relation(fields: [businessId], references: [id])
+  Cliente    Cliente?    @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Membership Membership? @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([customerId, businessId])
   @@unique([userId, businessId])
@@ -1186,13 +1179,14 @@ model Proveedor {
 }
 
 model Reaction {
-  id        String   @id @default(uuid())
-  messageId String
-  userId    String
-  emoji     String
-  createdAt DateTime @default(now())
-  Message   Message  @relation(fields: [messageId], references: [id])
-  User      User     @relation(fields: [userId], references: [id])
+  id         String   @id @default(uuid())
+  messageId  String
+  businessId String
+  userId     String
+  emoji      String
+  createdAt  DateTime @default(now())
+  Message    Message  @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  User       User     @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId, emoji])
   @@index([userId, messageId])

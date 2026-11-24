@@ -7,6 +7,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 
@@ -180,6 +181,8 @@ describe('P9-3 — reportes', () => {
     if (server && !server.killed) server.kill();
     const companies = [company.id, other.id];
     const usuarioIds = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.message.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.conversationAssociation.deleteMany({ where: { businessId: { in: companies } } });
     await prisma.conversationParticipant.deleteMany({ where: { businessId: { in: companies } } });

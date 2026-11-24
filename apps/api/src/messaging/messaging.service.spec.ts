@@ -360,7 +360,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: 'user-a',
-          membershipBusinessId: 'business-a',
+          businessId: 'business-a',
           isAdmin: true,
         }),
       }),
@@ -478,7 +478,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: 'user-b',
-          membershipBusinessId: 'business-a',
+          businessId: 'business-a',
         }),
       }),
     );
@@ -533,7 +533,6 @@ describe('MessagingService — M2/M3 messaging', () => {
           conversationId: 'conversation-a',
           businessId: 'business-a',
           authorUserId: 'user-a',
-          authorMembershipBusinessId: 'business-a',
           sequence: BigInt(5),
           clientMessageId: 'client-1',
           type: 'TEXT',
@@ -714,7 +713,6 @@ describe('MessagingService — M2/M3 messaging', () => {
       conversationId: 'conversation-a',
       businessId: 'business-a',
       authorCustomerId: 'customer-a',
-      authorCustomerBusinessId: 'business-a',
       sequence: BigInt(1),
       type: 'TEXT',
       content: 'Consulta',
@@ -732,7 +730,7 @@ describe('MessagingService — M2/M3 messaging', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           authorCustomerId: 'customer-a',
-          authorCustomerBusinessId: 'business-a',
+          businessId: 'business-a',
           sequence: BigInt(1),
           clientMessageId: 'client-customer-1',
           content: 'Consulta',
@@ -868,7 +866,6 @@ describe('MessagingService — M2/M3 messaging', () => {
           messageId: 'message-a',
           businessId: 'business-a',
           userId: 'user-a',
-          membershipBusinessId: 'business-a',
         }),
       }),
     );

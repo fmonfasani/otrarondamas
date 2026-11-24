@@ -349,6 +349,8 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
 
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });

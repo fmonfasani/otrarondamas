@@ -64,7 +64,6 @@ export class CustomerNoticeService {
             conversationId,
             businessId,
             authorUserId: author,
-            authorMembershipBusinessId: businessId,
             sequence: (last?.sequence ?? BigInt(0)) + BigInt(1),
             clientMessageId,
             type: 'TEXT',
@@ -124,10 +123,9 @@ export class CustomerNoticeService {
           conversationId: conversation.id,
           businessId,
           userId: ownerId,
-          membershipBusinessId: businessId,
           isAdmin: true,
         },
-        { conversationId: conversation.id, businessId, customerId, customerBusinessId: businessId },
+        { conversationId: conversation.id, businessId, customerId },
       ],
     });
     await tx.conversationAssociation.create({

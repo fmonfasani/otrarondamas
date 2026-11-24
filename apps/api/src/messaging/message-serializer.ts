@@ -7,8 +7,8 @@
  * which had two consequences:
  *
  *   1. Any field added to the Prisma model leaked to the API automatically,
- *      including `deletedByUserId` and the `authorMembershipBusinessId` /
- *      `authorCustomerBusinessId` tenancy columns.
+ *      including `deletedByUserId` and, until D6 dropped them, the separate
+ *      author tenancy columns.
  *   2. A path that forgot the patch returned a raw `BigInt`, which
  *      `JSON.stringify` cannot serialize ("Do not know how to serialize a
  *      BigInt"). That is the reported defect of a message that is persisted

@@ -5,7 +5,7 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
-import { deleteStoreCompanies, waitPort } from './helpers/store-catalog.fixture';
+import { deleteStoreCompanies, waitPort, deleteMessagingOf } from './helpers/store-catalog.fixture';
 
 /**
  * Mi perfil and Ajustes del negocio, against the real API and database: each person changes
@@ -77,6 +77,8 @@ describe('P12-1 — mi perfil y ajustes del negocio', () => {
     if (server && !server.killed) server.kill();
     const companies = [company.id, other.id];
     const usuarioIds = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.passwordResetToken.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.membership.deleteMany({ where: { businessId: { in: companies } } });

@@ -8,6 +8,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -140,6 +141,8 @@ describe('P14-2 — gestión de la plataforma', () => {
         select: { id: true },
       })
     ).map((u) => u.id);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.ventaItem.deleteMany({ where: { Venta: { empresaId: { in: companies } } } });
     await prisma.venta.deleteMany({ where: { empresaId: { in: companies } } });

@@ -13,6 +13,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 
 /**
@@ -128,6 +129,8 @@ describe('P20-4 — regla de descuentos', () => {
     if (server && !server.killed) server.kill();
     const empresaId = shop.id;
     const usuarioIds = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, [empresaId]);
     await prisma.auditLog.deleteMany({ where: { empresaId } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId } });
     await prisma.pago.deleteMany({ where: { empresaId } });

@@ -72,7 +72,7 @@ describe('Messaging send cycle (real PostgreSQL)', () => {
     conversationId = conversation.id;
 
     await prisma.conversationParticipant.create({
-      data: { conversationId, businessId, userId, membershipBusinessId: businessId },
+      data: { conversationId, businessId, userId },
     });
 
     context = {

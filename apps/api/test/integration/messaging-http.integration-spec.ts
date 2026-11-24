@@ -314,7 +314,6 @@ describe('P1 Messaging HTTP (compiled stack + real PostgreSQL)', () => {
       expect.objectContaining({
         conversationId,
         authorUserId: user.id,
-        authorMembershipBusinessId: company.id,
         sequence: BigInt(1),
         content,
       }),

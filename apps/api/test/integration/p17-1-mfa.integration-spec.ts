@@ -5,7 +5,7 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { codeAt, stepAt } from '../../src/auth/mfa/totp';
 import { spawnApi } from './helpers/api-server.fixture';
-import { deleteStoreCompanies, waitPort } from './helpers/store-catalog.fixture';
+import { deleteStoreCompanies, waitPort, deleteMessagingOf } from './helpers/store-catalog.fixture';
 
 /**
  * OR-B4-044 — second factor with an authenticator app (TOTP).
@@ -121,6 +121,8 @@ describe('P17-1 — verificación en dos pasos (MFA)', () => {
   afterAll(async () => {
     if (server && !server.killed) server.kill();
     const ids = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, [shop.id]);
     await prisma.auditLog.deleteMany({ where: { empresaId: shop.id } });
     await prisma.mfaFactor.deleteMany({ where: { usuarioId: { in: ids } } });
     await prisma.membership.deleteMany({ where: { businessId: shop.id } });
