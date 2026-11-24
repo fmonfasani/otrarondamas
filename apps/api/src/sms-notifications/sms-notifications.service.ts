@@ -112,6 +112,7 @@ export class SMSNotificationsService {
       if (phoneRecord) {
         await this.prisma.sMSLog.create({
           data: {
+            empresaId: phoneRecord.empresaId,
             phoneNumberId: phoneRecord.id,
             toPhone: phoneNumber,
             message: dto.message,
@@ -189,6 +190,7 @@ export class SMSNotificationsService {
       // Create OTP session
       const otpSession = await this.prisma.oTPSession.create({
         data: {
+          empresaId: phoneRecord.empresaId,
           phoneNumberId: phoneRecord.id,
           purpose: dto.purpose as any,
           code,
@@ -206,6 +208,7 @@ export class SMSNotificationsService {
       // Log SMS
       await this.prisma.sMSLog.create({
         data: {
+          empresaId: phoneRecord.empresaId,
           phoneNumberId: phoneRecord.id,
           toPhone: phoneNumber,
           message: `Tu código de verificación es: ${code}. No lo compartas con nadie.`,
@@ -400,6 +403,13 @@ export class SMSNotificationsService {
 
     await this.prisma.oTPSession.deleteMany({
       where: { phoneNumberId },
+    });
+
+    // Alerts keep their history without the phone (the reference used to be ON DELETE SET NULL;
+    // it now restricts, ADR-DAT-020). Only phoneNumberId is cleared, never the business.
+    await this.prisma.sMSAlert.updateMany({
+      where: { phoneNumberId },
+      data: { phoneNumberId: null },
     });
 
     // Delete phone number

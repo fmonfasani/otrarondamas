@@ -605,24 +605,33 @@ describe('P11-1: Payment Gateway Integration Tests', () => {
     it('should not return related refunds owned by another business', async () => {
       const otherEmpresa = await createOtherEmpresa('Refund');
       const payment = await createOwnPayment('pi_refund_isolation', 'COMPLETED');
-      const foreignRefund = await prisma.refund.create({
-        data: {
-          empresaId: otherEmpresa.id,
-          paymentId: payment.id,
-          monto: 10,
-          razon: 'CUSTOMER_REQUEST',
-          estado: 'PENDING',
-        },
-      });
 
       try {
-        const detail = await paymentService.getPaymentDetail(testEmpresa.id, payment.id);
+        // ADR-DAT-020 (Fase 2 PR 4, module 4c): a refund carries its payment's business, so the
+        // database refuses another business's refund on this payment before any read could leak it.
+        let refused: string | undefined;
+        try {
+          await prisma.refund.create({
+            data: {
+              empresaId: otherEmpresa.id,
+              paymentId: payment.id,
+              monto: 10,
+              razon: 'CUSTOMER_REQUEST',
+              estado: 'PENDING',
+            },
+          });
+        } catch (error) {
+          refused = (error as { code?: string }).code;
+        }
+        expect(refused).toBe('P2003');
 
-        expect(detail.refunds).not.toEqual(
-          expect.arrayContaining([expect.objectContaining({ id: foreignRefund.id })]),
-        );
+        const detail = await paymentService.getPaymentDetail(testEmpresa.id, payment.id);
+        expect(
+          detail.refunds.filter(
+            (refund: { empresaId?: string }) => refund.empresaId !== testEmpresa.id,
+          ),
+        ).toEqual([]);
       } finally {
-        await prisma.refund.delete({ where: { id: foreignRefund.id } });
         await prisma.empresa.delete({ where: { id: otherEmpresa.id } });
       }
     });

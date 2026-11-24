@@ -1,42 +1,5 @@
 {
   "$comment": "ADR-DAT-020 (INIT-019 PR 4): references between business tables not converted to composite keys yet, and the child tables still without their business column. Only shrinks; see composite-references.spec.ts.",
-  "childrenWithoutBusiness": [
-    "CapabilityGrant",
-    "DocumentoLegajo",
-    "Legajo",
-    "OTPSession",
-    "RoleGrant",
-    "SMSLog",
-    "UsuarioPermiso"
-  ],
-  "references": [
-    "AuditLog.Autorizacion",
-    "AuditLog.Usuario",
-    "AuditLog.Venta",
-    "CapabilityGrant.RoleGrant",
-    "DocumentoLegajo.Legajo",
-    "EmailCampaign.EmailTemplate",
-    "EmailLog.EmailTemplate",
-    "EmailPreference.Cliente",
-    "EmailPreference.Usuario",
-    "Invitacion.Usuario",
-    "Legajo.Cliente",
-    "Legajo.Usuario",
-    "Notificacion.Pedido",
-    "NotificationDigest.Usuario",
-    "NotificationPreference.Usuario",
-    "OTPSession.phoneNumber",
-    "Payment.venta",
-    "PaymentIntent.payment",
-    "PhoneNumber.Cliente",
-    "PhoneNumber.Usuario",
-    "Refund.payment",
-    "RoleGrant.Membership",
-    "SMSAlert.Cliente",
-    "SMSAlert.PhoneNumber",
-    "SMSAlert.Usuario",
-    "SMSLog.phoneNumber",
-    "UserEmpresa.Usuario",
-    "UsuarioPermiso.Usuario"
-  ]
+  "childrenWithoutBusiness": [],
+  "references": []
 }
