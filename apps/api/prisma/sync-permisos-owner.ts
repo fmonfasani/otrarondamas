@@ -51,7 +51,11 @@ async function main() {
     }
 
     await prisma.usuarioPermiso.createMany({
-      data: missing.map((p) => ({ usuarioId: user.id, permisoId: p.id })),
+      data: missing.map((p) => ({
+        empresaId: user.empresaId,
+        usuarioId: user.id,
+        permisoId: p.id,
+      })),
       skipDuplicates: true,
     });
     console.log(

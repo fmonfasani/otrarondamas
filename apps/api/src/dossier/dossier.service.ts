@@ -74,8 +74,13 @@ export class DossierService {
       include: { DocumentoLegajo: true },
     });
     if (existing) return existing;
+    // The dossier lives in its owner's business (ADR-DAT-020).
+    const { empresaId } = await this.prisma.usuario.findUniqueOrThrow({
+      where: { id: userId },
+      select: { empresaId: true },
+    });
     return this.prisma.legajo.create({
-      data: { usuarioId: userId },
+      data: { empresaId, usuarioId: userId },
       include: { DocumentoLegajo: true },
     });
   }
@@ -86,8 +91,12 @@ export class DossierService {
       include: { DocumentoLegajo: true },
     });
     if (existing) return existing;
+    const { empresaId } = await this.prisma.cliente.findUniqueOrThrow({
+      where: { id: customerId },
+      select: { empresaId: true },
+    });
     return this.prisma.legajo.create({
-      data: { clienteId: customerId },
+      data: { empresaId, clienteId: customerId },
       include: { DocumentoLegajo: true },
     });
   }
@@ -166,6 +175,7 @@ export class DossierService {
 
     return this.prisma.documentoLegajo.create({
       data: {
+        empresaId: dossier.empresaId,
         legajoId: dossierId,
         tipo: dto.tipo,
         rutaArchivo: relativePath,

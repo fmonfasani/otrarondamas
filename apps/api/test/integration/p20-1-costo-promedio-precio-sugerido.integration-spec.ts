@@ -51,7 +51,7 @@ describe('P20-1 — costo promedio y precio sugerido', () => {
         select: { id: true },
       });
       await prisma.usuarioPermiso.create({
-        data: { usuarioId: usuario.id, permisoId: permiso.id },
+        data: { empresaId: company, usuarioId: usuario.id, permisoId: permiso.id },
       });
     }
     people[key] = {

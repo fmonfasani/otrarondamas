@@ -84,6 +84,7 @@ async function backfillRoleGrants() {
       try {
         await prisma.roleGrant.create({
           data: {
+            businessId: membership.businessId,
             membershipId: membership.id,
             roleTemplateId,
           },

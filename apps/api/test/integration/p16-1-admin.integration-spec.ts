@@ -117,6 +117,7 @@ describe.skip('P16-1: Admin Dashboard Integration Tests', () => {
     // Create role grant
     await prisma.roleGrant.create({
       data: {
+        businessId: membership.businessId,
         membershipId: membership.id,
         roleTemplateId: adminRole.id,
       },

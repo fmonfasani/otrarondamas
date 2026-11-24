@@ -20,9 +20,21 @@ const PENDING: { childrenWithoutBusiness: string[]; references: string[] } = JSO
 
 /** Header → lines references whose lines go with their header when it is deleted. */
 const CASCADE = new Set([
+  'CapabilityGrant.RoleGrant',
   'CartItem.Cart',
   'DevolucionClienteItem.DevolucionCliente',
+  'PaymentIntent.payment',
   'Reembolso.DevolucionCliente',
+  'RoleGrant.Membership',
+]);
+
+/**
+ * References that stay single-column on purpose, with the decision that keeps them.
+ * D8 (Owner, 2026-11-24): a business's audit log records when Wapsell's platform staff open it
+ * (PLATFORM_VIEW), so its actor may be a user of the platform business.
+ */
+const EXCEPTIONS = new Map([
+  ['AuditLog.Usuario', 'D8: platform staff appear in a business audit log'],
 ]);
 
 type Model = Prisma.DMMF.Model;
@@ -100,7 +112,18 @@ describe('composite references between business tables (ADR-DAT-020)', () => {
   });
 
   it('every reference outside the pending list carries the business, with restricted delete and update', () => {
-    expect(all.filter(({ key }) => !pending.has(key)).flatMap(problemsOf)).toEqual([]);
+    expect(
+      all.filter(({ key }) => !pending.has(key) && !EXCEPTIONS.has(key)).flatMap(problemsOf),
+    ).toEqual([]);
+  });
+
+  it('each exception exists and still does not carry the business', () => {
+    const byKey = new Map(all.map((r) => [r.key, r]));
+    const stale = [...EXCEPTIONS.keys()].filter((key) => {
+      const ref = byKey.get(key);
+      return !ref || sharesBusiness(ref.model, ref.field, ref.target);
+    });
+    expect(stale).toEqual([]);
   });
 
   it('the pending list only shrinks: each entry exists and is still pending', () => {

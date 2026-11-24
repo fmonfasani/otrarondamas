@@ -58,7 +58,7 @@ describe('P20-4 — regla de descuentos', () => {
         select: { id: true },
       });
       await prisma.usuarioPermiso.create({
-        data: { usuarioId: usuario.id, permisoId: permiso.id },
+        data: { empresaId: shop.id, usuarioId: usuario.id, permisoId: permiso.id },
       });
     }
     people[key] = {

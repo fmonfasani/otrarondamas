@@ -61,7 +61,7 @@ describe('P15-1 — auditoría del negocio', () => {
         select: { id: true },
       });
       await prisma.usuarioPermiso.create({
-        data: { usuarioId: usuario.id, permisoId: permiso.id },
+        data: { empresaId: companyId, usuarioId: usuario.id, permisoId: permiso.id },
       });
     }
     people[key] = {

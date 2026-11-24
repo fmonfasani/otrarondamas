@@ -78,6 +78,12 @@ export const MODELS_WITH_COMPANY_ID = [
   'CierreCaja',
   'MovimientoCaja',
   'AplicacionPago',
+  // INIT-019 PR 4, module 4c: dossiers, their documents, user permissions and SMS rows.
+  'Legajo',
+  'DocumentoLegajo',
+  'UsuarioPermiso',
+  'OTPSession',
+  'SMSLog',
 ] as const;
 
 /**
@@ -100,6 +106,9 @@ export const MODELS_WITH_BUSINESS_ID = [
   // INIT-019 PR 4, module 4b: attachments and reactions carry their message's business.
   'Attachment',
   'Reaction',
+  // INIT-019 PR 4, module 4c: role grants and their capabilities carry their membership's business.
+  'RoleGrant',
+  'CapabilityGrant',
 ] as const;
 
 type ModelWithCompanyId = (typeof MODELS_WITH_COMPANY_ID)[number];

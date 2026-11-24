@@ -23,8 +23,13 @@ export async function seedUsuarioPermissions(
     permissionIds.set(nombre, permission.id);
   }
 
-  const data = usuarioIds.flatMap((usuarioId) =>
-    [...permissionIds.values()].map((permisoId) => ({ usuarioId, permisoId })),
+  // Each permission row carries its user's business (ADR-DAT-020).
+  const owners = await prisma.usuario.findMany({
+    where: { id: { in: usuarioIds } },
+    select: { id: true, empresaId: true },
+  });
+  const data = owners.flatMap(({ id: usuarioId, empresaId }) =>
+    [...permissionIds.values()].map((permisoId) => ({ empresaId, usuarioId, permisoId })),
   );
   if (data.length > 0) {
     await prisma.usuarioPermiso.createMany({ data, skipDuplicates: true });

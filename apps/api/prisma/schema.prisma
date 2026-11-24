@@ -100,10 +100,10 @@ model AuditLog {
   ventaId            String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
-  Autorizacion       Autorizacion? @relation(fields: [autorizacionId], references: [id])
+  Autorizacion       Autorizacion? @relation(fields: [empresaId, autorizacionId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa            Empresa       @relation(fields: [empresaId], references: [id])
   Usuario            Usuario?      @relation(fields: [usuarioId], references: [id])
-  Venta              Venta?        @relation(fields: [ventaId], references: [id])
+  Venta              Venta?        @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Autorizacion {
@@ -156,6 +156,7 @@ model CapabilityDefinition {
 
 model CapabilityGrant {
   id                   String               @id @default(uuid())
+  businessId           String
   roleGrantId          String
   capabilityDefId      String
   grantType            String               @default("GRANT")
@@ -164,7 +165,7 @@ model CapabilityGrant {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   CapabilityDefinition CapabilityDefinition @relation(fields: [capabilityDefId], references: [id])
-  RoleGrant            RoleGrant            @relation(fields: [roleGrantId], references: [id], onDelete: Cascade)
+  RoleGrant            RoleGrant            @relation(fields: [businessId, roleGrantId], references: [businessId, id], onDelete: Cascade, onUpdate: Restrict)
 
   @@unique([roleGrantId, capabilityDefId])
   @@index([roleGrantId])
@@ -517,6 +518,7 @@ model DevolucionProveedorItem {
 
 model DocumentoLegajo {
   id            String              @id @default(uuid())
+  empresaId     String
   legajoId      String
   tipo          TipoDocumentoLegajo
   rutaArchivo   String
@@ -524,7 +526,7 @@ model DocumentoLegajo {
   vencimiento   DateTime
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
-  Legajo        Legajo              @relation(fields: [legajoId], references: [id])
+  Legajo        Legajo              @relation(fields: [empresaId, legajoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Empresa {
@@ -700,11 +702,12 @@ model Invitacion {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   Empresa       Empresa    @relation(fields: [empresaId], references: [id])
-  Usuario       Usuario    @relation(fields: [invitadoPorId], references: [id])
+  Usuario       Usuario    @relation(fields: [empresaId, invitadoPorId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Legajo {
   id               String            @id @default(uuid())
+  empresaId        String
   usuarioId        String?           @unique
   clienteId        String?           @unique
   cuit             String?
@@ -719,8 +722,13 @@ model Legajo {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   DocumentoLegajo  DocumentoLegajo[]
-  Cliente          Cliente?          @relation(fields: [clienteId], references: [id])
-  Usuario          Usuario?          @relation(fields: [usuarioId], references: [id])
+  Cliente          Cliente?          @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Usuario          Usuario?          @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([empresaId, id])
+  @@unique([empresaId, usuarioId])
+  @@unique([clienteId, empresaId])
 }
 
 model Lote {
@@ -765,6 +773,8 @@ model Membership {
   RoleGrant               RoleGrant?
 
   @@unique([userId, businessId])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([businessId, id])
   @@index([businessId, userId])
 }
 
@@ -892,7 +902,7 @@ model Notificacion {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   Empresa      Empresa  @relation(fields: [empresaId], references: [id])
-  Pedido       Pedido?  @relation(fields: [pedidoId], references: [id])
+  Pedido       Pedido?  @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 }
 
 model Pago {
@@ -1249,14 +1259,18 @@ model RoleCapability {
 
 model RoleGrant {
   id              String            @id @default(uuid())
+  businessId      String
   membershipId    String            @unique
   roleTemplateId  String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   CapabilityGrant CapabilityGrant[]
-  Membership      Membership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  Membership      Membership        @relation(fields: [businessId, membershipId], references: [businessId, id], onDelete: Cascade, onUpdate: Restrict)
   RoleTemplate    RoleTemplate      @relation(fields: [roleTemplateId], references: [id])
 
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([businessId, id])
+  @@unique([businessId, membershipId])
   @@index([membershipId])
 }
 
@@ -1444,7 +1458,7 @@ model NotificationPreference {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Usuario Usuario @relation(fields: [usuarioId], references: [id])
+  Usuario Usuario @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa Empresa @relation(fields: [empresaId], references: [id])
 
   @@unique([usuarioId, empresaId])
@@ -1467,7 +1481,7 @@ model NotificationDigest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Usuario Usuario @relation(fields: [usuarioId], references: [id])
+  Usuario Usuario @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa Empresa @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, usuarioId, period])
@@ -1482,7 +1496,7 @@ model UserEmpresa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  Usuario Usuario @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   Empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, empresaId])
@@ -1506,12 +1520,13 @@ model PasswordResetToken {
 
 model UsuarioPermiso {
   id        String   @id @default(uuid())
+  empresaId String
   usuarioId String
   permisoId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Permiso   Permiso  @relation(fields: [permisoId], references: [id])
-  Usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  Usuario   Usuario  @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([usuarioId, permisoId])
 }
@@ -1781,14 +1796,16 @@ model PhoneNumber {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  Usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
-  Cliente     Cliente?     @relation(fields: [clienteId], references: [id])
+  Usuario     Usuario?     @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Cliente     Cliente?     @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
   Empresa     Empresa      @relation(fields: [empresaId], references: [id])
   smsLogs     SMSLog[]
   otpSessions OTPSession[]
   smsAlerts   SMSAlert[]
 
   @@unique([empresaId, phoneNumber])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([empresaId, id])
   @@index([usuarioId])
   @@index([clienteId])
   @@index([empresaId])
@@ -1796,6 +1813,7 @@ model PhoneNumber {
 
 model OTPSession {
   id            String     @id @default(uuid())
+  empresaId     String
   phoneNumberId String
   purpose       OTPPurpose
   code          String
@@ -1806,7 +1824,7 @@ model OTPSession {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber @relation(fields: [empresaId, phoneNumberId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([phoneNumberId])
   @@index([expiresAt])
@@ -1814,6 +1832,7 @@ model OTPSession {
 
 model SMSLog {
   id            String    @id @default(uuid())
+  empresaId     String
   phoneNumberId String
   toPhone       String    @db.VarChar(20)
   message       String    @db.VarChar(160)
@@ -1827,7 +1846,7 @@ model SMSLog {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber @relation(fields: [empresaId, phoneNumberId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([phoneNumberId])
   @@index([status])
@@ -1848,9 +1867,9 @@ model SMSAlert {
   updatedAt     DateTime @updatedAt
 
   Empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  Usuario     Usuario?     @relation(fields: [usuarioId], references: [id])
-  Cliente     Cliente?     @relation(fields: [clienteId], references: [id])
-  PhoneNumber PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+  Usuario     Usuario?     @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Cliente     Cliente?     @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  PhoneNumber PhoneNumber? @relation(fields: [empresaId, phoneNumberId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([empresaId])
   @@index([usuarioId])
@@ -1876,6 +1895,8 @@ model EmailTemplate {
   EmailCampaign EmailCampaign[]
 
   @@unique([empresaId, nombre, versionActual])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([empresaId, id])
   @@index([empresaId, tipo, activo])
 }
 
@@ -1899,7 +1920,7 @@ model EmailLog {
   updatedAt         DateTime  @updatedAt
 
   Empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  EmailTemplate EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  EmailTemplate EmailTemplate? @relation(fields: [empresaId, templateId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([empresaId, destinatario, createdAt])
   @@index([empresaId, tipoReferencia, idReferencia])
@@ -1923,10 +1944,13 @@ model EmailPreference {
   updatedAt           DateTime  @updatedAt
 
   Empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  Usuario Usuario? @relation("EmailPreference_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
-  Cliente Cliente? @relation("EmailPreference_cliente", fields: [clienteId], references: [id], onDelete: Cascade)
+  Usuario Usuario? @relation("EmailPreference_usuario", fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Cliente Cliente? @relation("EmailPreference_cliente", fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([empresaId, email])
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([empresaId, usuarioId])
+  @@unique([clienteId, empresaId])
   @@index([empresaId, suscrito])
   @@index([empresaId, desuscritaEn])
 }
@@ -1952,7 +1976,7 @@ model EmailCampaign {
   updatedAt             DateTime       @updatedAt
 
   Empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  EmailTemplate EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  EmailTemplate EmailTemplate @relation(fields: [empresaId, templateId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([empresaId, estadio])
   @@index([empresaId, programadaPara])
@@ -1981,7 +2005,7 @@ model Payment {
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
   ventaId String
-  venta   Venta  @relation(fields: [ventaId], references: [id], onDelete: Restrict)
+  venta   Venta  @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   monto  Decimal @db.Decimal(18, 2)
   moneda String  @default("ARS")
@@ -2000,6 +2024,8 @@ model Payment {
   PaymentIntent PaymentIntent[]
   Refund        Refund[]
 
+  /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
+  @@unique([empresaId, id])
   @@index([empresaId, estado])
   @@index([ventaId])
   @@index([empresaId, createdAt])
@@ -2010,7 +2036,7 @@ model PaymentIntent {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
   paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment   Payment @relation(fields: [empresaId, paymentId], references: [empresaId, id], onDelete: Cascade, onUpdate: Restrict)
 
   clientSecret     String @unique
   providerIntentId String @unique
@@ -2049,7 +2075,7 @@ model Refund {
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
   paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  payment   Payment @relation(fields: [empresaId, paymentId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   monto Decimal @db.Decimal(18, 2)
   razon String // "CUSTOMER_REQUEST" | "MISTAKE" | "FRAUD_SUSPECTED" | "OTHER"

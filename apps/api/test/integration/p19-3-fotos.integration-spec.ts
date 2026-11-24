@@ -65,7 +65,7 @@ describe('P19-3 — fotos de productos', () => {
         select: { id: true },
       });
       await prisma.usuarioPermiso.create({
-        data: { usuarioId: usuario.id, permisoId: permiso.id },
+        data: { empresaId: companyId, usuarioId: usuario.id, permisoId: permiso.id },
       });
     }
     people[key] =
