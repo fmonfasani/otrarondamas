@@ -57,6 +57,7 @@ describe('SMSNotificationsService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findFirst: jest.fn(),
+        updateMany: jest.fn(),
         delete: jest.fn(),
       },
     } as any;
@@ -299,11 +300,17 @@ describe('SMSNotificationsService', () => {
       prisma.phoneNumber.count.mockResolvedValueOnce(0); // No other primary numbers
       prisma.sMSLog.deleteMany.mockResolvedValueOnce({} as any);
       prisma.oTPSession.deleteMany.mockResolvedValueOnce({} as any);
+      prisma.sMSAlert.updateMany.mockResolvedValueOnce({ count: 0 } as any);
       prisma.phoneNumber.delete.mockResolvedValueOnce({} as any);
 
       const result = await service.removePhoneNumber(mockAuth, phoneId);
 
       expect(result.success).toBe(true);
+      // Alerts keep their history without the phone; the reference restricts deletes (ADR-DAT-020).
+      expect(prisma.sMSAlert.updateMany).toHaveBeenCalledWith({
+        where: { phoneNumberId: phoneId },
+        data: { phoneNumberId: null },
+      });
       expect(prisma.phoneNumber.delete).toHaveBeenCalledWith({
         where: { id: phoneId },
       });
