@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
-import { deleteStoreCompanies, waitPort } from './helpers/store-catalog.fixture';
+import { deleteStoreCompanies, waitPort, deleteMessagingOf } from './helpers/store-catalog.fixture';
 
 /**
  * ADR-IDN-001/008 — the universal buyer: one Wapsell account (Comprador) that works in any
@@ -62,6 +62,8 @@ describe('P17-3 — comprador universal', () => {
     const usuarios = (
       await prisma.usuario.findMany({ where: { empresaId: businessId }, select: { id: true } })
     ).map((u) => u.id);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, [businessId]);
     await prisma.cliente.deleteMany({ where: { empresaId: businessId } });
     await prisma.comprador.deleteMany({ where: { id: { in: buyers.map((b) => b.id) } } });
     await prisma.auditLog.deleteMany({ where: { empresaId: businessId } });

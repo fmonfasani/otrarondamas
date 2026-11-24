@@ -194,7 +194,6 @@ export class MessagingService {
               conversationId: conversation.id,
               businessId: context.businessId,
               userId,
-              membershipBusinessId: context.businessId,
             },
           });
         }
@@ -205,7 +204,6 @@ export class MessagingService {
               conversationId: conversation.id,
               businessId: context.businessId,
               customerId,
-              customerBusinessId: context.businessId,
             },
           });
 
@@ -544,14 +542,12 @@ export class MessagingService {
                 conversationId: conversation.id,
                 businessId: context.businessId,
                 userId: owner.userId,
-                membershipBusinessId: context.businessId,
                 isAdmin: true,
               },
               {
                 conversationId: conversation.id,
                 businessId: context.businessId,
                 customerId,
-                customerBusinessId: context.businessId,
               },
             ],
           });
@@ -621,6 +617,7 @@ export class MessagingService {
         this.prisma.message.update({ where: { id: message.id }, data: { type: kind.type } }),
         this.prisma.attachment.create({
           data: {
+            businessId: context.businessId,
             messageId: message.id,
             storageKey,
             filename,
@@ -958,6 +955,7 @@ export class MessagingService {
     if (!existing) {
       await this.prisma.attachment.create({
         data: {
+          businessId: context.businessId,
           messageId: message.id,
           storageKey: `producto:${product.id}`,
           filename: product.nombre,
@@ -1412,11 +1410,9 @@ export class MessagingService {
             ...(participantUserId
               ? {
                   userId: participantUserId,
-                  membershipBusinessId: context.businessId,
                 }
               : {
                   customerId: participantCustomerId,
-                  customerBusinessId: context.businessId,
                 }),
           },
         });
@@ -1735,14 +1731,12 @@ export class MessagingService {
     if (context.userId) {
       return {
         userId: context.userId,
-        membershipBusinessId: context.businessId,
       };
     }
 
     if (context.customerId) {
       return {
         customerId: context.customerId,
-        customerBusinessId: context.businessId,
       };
     }
 
@@ -1801,14 +1795,12 @@ export class MessagingService {
     if (context.userId) {
       return {
         authorUserId: context.userId,
-        authorMembershipBusinessId: context.businessId,
       };
     }
 
     if (context.customerId) {
       return {
         authorCustomerId: context.customerId,
-        authorCustomerBusinessId: context.businessId,
       };
     }
 

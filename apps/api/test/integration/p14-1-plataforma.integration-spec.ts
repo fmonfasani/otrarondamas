@@ -8,6 +8,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 
 /**
@@ -145,6 +146,8 @@ describe('P14-1 — administración de la plataforma', () => {
     for (const o of newOwners)
       people[`new-${o.id}`] = { usuarioId: o.id, userId: '', email: '', auth: '' };
     const usuarioIds = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.passwordResetToken.deleteMany({ where: { usuarioId: { in: usuarioIds } } });
     await prisma.userEmpresa.deleteMany({ where: { empresaId: { in: companies } } });

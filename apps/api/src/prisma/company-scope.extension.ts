@@ -97,6 +97,9 @@ export const MODELS_WITH_BUSINESS_ID = [
   'Message',
   'MessageReadReceipt',
   'MessagingReadPreference',
+  // INIT-019 PR 4, module 4b: attachments and reactions carry their message's business.
+  'Attachment',
+  'Reaction',
 ] as const;
 
 type ModelWithCompanyId = (typeof MODELS_WITH_COMPANY_ID)[number];

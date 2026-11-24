@@ -296,6 +296,8 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
   afterAll(async () => {
     const companies = [companyA.id, companyB.id];
     // Stage B3 (#168): every order transition is in the audit trail.
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });

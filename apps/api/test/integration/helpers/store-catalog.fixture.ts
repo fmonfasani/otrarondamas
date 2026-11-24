@@ -96,8 +96,10 @@ export async function createStoreProduct(
  */
 export async function deleteMessagingOf(prisma: PrismaService, companies: string[]) {
   const scope = { where: { businessId: { in: companies } } };
-  await prisma.attachment.deleteMany({ where: { Message: { businessId: { in: companies } } } });
+  await prisma.reaction.deleteMany(scope);
+  await prisma.attachment.deleteMany(scope);
   await prisma.messageReadReceipt.deleteMany(scope);
+  await prisma.messagingReadPreference.deleteMany(scope);
   await prisma.message.deleteMany(scope);
   await prisma.conversationAssociation.deleteMany(scope);
   await prisma.conversationParticipant.deleteMany(scope);

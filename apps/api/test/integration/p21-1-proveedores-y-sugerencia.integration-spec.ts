@@ -9,6 +9,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 
 /**
@@ -132,6 +133,8 @@ describe('P21-1 — proveedores y sugerencia de compra', () => {
     if (server && !server.killed) server.kill();
     const companies = [shop.id, other.id];
     const usuarioIds = Object.values(people).map((p) => p.usuarioId);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.recepcionCompra.deleteMany({ where: { empresaId: { in: companies } } });

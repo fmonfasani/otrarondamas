@@ -10,6 +10,7 @@ import {
   createStoreProduct,
   deleteStoreCompanies,
   waitPort,
+  deleteMessagingOf,
 } from './helpers/store-catalog.fixture';
 
 /**
@@ -194,6 +195,8 @@ describe('P11-5 — paying a confirmed order with Mercado Pago', () => {
   afterAll(async () => {
     if (server && !server.killed) server.kill();
     await new Promise<void>((resolve) => fakeMp.close(() => resolve()));
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, [company.id, otherCompany.id]);
     await prisma.pago.deleteMany({ where: { empresaId: { in: [company.id, otherCompany.id] } } });
     await prisma.membership.deleteMany({ where: { businessId: company.id } });
     await prisma.user.deleteMany({ where: { id: owner.id } });

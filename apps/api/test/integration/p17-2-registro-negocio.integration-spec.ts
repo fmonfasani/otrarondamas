@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
-import { deleteStoreCompanies, waitPort } from './helpers/store-catalog.fixture';
+import { deleteStoreCompanies, waitPort, deleteMessagingOf } from './helpers/store-catalog.fixture';
 
 /**
  * OR-B4-045 — public sign-up of a new Business with its Owner: with email (welcome link, no
@@ -57,6 +57,8 @@ describe('P17-2 — alta de negocio (registro)', () => {
         select: { id: true },
       })
     ).map((u) => u.id);
+    // Messaging rows restrict deleting the members and customers they cite (D6).
+    await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.passwordResetToken.deleteMany({ where: { usuarioId: { in: usuarios } } });
     await prisma.userEmpresa.deleteMany({ where: { empresaId: { in: companies } } });
