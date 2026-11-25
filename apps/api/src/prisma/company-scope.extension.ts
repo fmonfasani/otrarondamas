@@ -109,6 +109,8 @@ export const MODELS_WITH_BUSINESS_ID = [
   // INIT-019 PR 4, module 4c: role grants and their capabilities carry their membership's business.
   'RoleGrant',
   'CapabilityGrant',
+  // E2: each participant's read position carries its participant's business.
+  'ConversationReadState',
 ] as const;
 
 type ModelWithCompanyId = (typeof MODELS_WITH_COMPANY_ID)[number];

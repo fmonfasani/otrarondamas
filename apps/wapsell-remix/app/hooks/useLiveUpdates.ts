@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useRevalidator } from '@remix-run/react';
 import {
   parseSignal,
@@ -12,24 +12,79 @@ import {
 } from '~/utils/live';
 
 /**
- * E1 — keeps a Mensajes screen up to date at once. It listens to the page's stream
- * (`eventsUrl`): «cambio» reloads the page data, «escribiendo» fills `typing`. Without the
- * stream it falls back to asking every POLL_MS. Reloads wait while `paused` (sending) or
- * the tab is hidden, and several signals in a row cost at most one extra reload.
+ * E1/E2 — the page's live stream (routes/*eventos.tsx → realtime.server). One per tab: the
+ * business panel opens it in its layout and shares it (LiveContext) with the menu badge and
+ * the Mensajes screen; the store chat opens its own.
  */
-export function useLiveUpdates(eventsUrl: string, { paused }: { paused: boolean }) {
-  const revalidator = useRevalidator();
+export type LiveEvent = 'estado' | 'cambio' | 'escribiendo';
+type Listener = (data: Record<string, unknown> | null) => void;
+
+export interface LiveSource {
+  /** True while the stream is connected to the API. */
+  live: boolean;
+  subscribe(event: LiveEvent, listener: Listener): () => void;
+}
+
+export const LiveContext = createContext<LiveSource | null>(null);
+
+/** The panel's shared stream, when the page is inside the business layout. */
+export const useSharedLive = () => useContext(LiveContext);
+
+/** Opens the stream at `url` (none when null) for as long as the component lives. */
+export function useLiveSource(url: string | null): LiveSource {
   const [live, setLive] = useState(false);
+  const listeners = useRef(new Map<LiveEvent, Set<Listener>>());
+
+  useEffect(() => {
+    if (!url || typeof EventSource === 'undefined') return;
+    const source = new EventSource(url);
+    const events: LiveEvent[] = ['estado', 'cambio', 'escribiendo'];
+    for (const name of events) {
+      source.addEventListener(name, (event) => {
+        const data = parseSignal((event as MessageEvent).data);
+        if (name === 'estado') setLive(data?.conectado === true);
+        listeners.current.get(name)?.forEach((listener) => listener(data));
+      });
+    }
+    source.onerror = () => setLive(false);
+    return () => {
+      source.close();
+      setLive(false);
+    };
+  }, [url]);
+
+  const subscribe = useCallback((event: LiveEvent, listener: Listener) => {
+    const set = listeners.current.get(event) ?? new Set<Listener>();
+    set.add(listener);
+    listeners.current.set(event, set);
+    return () => {
+      set.delete(listener);
+    };
+  }, []);
+
+  return useMemo(() => ({ live, subscribe }), [live, subscribe]);
+}
+
+/**
+ * Keeps a chat screen up to date at once: «cambio» reloads the page data, «escribiendo»
+ * fills `typing`. Without the stream it falls back to asking every POLL_MS. Reloads wait
+ * while `paused` (sending) and, unless `whenHidden`, while the tab is hidden; several
+ * signals in a row cost at most one extra reload.
+ */
+export function useLiveUpdates(source: LiveSource, { paused, whenHidden = false }: { paused: boolean; whenHidden?: boolean }) {
+  const revalidator = useRevalidator();
   const [typing, setTyping] = useState<TypingMap>({});
   const pending = useRef(false);
   const busy = paused || revalidator.state !== 'idle';
-  const current = useRef({ busy, revalidate: revalidator.revalidate });
-  current.current = { busy, revalidate: revalidator.revalidate };
+  const current = useRef({ busy, whenHidden, revalidate: revalidator.revalidate });
+  current.current = { busy, whenHidden, revalidate: revalidator.revalidate };
 
   const flush = useCallback(() => {
-    if (!pending.current || current.current.busy || document.visibilityState !== 'visible') return;
+    const { busy: isBusy, whenHidden: hiddenToo, revalidate } = current.current;
+    if (!pending.current || isBusy) return;
+    if (!hiddenToo && document.visibilityState !== 'visible') return;
     pending.current = false;
-    current.current.revalidate();
+    revalidate();
   }, []);
   const reload = useCallback(() => {
     pending.current = true;
@@ -44,35 +99,35 @@ export function useLiveUpdates(eventsUrl: string, { paused }: { paused: boolean 
   }, [flush]);
 
   useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(eventsUrl);
     let connectedBefore = false;
-    source.addEventListener('estado', (event) => {
-      const connected = parseSignal((event as MessageEvent).data)?.conectado === true;
-      setLive(connected);
+    const offState = source.subscribe('estado', (data) => {
+      const connected = data?.conectado === true;
       // Back after a cut: reload once for whatever happened meanwhile.
       if (connected && connectedBefore) reload();
       if (connected) connectedBefore = true;
     });
-    source.addEventListener('cambio', (event) => {
-      const conversationId = parseSignal((event as MessageEvent).data)?.conversationId;
+    const offChange = source.subscribe('cambio', (data) => {
+      const conversationId = data?.conversationId;
       if (typeof conversationId === 'string') setTyping((map) => withoutConversation(map, conversationId));
       reload();
     });
-    source.addEventListener('escribiendo', (event) => {
-      const signal = toTypingSignal(parseSignal((event as MessageEvent).data));
+    const offTyping = source.subscribe('escribiendo', (data) => {
+      const signal = toTypingSignal(data);
       if (signal) setTyping((map) => withTyping(map, signal, Date.now()));
     });
-    source.onerror = () => setLive(false);
-    return () => source.close();
-  }, [eventsUrl, reload]);
+    return () => {
+      offState();
+      offChange();
+      offTyping();
+    };
+  }, [source, reload]);
 
   // Without the stream, ask every few seconds.
   useEffect(() => {
-    if (live) return;
+    if (source.live) return;
     const timer = window.setInterval(reload, POLL_MS);
     return () => window.clearInterval(timer);
-  }, [live, reload]);
+  }, [source.live, reload]);
 
   // «escribiendo…» fades out on its own.
   const someoneTyping = Object.keys(typing).length > 0;
@@ -82,7 +137,7 @@ export function useLiveUpdates(eventsUrl: string, { paused }: { paused: boolean 
     return () => window.clearInterval(timer);
   }, [someoneTyping]);
 
-  return { live, typing };
+  return { live: source.live, typing };
 }
 
 /**
@@ -101,4 +156,16 @@ export function useTypingNotifier(actionUrl: string, conversationId: string | nu
       // A courtesy signal: losing one changes nothing.
     });
   }, [actionUrl, conversationId]);
+}
+
+/** True while the tab is in front. */
+export function useTabVisible(): boolean {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState === 'visible');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  return visible;
 }

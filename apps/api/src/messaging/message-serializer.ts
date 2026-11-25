@@ -40,6 +40,8 @@ export interface SerializableMessage {
   deliveredAt?: Date | string | null;
   readAt?: Date | string | null;
   reactions?: unknown[];
+  /** E2 — ticks of the viewer's own message, when the service computed them. */
+  estado?: 'enviado' | 'entregado' | 'leido';
   /** Loaded with the message when the caller included it (`Attachment`). */
   Attachment?: SerializableAttachment[];
 }
@@ -79,6 +81,7 @@ export interface MessageWire {
   readAt: string | null;
   reactions?: unknown[];
   adjuntos?: AttachmentWire[];
+  estado?: 'enviado' | 'entregado' | 'leido';
 }
 
 function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
@@ -133,6 +136,9 @@ export function toMessageWire(message: SerializableMessage): MessageWire {
 
   if (message.reactions !== undefined) {
     wire.reactions = message.reactions;
+  }
+  if (message.estado !== undefined) {
+    wire.estado = message.estado;
   }
   if (message.Attachment !== undefined) {
     wire.adjuntos = message.Attachment.filter((a) => !a.deletedAt).map(toAttachmentWire);

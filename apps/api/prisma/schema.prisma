@@ -335,23 +335,44 @@ model ConversationAssociation {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model ConversationParticipant {
-  id             String       @id @default(uuid())
-  conversationId String
-  businessId     String
-  userId         String?
-  customerId     String?
-  joinedAt       DateTime     @default(now())
-  leftAt         DateTime?
-  removedAt      DateTime?
-  isAdmin        Boolean      @default(false)
-  Conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
-  Cliente        Cliente?     @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
-  Membership     Membership?  @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+  id                    String                 @id @default(uuid())
+  conversationId        String
+  businessId            String
+  userId                String?
+  customerId            String?
+  joinedAt              DateTime               @default(now())
+  leftAt                DateTime?
+  removedAt             DateTime?
+  isAdmin               Boolean                @default(false)
+  Conversation          Conversation           @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Cliente               Cliente?               @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Membership            Membership?            @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+  ConversationReadState ConversationReadState?
 
+  /// E2: lets ConversationReadState carry the business in its reference (ADR-DAT-020).
+  @@unique([id, businessId])
   @@index([businessId, customerId])
   @@index([businessId, userId])
   @@index([conversationId, joinedAt])
   @@index([conversationId, leftAt])
+}
+
+/// E2 (messaging like WhatsApp) — how far one participant got in its conversation: up to which
+/// message it reached their screen (✓✓) and up to which they read it. Kept apart from read
+/// receipts (MessageReadReceipt), so the unread count works even with receipts turned off, and
+/// apart from the participant row, which the API returns: positions are never sent raw.
+/// Positions are message creation times. Goes with its participant when it is deleted.
+model ConversationReadState {
+  id                      String                  @id @default(uuid())
+  participantId           String
+  businessId              String
+  lastDeliveredAt         DateTime?
+  lastReadAt              DateTime?
+  updatedAt               DateTime                @updatedAt
+  ConversationParticipant ConversationParticipant @relation(fields: [participantId, businessId], references: [id, businessId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([participantId, businessId])
+  @@index([businessId])
 }
 
 model CuentaCorriente {

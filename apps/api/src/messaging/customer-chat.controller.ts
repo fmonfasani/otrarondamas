@@ -62,7 +62,50 @@ export class CustomerChatController {
   @Get()
   async chat(@CurrentUser() user: AuthenticatedUser, @Param('businessSlug') businessSlug: string) {
     await this.assertStoreCustomer(user, businessSlug);
-    return this.messagingService.getCustomerChat(user);
+    const chat = await this.messagingService.getCustomerChat(user);
+    // E2: the store's messages reached the customer's screen (✓✓ for the store).
+    try {
+      const moved = await this.messagingService.markDelivered(user);
+      for (const id of moved) this.messagingGateway.publishInboxChanged(id);
+    } catch (error) {
+      // Best-effort; the chat itself loaded.
+      this.logger.warn(
+        JSON.stringify({
+          event: 'messaging.delivered.failed',
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+    return chat;
+  }
+
+  /**
+   * E2 — the customer is looking at the chat: they read up to the store's newest message
+   * (blue ✓✓ for the store when both sides have read receipts on).
+   */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('leido')
+  @HttpCode(204)
+  async read(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ): Promise<void> {
+    await this.assertStoreCustomer(user, businessSlug);
+    const result = await this.messagingService.markCustomerChatRead(user);
+    if (!result) return;
+    try {
+      if (result.read && result.firstRead && result.readAt) {
+        this.messagingGateway.publishMessageRead({
+          messageId: result.messageId,
+          conversationId: result.conversationId,
+          readAt: result.readAt,
+        });
+      } else if (result.positionMoved) {
+        this.messagingGateway.publishInboxChanged(result.conversationId);
+      }
+    } catch {
+      // Best-effort; the read is saved.
+    }
   }
 
   /** POST /:slug/tienda/chat/mensajes — write to the store (opens the chat if needed). */

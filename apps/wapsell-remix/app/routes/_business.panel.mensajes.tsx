@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Bell, Check, CheckCheck, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
@@ -31,9 +31,12 @@ import {
   type ConversationCart,
   type Message,
   type QuickReply,
+  type MessageTick,
+  TICK_LABELS,
 } from '~/utils/messaging';
 import type { SearchProduct } from '~/utils/sales';
-import { useLiveUpdates, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { useLiveSource, useLiveUpdates, useSharedLive, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { badgeText } from '~/utils/alerts';
 import { typingLabel, type TypingSignal } from '~/utils/live';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
@@ -200,8 +203,11 @@ export default function MessagesPage() {
   const sender = useFetcher<ActionData>();
   const sending = sender.state !== 'idle';
   const navigation = useNavigation();
-  // E1: new messages and «escribiendo…» at once; every 5 s if the stream is down.
-  const { typing } = useLiveUpdates('/panel/mensajes/eventos', { paused: sending || navigation.state !== 'idle' });
+  // E1: new messages and «escribiendo…» at once; every 5 s if the stream is down. The panel
+  // layout shares its stream; outside it (tests, previews) the page opens its own.
+  const shared = useSharedLive();
+  const own = useLiveSource(shared ? null : '/panel/mensajes/eventos');
+  const { typing } = useLiveUpdates(shared ?? own, { paused: sending || navigation.state !== 'idle' });
 
   const base = `/panel/mensajes`;
   const query = searchParams.get('q') ?? '';
@@ -236,6 +242,7 @@ export default function MessagesPage() {
       <section className="ws-inbox__list" aria-labelledby="inbox-title">
         <div className="ws-inbox__list-head">
           <h1 id="inbox-title">Bandeja de entrada</h1>
+          <AlertsToggle />
           <Link className="ws-icon-button" to={hrefWith({ nueva: '1', c: null })} aria-label="Nueva conversación" title="Nueva conversación">
             <SquarePen size={18} aria-hidden="true" />
           </Link>
@@ -267,10 +274,11 @@ export default function MessagesPage() {
             {visible.map((conversation) => {
               const title = conversationTitle(conversation);
               const active = conversation.id === data.selectedId;
+              const unread = active ? 0 : (conversation.unreadCount ?? 0);
               return (
                 <li key={conversation.id}>
                   <Link
-                    className={`ws-conv${active ? ' is-active' : ''}`}
+                    className={`ws-conv${active ? ' is-active' : ''}${unread > 0 ? ' is-unread' : ''}`}
                     to={hrefWith({ c: conversation.id, nueva: null })}
                     aria-current={active ? 'true' : undefined}
                   >
@@ -284,11 +292,18 @@ export default function MessagesPage() {
                           {inboxTime(conversation.lastMessage?.createdAt ?? conversation.createdAt)}
                         </span>
                       </span>
-                      {typing[conversation.id] ? (
-                        <span className="ws-conv__last ws-typing">{typingLabel(conversation, typing[conversation.id])}</span>
-                      ) : (
-                        <span className="ws-conv__last">{previewText(conversation)}</span>
-                      )}
+                      <span className="ws-conv__last-row">
+                        {typing[conversation.id] ? (
+                          <span className="ws-conv__last ws-typing">{typingLabel(conversation, typing[conversation.id])}</span>
+                        ) : (
+                          <span className="ws-conv__last">{previewText(conversation)}</span>
+                        )}
+                        {unread > 0 ? (
+                          <span className="ws-conv__badge" aria-label={`${unread} sin leer`}>
+                            {badgeText(unread)}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   </Link>
                 </li>
@@ -432,6 +447,7 @@ function Thread({
                   <small>
                     {messageTime(message.createdAt)}
                     {message.editedAt ? ' · editado' : ''}
+                    {own && author?.isViewer && message.estado ? <Ticks estado={message.estado} /> : null}
                   </small>
                 </div>
               );
@@ -467,6 +483,41 @@ function Thread({
         </p>
       )}
     </>
+  );
+}
+
+/** E2 — ✓ saved, ✓✓ reached the others, blue ✓✓ read (like WhatsApp). */
+function Ticks({ estado }: Readonly<{ estado: MessageTick }>) {
+  const Icon = estado === 'enviado' ? Check : CheckCheck;
+  return (
+    <span className={`ws-tick ws-tick--${estado}`} title={TICK_LABELS[estado]} aria-label={TICK_LABELS[estado]}>
+      <Icon size={14} aria-hidden="true" />
+    </span>
+  );
+}
+
+/**
+ * E2 — browser notifications for new messages while the tab is in the background. Asking
+ * needs a click, so it is a button; it disappears once answered.
+ */
+function AlertsToggle() {
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+  useEffect(() => {
+    setPermission(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
+  }, []);
+  if (permission !== 'default') return null;
+  return (
+    <button
+      type="button"
+      className="ws-link ws-alerts-toggle"
+      onClick={() => {
+        Notification.requestPermission()
+          .then(setPermission)
+          .catch(() => setPermission('denied'));
+      }}
+    >
+      <Bell size={14} aria-hidden="true" /> Activar avisos
+    </button>
   );
 }
 

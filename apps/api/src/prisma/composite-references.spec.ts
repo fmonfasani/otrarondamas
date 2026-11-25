@@ -22,6 +22,9 @@ const PENDING: { childrenWithoutBusiness: string[]; references: string[] } = JSO
 const CASCADE = new Set([
   'CapabilityGrant.RoleGrant',
   'CartItem.Cart',
+  // E2: a participant's read position is part of the participant (participants are only
+  // soft-deleted in production; the cascade keeps test cleanups simple).
+  'ConversationReadState.ConversationParticipant',
   'DevolucionClienteItem.DevolucionCliente',
   'PaymentIntent.payment',
   'Reembolso.DevolucionCliente',
