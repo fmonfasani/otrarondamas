@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
-import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage } from '~/services/store.server';
+import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage, type CustomerChat } from '~/services/store.server';
 import { formatMoney, formatTime } from '~/utils/format';
 import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { playChime, titleWithCount } from '~/utils/alerts';
@@ -43,7 +43,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return json({
       store,
       customer: { nombre: customer.nombre },
-      chat: { conversationId: null, messages: [] },
+      chat: { conversationId: null, messages: [] } as CustomerChat,
       error: 'No pudimos cargar tus mensajes. Probá de nuevo en unos minutos.',
     });
   }
@@ -158,6 +158,7 @@ export default function CustomerChat() {
         <div className="account-intro">
           <span className="eyebrow">MENSAJES</span>
           <h1>Hablá con {store.nombre}</h1>
+          {chat.tiendaEnLinea ? <span className="store-online">● En línea</span> : null}
           <p>Consultá por productos, envíos o tu pedido. Te responden por acá.</p>
         </div>
         <div className="store-chat" aria-live="polite">

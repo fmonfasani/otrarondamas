@@ -226,6 +226,8 @@ model Cliente {
   direccion               String?
   limiteCredito           Decimal?                  @db.Decimal(18, 2)
   activo                  Boolean                   @default(true)
+  /// E2b — when this customer last left the store chat («últ. vez», seen by the team only).
+  lastSeenAt              DateTime?
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   condicionIva            String?
@@ -785,6 +787,8 @@ model Membership {
   status                  MembershipStatus          @default(ACTIVE)
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
+  /// E2b — when this person last left the panel of this business («últ. vez»).
+  lastSeenAt              DateTime?
   ConversationParticipant ConversationParticipant[]
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
   User                    User                      @relation(fields: [userId], references: [id])

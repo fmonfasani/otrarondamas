@@ -91,12 +91,28 @@ export class MessagingController {
     }
   }
 
+  /** E2b — «en línea» for each participant, from the open realtime connections. */
+  private withPresence<
+    T extends {
+      businessId: string;
+      participants: Array<{ userId: string | null; customerId: string | null }>;
+    },
+  >(row: T): T {
+    return {
+      ...row,
+      participants: row.participants.map((p) => ({
+        ...p,
+        online: this.messagingGateway.isOnline(row.businessId, p),
+      })),
+    };
+  }
+
   @CanonicalPermission('MESSAGING_USE')
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
     const conversations = await this.messagingService.listConversations(user);
     await this.deliveredTo(user);
-    return conversations;
+    return conversations.map((row) => this.withPresence(row));
   }
 
   /** E2 — unread messages for the panel menu, the tab title and the notification. */
@@ -144,8 +160,8 @@ export class MessagingController {
 
   @CanonicalPermission('MESSAGING_USE')
   @Get(':id')
-  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.messagingService.getConversation(user, id);
+  async get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.withPresence(await this.messagingService.getConversation(user, id));
   }
 
   @CanonicalPermission('MESSAGING_USE')

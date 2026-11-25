@@ -20,6 +20,52 @@ export interface TypingSignal {
 
 export type TypingMap = Record<string, TypingSignal & { until: number }>;
 
+/** E2b — someone came online or left (staff screens; ids the screen already knows by name). */
+export interface PresenceSignal {
+  userId: string | null;
+  customerId: string | null;
+  online: boolean;
+  lastSeenAt: string | null;
+}
+
+/** Latest presence per actor, keyed `user:<id>` or `customer:<id>`. */
+export type PresenceMap = Record<string, { online: boolean; lastSeenAt: string | null }>;
+
+export const presenceKey = (actor: { userId?: string | null; customerId?: string | null }) =>
+  actor.userId ? `user:${actor.userId}` : actor.customerId ? `customer:${actor.customerId}` : '';
+
+export function toPresenceSignal(data: Record<string, unknown> | null): PresenceSignal | null {
+  const text = (value: unknown) => (typeof value === 'string' && value ? value : null);
+  const userId = text(data?.userId);
+  const customerId = text(data?.customerId);
+  if (!userId && !customerId) return null;
+  return { userId, customerId, online: data?.online === true, lastSeenAt: text(data?.lastSeenAt) };
+}
+
+const AR_TZ = 'America/Argentina/Buenos_Aires';
+const dayOf = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: AR_TZ }).format(date);
+const hourOf = (date: Date) =>
+  new Intl.DateTimeFormat('es-AR', { timeZone: AR_TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+
+/**
+ * E2b — the line under a contact's name, like WhatsApp: «en línea», or «últ. vez hoy a las
+ * 14:32» / «ayer a las …» / «el 12/11 a las …». Empty when nothing is known.
+ */
+export function presenceLabel(presence: { online?: boolean; lastSeenAt?: string | null }, now = new Date()): string {
+  if (presence.online) return 'en línea';
+  if (!presence.lastSeenAt) return '';
+  const seen = new Date(presence.lastSeenAt);
+  if (Number.isNaN(seen.getTime())) return '';
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const when =
+    dayOf(seen) === dayOf(now)
+      ? 'hoy'
+      : dayOf(seen) === dayOf(yesterday)
+        ? 'ayer'
+        : `el ${new Intl.DateTimeFormat('es-AR', { timeZone: AR_TZ, day: '2-digit', month: '2-digit' }).format(seen)}`;
+  return `últ. vez ${when} a las ${hourOf(seen)}`;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const isConversationId = (value: string) => UUID.test(value);

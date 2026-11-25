@@ -105,7 +105,12 @@ export async function addToServerCart(jwt: string, productoId: string, cantidad 
   const cart = await loadServerCart(jwt);
   await apiRequest(jwt, `/cart/${cart.id}/items`, { method: 'POST', body: JSON.stringify({ productoId, cantidad }) });
 }
-export type CustomerChat = { conversationId: string | null; messages: ChatMessage[] };
+export type CustomerChat = {
+  conversationId: string | null;
+  messages: ChatMessage[];
+  /** E2b — someone of the store's team in this chat has a screen open. */
+  tiendaEnLinea?: boolean;
+};
 
 /** The signed-in customer's conversation with the store (empty until they write). */
 export const fetchCustomerChat = (jwt: string, slug: string) => apiRequest<CustomerChat>(jwt, storePath(slug, '/chat'));

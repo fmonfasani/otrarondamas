@@ -1035,6 +1035,53 @@ export class MessagingService {
   }
 
   /**
+   * E2b — who hears that this actor came online or left: everyone sharing an active
+   * conversation with them (readers of every conversation are reached through their room).
+   */
+  async presenceAudience(
+    context: BusinessContext,
+  ): Promise<{ userIds: string[]; customerIds: string[] }> {
+    const actor = context.userId
+      ? { userId: context.userId }
+      : { customerId: context.customerId as string };
+    const rows = await this.prisma.conversationParticipant.findMany({
+      where: {
+        businessId: context.businessId,
+        leftAt: null,
+        removedAt: null,
+        Conversation: {
+          deletedAt: null,
+          ConversationParticipant: { some: { leftAt: null, removedAt: null, ...actor } },
+        },
+      },
+      select: { userId: true, customerId: true },
+    });
+    const userIds = new Set<string>();
+    const customerIds = new Set<string>();
+    for (const row of rows) {
+      if (row.userId && row.userId !== context.userId) userIds.add(row.userId);
+      if (row.customerId && row.customerId !== context.customerId) customerIds.add(row.customerId);
+    }
+    return { userIds: [...userIds], customerIds: [...customerIds] };
+  }
+
+  /**
+   * E2b — the actor left (every screen closed): remember when, for «últ. vez». Raw SQL so the
+   * row's updatedAt does not move: leaving is not an edit of the membership or the customer.
+   */
+  async recordLastSeen(context: BusinessContext, at: Date): Promise<void> {
+    if (context.userId) {
+      await this.prisma.$executeRaw`
+        UPDATE "Membership" SET "lastSeenAt" = ${at}
+        WHERE "userId" = ${context.userId} AND "businessId" = ${context.businessId}`;
+    } else if (context.customerId) {
+      await this.prisma.$executeRaw`
+        UPDATE "Cliente" SET "lastSeenAt" = ${at}
+        WHERE id = ${context.customerId} AND "empresaId" = ${context.businessId}`;
+    }
+  }
+
+  /**
    * Realtime (E1) — «escribiendo…». Only someone who may write in the conversation may say
    * they are writing: an Owner reading without participating may not. Returns the actor.
    */
@@ -1088,13 +1135,18 @@ export class MessagingService {
       userIds.length
         ? this.prisma.membership.findMany({
             where: { businessId: context.businessId, userId: { in: userIds } },
-            select: { userId: true, role: true, User: { select: { nombre: true } } },
+            select: {
+              userId: true,
+              role: true,
+              lastSeenAt: true,
+              User: { select: { nombre: true } },
+            },
           })
         : Promise.resolve([]),
       customerIds.length
         ? this.prisma.cliente.findMany({
             where: { empresaId: context.businessId, id: { in: customerIds } },
-            select: { id: true, nombre: true },
+            select: { id: true, nombre: true, lastSeenAt: true },
           })
         : Promise.resolve([]),
       Promise.all(
@@ -1115,9 +1167,13 @@ export class MessagingService {
       ),
     ]);
     const staff = new Map(
-      memberships.map((m) => [m.userId, { name: m.User.nombre, role: m.role }]),
+      memberships.map((m) => [
+        m.userId,
+        { name: m.User.nombre, role: m.role, lastSeenAt: m.lastSeenAt },
+      ]),
     );
     const customerNames = new Map(customers.map((c) => [c.id, c.nombre]));
+    const customerSeen = new Map(customers.map((c) => [c.id, c.lastSeenAt]));
     const canReadAll = canReadAllConversations(context);
 
     return conversations.map((conversation, index) => {
@@ -1139,6 +1195,10 @@ export class MessagingService {
           role: p.userId ? (staff.get(p.userId)?.role ?? null) : null,
           isAdmin: p.isAdmin,
           isViewer: p === viewer,
+          // E2b: «últ. vez» (staff screens only: customers never read this directory).
+          lastSeenAt: p.customerId
+            ? (customerSeen.get(p.customerId) ?? null)
+            : (staff.get(p.userId ?? '')?.lastSeenAt ?? null),
         })),
         lastMessage: visible ? last : null,
       };

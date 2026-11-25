@@ -133,10 +133,13 @@ describe('MessagingService — M2/M3 messaging', () => {
 
     it('names staff from their Membership and customers from Cliente, both scoped to the Business', async () => {
       prisma.conversation.findMany.mockResolvedValue([conversation]);
+      const seen = new Date('2026-11-25T17:32:00Z');
       prisma.membership.findMany.mockResolvedValue([
-        { userId: 'user-a', role: 'OWNER', User: { nombre: 'Lucía' } },
+        { userId: 'user-a', role: 'OWNER', lastSeenAt: null, User: { nombre: 'Lucía' } },
       ]);
-      prisma.cliente.findMany.mockResolvedValue([{ id: 'customer-a', nombre: 'María' }]);
+      prisma.cliente.findMany.mockResolvedValue([
+        { id: 'customer-a', nombre: 'María', lastSeenAt: seen },
+      ]);
 
       const [row] = await service.listConversations(auth);
 
@@ -150,6 +153,7 @@ describe('MessagingService — M2/M3 messaging', () => {
           role: 'OWNER',
           isAdmin: true,
           isViewer: true,
+          lastSeenAt: null,
         },
         {
           id: 'p-c',
@@ -160,6 +164,8 @@ describe('MessagingService — M2/M3 messaging', () => {
           role: null,
           isAdmin: false,
           isViewer: false,
+          // E2b: «últ. vez», from the Business's own Cliente row.
+          lastSeenAt: seen,
         },
       ]);
       expect(prisma.membership.findMany).toHaveBeenCalledWith(

@@ -12,6 +12,10 @@ export interface Participant {
   role: string | null;
   isAdmin: boolean;
   isViewer: boolean;
+  /** E2b — has a screen open now. */
+  online?: boolean;
+  /** E2b — when they last left («últ. vez»). */
+  lastSeenAt?: string | null;
 }
 
 export interface MessagePreview {

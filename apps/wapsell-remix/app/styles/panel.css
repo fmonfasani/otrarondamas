@@ -375,6 +375,18 @@
 .ws-conv__last-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-width: 0; }
 .ws-tick { display: inline-flex; vertical-align: -2px; margin-left: 2px; color: var(--text-muted); }
 .ws-tick--leido { color: var(--action-secondary); }
+/* E2b — «en línea»: a dot on the contact's avatar. */
+.ws-conv__avatar { position: relative; }
+.ws-online-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--feedback-success);
+  box-shadow: 0 0 0 2px var(--surface-card);
+}
 .ws-alerts-toggle { display: inline-flex; align-items: center; gap: var(--space-4); }
 
 .ws-chat__head {
