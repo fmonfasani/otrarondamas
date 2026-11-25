@@ -68,7 +68,7 @@ export class CustomerChatController {
       const moved = await this.messagingService.markDelivered(user);
       for (const id of moved) this.messagingGateway.publishInboxChanged(id);
     } catch (error) {
-      // Best-effort; the chat itself loaded.
+      // Best-effort; the chat itself loaded (see below for the store's presence).
       this.logger.warn(
         JSON.stringify({
           event: 'messaging.delivered.failed',
@@ -76,7 +76,16 @@ export class CustomerChatController {
         }),
       );
     }
-    return chat;
+    // E2b: whether someone of the store's team in this conversation has a screen open.
+    // Before the first message there is no conversation and nobody of the team in it.
+    if (!chat.conversationId) return chat;
+    const audience = await this.messagingService.realtimeAudience(chat.conversationId);
+    const tiendaEnLinea = Boolean(
+      audience?.userIds.some((userId) =>
+        this.messagingGateway.isOnline(audience.businessId, { userId, customerId: null }),
+      ),
+    );
+    return { ...chat, tiendaEnLinea };
   }
 
   /**

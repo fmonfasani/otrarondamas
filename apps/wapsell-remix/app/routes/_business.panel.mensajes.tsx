@@ -37,7 +37,7 @@ import {
 import type { SearchProduct } from '~/utils/sales';
 import { useLiveSource, useLiveUpdates, useSharedLive, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { badgeText } from '~/utils/alerts';
-import { typingLabel, type TypingSignal } from '~/utils/live';
+import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingSignal } from '~/utils/live';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
 
@@ -207,7 +207,7 @@ export default function MessagesPage() {
   // layout shares its stream; outside it (tests, previews) the page opens its own.
   const shared = useSharedLive();
   const own = useLiveSource(shared ? null : '/panel/mensajes/eventos');
-  const { typing } = useLiveUpdates(shared ?? own, { paused: sending || navigation.state !== 'idle' });
+  const { typing, presence } = useLiveUpdates(shared ?? own, { paused: sending || navigation.state !== 'idle' });
 
   const base = `/panel/mensajes`;
   const query = searchParams.get('q') ?? '';
@@ -284,6 +284,7 @@ export default function MessagesPage() {
                   >
                     <span className={`ws-conv__avatar${customerOf(conversation) ? ' ws-conv__avatar--customer' : ''}`}>
                       {conversation.type === 'GROUP' && !customerOf(conversation) ? <Users size={14} aria-hidden="true" /> : initials(title)}
+                      {otherIsOnline(conversation, presence) ? <span className="ws-online-dot" aria-label="En línea" /> : null}
                     </span>
                     <span className="ws-conv__summary">
                       <span className="ws-conv__meta">
@@ -329,6 +330,7 @@ export default function MessagesPage() {
             quickReplies={data.quickReplies}
             customerName={data.customer?.nombre ?? null}
             typing={typing[data.selected.id] ?? null}
+            presence={presence}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -359,6 +361,7 @@ function Thread({
   quickReplies,
   customerName,
   typing,
+  presence,
 }: Readonly<{
   conversation: Conversation;
   messages: Message[];
@@ -370,6 +373,7 @@ function Thread({
   quickReplies: QuickReply[];
   customerName: string | null;
   typing: TypingSignal | null;
+  presence: PresenceMap;
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -399,7 +403,7 @@ function Thread({
           {typing ? (
             <span className="ws-typing">{typingLabel(conversation, typing)}</span>
           ) : (
-            <span>{conversationSubtitle(conversation)}</span>
+            <span>{contactStatus(conversation, presence) || conversationSubtitle(conversation)}</span>
           )}
         </span>
       </header>
@@ -484,6 +488,24 @@ function Thread({
       )}
     </>
   );
+}
+
+/** E2b — the other person of a chat between two (none in groups or when only reading). */
+function otherOf(conversation: Conversation) {
+  if (conversation.type === 'GROUP' || !conversation.participants.some((p) => p.isViewer)) return undefined;
+  return conversation.participants.find((p) => !p.isViewer);
+}
+
+/** E2b — «en línea» / «últ. vez …» of the other person, with what arrived since loading. */
+function contactStatus(conversation: Conversation, presence: PresenceMap): string {
+  const other = otherOf(conversation);
+  if (!other) return '';
+  return presenceLabel(presence[presenceKey(other)] ?? other);
+}
+
+function otherIsOnline(conversation: Conversation, presence: PresenceMap): boolean {
+  const other = otherOf(conversation);
+  return Boolean(other && (presence[presenceKey(other)] ?? other).online);
 }
 
 /** E2 — ✓ saved, ✓✓ reached the others, blue ✓✓ read (like WhatsApp). */

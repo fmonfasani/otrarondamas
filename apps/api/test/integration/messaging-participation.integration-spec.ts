@@ -224,7 +224,8 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       select: { id: true },
     });
 
-    server = spawnApi({ PORT }, ['ignore', 'pipe', 'pipe']);
+    // E2b: a short «en línea» grace so presence tests do not wait 15 s.
+    server = spawnApi({ PORT, PRESENCE_GRACE_MS: '300' }, ['ignore', 'pipe', 'pipe']);
     server.stdout?.on('data', (chunk: Buffer) => {
       serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
     });
@@ -981,6 +982,129 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
         expect(text).not.toContain('lastDeliveredAt');
         expect(text).not.toContain('ConversationReadState');
       }
+    });
+  });
+  // ---------------------------------------------------------------------
+  // E2b — «en línea» and «últ. vez», like WhatsApp.
+  // ---------------------------------------------------------------------
+  describe('E2b presence', () => {
+    const grace = () => new Promise((resolve) => setTimeout(resolve, 900));
+    const participantIn = async (
+      token: string,
+      conversationId: string,
+      match: (p: { userId: string | null; customerId: string | null }) => boolean,
+    ) => {
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(200);
+      const row = listed.body.find((r: { id: string }) => r.id === conversationId);
+      return row.participants.find(match);
+    };
+    const chat = () =>
+      request(BASE)
+        .get(`/msg-participation-${suffix}/tienda/chat`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(200);
+
+    beforeAll(async () => {
+      // Earlier tests leave sockets open: everyone starts away.
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+    });
+
+    it('tells the team who came online and when they left, and remembers it', async () => {
+      const watcher = await connectSocket(userToken(owner1));
+      const cameOnline = nextEvent(watcher, 'presence.changed');
+      const other = await connectSocket(userToken(owner2));
+      expect(await cameOnline).toEqual({
+        userId: owner2.userId,
+        customerId: null,
+        online: true,
+        lastSeenAt: null,
+      });
+      expect(
+        await participantIn(
+          userToken(owner1),
+          userConversationId,
+          (p) => p.userId === owner2.userId,
+        ),
+      ).toEqual(expect.objectContaining({ online: true }));
+
+      const before = await prisma.membership.findFirstOrThrow({
+        where: { userId: owner2.userId, businessId },
+      });
+      const left = nextEvent<{ online: boolean; lastSeenAt: string }>(watcher, 'presence.changed');
+      other.disconnect();
+      const event = await left;
+      expect(event.online).toBe(false);
+      expect(Date.parse(event.lastSeenAt)).not.toBeNaN();
+
+      const seen = await participantIn(
+        userToken(owner1),
+        userConversationId,
+        (p) => p.userId === owner2.userId,
+      );
+      expect(seen.online).toBe(false);
+      expect(seen.lastSeenAt).toBe(event.lastSeenAt);
+      // Leaving is not an edit of the membership.
+      const after = await prisma.membership.findFirstOrThrow({
+        where: { userId: owner2.userId, businessId },
+      });
+      expect(after.updatedAt).toEqual(before.updatedAt);
+    });
+
+    it('a reload within the grace does not flicker', async () => {
+      const watcher = await connectSocket(userToken(owner1));
+      const first = await connectSocket(userToken(owner2));
+      await grace();
+      const flicker = countEvents(watcher, 'presence.changed');
+      first.disconnect();
+      await connectSocket(userToken(owner2));
+      await grace();
+      expect(flicker).toHaveLength(0);
+    });
+
+    it("the store customer only learns whether the store is online, never a team member's last seen", async () => {
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+      const customerSocket = await connectSocket(customerToken());
+      expect((await chat()).body.tiendaEnLinea).toBe(false);
+
+      const told = nextEvent(customerSocket, 'presence.changed');
+      const owner = await connectSocket(userToken(owner1));
+      expect(await told).toEqual({});
+      expect((await chat()).body.tiendaEnLinea).toBe(true);
+
+      const toldAgain = nextEvent(customerSocket, 'presence.changed');
+      owner.disconnect();
+      expect(await toldAgain).toEqual({});
+      const body = (await chat()).body;
+      expect(body.tiendaEnLinea).toBe(false);
+      expect(JSON.stringify(body)).not.toContain('lastSeenAt');
+    });
+
+    it('the team sees when the customer was last in the chat', async () => {
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+      const customerSocket = await connectSocket(customerToken());
+      await grace();
+      expect(
+        await participantIn(
+          userToken(owner1),
+          customerConversationId,
+          (p) => p.customerId === customer.id,
+        ),
+      ).toEqual(expect.objectContaining({ online: true }));
+      customerSocket.disconnect();
+      await grace();
+      const seen = await participantIn(
+        userToken(owner1),
+        customerConversationId,
+        (p) => p.customerId === customer.id,
+      );
+      expect(seen.online).toBe(false);
+      expect(Date.parse(seen.lastSeenAt)).not.toBeNaN();
     });
   });
 });

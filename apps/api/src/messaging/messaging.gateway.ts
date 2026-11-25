@@ -55,6 +55,15 @@ export function readersRoom(businessId: string): string {
   return `readers:${businessId}`;
 }
 
+/**
+ * E2b — how long someone stays «en línea» after their last screen closed. A page reload or a
+ * short network cut reconnects within it, so the status does not flicker.
+ */
+export function presenceGraceMs(): number {
+  const configured = Number(process.env.PRESENCE_GRACE_MS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 15_000;
+}
+
 // M4-D08 + minimal ACK convention (no established Socket.IO ACK error
 // convention exists in this project, so M4-03 defines the smallest explicit
 // one and nothing more — no generic realtime error framework):
@@ -117,6 +126,12 @@ export class MessagingGateway
 
   private readonly connectedSockets = new Map<string, MessagingSocket>();
 
+  // E2b: who is online, by actor room: open sockets, and the timer that marks them away.
+  private readonly presence = new Map<
+    string,
+    { sockets: number; leaving?: ReturnType<typeof setTimeout> }
+  >();
+
   private unsubscribeRevocation?: () => void;
 
   constructor(
@@ -168,6 +183,7 @@ export class MessagingGateway
     // M4-04: tracked so a later Membership revocation can invalidate it.
     this.connectedSockets.set(client.id, client);
     this.joinInboxRooms(client);
+    this.cameOnline(client.data.businessContext);
     this.logger.log(
       JSON.stringify({
         event: 'messaging.socket.connected',
@@ -179,8 +195,9 @@ export class MessagingGateway
   }
 
   handleDisconnect(@ConnectedSocket() client: MessagingSocket): void {
-    // M4-02 intentionally has no disconnect side effects.
+    // M4-02 had no disconnect side effects; E2b counts the actor's open screens.
     this.connectedSockets.delete(client.id);
+    if (client.data?.businessContext) this.wentAway(client.data.businessContext);
     this.logger.log(
       JSON.stringify({
         event: 'messaging.socket.disconnected',
@@ -212,7 +229,102 @@ export class MessagingGateway
     }
   }
 
+  /** E2b — whether this actor has a screen open (or closed one less than the grace ago). */
+  isOnline(
+    businessId: string,
+    actor: { userId: string | null; customerId: string | null },
+  ): boolean {
+    const key = actorRoom(businessId, actor);
+    return key !== null && this.presence.has(key);
+  }
+
+  private cameOnline(context: BusinessContext): void {
+    const key = actorRoom(context.businessId, context);
+    if (!key) return;
+    const entry = this.presence.get(key);
+    if (entry) {
+      entry.sockets += 1;
+      if (entry.leaving) {
+        clearTimeout(entry.leaving);
+        entry.leaving = undefined;
+      }
+      return;
+    }
+    this.presence.set(key, { sockets: 1 });
+    void this.publishPresence(context, true, null);
+  }
+
+  private wentAway(context: BusinessContext): void {
+    const key = actorRoom(context.businessId, context);
+    const entry = key ? this.presence.get(key) : undefined;
+    if (!key || !entry) return;
+    entry.sockets = Math.max(0, entry.sockets - 1);
+    if (entry.sockets > 0 || entry.leaving) return;
+    entry.leaving = setTimeout(() => {
+      this.presence.delete(key);
+      const at = new Date();
+      // A timer has no caller to report to: every failure stays here, logged.
+      Promise.resolve()
+        .then(() => this.messagingService.recordLastSeen(context, at))
+        .catch((error: unknown) => {
+          this.logger.warn(
+            `last seen not saved: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+      void this.publishPresence(context, false, at);
+    }, presenceGraceMs());
+    entry.leaving.unref?.();
+  }
+
+  /**
+   * E2b — tells who came online or left to everyone sharing a conversation with them. Staff
+   * learn who and when; a customer only that the store's presence changed (never a team
+   * member's last seen).
+   */
+  private async publishPresence(
+    context: BusinessContext,
+    online: boolean,
+    at: Date | null,
+  ): Promise<void> {
+    try {
+      if (!this.namespace) return;
+      const audience = await this.messagingService.presenceAudience(context);
+      const own = actorRoom(context.businessId, context);
+      const exceptOwn = own ? [own] : [];
+      const staff = [
+        readersRoom(context.businessId),
+        ...audience.userIds.map((userId) => `actor:${context.businessId}:user:${userId}`),
+      ];
+      this.namespace
+        .to(staff)
+        .except(exceptOwn)
+        .emit('presence.changed', {
+          userId: context.userId,
+          customerId: context.customerId,
+          online,
+          lastSeenAt: at ? at.toISOString() : null,
+        });
+      if (context.userId && audience.customerIds.length > 0) {
+        this.namespace
+          .to(
+            audience.customerIds.map(
+              (customerId) => `actor:${context.businessId}:customer:${customerId}`,
+            ),
+          )
+          .emit('presence.changed', {});
+      }
+    } catch (error) {
+      this.logger.warn(
+        `presence.changed failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   onModuleDestroy(): void {
+    for (const entry of this.presence.values()) {
+      if (entry.leaving) clearTimeout(entry.leaving);
+    }
+    this.presence.clear();
     this.unsubscribeRevocation?.();
     this.unsubscribeRevocation = undefined;
     this.connectedSockets.clear();

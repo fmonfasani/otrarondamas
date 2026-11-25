@@ -3,6 +3,9 @@ import { useRevalidator } from '@remix-run/react';
 import {
   parseSignal,
   POLL_MS,
+  presenceKey,
+  toPresenceSignal,
+  type PresenceMap,
   toTypingSignal,
   TYPING_SEND_EVERY_MS,
   withoutConversation,
@@ -16,7 +19,7 @@ import {
  * business panel opens it in its layout and shares it (LiveContext) with the menu badge and
  * the Mensajes screen; the store chat opens its own.
  */
-export type LiveEvent = 'estado' | 'cambio' | 'escribiendo';
+export type LiveEvent = 'estado' | 'cambio' | 'escribiendo' | 'presencia';
 type Listener = (data: Record<string, unknown> | null) => void;
 
 export interface LiveSource {
@@ -38,7 +41,7 @@ export function useLiveSource(url: string | null): LiveSource {
   useEffect(() => {
     if (!url || typeof EventSource === 'undefined') return;
     const source = new EventSource(url);
-    const events: LiveEvent[] = ['estado', 'cambio', 'escribiendo'];
+    const events: LiveEvent[] = ['estado', 'cambio', 'escribiendo', 'presencia'];
     for (const name of events) {
       source.addEventListener(name, (event) => {
         const data = parseSignal((event as MessageEvent).data);
@@ -74,6 +77,8 @@ export function useLiveSource(url: string | null): LiveSource {
 export function useLiveUpdates(source: LiveSource, { paused, whenHidden = false }: { paused: boolean; whenHidden?: boolean }) {
   const revalidator = useRevalidator();
   const [typing, setTyping] = useState<TypingMap>({});
+  // E2b: who came online or left since the page data was loaded.
+  const [presence, setPresence] = useState<PresenceMap>({});
   const pending = useRef(false);
   const busy = paused || revalidator.state !== 'idle';
   const current = useRef({ busy, whenHidden, revalidate: revalidator.revalidate });
@@ -115,10 +120,20 @@ export function useLiveUpdates(source: LiveSource, { paused, whenHidden = false 
       const signal = toTypingSignal(data);
       if (signal) setTyping((map) => withTyping(map, signal, Date.now()));
     });
+    const offPresence = source.subscribe('presencia', (data) => {
+      const signal = toPresenceSignal(data);
+      // A store customer only learns that the store's presence changed: ask again.
+      if (!signal) return reload();
+      setPresence((map) => ({
+        ...map,
+        [presenceKey(signal)]: { online: signal.online, lastSeenAt: signal.lastSeenAt },
+      }));
+    });
     return () => {
       offState();
       offChange();
       offTyping();
+      offPresence();
     };
   }, [source, reload]);
 
@@ -137,7 +152,7 @@ export function useLiveUpdates(source: LiveSource, { paused, whenHidden = false 
     return () => window.clearInterval(timer);
   }, [someoneTyping]);
 
-  return { live: source.live, typing };
+  return { live: source.live, typing, presence };
 }
 
 /**
