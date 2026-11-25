@@ -218,4 +218,22 @@ describe('STORE-V1-05 — order from a conversation', () => {
       .send({})
       .expect(401);
   });
+
+  it('orders an active product the team loaded even if it is not published in the Catálogo (OR-B4-046)', async () => {
+    // The store sells the Catálogo; the chat sells every active product.
+    await prisma.producto.update({ where: { id: productA.id }, data: { publicado: false } });
+    await request(BASE)
+      .put(`/messaging/conversations/${conversationId}/cart/items`)
+      .set('Authorization', ownerAuth())
+      .send({ productoId: productA.id, cantidad: 1 })
+      .expect(200);
+
+    const res = await createOrder();
+    expect(res.status).toBe(201);
+    const order = await prisma.pedido.findUnique({
+      where: { id: res.body.id },
+      include: { PedidoItem: true },
+    });
+    expect(order?.PedidoItem).toEqual([expect.objectContaining({ productoId: productA.id })]);
+  });
 });

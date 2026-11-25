@@ -1133,6 +1133,9 @@ export class MessagingService {
       context.businessId,
       'messaging',
       conversationOrderKey(conversationId, cart.CartItem),
+      // OR-B4-046 rule 2: the store sells the Catálogo, the chat sells every active product. The
+      // Business could load an unpublished product into the cart; the order must take it too.
+      { catalogOnly: false },
     );
 
     // C3: Create the association linking this conversation to the created order
