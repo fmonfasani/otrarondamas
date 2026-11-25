@@ -17,7 +17,7 @@ import type { BusinessContext } from '../business-context/business-context.types
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { MembershipStatusChangedEvent } from '../membership/membership-revocation.service';
 import { MembershipRevocationService } from '../membership/membership-revocation.service';
-import { MessagingService } from './messaging.service';
+import { canReadAllConversations, MessagingService } from './messaging.service';
 import { toMessageWire, type SerializableMessage } from './message-serializer';
 
 interface MessagingSocketData {
@@ -35,6 +35,25 @@ type MessagingSocket = Socket<
 // M4-D07: the room name is `conversation:{Conversation.id}`. The id is the
 // existing Conversation UUID — no new identifier is created.
 export const CONVERSATION_ROOM_PREFIX = 'conversation:';
+
+// E1 (realtime inbox). Every socket joins, at connection, the room of its own actor in its
+// Business, and staff who read every conversation (MESSAGING_MANAGE) also join the
+// Business readers room. `inbox.changed` and `conversation.typing` go to those rooms, so
+// a screen hears about any conversation it may read without joining each one. The events
+// carry ids only, never content: the screen reloads through HTTP, which stays the
+// authority on what each actor may see.
+export function actorRoom(
+  businessId: string,
+  actor: { userId: string | null; customerId: string | null },
+): string | null {
+  if (actor.userId) return `actor:${businessId}:user:${actor.userId}`;
+  if (actor.customerId) return `actor:${businessId}:customer:${actor.customerId}`;
+  return null;
+}
+
+export function readersRoom(businessId: string): string {
+  return `readers:${businessId}`;
+}
 
 // M4-D08 + minimal ACK convention (no established Socket.IO ACK error
 // convention exists in this project, so M4-03 defines the smallest explicit
@@ -148,6 +167,7 @@ export class MessagingGateway
     // Room subscription is never implicit: it requires conversation.join.
     // M4-04: tracked so a later Membership revocation can invalidate it.
     this.connectedSockets.set(client.id, client);
+    this.joinInboxRooms(client);
     this.logger.log(
       JSON.stringify({
         event: 'messaging.socket.connected',
@@ -168,6 +188,28 @@ export class MessagingGateway
         connectedSockets: this.connectedSockets.size,
       }),
     );
+  }
+
+  // E1: a socket's own rooms (see actorRoom). Membership revocation disconnects the
+  // socket, which leaves them; a role change takes effect on the next connection.
+  private joinInboxRooms(client: MessagingSocket): void {
+    try {
+      const context = client.data.businessContext;
+      const own = actorRoom(context.businessId, context);
+      const rooms = [
+        own,
+        canReadAllConversations(context) ? readersRoom(context.businessId) : null,
+      ];
+      for (const room of rooms) {
+        if (room) void client.join(room);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `inbox rooms not joined for socket ${client.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   onModuleDestroy(): void {
@@ -361,6 +403,7 @@ export class MessagingGateway
       const room = `${CONVERSATION_ROOM_PREFIX}${conversationId}`;
       const recipientSockets = this.namespace.adapter.rooms.get(room)?.size ?? 0;
       this.namespace.to(room).emit(eventName, payload);
+      this.publishInboxChanged(conversationId);
       this.logger.log(
         JSON.stringify({
           event: 'messaging.realtime.emitted',
@@ -377,6 +420,80 @@ export class MessagingGateway
         }`,
       );
     }
+  }
+
+  /**
+   * E1 — tells every screen that may read this conversation that it changed (new, edited,
+   * deleted or read message, participant left). Ids only; best-effort like every event.
+   */
+  publishInboxChanged(conversationId: string): void {
+    void this.inboxRooms(conversationId)
+      .then((audience) => {
+        if (!audience || !this.namespace) return;
+        const rooms = [...audience.staff, ...audience.customers];
+        if (rooms.length > 0) this.namespace.to(rooms).emit('inbox.changed', { conversationId });
+      })
+      .catch((error: unknown) => {
+        this.logger.warn(
+          `inbox.changed failed for conversation ${conversationId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+  }
+
+  /**
+   * E1 — «escribiendo…»: to everyone who may read the conversation except the writer.
+   * Staff learn who writes (the user or customer id, which their screen already knows by
+   * name); customers only learn that the store is writing.
+   */
+  async publishTyping(
+    conversationId: string,
+    writer: { businessId: string; userId: string | null; customerId: string | null },
+  ): Promise<void> {
+    try {
+      const audience = await this.inboxRooms(conversationId);
+      if (!audience || !this.namespace || audience.businessId !== writer.businessId) return;
+      const own = actorRoom(writer.businessId, writer);
+      const exceptOwn = own ? [own] : [];
+      if (audience.staff.length > 0) {
+        this.namespace.to(audience.staff).except(exceptOwn).emit('conversation.typing', {
+          conversationId,
+          userId: writer.userId,
+          customerId: writer.customerId,
+        });
+      }
+      if (audience.customers.length > 0) {
+        this.namespace
+          .to(audience.customers)
+          .except(exceptOwn)
+          .emit('conversation.typing', { conversationId });
+      }
+    } catch (error) {
+      this.logger.warn(
+        `conversation.typing failed for conversation ${conversationId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async inboxRooms(
+    conversationId: string,
+  ): Promise<{ businessId: string; staff: string[]; customers: string[] } | null> {
+    const audience = await this.messagingService.realtimeAudience(conversationId);
+    if (!audience) return null;
+    const { businessId } = audience;
+    return {
+      businessId,
+      staff: [
+        readersRoom(businessId),
+        ...audience.userIds.map((userId) => `actor:${businessId}:user:${userId}`),
+      ],
+      customers: audience.customerIds.map(
+        (customerId) => `actor:${businessId}:customer:${customerId}`,
+      ),
+    };
   }
 
   // M4-04 — Membership revocation enforcement (M4-D11). Runs on the

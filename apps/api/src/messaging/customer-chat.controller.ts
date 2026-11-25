@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   Logger,
   Param,
   Post,
@@ -100,6 +101,22 @@ export class CustomerChatController {
         mine: true,
       },
     };
+  }
+
+  /**
+   * E1 — the customer is writing: the store's screens show «escribiendo…». Without a
+   * conversation yet there is nobody to tell.
+   */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('escribiendo')
+  @HttpCode(204)
+  async typing(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ): Promise<void> {
+    await this.assertStoreCustomer(user, businessSlug);
+    const found = await this.messagingService.customerTypingActor(user);
+    if (found) await this.messagingGateway.publishTyping(found.conversationId, found.context);
   }
 
   /** OR-B4-037 — the customer sends a photo or PDF (opens the chat if needed). */

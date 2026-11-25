@@ -340,6 +340,8 @@
 .ws-conv__name { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .ws-conv__time { flex-shrink: 0; font-size: 10px; }
 .ws-conv__last { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+/* E1 — «escribiendo…» in the inbox row and the chat header. */
+.ws-typing { color: var(--action-primary); font-style: italic; }
 
 .ws-chat__head {
   display: flex;

@@ -130,6 +130,7 @@ describe('MessagingController — HTTP JSON contract', () => {
       read: true,
       receiptsEnabled: true,
       readAt: new Date('2026-10-09T12:03:00.000Z'),
+      firstRead: true,
     });
 
     await controller.markMessageRead(user, 'conversation-a', 'message-a');
@@ -145,6 +146,18 @@ describe('MessagingController — HTTP JSON contract', () => {
       messageId: 'message-a',
       read: false,
       receiptsEnabled: false,
+    });
+    await controller.markMessageRead(user, 'conversation-a', 'message-a');
+    expect(gateway.publishMessageRead).not.toHaveBeenCalled();
+  });
+
+  it('does not announce a message that was already read (E1: a reload must not wake other screens)', async () => {
+    (service.markMessageRead as jest.Mock).mockResolvedValue({
+      messageId: 'message-a',
+      read: true,
+      receiptsEnabled: true,
+      readAt: new Date('2026-10-09T12:03:00.000Z'),
+      firstRead: false,
     });
     await controller.markMessageRead(user, 'conversation-a', 'message-a');
     expect(gateway.publishMessageRead).not.toHaveBeenCalled();
@@ -169,6 +182,7 @@ describe('MessagingController — HTTP JSON contract', () => {
       messageId: 'message-a',
       read: true,
       readAt: new Date(),
+      firstRead: true,
     });
 
     const created = await controller.createMessage(user, 'conversation-a', {
