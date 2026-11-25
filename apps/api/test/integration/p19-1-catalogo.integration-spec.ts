@@ -156,7 +156,7 @@ describe('P19-1 — mercadería y catálogo', () => {
     ids.G = await sibling(ids.F, 'G');
     otherProduct = (await createStoreProduct(prisma, other.id, 'P19-1', 'Z', suffix)).id;
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

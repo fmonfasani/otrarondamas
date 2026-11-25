@@ -289,7 +289,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 
@@ -328,7 +328,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     // Buyer places an order through the same public endpoint consumed by the
     // online storefront; no order rows are inserted directly by the test.
     const placed = await request(BASE)
-      .post('/tienda/pedidos')
+      .post(`/s-v1-06-orders-http-a-${suffix}/tienda/pedidos`)
       .send({
         nombre: 'P1.3 E2E Buyer',
         email: buyerEmail,

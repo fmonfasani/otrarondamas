@@ -10,12 +10,9 @@ import {
 
 describe('STORE-V1-02 — public Business slug resolution', () => {
   const PORT = '3392';
-  const LEGACY_PORT = '3393';
   const BASE = `http://127.0.0.1:${PORT}`;
-  const LEGACY_BASE = `http://127.0.0.1:${LEGACY_PORT}`;
   let prisma: PrismaService;
   let server: ChildProcess;
-  let legacyServer: ChildProcess;
   let suffix: number;
   let companyA: { id: string; slug: string };
   let companyB: { id: string; slug: string };
@@ -44,14 +41,12 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createStoreProduct(prisma, companyA.id, 'STORE-V1-02', 'A', suffix);
     productB = await createStoreProduct(prisma, companyB.id, 'STORE-V1-02', 'B', suffix);
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
-    legacyServer = spawnApi({ PORT: LEGACY_PORT, TIENDA_EMPRESA_ID: companyA.id });
-    await Promise.all([waitPort(Number(PORT)), waitPort(Number(LEGACY_PORT))]);
+    server = spawnApi({ PORT });
+    await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
-    if (legacyServer && !legacyServer.killed) legacyServer.kill();
     await deleteStoreCompanies(prisma, [companyA.id, companyB.id]);
     await prisma.$disconnect();
   });
@@ -109,12 +104,7 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     await request(BASE).get('/INVALID_SLUG/tienda/jerarquia').expect(404);
   });
 
-  it('keeps the legacy /tienda surface as the explicit transitional fallback', async () => {
-    const res = await request(LEGACY_BASE).get('/tienda/productos').expect(200);
-    expect(res.body.map((p: { productoId: string }) => p.productoId)).toEqual([productA.id]);
-  });
-
-  it('does not use TIENDA_EMPRESA_ID when the slug route is used', async () => {
+  it('the slug alone decides the Business', async () => {
     const res = await request(BASE).get(`/${companyB.slug}/tienda/jerarquia`).expect(200);
     expect(res.body.familias[0].empresaId).toBe(companyB.id);
   });

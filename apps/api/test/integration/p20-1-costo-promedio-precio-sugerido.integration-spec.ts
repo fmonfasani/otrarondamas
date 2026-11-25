@@ -162,7 +162,7 @@ describe('P20-1 — costo promedio y precio sugerido', () => {
     ).id;
     yerba = await product('Yerba', 100, 150);
     fideos = await product('Fideos', 40, 60);
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

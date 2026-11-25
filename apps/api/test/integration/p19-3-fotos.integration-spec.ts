@@ -109,7 +109,7 @@ describe('P19-3 — fotos de productos', () => {
     hidden = (await createStoreProduct(prisma, shop.id, 'P19-3', 'B', suffix)).id;
     await prisma.producto.update({ where: { id: hidden }, data: { publicado: false } });
     foreign = (await createStoreProduct(prisma, other.id, 'P19-3', 'Z', suffix)).id;
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '', CATALOG_STORAGE_DIR: storage });
+    server = spawnApi({ PORT, CATALOG_STORAGE_DIR: storage });
     await waitPort(Number(PORT));
   }, 120000);
 

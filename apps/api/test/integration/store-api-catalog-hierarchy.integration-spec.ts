@@ -6,7 +6,8 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { createOwnStoreEmpresa, type OwnStoreEmpresa } from './helpers/store-empresa.fixture';
 
 /**
- * C5A/C5B: Store API — GET /store/catalog and GET /store/hierarchy.
+ * C5A/C5B: Store API — the store's catalog and category tree, on the Business's own store
+ * (`/:slug/tienda/productos` and `/jerarquia`; the single-store `/store/*` routes are gone).
  *
  * Tests the public store API endpoints that list products (with prices and stock)
  * and the hierarchy of families/subfamilies for filter chips.
@@ -117,16 +118,20 @@ describe('Store API — Catalog and Hierarchy', () => {
     await prisma.$disconnect();
   });
 
-  describe('GET /store/catalog', () => {
+  describe('GET /:slug/tienda/productos', () => {
     it('should return 200 with product list', async () => {
-      const response = await request(app.getHttpServer()).get('/store/catalog').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/productos`)
+        .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
       expect(response.body.length).toBeGreaterThan(0);
     });
 
     it('should include product with discount applied to price', async () => {
-      const response = await request(app.getHttpServer()).get('/store/catalog').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/productos`)
+        .expect(200);
 
       const product = response.body.find((p) => p.productoId === testProductId);
       expect(product).toBeDefined();
@@ -140,7 +145,7 @@ describe('Store API — Catalog and Hierarchy', () => {
 
     it('should support search query', async () => {
       const response = await request(app.getHttpServer())
-        .get('/store/catalog')
+        .get(`/${storeEmpresa.slug}/tienda/productos`)
         .query({ search: 'SAC' })
         .expect(200);
 
@@ -150,7 +155,9 @@ describe('Store API — Catalog and Hierarchy', () => {
     });
 
     it('should not expose internal fields', async () => {
-      const response = await request(app.getHttpServer()).get('/store/catalog').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/productos`)
+        .expect(200);
 
       expect(response.body.length).toBeGreaterThan(0);
       response.body.forEach((product) => {
@@ -161,9 +168,11 @@ describe('Store API — Catalog and Hierarchy', () => {
     });
   });
 
-  describe('GET /store/hierarchy', () => {
+  describe('GET /:slug/tienda/jerarquia', () => {
     it('should return 200 with familias and subfamilias', async () => {
-      const response = await request(app.getHttpServer()).get('/store/hierarchy').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/jerarquia`)
+        .expect(200);
 
       expect(response.body).toHaveProperty('familias');
       expect(response.body).toHaveProperty('subfamilias');
@@ -172,7 +181,9 @@ describe('Store API — Catalog and Hierarchy', () => {
     });
 
     it('should include created test familia and subfamilia', async () => {
-      const response = await request(app.getHttpServer()).get('/store/hierarchy').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/jerarquia`)
+        .expect(200);
 
       const familia = response.body.familias.find((f) => f.nombre.startsWith('SAC Fam'));
       expect(familia).toBeDefined();
@@ -184,7 +195,9 @@ describe('Store API — Catalog and Hierarchy', () => {
     });
 
     it('should list families and subfamilies in ascending order by name', async () => {
-      const response = await request(app.getHttpServer()).get('/store/hierarchy').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/jerarquia`)
+        .expect(200);
 
       const familyNames = response.body.familias.map((f) => f.nombre);
       const subfamilyNames = response.body.subfamilias.map((s) => s.nombre);
@@ -195,7 +208,9 @@ describe('Store API — Catalog and Hierarchy', () => {
     });
 
     it('should not expose Tipo/Subtipo (hierarchy stops at Subfamilia)', async () => {
-      const response = await request(app.getHttpServer()).get('/store/hierarchy').expect(200);
+      const response = await request(app.getHttpServer())
+        .get(`/${storeEmpresa.slug}/tienda/jerarquia`)
+        .expect(200);
 
       expect(response.body).not.toHaveProperty('tipos');
       expect(response.body).not.toHaveProperty('subtipos');

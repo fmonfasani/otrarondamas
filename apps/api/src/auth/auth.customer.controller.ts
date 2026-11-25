@@ -9,13 +9,9 @@ import {
   NotFoundException,
   Param,
   Post,
-  Req,
-  Res,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
 import { AuthCustomerService } from './auth.customer.service';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { BusinessContextService } from '../business-context/business-context.service';
@@ -25,7 +21,6 @@ import { Public } from './decorators/public.decorator';
 import { AllowCustomer } from './decorators/allow-customer.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthenticatedUser } from './auth.types';
-import { GoogleProfile } from './google.strategy';
 import { StoreGoogleStartGuard } from './guards/store-google-start.guard';
 import {
   CanonicalPermission,
@@ -33,14 +28,10 @@ import {
 } from '../authorization/canonical-permission.decorator';
 
 /**
- * RF-17 (docs/spec-login-roles.md): Customer-side authentication
- * endpoints — entry point at otrarondamas.wapsell.com (online store),
- * separate from the admin panel (admin.otrarondamas.wapsell.com).
- *
- * Registration and login use TIENDA_EMPRESA_ID to know which company
- * this public store belongs to (same pattern as store.service.ts). The
- * customer's Google OAuth redirects to the store callback, not to the
- * admin panel — see the `TIENDA_FRONTEND_URL` env var.
+ * RF-17: authentication of the customers of each Business's online store. Registration, login and
+ * «Continuar con Google» are per Business, resolved by its public slug
+ * (`/auth/cliente/negocio/:slug/...`); the single-store routes that read TIENDA_EMPRESA_ID are
+ * gone (Owner, 2026-11-25). `GET /auth/cliente/me` returns the signed-in customer's profile.
  */
 @ApiTags('auth-cliente')
 @Controller('auth/cliente')
@@ -52,19 +43,8 @@ export class AuthCustomerController {
   ) {}
 
   /**
-   * Public self-registration — only for retail Cliente. Uses
-   * TIENDA_EMPRESA_ID to know which company to link the customer to.
-   */
-  @Public()
-  @Post('registro')
-  @HttpCode(HttpStatus.CREATED)
-  async register(@Body() dto: CustomerRegistrationDto) {
-    return this.registerIn(this.legacyStoreCompanyId(), dto);
-  }
-
-  /**
    * STORE-V1-03 — self-registration in the store of one Business, resolved by its public
-   * slug (never by a client-supplied id). Same rules as /registro.
+   * slug (never by a client-supplied id).
    */
   @Public()
   @Post('negocio/:businessSlug/registro')
@@ -97,14 +77,6 @@ export class AuthCustomerController {
   @ApiExcludeEndpoint()
   googleInStore() {}
 
-  private legacyStoreCompanyId(): string {
-    const companyId = process.env.TIENDA_EMPRESA_ID;
-    if (!companyId) {
-      throw new Error('TIENDA_EMPRESA_ID no configurado');
-    }
-    return companyId;
-  }
-
   private async registerIn(companyId: string, dto: CustomerRegistrationDto) {
     try {
       return await this.authCustomerService.register(companyId, dto);
@@ -132,18 +104,6 @@ export class AuthCustomerController {
         'Error inesperado durante el registro. Por favor, intente más tarde.',
       );
     }
-  }
-
-  /**
-   * Login for any Cliente (retail or wholesale). The resulting JWT
-   * includes `esMayorista` so the frontend can know whether to show the
-   * dossier flow.
-   */
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authCustomerService.login(this.legacyStoreCompanyId(), dto);
   }
 
   /**
@@ -186,40 +146,5 @@ export class AuthCustomerController {
       metodoLogin: customer.googleId ? 'google' : 'password',
       createdAt: customer.createdAt.toISOString(),
     };
-  }
-
-  // Google OAuth for the online store. The Passport 'google' strategy is
-  // the same as the admin panel's (same GOOGLE_CLIENT_ID/SECRET) but the
-  // callback tells the destination apart by the URL it redirects to.
-  @Public()
-  @UseGuards(AuthGuard('google'))
-  @Get('google')
-  @ApiExcludeEndpoint()
-  googleLogin() {}
-
-  @Public()
-  @UseGuards(AuthGuard('google'))
-  @Get('google/callback')
-  @ApiExcludeEndpoint()
-  async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
-    // The store redirects to TIENDA_FRONTEND_URL (it may differ from
-    // FRONTEND_URL, which points to the admin panel). If it is not
-    // configured, it falls back to FRONTEND_URL — that way it does not
-    // break a deploy that has not configured the store variable yet.
-    const storeUrl = process.env.TIENDA_FRONTEND_URL || process.env.FRONTEND_URL;
-    if (!storeUrl) {
-      throw new Error('TIENDA_FRONTEND_URL / FRONTEND_URL no configurado');
-    }
-
-    try {
-      const session = await this.authCustomerService.loginWithGoogle(req.user);
-      const redirectUrl = new URL('/auth/google/callback', storeUrl);
-      redirectUrl.searchParams.set('token', session.accessToken);
-      res.redirect(redirectUrl.toString());
-    } catch {
-      const redirectUrl = new URL('/login', storeUrl);
-      redirectUrl.searchParams.set('error', 'google');
-      res.redirect(redirectUrl.toString());
-    }
   }
 }

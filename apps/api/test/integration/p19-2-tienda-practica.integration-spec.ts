@@ -275,7 +275,7 @@ describe('P19-2 — tienda práctica', () => {
     await order('RECIBIDO', ids.cafe, 20);
     await order('CANCELADO', ids.cafe, 20);
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 180000);
 

@@ -124,61 +124,6 @@ export class AuthCustomerService {
   }
 
   /**
-   * Resolves the Google profile to a retail Cliente — same pattern as
-   * AuthGoogleService for Usuario. If the Cliente already exists by
-   * email, it links the googleId; if not, it creates it as a new retail
-   * customer.
-   *
-   * The empresaId comes from TIENDA_EMPRESA_ID (same env var as
-   * store.service.ts to identify which company the public store is.
-   */
-  async loginWithGoogle(profile: GoogleProfile) {
-    // Defense in depth: customer identity linking uses the same verified-email
-    // requirement as staff identity linking.
-    if (profile.emailVerified !== true) {
-      throw new UnauthorizedException('Google debe confirmar que el email está verificado');
-    }
-
-    const companyId = process.env.TIENDA_EMPRESA_ID;
-    if (!companyId) {
-      throw new Error('TIENDA_EMPRESA_ID no configurado');
-    }
-
-    let customer = await this.prisma.cliente.findUnique({
-      where: { googleId: profile.googleId },
-      include: { Empresa: true },
-    });
-
-    if (!customer) {
-      const existing = await this.prisma.cliente.findFirst({
-        where: { empresaId: companyId, email: profile.email },
-        include: { Empresa: true },
-      });
-
-      if (existing) {
-        customer = await this.prisma.cliente.update({
-          where: { id: existing.id },
-          data: { googleId: profile.googleId },
-          include: { Empresa: true },
-        });
-      } else {
-        customer = await this.prisma.cliente.create({
-          data: {
-            empresaId: companyId,
-            nombre: profile.nombre,
-            email: profile.email,
-            googleId: profile.googleId,
-            esMayorista: false,
-          },
-          include: { Empresa: true },
-        });
-      }
-    }
-
-    return this.issueCustomerSession(customer);
-  }
-
-  /**
    * Cliente JWT shape — parallel to AuthService.issueSession() fo
    * Usuario. `permisos: []` always (Clientes have no granular permissions
    * of the internal system). `rol` uses 'OWNER' as a typed placeholde

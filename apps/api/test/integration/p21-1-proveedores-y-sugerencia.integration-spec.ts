@@ -125,7 +125,7 @@ describe('P21-1 — proveedores y sugerencia de compra', () => {
         data: { empresaId: other.id, nombre: `P21-1 Ajeno ${suffix}` },
       })
     ).id;
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

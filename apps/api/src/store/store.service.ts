@@ -23,18 +23,9 @@ type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
 type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']>[0]>[0];
 
 /**
- * Phase 1-3 of the Online Store (RF-06). PUBLIC surface (no login) — see
- * store.controller.ts, everything here marked @Public().
- *
- * Without a session there is no AuthenticatedUser.empresaId to take the
- * multi-company scope from (see company-scoped-prisma.service.ts). It is
- * resolved by reading TIENDA_EMPRESA_ID from a fixed env var — same
- * pattern already used for the automatic Google OAuth sign-up (see
- * GOOGLE_SIGNUP_EMPRESA_ID in auth.google.service.ts): a single public
- * store per deploy, without inventing which company an anonymous visitor
- * belongs to. If more than one public store is ever needed, that is a
- * separate redesign (resolving the company by the request's
- * domain/subdomain), not something to anticipate without a real case.
+ * The online store of each Business (RF-06), reached by its public slug (`/:slug/tienda`) or from
+ * the chat. The Business is always explicit: the single-store mode (TIENDA_EMPRESA_ID) is gone
+ * (Owner, 2026-11-25).
  */
 @Injectable()
 export class StoreService {
@@ -47,17 +38,11 @@ export class StoreService {
   ) {}
 
   private companyId(explicitCompanyId?: string): string {
-    if (explicitCompanyId) return explicitCompanyId;
-    const companyId = process.env.TIENDA_EMPRESA_ID;
-    if (!companyId) {
-      // The company is not guessed: without this variable, the public store is
-      // effectively disabled (fails explicitly, it does not show the catalog of
-      // 'any' company).
-      throw new InternalServerErrorException(
-        'TIENDA_EMPRESA_ID no configurado: la tienda pública está deshabilitada',
-      );
+    // Fails closed: the store never guesses a Business.
+    if (!explicitCompanyId) {
+      throw new InternalServerErrorException('Falta el negocio de la tienda');
     }
-    return companyId;
+    return explicitCompanyId;
   }
 
   /**

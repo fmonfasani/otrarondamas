@@ -134,7 +134,7 @@ describe('P20-3 — ofertas con fecha', () => {
       .familiaId;
     ids.Ajeno = (await createStoreProduct(prisma, other.id, 'P20-3', 'Z', suffix)).id;
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

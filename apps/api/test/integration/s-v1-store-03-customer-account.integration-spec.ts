@@ -52,7 +52,7 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
     companyB = await createCompany('B');
     productA = await createStoreProduct(prisma, companyA.id, 'STORE-V1-03', 'A', suffix);
     productB = await createStoreProduct(prisma, companyB.id, 'STORE-V1-03', 'B', suffix);
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 
