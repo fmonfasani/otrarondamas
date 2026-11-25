@@ -121,7 +121,7 @@ describe('P20-4 — regla de descuentos', () => {
         },
       })
     ).id;
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

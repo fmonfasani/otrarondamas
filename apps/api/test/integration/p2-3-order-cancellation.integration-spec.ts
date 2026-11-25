@@ -343,7 +343,7 @@ describe('P2-3 — Cancelación de Pedidos (Order Cancellation)', () => {
       select: { id: true },
     });
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: companyA.id });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

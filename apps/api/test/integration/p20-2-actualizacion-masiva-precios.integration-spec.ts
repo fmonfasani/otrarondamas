@@ -161,7 +161,7 @@ describe('P20-2 — actualización masiva de precios', () => {
     otherFamilia = elsewhere.familiaId;
     await product(other, elsewhere, 'Ajena', 'Campo', 1000, 1500);
 
-    server = spawnApi({ PORT, TIENDA_EMPRESA_ID: '' });
+    server = spawnApi({ PORT });
     await waitPort(Number(PORT));
   }, 120000);
 

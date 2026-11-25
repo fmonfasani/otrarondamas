@@ -1,8 +1,5 @@
 import { Module } from '@nestjs/common';
-import { StoreController } from './store.controller';
 import { PublicStoreController } from './public-store.controller';
-import { StoreOrderController } from './store-order.controller';
-import { StoreApiController } from './store-api.controller';
 import { StoreService } from './store.service';
 import { StoreCatalogService } from './store-catalog.service';
 import { ProductPhotosService } from '../catalog/product-photos.service';
@@ -30,7 +27,7 @@ import { CustomerNoticesModule } from '../customer-notices/customer-notices.modu
     DevolucionesCoreModule,
     CustomerNoticesModule,
   ],
-  controllers: [StoreController, PublicStoreController, StoreOrderController, StoreApiController],
+  controllers: [PublicStoreController],
   providers: [StoreService, StoreCatalogService, ProductPhotosService],
   exports: [StoreService],
 })
