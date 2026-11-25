@@ -46,3 +46,37 @@ self.addEventListener('fetch', (event) => {
   if (isStatic(url)) event.respondWith(cacheFirst(request));
   // Everything else (data, API, session): straight to the network, untouched.
 });
+
+/* E3 (messaging like WhatsApp) — a new message that arrives by push while Wapsell is closed: show
+ * it, and open that conversation when the notification is clicked. */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = typeof data.title === 'string' && data.title ? data.title : 'Wapsell';
+  const url = typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/panel/mensajes';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof data.body === 'string' ? data.body : 'Tenés un mensaje nuevo',
+      tag: typeof data.tag === 'string' ? data.tag : undefined,
+      renotify: typeof data.tag === 'string',
+      icon: '/icons/icon-192.png',
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url ?? '/panel/mensajes', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => new URL(w.url).origin === self.location.origin);
+      if (open) return open.focus().then(() => open.navigate(url));
+      return self.clients.openWindow(url);
+    }),
+  );
+});

@@ -19,7 +19,15 @@ describe('MessagingController — commercial context P2', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new MessagingController(service, gateway);
+    // E3: push settings and subscriptions (not exercised here).
+    const alerts = { pushSettings: jest.fn(), subscribe: jest.fn(), unsubscribe: jest.fn() };
+    const businessContext = { resolveForAuthenticatedUser: jest.fn() };
+    controller = new MessagingController(
+      service,
+      gateway,
+      alerts as never,
+      businessContext as never,
+    );
   });
 
   it('lists the active commercial context for the requested conversation', async () => {

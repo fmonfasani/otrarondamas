@@ -37,6 +37,7 @@ import {
 import type { SearchProduct } from '~/utils/sales';
 import { useLiveSource, useLiveUpdates, useSharedLive, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { badgeText } from '~/utils/alerts';
+import { ensurePushSubscription } from '~/utils/push';
 import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingSignal } from '~/utils/live';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
@@ -534,7 +535,11 @@ function AlertsToggle() {
       className="ws-link ws-alerts-toggle"
       onClick={() => {
         Notification.requestPermission()
-          .then(setPermission)
+          .then((answer) => {
+            setPermission(answer);
+            // E3: with permission, new messages also arrive with Wapsell closed (push).
+            if (answer === 'granted') void ensurePushSubscription();
+          })
           .catch(() => setPermission('denied'));
       }}
     >
