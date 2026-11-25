@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Patch,
@@ -279,7 +280,7 @@ export class MessagingController {
     @Param('messageId') messageId: string,
   ) {
     const result = await this.messagingService.markMessageRead(user, id, messageId);
-    const readAt = result.read ? result.readAt : null;
+    const readAt = result.read && result.firstRead ? result.readAt : null;
     if (readAt) {
       this.publishSafely('conversation.message.read', id, () =>
         this.messagingGateway.publishMessageRead({
@@ -290,6 +291,15 @@ export class MessagingController {
       );
     }
     return result;
+  }
+
+  /** E1 — «escribiendo…»: tells the others in the conversation. Sent every few seconds. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Post(':id/typing')
+  @HttpCode(204)
+  async typing(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
+    const writer = await this.messagingService.typingActor(user, id);
+    await this.messagingGateway.publishTyping(id, writer);
   }
 
   @CanonicalPermission('MESSAGING_USE')

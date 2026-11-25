@@ -688,4 +688,104 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       ).toBe(1);
     });
   });
+  // ---------------------------------------------------------------------
+  // E1 — realtime inbox: every screen hears about the conversations it may read,
+  // without joining each one, and «escribiendo…» reaches the others only.
+  // ---------------------------------------------------------------------
+  describe('E1 realtime inbox and typing', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 600));
+    const typing = (token: string, conversationId: string) =>
+      request(BASE)
+        .post(`/messaging/conversations/${conversationId}/typing`)
+        .set('Authorization', bearer(token));
+
+    it('announces a change (ids only) to participants and to readers of every conversation, not to others', async () => {
+      const writer = await connectSocket(userToken(owner1));
+      const reader = await connectSocket(userToken(owner2)); // Owner, not a participant
+      const customerSocket = await connectSocket(customerToken());
+      const stranger = await connectSocket(userToken(assistant));
+      const foreign = await connectSocket(userToken(foreignOwner));
+      const atReader = nextEvent(reader, 'inbox.changed');
+      const atCustomer = nextEvent(customerSocket, 'inbox.changed');
+      const atWriter = nextEvent(writer, 'inbox.changed');
+      const leakedStranger = countEvents(stranger, 'inbox.changed');
+      const leakedForeign = countEvents(foreign, 'inbox.changed');
+
+      await send(userToken(owner1), customerConversationId, `e1-${suffix}`, 'aviso').expect(201);
+
+      expect(await atReader).toEqual({ conversationId: customerConversationId });
+      expect(await atCustomer).toEqual({ conversationId: customerConversationId });
+      expect(await atWriter).toEqual({ conversationId: customerConversationId });
+      await settle();
+      expect(leakedStranger).toHaveLength(0);
+      expect(leakedForeign).toHaveLength(0);
+    });
+
+    it('tells the others who is writing, never the writer, and tells the customer only that the store writes', async () => {
+      const writer = await connectSocket(userToken(owner1));
+      const reader = await connectSocket(userToken(owner2));
+      const customerSocket = await connectSocket(customerToken());
+      const stranger = await connectSocket(userToken(assistant));
+      const atReader = nextEvent(reader, 'conversation.typing');
+      const atCustomer = nextEvent(customerSocket, 'conversation.typing');
+      const echoed = countEvents(writer, 'conversation.typing');
+      const leaked = countEvents(stranger, 'conversation.typing');
+
+      await typing(userToken(owner1), customerConversationId).expect(204);
+
+      expect(await atReader).toEqual({
+        conversationId: customerConversationId,
+        userId: owner1.userId,
+        customerId: null,
+      });
+      expect(await atCustomer).toEqual({ conversationId: customerConversationId });
+      await settle();
+      expect(echoed).toHaveLength(0);
+      expect(leaked).toHaveLength(0);
+    });
+
+    it('does not let someone who may only read say they are writing', async () => {
+      await typing(userToken(owner2), customerConversationId).expect(403);
+      await typing(userToken(assistant), customerConversationId).expect(403);
+      await typing(userToken(foreignOwner), customerConversationId).expect(404);
+    });
+
+    it('lets the store customer say they are writing, from the store chat', async () => {
+      const owner = await connectSocket(userToken(owner1));
+      const atOwner = nextEvent(owner, 'conversation.typing');
+      await request(BASE)
+        .post(`/msg-participation-${suffix}/tienda/chat/escribiendo`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(204);
+      expect(await atOwner).toEqual({
+        conversationId: customerConversationId,
+        userId: null,
+        customerId: customer.id,
+      });
+    });
+
+    it('announces a read only the first time, so a screen reload does not wake the others', async () => {
+      const sent = await send(
+        userToken(owner2),
+        userConversationId,
+        `e1-read-${suffix}`,
+        'leeme',
+      ).expect(201);
+      const other = await connectSocket(userToken(owner2));
+      await settle();
+      const changes = countEvents(other, 'inbox.changed');
+      const markRead = () =>
+        request(BASE)
+          .post(`/messaging/conversations/${userConversationId}/messages/${sent.body.id}/read`)
+          .set('Authorization', bearer(userToken(owner1)))
+          .expect(201);
+
+      await markRead();
+      await settle();
+      expect(changes).toHaveLength(1);
+      await markRead();
+      await settle();
+      expect(changes).toHaveLength(1);
+    });
+  });
 });

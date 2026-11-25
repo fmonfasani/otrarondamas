@@ -1,17 +1,18 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Link, useFetcher, useLoaderData, useRevalidator } from '@remix-run/react';
+import { Link, useFetcher, useLoaderData } from '@remix-run/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage } from '~/services/store.server';
 import { formatMoney, formatTime } from '~/utils/format';
+import { useLiveUpdates, useTypingNotifier } from '~/hooks/useLiveUpdates';
 
 /**
  * Chat of the store customer with the Business — /tienda/:slug/chat (STORE-V1-04).
  * The first message opens a conversation with the Owner (OR-B4-031), who answers from
- * Mensajes in the panel. New answers appear every 5 seconds while the page is visible
- * (same polling as the panel; realtime needs the token in the browser, an Owner decision).
+ * Mensajes in the panel. Answers and «escribiendo…» appear at once through the page's own
+ * stream (E1, chat/eventos); the token stays on the server. Without the stream, every 5 s.
  */
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
@@ -81,19 +82,15 @@ export default function CustomerChat() {
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const revalidator = useRevalidator();
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
   const end = useRef<HTMLDivElement>(null);
   const sending = send.state !== 'idle';
 
-  // New answers from the store, while the page is visible.
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && revalidator.state === 'idle') revalidator.revalidate();
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [revalidator]);
+  // E1: the store's answers and «escribiendo…» at once.
+  const { typing } = useLiveUpdates(`/tienda/${store.slug}/chat/eventos`, { paused: sending });
+  const storeTyping = Object.keys(typing).length > 0;
+  const notifyTyping = useTypingNotifier(`/tienda/${store.slug}/chat/escribiendo`, null);
 
   // Sent: clear the box and take a new retry key (a failed send keeps both, so retrying
   // the same message cannot duplicate it).
@@ -106,7 +103,7 @@ export default function CustomerChat() {
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
-  }, [chat.messages.length]);
+  }, [chat.messages.length, storeTyping]);
 
   const submit = () => {
     if (!draft.trim() || sending) return;
@@ -181,6 +178,7 @@ export default function CustomerChat() {
               <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
             </div>
           ))}
+          {storeTyping ? <p className="store-chat__typing">{store.nombre} está escribiendo…</p> : null}
           <div ref={end} />
         </div>
         <send.Form
@@ -226,7 +224,10 @@ export default function CustomerChat() {
             maxLength={MAX_LENGTH}
             placeholder="Escribí un mensaje"
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              notifyTyping();
+            }}
             onKeyDown={onKeyDown}
           />
           <button type="submit" className="store-send" aria-label="Enviar" disabled={sending || !draft.trim()}>

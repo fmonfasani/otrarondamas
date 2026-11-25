@@ -32,7 +32,7 @@ import * as path from 'node:path';
  * (OWNER_READ_ONLY mode below): staff whose role holds MESSAGING_MANAGE in the approved
  * matrix — Owner and Admin (OR-B4-027) — and that have a canonical User.
  */
-function canReadAllConversations(context: BusinessContext): boolean {
+export function canReadAllConversations(context: BusinessContext): boolean {
   return hasCanonicalPermission(context.role, 'MESSAGING_MANAGE') && context.userId !== null;
 }
 
@@ -741,6 +741,57 @@ export class MessagingService {
       context,
     );
     return withDirectory;
+  }
+
+  /**
+   * Realtime (E1): who hears about a change in this conversation — its active participants.
+   * Readers of every conversation (MESSAGING_MANAGE) are reached through their own room, so
+   * they are not listed here. Internal: never exposed through HTTP. Null when the
+   * conversation is gone.
+   */
+  async realtimeAudience(
+    conversationId: string,
+  ): Promise<{ businessId: string; userIds: string[]; customerIds: string[] } | null> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, deletedAt: null },
+      select: {
+        businessId: true,
+        ConversationParticipant: {
+          where: { leftAt: null, removedAt: null },
+          select: { userId: true, customerId: true },
+        },
+      },
+    });
+    if (!conversation) return null;
+    const participants = conversation.ConversationParticipant;
+    return {
+      businessId: conversation.businessId,
+      userIds: participants.flatMap((p) => (p.userId ? [p.userId] : [])),
+      customerIds: participants.flatMap((p) => (p.customerId ? [p.customerId] : [])),
+    };
+  }
+
+  /**
+   * Realtime (E1) — «escribiendo…». Only someone who may write in the conversation may say
+   * they are writing: an Owner reading without participating may not. Returns the actor.
+   */
+  async typingActor(auth: AuthenticatedUser, conversationId: string): Promise<BusinessContext> {
+    const context = await this.resolveContext(auth);
+    const conversation = await this.getConversationForActor(this.prisma, conversationId, context);
+    if (!this.withViewerAccess(conversation, context).viewerAccess.canSend) {
+      throw new ForbiddenException('El actor no participa en la conversación');
+    }
+    return context;
+  }
+
+  /** Realtime (E1) — the store customer is writing: their conversation, if they have one. */
+  async customerTypingActor(
+    auth: AuthenticatedUser,
+  ): Promise<{ context: BusinessContext; conversationId: string } | null> {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const conversationId = await this.findCustomerConversationId(this.prisma, context);
+    return conversationId ? { context, conversationId } : null;
   }
 
   /**
@@ -1595,6 +1646,9 @@ export class MessagingService {
         read: true,
         receiptsEnabled: true,
         readAt: receipt.readAt,
+        // E1: true only when this call created the receipt. Reading again is a no-op and
+        // must not be announced, or each screen reload would wake every other screen.
+        firstRead: !existing,
       };
     });
   }

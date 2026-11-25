@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useRevalidator, useSearchParams } from '@remix-run/react';
+import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
 import { ArrowLeft, ArrowUp, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
@@ -33,6 +33,8 @@ import {
   type QuickReply,
 } from '~/utils/messaging';
 import type { SearchProduct } from '~/utils/sales';
+import { useLiveUpdates, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { typingLabel, type TypingSignal } from '~/utils/live';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
 
@@ -43,9 +45,6 @@ interface Customer {
   telefono: string | null;
   nivel?: string | null;
 }
-
-/** How often an open Mensajes tab asks the server for new messages. */
-export const REFRESH_MS = 5000;
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Owner',
@@ -189,19 +188,6 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
-/** Keeps an open, visible Mensajes tab up to date without a page reload. */
-function useAutoRefresh(paused: boolean) {
-  const revalidator = useRevalidator();
-  const navigation = useNavigation();
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (paused || document.visibilityState !== 'visible') return;
-      if (revalidator.state === 'idle' && navigation.state === 'idle') revalidator.revalidate();
-    }, REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [paused, revalidator, navigation.state]);
-}
-
 /**
  * Messaging center, from the Figma "Plataforma · Centro de mensajes" (145:12487): inbox
  * (search, filters, conversation rows), thread with day separators and bubbles, composer,
@@ -213,7 +199,9 @@ export default function MessagesPage() {
   const [searchParams] = useSearchParams();
   const sender = useFetcher<ActionData>();
   const sending = sender.state !== 'idle';
-  useAutoRefresh(sending);
+  const navigation = useNavigation();
+  // E1: new messages and «escribiendo…» at once; every 5 s if the stream is down.
+  const { typing } = useLiveUpdates('/panel/mensajes/eventos', { paused: sending || navigation.state !== 'idle' });
 
   const base = `/panel/mensajes`;
   const query = searchParams.get('q') ?? '';
@@ -296,7 +284,11 @@ export default function MessagesPage() {
                           {inboxTime(conversation.lastMessage?.createdAt ?? conversation.createdAt)}
                         </span>
                       </span>
-                      <span className="ws-conv__last">{previewText(conversation)}</span>
+                      {typing[conversation.id] ? (
+                        <span className="ws-conv__last ws-typing">{typingLabel(conversation, typing[conversation.id])}</span>
+                      ) : (
+                        <span className="ws-conv__last">{previewText(conversation)}</span>
+                      )}
                     </span>
                   </Link>
                 </li>
@@ -321,6 +313,7 @@ export default function MessagesPage() {
             canEditCart={data.canEditCart}
             quickReplies={data.quickReplies}
             customerName={data.customer?.nombre ?? null}
+            typing={typing[data.selected.id] ?? null}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -350,6 +343,7 @@ function Thread({
   canEditCart,
   quickReplies,
   customerName,
+  typing,
 }: Readonly<{
   conversation: Conversation;
   messages: Message[];
@@ -360,6 +354,7 @@ function Thread({
   canEditCart: boolean;
   quickReplies: QuickReply[];
   customerName: string | null;
+  typing: TypingSignal | null;
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -386,7 +381,11 @@ function Thread({
         </Link>
         <span className="ws-chat__contact">
           <b>{conversationTitle(conversation)}</b>
-          <span>{conversationSubtitle(conversation)}</span>
+          {typing ? (
+            <span className="ws-typing">{typingLabel(conversation, typing)}</span>
+          ) : (
+            <span>{conversationSubtitle(conversation)}</span>
+          )}
         </span>
       </header>
 
@@ -500,6 +499,7 @@ function Composer({
 }>) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<ComposerPanel>(null);
+  const notifyTyping = useTypingNotifier('/panel/mensajes/escribiendo', conversation.id);
   const fileRef = useRef<HTMLInputElement>(null);
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [tooBig, setTooBig] = useState(false);
@@ -628,6 +628,7 @@ function Composer({
           required
           placeholder="Escribe un mensaje"
           aria-label="Mensaje"
+          onInput={notifyTyping}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
