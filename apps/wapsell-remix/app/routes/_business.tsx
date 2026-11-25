@@ -4,6 +4,8 @@ import panelStyles from '../styles/panel.css?url';
 import { AppShell, type ShellUser } from '~/components/panel/AppShell';
 import { requireAuth, getCurrentUser, sessionDossierState } from '~/services/auth.server';
 import { dossierStanding } from '~/utils/team';
+import { LiveContext, useLiveSource } from '~/hooks/useLiveUpdates';
+import { useUnreadAlerts } from '~/hooks/useUnreadAlerts';
 
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: panelStyles }];
 
@@ -31,9 +33,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function BusinessLayout() {
   const { user } = useLoaderData<typeof loader>();
   const { lang = 'es' } = useParams();
+  // E1/E2: one live stream per tab for the whole panel — the menu's unread count and the
+  // Mensajes screen share it.
+  const live = useLiveSource('/panel/mensajes/eventos');
+  const unread = useUnreadAlerts(live);
   return (
-    <AppShell user={user} lang={lang}>
-      <Outlet />
-    </AppShell>
+    <LiveContext.Provider value={live}>
+      <AppShell user={user} lang={lang} unread={unread.total}>
+        <Outlet />
+      </AppShell>
+    </LiveContext.Provider>
   );
 }

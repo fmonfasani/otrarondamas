@@ -788,4 +788,199 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       expect(changes).toHaveLength(1);
     });
   });
+  // ---------------------------------------------------------------------
+  // E2 — ticks and unread, like WhatsApp.
+  // ---------------------------------------------------------------------
+  describe('E2 ticks and unread count', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
+    const list = (token: string) =>
+      request(BASE).get('/messaging/conversations').set('Authorization', bearer(token)).expect(200);
+    const unreadOf = async (token: string, conversationId: string) =>
+      (await list(token)).body.find((row: { id: string }) => row.id === conversationId).unreadCount;
+    const ticksOf = async (token: string, conversationId: string, messageId: string) => {
+      const messages = await request(BASE)
+        .get(`/messaging/conversations/${conversationId}/messages`)
+        .set('Authorization', bearer(token))
+        .expect(200);
+      return messages.body.find((m: { id: string }) => m.id === messageId).estado;
+    };
+    const markRead = (token: string, conversationId: string, messageId: string) =>
+      request(BASE)
+        .post(`/messaging/conversations/${conversationId}/messages/${messageId}/read`)
+        .set('Authorization', bearer(token))
+        .expect(201);
+    const receipts = (token: string, enabled: boolean) =>
+      request(BASE)
+        .patch('/messaging/conversations/read-receipts/preferences')
+        .set('Authorization', bearer(token))
+        .send({ enabled })
+        .expect(200);
+
+    it('counts what the participant has not read, and clears it when they read', async () => {
+      const first = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-u1-${suffix}`,
+        'uno',
+      ).expect(201);
+      await markRead(userToken(owner2), userConversationId, first.body.id);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+
+      await send(userToken(owner1), userConversationId, `e2-u2-${suffix}`, 'dos').expect(201);
+      const third = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-u3-${suffix}`,
+        'tres, la última',
+      ).expect(201);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(2);
+      expect(await unreadOf(userToken(owner1), userConversationId)).toBe(0); // own messages never count
+
+      const summary = await request(BASE)
+        .get('/messaging/conversations/unread')
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      expect(summary.body.total).toBeGreaterThanOrEqual(2);
+      expect(summary.body.latest).toEqual(
+        expect.objectContaining({
+          id: third.body.id,
+          conversationId: userConversationId,
+          authorName: 'Msg participation canonical owner1',
+          preview: 'tres, la última',
+        }),
+      );
+
+      await markRead(userToken(owner2), userConversationId, third.body.id);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+    });
+
+    it("counts a store customer's message for the team member in the chat", async () => {
+      const slug = `msg-participation-${suffix}`;
+      const sent = await request(BASE)
+        .post(`/${slug}/tienda/chat/mensajes`)
+        .set('Authorization', bearer(customerToken()))
+        .send({ clientMessageId: `e2-cust-${suffix}`, content: 'consulta del cliente' })
+        .expect(201);
+      expect(await unreadOf(userToken(owner1), customerConversationId)).toBeGreaterThanOrEqual(1);
+      const summary = await request(BASE)
+        .get('/messaging/conversations/unread')
+        .set('Authorization', bearer(userToken(owner1)))
+        .expect(200);
+      expect(summary.body.latest).toEqual(
+        expect.objectContaining({
+          id: sent.body.message.id,
+          authorName: `Msg participation customer ${suffix}`,
+          preview: 'consulta del cliente',
+        }),
+      );
+      await markRead(userToken(owner1), customerConversationId, sent.body.message.id);
+      expect(await unreadOf(userToken(owner1), customerConversationId)).toBe(0);
+    });
+
+    it('an Owner reading without participating has nothing unread there', async () => {
+      await send(
+        userToken(owner1),
+        customerConversationId,
+        `e2-obs-${suffix}`,
+        'al cliente',
+      ).expect(201);
+      expect(await unreadOf(userToken(owner2), customerConversationId)).toBe(0);
+    });
+
+    it('ticks: ✓ saved, ✓✓ when it reached the other screen, blue when read — and tells the sender', async () => {
+      const sender = await connectSocket(userToken(owner1));
+      const sent = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-t-${suffix}`,
+        'tildes',
+      ).expect(201);
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('enviado');
+
+      const told = nextEvent(sender, 'inbox.changed');
+      await list(userToken(owner2)); // owner2's screen loads its inbox
+      expect(await told).toEqual({ conversationId: userConversationId });
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('entregado');
+
+      await markRead(userToken(owner2), userConversationId, sent.body.id);
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('leido');
+
+      // Others' messages carry no ticks.
+      expect(await ticksOf(userToken(owner2), userConversationId, sent.body.id)).toBeUndefined();
+    });
+
+    it('read receipts off: no blue either way (mutual), but the unread count still clears', async () => {
+      await receipts(userToken(owner2), false);
+      try {
+        const sent = await send(
+          userToken(owner1),
+          userConversationId,
+          `e2-off-${suffix}`,
+          'sin azul',
+        ).expect(201);
+        await markRead(userToken(owner2), userConversationId, sent.body.id);
+        expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe(
+          'entregado',
+        );
+        expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+
+        // owner2 does not see owner1's reads either.
+        const back = await send(
+          userToken(owner2),
+          userConversationId,
+          `e2-off-b-${suffix}`,
+          'tampoco',
+        ).expect(201);
+        await markRead(userToken(owner1), userConversationId, back.body.id);
+        expect(await ticksOf(userToken(owner2), userConversationId, back.body.id)).toBe(
+          'entregado',
+        );
+      } finally {
+        await receipts(userToken(owner2), true);
+      }
+    });
+
+    it('the store customer: their screen loading marks ✓✓ and opening the chat marks it read', async () => {
+      const slug = `msg-participation-${suffix}`;
+      const sent = await send(
+        userToken(owner1),
+        customerConversationId,
+        `e2-c-${suffix}`,
+        'para el cliente',
+      ).expect(201);
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe(
+        'enviado',
+      );
+
+      const chat = await request(BASE)
+        .get(`/${slug}/tienda/chat`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(200);
+      expect(JSON.stringify(chat.body)).not.toContain('lastReadAt');
+      await settle();
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe(
+        'entregado',
+      );
+
+      await request(BASE)
+        .post(`/${slug}/tienda/chat/leido`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(204);
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe('leido');
+    });
+
+    it("never sends anyone's read position raw", async () => {
+      const listed = await list(userToken(owner2));
+      const one = await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}`)
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      for (const body of [listed.body, one.body]) {
+        const text = JSON.stringify(body);
+        expect(text).not.toContain('lastReadAt');
+        expect(text).not.toContain('lastDeliveredAt');
+        expect(text).not.toContain('ConversationReadState');
+      }
+    });
+  });
 });

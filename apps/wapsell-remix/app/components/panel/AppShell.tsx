@@ -3,6 +3,7 @@ import { Form, Link, NavLink, useLocation } from '@remix-run/react';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Boxes, History, ChevronDown, CreditCard, House, LogOut, MessagesSquare, Package, Receipt, RotateCcw, Settings, ShoppingBag, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { Logo } from '~/components/brand/Logo';
+import { badgeText } from '~/utils/alerts';
 
 export interface NavItem {
   to: string;
@@ -74,7 +75,18 @@ export function initials(name: string): string {
  * toolbar (logo, "Negocio / Sección", role pill, avatar) and a 64px icon rail. On mobile
  * the rail becomes a bottom tab bar.
  */
-export function AppShell({ user, lang, children }: { user: ShellUser; lang: string; children: ReactNode }) {
+export function AppShell({
+  user,
+  lang,
+  unread = 0,
+  children,
+}: {
+  user: ShellUser;
+  lang: string;
+  /** E2 — unread messages, shown on «Mensajes». */
+  unread?: number;
+  children: ReactNode;
+}) {
   const items = navItems(lang, user.rol);
   const { pathname } = useLocation();
   const current =
@@ -128,6 +140,11 @@ export function AppShell({ user, lang, children }: { user: ShellUser; lang: stri
             >
               <item.icon size={18} aria-hidden="true" />
               <span>{item.label}</span>
+              {item.to.endsWith('/mensajes') && unread > 0 ? (
+                <span className="ws-panel__badge" aria-label={`${unread} sin leer`}>
+                  {badgeText(unread)}
+                </span>
+              ) : null}
             </NavLink>
           ))}
         </nav>

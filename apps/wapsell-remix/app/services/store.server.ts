@@ -94,6 +94,8 @@ export type ChatMessage = {
   content: string | null;
   createdAt: string;
   mine: boolean;
+  /** E2 — ticks of the customer's own message: ✓ saved, ✓✓ reached the store, blue ✓✓ read. */
+  estado?: 'enviado' | 'entregado' | 'leido';
   /** OR-B4-037: product cards (and photos) the team shared. */
   adjuntos?: Array<{ tipo: string; id: string; productoId?: string; nombre: string; precio?: string; mimeType?: string; tamano?: number }>;
 };

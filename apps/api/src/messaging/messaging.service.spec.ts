@@ -34,6 +34,9 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   const prisma = {
     $transaction: jest.fn(async (callback: unknown) => callback(prisma)),
+    // E2: read positions and unread counts (raw SQL); nothing moved, nothing unread.
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(1),
     conversation: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -43,6 +46,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     conversationParticipant: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
@@ -891,10 +895,12 @@ describe('MessagingService — M2/M3 messaging', () => {
 
     const result = await service.markMessageRead(auth, 'conversation-a', 'message-a');
 
+    // E2: no receipt, but the reader's position still moves, so their unread count clears.
     expect(result).toEqual({
       messageId: 'message-a',
       read: false,
       receiptsEnabled: false,
+      positionMoved: true,
     });
     expect(prisma.messageReadReceipt.create).not.toHaveBeenCalled();
   });

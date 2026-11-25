@@ -6,7 +6,8 @@ import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage } from '~/services/store.server';
 import { formatMoney, formatTime } from '~/utils/format';
-import { useLiveUpdates, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { playChime, titleWithCount } from '~/utils/alerts';
 
 /**
  * Chat of the store customer with the Business — /tienda/:slug/chat (STORE-V1-04).
@@ -20,6 +21,9 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => [
 ];
 
 const MAX_LENGTH = 2000;
+
+/** E2 — the ticks of the customer's own messages, read aloud. */
+const TICK_WORDS = { enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' } as const;
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const slug = params.slug ?? '';
@@ -87,10 +91,39 @@ export default function CustomerChat() {
   const end = useRef<HTMLDivElement>(null);
   const sending = send.state !== 'idle';
 
-  // E1: the store's answers and «escribiendo…» at once.
-  const { typing } = useLiveUpdates(`/tienda/${store.slug}/chat/eventos`, { paused: sending });
+  // E1: the store's answers and «escribiendo…» at once — also with the tab in the background
+  // (E2), so the title can count them; reading happens only when the customer looks.
+  const live = useLiveSource(`/tienda/${store.slug}/chat/eventos`);
+  const { typing } = useLiveUpdates(live, { paused: sending, whenHidden: true });
   const storeTyping = Object.keys(typing).length > 0;
   const notifyTyping = useTypingNotifier(`/tienda/${store.slug}/chat/escribiendo`, null);
+
+  // E2: read while in front; count, title and chime while in the background.
+  const visible = useTabVisible();
+  const fromStore = chat.messages.filter((m) => !m.mine);
+  const newestFromStore = fromStore[fromStore.length - 1]?.id ?? null;
+  const markedRead = useRef<string | null>(null);
+  useEffect(() => {
+    if (!visible || !newestFromStore || markedRead.current === newestFromStore) return;
+    markedRead.current = newestFromStore;
+    fetch(`/tienda/${store.slug}/chat/leido`, { method: 'POST', credentials: 'same-origin' }).catch(() => {
+      // Best-effort: the next look marks it.
+    });
+  }, [visible, newestFromStore, store.slug]);
+  const seenFromStore = useRef(fromStore.length);
+  const unseenBefore = useRef(0);
+  useEffect(() => {
+    if (visible) {
+      seenFromStore.current = fromStore.length;
+      unseenBefore.current = 0;
+      document.title = titleWithCount(document.title, 0);
+      return;
+    }
+    const unseen = Math.max(0, fromStore.length - seenFromStore.current);
+    if (unseen > unseenBefore.current) playChime();
+    unseenBefore.current = unseen;
+    document.title = titleWithCount(document.title, unseen);
+  }, [visible, fromStore.length]);
 
   // Sent: clear the box and take a new retry key (a failed send keeps both, so retrying
   // the same message cannot duplicate it).
@@ -175,7 +208,18 @@ export default function CustomerChat() {
               ) : (
                 <p>{message.content ?? 'Mensaje eliminado'}</p>
               )}
-              <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
+              <time dateTime={message.createdAt}>
+                {formatTime(message.createdAt)}
+                {message.mine && message.estado ? (
+                  <span
+                    className={`store-tick store-tick--${message.estado}`}
+                    aria-label={TICK_WORDS[message.estado]}
+                    title={TICK_WORDS[message.estado]}
+                  >
+                    {message.estado === 'enviado' ? ' ✓' : ' ✓✓'}
+                  </span>
+                ) : null}
+              </time>
             </div>
           ))}
           {storeTyping ? <p className="store-chat__typing">{store.nombre} está escribiendo…</p> : null}
