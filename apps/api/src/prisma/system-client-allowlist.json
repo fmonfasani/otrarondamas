@@ -38,6 +38,7 @@
     "invitations/invitations.service.ts",
     "membership/membership-revocation.service.ts",
     "membership/membership.service.ts",
+    "messaging/messaging-alerts.service.ts",
     "messaging/messaging.service.ts",
     "negocio/negocio.service.ts",
     "notifications/notification-analytics.service.ts",

@@ -1,4 +1,10 @@
-import { ForbiddenException, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  Optional,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -19,6 +25,7 @@ import type { MembershipStatusChangedEvent } from '../membership/membership-revo
 import { MembershipRevocationService } from '../membership/membership-revocation.service';
 import { canReadAllConversations, MessagingService } from './messaging.service';
 import { toMessageWire, type SerializableMessage } from './message-serializer';
+import { MessagingAlertsService } from './messaging-alerts.service';
 
 interface MessagingSocketData {
   authenticatedUser: AuthenticatedUser;
@@ -140,9 +147,13 @@ export class MessagingGateway
     private readonly businessContextService: BusinessContextService,
     private readonly messagingService: MessagingService,
     private readonly membershipRevocation: MembershipRevocationService,
+    // E3: push to team members with Wapsell closed. Optional so unit tests may omit it.
+    @Optional() private readonly alerts?: MessagingAlertsService,
   ) {}
 
   afterInit(namespace: Namespace): void {
+    // E3: alerts skip whoever has a screen open; only this gateway knows that.
+    this.alerts?.usePresence((businessId, actor) => this.isOnline(businessId, actor));
     namespace.use(async (socket, next) => {
       try {
         const token = this.extractToken(socket);
@@ -407,6 +418,18 @@ export class MessagingGateway
       message.conversationId,
       toMessageWire(message),
     );
+    // E3: push to the team members who are away. Best-effort, never back to the caller.
+    if (this.alerts) {
+      Promise.resolve()
+        .then(() => this.alerts?.pushNewMessage(message.id))
+        .catch((error: unknown) =>
+          this.logger.warn(
+            `push failed for message ${message.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          ),
+        );
+    }
   }
 
   publishMessageUpdated(message: {

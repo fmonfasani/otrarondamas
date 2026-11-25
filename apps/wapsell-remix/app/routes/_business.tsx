@@ -6,6 +6,8 @@ import { requireAuth, getCurrentUser, sessionDossierState } from '~/services/aut
 import { dossierStanding } from '~/utils/team';
 import { LiveContext, useLiveSource } from '~/hooks/useLiveUpdates';
 import { useUnreadAlerts } from '~/hooks/useUnreadAlerts';
+import { useEffect } from 'react';
+import { ensurePushSubscription } from '~/utils/push';
 
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: panelStyles }];
 
@@ -37,6 +39,10 @@ export default function BusinessLayout() {
   // Mensajes screen share it.
   const live = useLiveSource('/panel/mensajes/eventos');
   const unread = useUnreadAlerts(live);
+  // E3: a browser that already allowed notifications keeps its push subscription current.
+  useEffect(() => {
+    void ensurePushSubscription();
+  }, []);
   return (
     <LiveContext.Provider value={live}>
       <AppShell user={user} lang={lang} unread={unread.total}>

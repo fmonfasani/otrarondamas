@@ -35,6 +35,9 @@ import type { Response } from 'express';
 import { CHAT_FILE_MAX_BYTES } from './chat-files';
 
 import { QuickRepliesDto } from './dto/quick-replies.dto';
+import { PushSubscriptionDto, PushUnsubscribeDto } from './dto/push-subscription.dto';
+import { MessagingAlertsService } from './messaging-alerts.service';
+import { BusinessContextService } from '../business-context/business-context.service';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
 
@@ -52,6 +55,8 @@ export class MessagingController {
   constructor(
     private readonly messagingService: MessagingService,
     private readonly messagingGateway: MessagingGateway,
+    private readonly alerts: MessagingAlertsService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   // Realtime is best-effort: the mutation is already committed when an event
@@ -113,6 +118,36 @@ export class MessagingController {
     const conversations = await this.messagingService.listConversations(user);
     await this.deliveredTo(user);
     return conversations.map((row) => this.withPresence(row));
+  }
+
+  /** E3 — whether push is on, and the public key a browser subscribes with. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('push')
+  pushSettings() {
+    return this.alerts.pushSettings();
+  }
+
+  /** E3 — this browser accepted notifications: new messages reach it with Wapsell closed. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Post('push/subscriptions')
+  @HttpCode(204)
+  async subscribePush(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PushSubscriptionDto,
+  ): Promise<void> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    await this.alerts.subscribe(context, dto);
+  }
+
+  @CanonicalPermission('MESSAGING_USE')
+  @Delete('push/subscriptions')
+  @HttpCode(204)
+  async unsubscribePush(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PushUnsubscribeDto,
+  ): Promise<void> {
+    const context = await this.businessContext.resolveForAuthenticatedUser(user);
+    await this.alerts.unsubscribe(context, dto.endpoint);
   }
 
   /** E2 — unread messages for the panel menu, the tab title and the notification. */
