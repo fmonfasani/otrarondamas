@@ -465,6 +465,7 @@ function Thread({
             <small>Enviando…</small>
           </div>
         )}
+        {typing ? <p className="ws-typing ws-thread__typing">{typingLabel(conversation, typing)}</p> : null}
       </div>
 
       {sender.data && !sender.data.ok && sender.state === 'idle' && (
