@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { forCompanyWithRls } from '../../src/prisma/business-context';
 import { createBusinessWithOwner } from '../../src/platform-admin/create-business';
 
 /**
@@ -31,7 +32,7 @@ describe('P18-2 — precisión de montos (ADR-DAT-017)', () => {
 
   afterAll(async () => {
     if (clienteIds.length > 0) {
-      await app.cliente.deleteMany({ where: { id: { in: clienteIds } } });
+      await system.cliente.deleteMany({ where: { id: { in: clienteIds } } });
     }
     await Promise.all([system?.$disconnect(), app?.$disconnect()]);
   });
@@ -78,7 +79,8 @@ describe('P18-2 — precisión de montos (ADR-DAT-017)', () => {
   it('the database rounds an amount half away from zero when it saves it', async () => {
     const saved = await Promise.all(
       ['1234.565', '1234.564', '0.005'].map((limiteCredito, i) =>
-        app.cliente.create({
+        // As the API writes: wapsell_app with the business fixed for row-level security (INIT-019 PR 5).
+        forCompanyWithRls(app, empresaId).cliente.create({
           data: { empresaId, nombre: `P18-2 cliente ${i}`, limiteCredito },
           select: { id: true, limiteCredito: true },
         }),
