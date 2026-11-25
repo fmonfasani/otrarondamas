@@ -9,6 +9,8 @@ import { MessagingService } from './messaging.service';
 import { MessagingGateway } from './messaging.gateway';
 import { StoreModule } from '../store/store.module';
 import { CartModule } from '../cart/cart.module';
+import { EmailModule } from '../email/email.module';
+import { MessagingAlertsService } from './messaging-alerts.service';
 
 /**
  * Messaging M2 — Conversations.
@@ -33,8 +35,10 @@ import { CartModule } from '../cart/cart.module';
     PrismaModule,
     StoreModule,
     CartModule,
+    // E3: unread-message e-mails.
+    EmailModule,
   ],
   controllers: [MessagingController, CustomerChatController],
-  providers: [MessagingService, MessagingGateway],
+  providers: [MessagingService, MessagingGateway, MessagingAlertsService],
 })
 export class MessagingModule {}

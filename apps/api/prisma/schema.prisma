@@ -370,6 +370,9 @@ model ConversationReadState {
   businessId              String
   lastDeliveredAt         DateTime?
   lastReadAt              DateTime?
+  /// E3 — when this participant was last e-mailed about unread customer messages; one mail
+  /// per run of unread messages.
+  lastAlertedAt           DateTime?
   updatedAt               DateTime                @updatedAt
   ConversationParticipant ConversationParticipant @relation(fields: [participantId, businessId], references: [id, businessId], onDelete: Cascade, onUpdate: Restrict)
 
@@ -796,6 +799,7 @@ model Membership {
   MessageReadReceipt      MessageReadReceipt[]
   MessagingReadPreference MessagingReadPreference[]
   RoleGrant               RoleGrant?
+  PushSubscription        PushSubscription[]
 
   @@unique([userId, businessId])
   /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
@@ -2162,4 +2166,22 @@ model CompradorToken {
   Comprador   Comprador @relation(fields: [compradorId], references: [id], onDelete: Cascade)
 
   @@index([compradorId, tipo])
+}
+
+/// E3 (messaging like WhatsApp) — a browser of a team member that accepted push notifications:
+/// new messages reach it with Wapsell closed. One row per browser (endpoint); keys are the
+/// browser's public ones (Web Push, RFC 8291), not secrets of Wapsell.
+model PushSubscription {
+  id         String     @id @default(uuid())
+  businessId String
+  userId     String
+  endpoint   String
+  p256dh     String
+  auth       String
+  createdAt  DateTime   @default(now())
+  lastUsedAt DateTime?
+  Membership Membership @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([businessId, endpoint])
+  @@index([businessId, userId])
 }
