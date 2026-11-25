@@ -373,8 +373,9 @@
 /* E2 — an unread conversation in the inbox, and the ticks of one's own messages. */
 .ws-conv.is-unread .ws-conv__name, .ws-conv.is-unread .ws-conv__last { font-weight: 700; color: var(--text-primary); }
 .ws-conv__last-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-width: 0; }
-.ws-tick { display: inline-flex; vertical-align: -2px; margin-left: 2px; color: var(--text-muted); }
-.ws-tick--leido { color: var(--action-secondary); }
+/* Own messages are light blue with black text (like WhatsApp's green); the ticks read on it. */
+.ws-tick { display: inline-flex; vertical-align: -2px; margin-left: 2px; color: #5f6b76; }
+.ws-tick--leido { color: #0a6fd6; }
 /* E2b — «en línea»: a dot on the contact's avatar. */
 .ws-conv__avatar { position: relative; }
 .ws-online-dot {
@@ -413,6 +414,7 @@
 .ws-thread__day-group { display: flex; flex-direction: column; gap: var(--space-16); }
 .ws-thread__day { font-size: 10px; letter-spacing: 0.5px; text-align: center; }
 .ws-thread__empty { margin: auto; font-size: 13px; }
+.ws-thread__typing { align-self: flex-start; margin: 0; font-size: 12px; }
 .ws-bubble {
   display: flex;
   flex-direction: column;
@@ -422,7 +424,8 @@
   border-radius: var(--radius-card);
   background: var(--surface-card);
 }
-.ws-bubble--team { align-self: flex-end; background: var(--action-secondary); }
+.ws-bubble--team { align-self: flex-end; color: #141413; background: #d6ecfc; }
+.ws-bubble--team small { color: #4f5b66; }
 .ws-bubble.is-pending { opacity: 0.6; }
 .ws-bubble__author { font-size: 11px; font-weight: 600; line-height: normal; }
 .ws-bubble p { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
