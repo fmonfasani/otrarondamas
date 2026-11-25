@@ -224,7 +224,8 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       select: { id: true },
     });
 
-    server = spawnApi({ PORT }, ['ignore', 'pipe', 'pipe']);
+    // E2b: a short «en línea» grace so presence tests do not wait 15 s.
+    server = spawnApi({ PORT, PRESENCE_GRACE_MS: '300' }, ['ignore', 'pipe', 'pipe']);
     server.stdout?.on('data', (chunk: Buffer) => {
       serverOutput = `${serverOutput}${chunk.toString()}`.slice(-8000);
     });
@@ -786,6 +787,324 @@ describe('Messaging participation and delivery (compiled stack + real PostgreSQL
       await markRead();
       await settle();
       expect(changes).toHaveLength(1);
+    });
+  });
+  // ---------------------------------------------------------------------
+  // E2 — ticks and unread, like WhatsApp.
+  // ---------------------------------------------------------------------
+  describe('E2 ticks and unread count', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
+    const list = (token: string) =>
+      request(BASE).get('/messaging/conversations').set('Authorization', bearer(token)).expect(200);
+    const unreadOf = async (token: string, conversationId: string) =>
+      (await list(token)).body.find((row: { id: string }) => row.id === conversationId).unreadCount;
+    const ticksOf = async (token: string, conversationId: string, messageId: string) => {
+      const messages = await request(BASE)
+        .get(`/messaging/conversations/${conversationId}/messages`)
+        .set('Authorization', bearer(token))
+        .expect(200);
+      return messages.body.find((m: { id: string }) => m.id === messageId).estado;
+    };
+    const markRead = (token: string, conversationId: string, messageId: string) =>
+      request(BASE)
+        .post(`/messaging/conversations/${conversationId}/messages/${messageId}/read`)
+        .set('Authorization', bearer(token))
+        .expect(201);
+    const receipts = (token: string, enabled: boolean) =>
+      request(BASE)
+        .patch('/messaging/conversations/read-receipts/preferences')
+        .set('Authorization', bearer(token))
+        .send({ enabled })
+        .expect(200);
+
+    it('counts what the participant has not read, and clears it when they read', async () => {
+      const first = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-u1-${suffix}`,
+        'uno',
+      ).expect(201);
+      await markRead(userToken(owner2), userConversationId, first.body.id);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+
+      await send(userToken(owner1), userConversationId, `e2-u2-${suffix}`, 'dos').expect(201);
+      const third = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-u3-${suffix}`,
+        'tres, la última',
+      ).expect(201);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(2);
+      expect(await unreadOf(userToken(owner1), userConversationId)).toBe(0); // own messages never count
+
+      const summary = await request(BASE)
+        .get('/messaging/conversations/unread')
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      expect(summary.body.total).toBeGreaterThanOrEqual(2);
+      expect(summary.body.latest).toEqual(
+        expect.objectContaining({
+          id: third.body.id,
+          conversationId: userConversationId,
+          authorName: 'Msg participation canonical owner1',
+          preview: 'tres, la última',
+        }),
+      );
+
+      await markRead(userToken(owner2), userConversationId, third.body.id);
+      expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+    });
+
+    it("counts a store customer's message for the team member in the chat", async () => {
+      const slug = `msg-participation-${suffix}`;
+      const sent = await request(BASE)
+        .post(`/${slug}/tienda/chat/mensajes`)
+        .set('Authorization', bearer(customerToken()))
+        .send({ clientMessageId: `e2-cust-${suffix}`, content: 'consulta del cliente' })
+        .expect(201);
+      expect(await unreadOf(userToken(owner1), customerConversationId)).toBeGreaterThanOrEqual(1);
+      const summary = await request(BASE)
+        .get('/messaging/conversations/unread')
+        .set('Authorization', bearer(userToken(owner1)))
+        .expect(200);
+      expect(summary.body.latest).toEqual(
+        expect.objectContaining({
+          id: sent.body.message.id,
+          authorName: `Msg participation customer ${suffix}`,
+          preview: 'consulta del cliente',
+        }),
+      );
+      await markRead(userToken(owner1), customerConversationId, sent.body.message.id);
+      expect(await unreadOf(userToken(owner1), customerConversationId)).toBe(0);
+    });
+
+    it('an Owner reading without participating has nothing unread there', async () => {
+      await send(
+        userToken(owner1),
+        customerConversationId,
+        `e2-obs-${suffix}`,
+        'al cliente',
+      ).expect(201);
+      expect(await unreadOf(userToken(owner2), customerConversationId)).toBe(0);
+    });
+
+    it('ticks: ✓ saved, ✓✓ when it reached the other screen, blue when read — and tells the sender', async () => {
+      const sender = await connectSocket(userToken(owner1));
+      const sent = await send(
+        userToken(owner1),
+        userConversationId,
+        `e2-t-${suffix}`,
+        'tildes',
+      ).expect(201);
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('enviado');
+
+      const told = nextEvent(sender, 'inbox.changed');
+      await list(userToken(owner2)); // owner2's screen loads its inbox
+      expect(await told).toEqual({ conversationId: userConversationId });
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('entregado');
+
+      await markRead(userToken(owner2), userConversationId, sent.body.id);
+      expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe('leido');
+
+      // Others' messages carry no ticks.
+      expect(await ticksOf(userToken(owner2), userConversationId, sent.body.id)).toBeUndefined();
+    });
+
+    it('read receipts off: no blue either way (mutual), but the unread count still clears', async () => {
+      await receipts(userToken(owner2), false);
+      try {
+        const sent = await send(
+          userToken(owner1),
+          userConversationId,
+          `e2-off-${suffix}`,
+          'sin azul',
+        ).expect(201);
+        await markRead(userToken(owner2), userConversationId, sent.body.id);
+        expect(await ticksOf(userToken(owner1), userConversationId, sent.body.id)).toBe(
+          'entregado',
+        );
+        expect(await unreadOf(userToken(owner2), userConversationId)).toBe(0);
+
+        // owner2 does not see owner1's reads either.
+        const back = await send(
+          userToken(owner2),
+          userConversationId,
+          `e2-off-b-${suffix}`,
+          'tampoco',
+        ).expect(201);
+        await markRead(userToken(owner1), userConversationId, back.body.id);
+        expect(await ticksOf(userToken(owner2), userConversationId, back.body.id)).toBe(
+          'entregado',
+        );
+      } finally {
+        await receipts(userToken(owner2), true);
+      }
+    });
+
+    it('the store customer: their screen loading marks ✓✓ and opening the chat marks it read', async () => {
+      const slug = `msg-participation-${suffix}`;
+      const sent = await send(
+        userToken(owner1),
+        customerConversationId,
+        `e2-c-${suffix}`,
+        'para el cliente',
+      ).expect(201);
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe(
+        'enviado',
+      );
+
+      const chat = await request(BASE)
+        .get(`/${slug}/tienda/chat`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(200);
+      expect(JSON.stringify(chat.body)).not.toContain('lastReadAt');
+      await settle();
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe(
+        'entregado',
+      );
+
+      await request(BASE)
+        .post(`/${slug}/tienda/chat/leido`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(204);
+      expect(await ticksOf(userToken(owner1), customerConversationId, sent.body.id)).toBe('leido');
+    });
+
+    it("never sends anyone's read position raw", async () => {
+      const listed = await list(userToken(owner2));
+      const one = await request(BASE)
+        .get(`/messaging/conversations/${userConversationId}`)
+        .set('Authorization', bearer(userToken(owner2)))
+        .expect(200);
+      for (const body of [listed.body, one.body]) {
+        const text = JSON.stringify(body);
+        expect(text).not.toContain('lastReadAt');
+        expect(text).not.toContain('lastDeliveredAt');
+        expect(text).not.toContain('ConversationReadState');
+      }
+    });
+  });
+  // ---------------------------------------------------------------------
+  // E2b — «en línea» and «últ. vez», like WhatsApp.
+  // ---------------------------------------------------------------------
+  describe('E2b presence', () => {
+    const grace = () => new Promise((resolve) => setTimeout(resolve, 900));
+    const participantIn = async (
+      token: string,
+      conversationId: string,
+      match: (p: { userId: string | null; customerId: string | null }) => boolean,
+    ) => {
+      const listed = await request(BASE)
+        .get('/messaging/conversations')
+        .set('Authorization', bearer(token))
+        .expect(200);
+      const row = listed.body.find((r: { id: string }) => r.id === conversationId);
+      return row.participants.find(match);
+    };
+    const chat = () =>
+      request(BASE)
+        .get(`/msg-participation-${suffix}/tienda/chat`)
+        .set('Authorization', bearer(customerToken()))
+        .expect(200);
+
+    beforeAll(async () => {
+      // Earlier tests leave sockets open: everyone starts away.
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+    });
+
+    it('tells the team who came online and when they left, and remembers it', async () => {
+      const watcher = await connectSocket(userToken(owner1));
+      const cameOnline = nextEvent(watcher, 'presence.changed');
+      const other = await connectSocket(userToken(owner2));
+      expect(await cameOnline).toEqual({
+        userId: owner2.userId,
+        customerId: null,
+        online: true,
+        lastSeenAt: null,
+      });
+      expect(
+        await participantIn(
+          userToken(owner1),
+          userConversationId,
+          (p) => p.userId === owner2.userId,
+        ),
+      ).toEqual(expect.objectContaining({ online: true }));
+
+      const before = await prisma.membership.findFirstOrThrow({
+        where: { userId: owner2.userId, businessId },
+      });
+      const left = nextEvent<{ online: boolean; lastSeenAt: string }>(watcher, 'presence.changed');
+      other.disconnect();
+      const event = await left;
+      expect(event.online).toBe(false);
+      expect(Date.parse(event.lastSeenAt)).not.toBeNaN();
+
+      const seen = await participantIn(
+        userToken(owner1),
+        userConversationId,
+        (p) => p.userId === owner2.userId,
+      );
+      expect(seen.online).toBe(false);
+      expect(seen.lastSeenAt).toBe(event.lastSeenAt);
+      // Leaving is not an edit of the membership.
+      const after = await prisma.membership.findFirstOrThrow({
+        where: { userId: owner2.userId, businessId },
+      });
+      expect(after.updatedAt).toEqual(before.updatedAt);
+    });
+
+    it('a reload within the grace does not flicker', async () => {
+      const watcher = await connectSocket(userToken(owner1));
+      const first = await connectSocket(userToken(owner2));
+      await grace();
+      const flicker = countEvents(watcher, 'presence.changed');
+      first.disconnect();
+      await connectSocket(userToken(owner2));
+      await grace();
+      expect(flicker).toHaveLength(0);
+    });
+
+    it("the store customer only learns whether the store is online, never a team member's last seen", async () => {
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+      const customerSocket = await connectSocket(customerToken());
+      expect((await chat()).body.tiendaEnLinea).toBe(false);
+
+      const told = nextEvent(customerSocket, 'presence.changed');
+      const owner = await connectSocket(userToken(owner1));
+      expect(await told).toEqual({});
+      expect((await chat()).body.tiendaEnLinea).toBe(true);
+
+      const toldAgain = nextEvent(customerSocket, 'presence.changed');
+      owner.disconnect();
+      expect(await toldAgain).toEqual({});
+      const body = (await chat()).body;
+      expect(body.tiendaEnLinea).toBe(false);
+      expect(JSON.stringify(body)).not.toContain('lastSeenAt');
+    });
+
+    it('the team sees when the customer was last in the chat', async () => {
+      sockets.splice(0).forEach((socket) => socket.disconnect());
+      await grace();
+      const customerSocket = await connectSocket(customerToken());
+      await grace();
+      expect(
+        await participantIn(
+          userToken(owner1),
+          customerConversationId,
+          (p) => p.customerId === customer.id,
+        ),
+      ).toEqual(expect.objectContaining({ online: true }));
+      customerSocket.disconnect();
+      await grace();
+      const seen = await participantIn(
+        userToken(owner1),
+        customerConversationId,
+        (p) => p.customerId === customer.id,
+      );
+      expect(seen.online).toBe(false);
+      expect(Date.parse(seen.lastSeenAt)).not.toBeNaN();
     });
   });
 });

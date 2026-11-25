@@ -12,6 +12,10 @@ export interface Participant {
   role: string | null;
   isAdmin: boolean;
   isViewer: boolean;
+  /** E2b — has a screen open now. */
+  online?: boolean;
+  /** E2b — when they last left («últ. vez»). */
+  lastSeenAt?: string | null;
 }
 
 export interface MessagePreview {
@@ -30,6 +34,8 @@ export interface Conversation {
   viewerAccess: { canSend: boolean; mode: 'PARTICIPANT' | 'OWNER_READ_ONLY' };
   participants: Participant[];
   lastMessage: MessagePreview | null;
+  /** E2 — messages from others this person has not read (0 when only reading). */
+  unreadCount?: number;
 }
 
 /** OR-B4-037 — what a message carries besides its text: a product card, or a photo or file. */
@@ -98,7 +104,18 @@ export interface Message extends MessagePreview {
   editedAt: string | null;
   deletedAt: string | null;
   readAt: string | null;
+  /** E2 — ticks of one's own message: ✓ saved, ✓✓ reached the others, blue ✓✓ read. */
+  estado?: MessageTick;
 }
+
+export type MessageTick = 'enviado' | 'entregado' | 'leido';
+
+/** E2 — how the ticks read aloud. */
+export const TICK_LABELS: Record<MessageTick, string> = {
+  enviado: 'Enviado',
+  entregado: 'Entregado',
+  leido: 'Leído',
+};
 
 export interface Contact {
   userId: string;

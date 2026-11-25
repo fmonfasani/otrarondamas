@@ -55,6 +55,20 @@ export function typingSignal(payload: unknown, viewer: Viewer) {
     : { conversationId };
 }
 
+/**
+ * E2b — «en línea» / «últ. vez» as each viewer may see it: staff learn who and when; a store
+ * customer only that the store's presence changed (their page reloads to ask).
+ */
+export function presenceSignal(payload: unknown, viewer: Viewer) {
+  if (viewer === 'cliente') return {};
+  const userId = field(payload, 'userId');
+  const customerId = field(payload, 'customerId');
+  if (!userId && !customerId) return null;
+  const online = payload && typeof payload === 'object' && (payload as Record<string, unknown>).online === true;
+  const seen = field(payload, 'lastSeenAt');
+  return { userId, customerId, online, lastSeenAt: seen && !Number.isNaN(Date.parse(seen)) ? seen : null };
+}
+
 /** The stream for one open screen. Closes the API connection when the screen goes away. */
 export function realtimeStream(request: Request, token: string, viewer: Viewer, connect: Connect = connectToApi): Response {
   const encoder = new TextEncoder();
@@ -106,6 +120,10 @@ export function realtimeStream(request: Request, token: string, viewer: Viewer, 
       socket.on('conversation.typing', (payload) => {
         const signal = typingSignal(payload, viewer);
         if (signal) send(sseMessage('escribiendo', signal));
+      });
+      socket.on('presence.changed', (payload) => {
+        const signal = presenceSignal(payload, viewer);
+        if (signal) send(sseMessage('presencia', signal));
       });
     },
     cancel() {

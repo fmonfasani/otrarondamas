@@ -72,10 +72,54 @@ export class MessagingController {
     }
   }
 
+  /**
+   * E2 — the screen loaded: messages from others reached it (✓✓). Tells their senders.
+   * Best-effort, like every realtime step: never turns a read into an error.
+   */
+  private async deliveredTo(user: AuthenticatedUser, conversationId?: string): Promise<void> {
+    try {
+      const moved = await this.messagingService.markDelivered(user, conversationId);
+      for (const id of moved) this.messagingGateway.publishInboxChanged(id);
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'messaging.delivered.failed',
+          conversationId,
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+
+  /** E2b — «en línea» for each participant, from the open realtime connections. */
+  private withPresence<
+    T extends {
+      businessId: string;
+      participants: Array<{ userId: string | null; customerId: string | null }>;
+    },
+  >(row: T): T {
+    return {
+      ...row,
+      participants: row.participants.map((p) => ({
+        ...p,
+        online: this.messagingGateway.isOnline(row.businessId, p),
+      })),
+    };
+  }
+
   @CanonicalPermission('MESSAGING_USE')
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.messagingService.listConversations(user);
+  async list(@CurrentUser() user: AuthenticatedUser) {
+    const conversations = await this.messagingService.listConversations(user);
+    await this.deliveredTo(user);
+    return conversations.map((row) => this.withPresence(row));
+  }
+
+  /** E2 — unread messages for the panel menu, the tab title and the notification. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('unread')
+  unread(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.unreadSummary(user);
   }
 
   @CanonicalPermission('MESSAGING_USE')
@@ -116,8 +160,8 @@ export class MessagingController {
 
   @CanonicalPermission('MESSAGING_USE')
   @Get(':id')
-  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.messagingService.getConversation(user, id);
+  async get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.withPresence(await this.messagingService.getConversation(user, id));
   }
 
   @CanonicalPermission('MESSAGING_USE')
@@ -266,10 +310,10 @@ export class MessagingController {
 
   @CanonicalPermission('MESSAGING_USE')
   @Get(':id/messages')
-  getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.messagingService
-      .getMessages(user, id)
-      .then((messages) => messages.map(serializeMessageSequence));
+  async getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const messages = await this.messagingService.getMessages(user, id);
+    await this.deliveredTo(user, id);
+    return messages.map(serializeMessageSequence);
   }
 
   @CanonicalPermission('MESSAGING_USE')
@@ -289,8 +333,12 @@ export class MessagingController {
           readAt,
         }),
       );
+    } else if (result.positionMoved) {
+      // E2: no receipt (turned off, or already there) but the unread count changed.
+      this.publishSafely('inbox.changed', id, () => this.messagingGateway.publishInboxChanged(id));
     }
-    return result;
+    const { positionMoved: _internal, ...answer } = result;
+    return answer;
   }
 
   /** E1 — «escribiendo…»: tells the others in the conversation. Sent every few seconds. */

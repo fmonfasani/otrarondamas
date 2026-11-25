@@ -39,6 +39,39 @@ export function canReadAllConversations(context: BusinessContext): boolean {
 const MAX_GROUP_PARTICIPANTS = 50;
 
 /**
+ * E2 — a Prisma filter for «rows of anyone but this actor». A plain `NOT: { userId: x }` also
+ * drops the rows where userId is NULL (customers' rows, and vice versa), so the other kind of
+ * actor would silently disappear.
+ */
+function notThisActor<U extends string, C extends string>(
+  context: BusinessContext,
+  userField: U,
+  customerField: C,
+): { OR: Array<Record<string, unknown>> } {
+  return context.userId
+    ? { OR: [{ [userField]: null }, { [userField]: { not: context.userId } }] }
+    : { OR: [{ [customerField]: null }, { [customerField]: { not: context.customerId } }] };
+}
+
+/** E2 — ticks of one's own message: ✓ saved, ✓✓ reached the others, blue ✓✓ read. */
+export type MessageTick = 'enviado' | 'entregado' | 'leido';
+
+/** E2 — what a notification says about a message: a short preview, never a whole file. */
+export function notificationPreview(message: {
+  content: string | null;
+  Attachment: Array<{ mimeType: string; filename: string }>;
+}): string {
+  const file = message.Attachment[0];
+  const text = (message.content ?? '').trim();
+  if (file?.mimeType === PRODUCT_CARD_MIME) return `🛍️ ${file.filename}`;
+  if (file?.mimeType.startsWith('image/')) {
+    return text && text !== file.filename ? `📷 ${text}` : '📷 Foto';
+  }
+  if (file) return `📄 ${file.filename}`;
+  return text.length > 80 ? `${text.slice(0, 79)}…` : text;
+}
+
+/**
  * Retry key of an order made from a conversation: the conversation plus the exact cart
  * lines (ids and quantities). Same cart → same key → same order; any change → new order.
  */
@@ -340,7 +373,7 @@ export class MessagingService {
       joinedAt = participant.joinedAt;
     }
 
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
         businessId: context.businessId,
@@ -350,6 +383,205 @@ export class MessagingService {
       orderBy: { sequence: 'asc' },
       include: { Reaction: true, Attachment: true },
     });
+    return this.withTicks(messages, conversationId, context);
+  }
+
+  /**
+   * E2 — the ticks of the viewer's own messages, like WhatsApp: ✓ saved (`enviado`), ✓✓ it
+   * reached the screen of every other participant (`entregado`), blue ✓✓ every other
+   * participant read it (`leido`). Blue needs read receipts on for both sides (mutual, like
+   * WhatsApp): whoever turned them off neither shows nor sees reads. Others' messages carry no
+   * state.
+   */
+  private async withTicks<
+    T extends { authorUserId: string | null; authorCustomerId: string | null; createdAt: Date },
+  >(
+    messages: T[],
+    conversationId: string,
+    context: BusinessContext,
+  ): Promise<Array<T & { estado?: MessageTick }>> {
+    const own = (m: T) =>
+      (context.userId !== null && m.authorUserId === context.userId) ||
+      (context.customerId !== null && m.authorCustomerId === context.customerId);
+    if (!messages.some(own)) return messages;
+
+    const others = await this.prisma.conversationParticipant.findMany({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        leftAt: null,
+        removedAt: null,
+        ...notThisActor(context, 'userId', 'customerId'),
+      },
+      select: { userId: true, customerId: true, ConversationReadState: true },
+    });
+    const actors = [context, ...others];
+    const turnedOff = await this.prisma.messagingReadPreference.findMany({
+      where: {
+        businessId: context.businessId,
+        enabled: false,
+        OR: actors.map((a) => (a.userId ? { userId: a.userId } : { customerId: a.customerId })),
+      },
+      select: { userId: true, customerId: true },
+    });
+    const off = (actor: { userId: string | null; customerId: string | null }) =>
+      turnedOff.some(
+        (p) =>
+          (actor.userId !== null && p.userId === actor.userId) ||
+          (actor.customerId !== null && p.customerId === actor.customerId),
+      );
+    const readsShown = actors.every((actor) => !off(actor));
+
+    return messages.map((message) => {
+      if (!own(message)) return message;
+      if (others.length === 0) return { ...message, estado: 'enviado' as const };
+      const reached = (at: Date | null | undefined) => Boolean(at && at >= message.createdAt);
+      const read = others.every((o) => reached(o.ConversationReadState?.lastReadAt));
+      const delivered =
+        read || others.every((o) => reached(o.ConversationReadState?.lastDeliveredAt));
+      let estado: MessageTick = 'enviado';
+      if (read && readsShown) estado = 'leido';
+      else if (delivered) estado = 'entregado';
+      return { ...message, estado };
+    });
+  }
+
+  // Note for the raw SQL below: «is the author this participant?» uses IS NOT DISTINCT FROM,
+  // because a plain `=` against the other kind of author (a customer's message has no
+  // authorUserId) gives NULL, and NOT NULL would silently drop the message.
+  /**
+   * E2 — the actor's screen loaded its conversations (or one of them): every message from
+   * others reached it (✓✓). Moves only forward. Returns the conversations whose position
+   * moved, to tell their senders.
+   */
+  async markDelivered(auth: AuthenticatedUser, conversationId?: string): Promise<string[]> {
+    const context = await this.resolveContext(auth);
+    const only = conversationId ?? null;
+    const rows = await this.prisma.$queryRaw<Array<{ conversationId: string }>>`
+      WITH latest AS (
+        SELECT p.id AS "participantId", p."conversationId", max(m."createdAt") AS at
+        FROM "ConversationParticipant" p
+        JOIN "Message" m ON m."conversationId" = p."conversationId" AND m."businessId" = p."businessId"
+        WHERE p."businessId" = ${context.businessId}
+          AND p."leftAt" IS NULL AND p."removedAt" IS NULL
+          AND (p."userId" = ${context.userId} OR p."customerId" = ${context.customerId})
+          AND (${only}::text IS NULL OR p."conversationId" = ${only})
+          AND m."deletedAt" IS NULL AND m."createdAt" >= p."joinedAt"
+          AND NOT ((p."userId" IS NOT NULL AND m."authorUserId" IS NOT DISTINCT FROM p."userId")
+                OR (p."customerId" IS NOT NULL AND m."authorCustomerId" IS NOT DISTINCT FROM p."customerId"))
+        GROUP BY p.id, p."conversationId"
+      ), moved AS (
+        INSERT INTO "ConversationReadState" (id, "participantId", "businessId", "lastDeliveredAt", "updatedAt")
+        SELECT gen_random_uuid()::text, l."participantId", ${context.businessId}, l.at, now() FROM latest l
+        ON CONFLICT ("participantId", "businessId") DO UPDATE
+          SET "lastDeliveredAt" = EXCLUDED."lastDeliveredAt", "updatedAt" = now()
+          WHERE "ConversationReadState"."lastDeliveredAt" IS NULL
+             OR "ConversationReadState"."lastDeliveredAt" < EXCLUDED."lastDeliveredAt"
+        RETURNING "participantId"
+      )
+      SELECT l."conversationId" FROM latest l JOIN moved ON moved."participantId" = l."participantId"`;
+    return rows.map((row) => row.conversationId);
+  }
+
+  /**
+   * E2 — the participant read up to `upTo` (a message's creation time): moves their read
+   * position, and the delivered one with it. Independent of read receipts. True when it moved.
+   */
+  private async advanceReadPosition(
+    tx: Prisma.TransactionClient | PrismaService,
+    participant: { id: string; businessId: string },
+    upTo: Date,
+  ): Promise<boolean> {
+    const moved = await tx.$executeRaw`
+      INSERT INTO "ConversationReadState" (id, "participantId", "businessId", "lastDeliveredAt", "lastReadAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, ${participant.id}, ${participant.businessId}, ${upTo}, ${upTo}, now())
+      ON CONFLICT ("participantId", "businessId") DO UPDATE
+        SET "lastReadAt" = EXCLUDED."lastReadAt",
+            "lastDeliveredAt" = GREATEST("ConversationReadState"."lastDeliveredAt", EXCLUDED."lastDeliveredAt"),
+            "updatedAt" = now()
+        WHERE "ConversationReadState"."lastReadAt" IS NULL
+           OR "ConversationReadState"."lastReadAt" < EXCLUDED."lastReadAt"`;
+    return moved > 0;
+  }
+
+  /**
+   * E2 — messages from others the actor has not read, per conversation they take part in
+   * (an Owner reading without participating has nothing unread there, like WhatsApp).
+   */
+  private async unreadByConversation(context: BusinessContext): Promise<Map<string, number>> {
+    const rows = await this.prisma.$queryRaw<Array<{ conversationId: string; unread: number }>>`
+      SELECT p."conversationId", count(m.id)::int AS unread
+      FROM "ConversationParticipant" p
+      JOIN "Conversation" c ON c.id = p."conversationId" AND c."businessId" = p."businessId" AND c."deletedAt" IS NULL
+      LEFT JOIN "ConversationReadState" s ON s."participantId" = p.id
+      JOIN "Message" m ON m."conversationId" = p."conversationId" AND m."businessId" = p."businessId"
+      WHERE p."businessId" = ${context.businessId}
+        AND p."leftAt" IS NULL AND p."removedAt" IS NULL
+        AND (p."userId" = ${context.userId} OR p."customerId" = ${context.customerId})
+        AND m."deletedAt" IS NULL AND m."createdAt" >= p."joinedAt"
+        AND m."createdAt" > COALESCE(s."lastReadAt", '-infinity'::timestamp)
+        AND NOT ((p."userId" IS NOT NULL AND m."authorUserId" IS NOT DISTINCT FROM p."userId")
+              OR (p."customerId" IS NOT NULL AND m."authorCustomerId" IS NOT DISTINCT FROM p."customerId"))
+      GROUP BY p."conversationId"`;
+    return new Map(rows.map((row) => [row.conversationId, Number(row.unread)]));
+  }
+
+  /**
+   * E2 — for the panel menu, the tab title and the notification: how many unread messages
+   * the actor has, and the newest one (who and a preview). Content only of conversations
+   * the actor takes part in.
+   */
+  async unreadSummary(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    const unread = await this.unreadByConversation(context);
+    const total = [...unread.values()].reduce((sum, n) => sum + n, 0);
+    if (total === 0) return { total, conversations: 0, latest: null };
+
+    const newest = await this.prisma.message.findFirst({
+      where: {
+        businessId: context.businessId,
+        conversationId: { in: [...unread.keys()] },
+        deletedAt: null,
+        ...notThisActor(context, 'authorUserId', 'authorCustomerId'),
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        conversationId: true,
+        content: true,
+        createdAt: true,
+        authorUserId: true,
+        authorCustomerId: true,
+        Attachment: { where: { deletedAt: null }, select: { mimeType: true, filename: true } },
+      },
+    });
+    let authorName = 'Alguien del equipo';
+    if (newest?.authorCustomerId) {
+      const customer = await this.prisma.cliente.findFirst({
+        where: { id: newest.authorCustomerId, empresaId: context.businessId },
+        select: { nombre: true },
+      });
+      authorName = customer?.nombre ?? 'Un cliente';
+    } else if (newest?.authorUserId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: newest.authorUserId },
+        select: { nombre: true },
+      });
+      authorName = user?.nombre ?? authorName;
+    }
+    return {
+      total,
+      conversations: unread.size,
+      latest: newest
+        ? {
+            id: newest.id,
+            conversationId: newest.conversationId,
+            authorName,
+            preview: notificationPreview(newest),
+            createdAt: newest.createdAt,
+          }
+        : null,
+    };
   }
 
   async editMessage(
@@ -494,10 +726,36 @@ export class MessagingService {
         content: m.content,
         createdAt: m.createdAt,
         mine: m.authorCustomerId === context.customerId,
+        // E2: ticks of the customer's own messages.
+        ...(m.estado ? { estado: m.estado } : {}),
         // OR-B4-037: product cards (and later photos) the team shared.
         adjuntos: toMessageWire(m).adjuntos ?? [],
       })),
     };
+  }
+
+  /**
+   * E2 — the store customer opened their chat: they read up to the store's newest message.
+   * Null when there is nothing from the store yet.
+   */
+  async markCustomerChatRead(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const conversationId = await this.findCustomerConversationId(this.prisma, context);
+    if (!conversationId) return null;
+    const newest = await this.prisma.message.findFirst({
+      where: {
+        conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+        ...notThisActor(context, 'authorUserId', 'authorCustomerId'),
+      },
+      orderBy: { sequence: 'desc' },
+      select: { id: true },
+    });
+    if (!newest) return null;
+    const result = await this.markMessageRead(auth, conversationId, newest.id);
+    return { conversationId, messageId: newest.id, ...result };
   }
 
   /**
@@ -727,10 +985,15 @@ export class MessagingService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return this.withDirectory(
-      conversations.map((conversation) => this.withViewerAccess(conversation, context)),
-      context,
-    );
+    const [rows, unread] = await Promise.all([
+      this.withDirectory(
+        conversations.map((conversation) => this.withViewerAccess(conversation, context)),
+        context,
+      ),
+      this.unreadByConversation(context),
+    ]);
+    // E2: the inbox shows how many messages each conversation has unread.
+    return rows.map((row) => ({ ...row, unreadCount: unread.get(row.id) ?? 0 }));
   }
 
   async getConversation(auth: AuthenticatedUser, conversationId: string) {
@@ -769,6 +1032,53 @@ export class MessagingService {
       userIds: participants.flatMap((p) => (p.userId ? [p.userId] : [])),
       customerIds: participants.flatMap((p) => (p.customerId ? [p.customerId] : [])),
     };
+  }
+
+  /**
+   * E2b — who hears that this actor came online or left: everyone sharing an active
+   * conversation with them (readers of every conversation are reached through their room).
+   */
+  async presenceAudience(
+    context: BusinessContext,
+  ): Promise<{ userIds: string[]; customerIds: string[] }> {
+    const actor = context.userId
+      ? { userId: context.userId }
+      : { customerId: context.customerId as string };
+    const rows = await this.prisma.conversationParticipant.findMany({
+      where: {
+        businessId: context.businessId,
+        leftAt: null,
+        removedAt: null,
+        Conversation: {
+          deletedAt: null,
+          ConversationParticipant: { some: { leftAt: null, removedAt: null, ...actor } },
+        },
+      },
+      select: { userId: true, customerId: true },
+    });
+    const userIds = new Set<string>();
+    const customerIds = new Set<string>();
+    for (const row of rows) {
+      if (row.userId && row.userId !== context.userId) userIds.add(row.userId);
+      if (row.customerId && row.customerId !== context.customerId) customerIds.add(row.customerId);
+    }
+    return { userIds: [...userIds], customerIds: [...customerIds] };
+  }
+
+  /**
+   * E2b — the actor left (every screen closed): remember when, for «últ. vez». Raw SQL so the
+   * row's updatedAt does not move: leaving is not an edit of the membership or the customer.
+   */
+  async recordLastSeen(context: BusinessContext, at: Date): Promise<void> {
+    if (context.userId) {
+      await this.prisma.$executeRaw`
+        UPDATE "Membership" SET "lastSeenAt" = ${at}
+        WHERE "userId" = ${context.userId} AND "businessId" = ${context.businessId}`;
+    } else if (context.customerId) {
+      await this.prisma.$executeRaw`
+        UPDATE "Cliente" SET "lastSeenAt" = ${at}
+        WHERE id = ${context.customerId} AND "empresaId" = ${context.businessId}`;
+    }
   }
 
   /**
@@ -825,13 +1135,18 @@ export class MessagingService {
       userIds.length
         ? this.prisma.membership.findMany({
             where: { businessId: context.businessId, userId: { in: userIds } },
-            select: { userId: true, role: true, User: { select: { nombre: true } } },
+            select: {
+              userId: true,
+              role: true,
+              lastSeenAt: true,
+              User: { select: { nombre: true } },
+            },
           })
         : Promise.resolve([]),
       customerIds.length
         ? this.prisma.cliente.findMany({
             where: { empresaId: context.businessId, id: { in: customerIds } },
-            select: { id: true, nombre: true },
+            select: { id: true, nombre: true, lastSeenAt: true },
           })
         : Promise.resolve([]),
       Promise.all(
@@ -852,9 +1167,13 @@ export class MessagingService {
       ),
     ]);
     const staff = new Map(
-      memberships.map((m) => [m.userId, { name: m.User.nombre, role: m.role }]),
+      memberships.map((m) => [
+        m.userId,
+        { name: m.User.nombre, role: m.role, lastSeenAt: m.lastSeenAt },
+      ]),
     );
     const customerNames = new Map(customers.map((c) => [c.id, c.nombre]));
+    const customerSeen = new Map(customers.map((c) => [c.id, c.lastSeenAt]));
     const canReadAll = canReadAllConversations(context);
 
     return conversations.map((conversation, index) => {
@@ -876,6 +1195,10 @@ export class MessagingService {
           role: p.userId ? (staff.get(p.userId)?.role ?? null) : null,
           isAdmin: p.isAdmin,
           isViewer: p === viewer,
+          // E2b: «últ. vez» (staff screens only: customers never read this directory).
+          lastSeenAt: p.customerId
+            ? (customerSeen.get(p.customerId) ?? null)
+            : (staff.get(p.userId ?? '')?.lastSeenAt ?? null),
         })),
         lastMessage: visible ? last : null,
       };
@@ -1600,7 +1923,7 @@ export class MessagingService {
       });
       if (!conversation) throw new NotFoundException('Conversación no encontrada');
 
-      await this.assertActiveParticipant(tx, conversationId, context);
+      const participant = await this.assertActiveParticipant(tx, conversationId, context);
 
       const message = await tx.message.findFirst({
         where: {
@@ -1609,9 +1932,12 @@ export class MessagingService {
           businessId: context.businessId,
           deletedAt: null,
         },
-        select: { id: true },
+        select: { id: true, createdAt: true },
       });
       if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+      // E2: the unread count clears even with read receipts turned off (like WhatsApp).
+      const positionMoved = await this.advanceReadPosition(tx, participant, message.createdAt);
 
       const preference = await this.findReadReceiptPreference(tx, context);
       if (!preference.enabled) {
@@ -1619,6 +1945,7 @@ export class MessagingService {
           messageId,
           read: false,
           receiptsEnabled: false,
+          positionMoved,
         };
       }
 
@@ -1649,6 +1976,7 @@ export class MessagingService {
         // E1: true only when this call created the receipt. Reading again is a no-op and
         // must not be announced, or each screen reload would wake every other screen.
         firstRead: !existing,
+        positionMoved,
       };
     });
   }

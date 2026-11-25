@@ -34,6 +34,9 @@ describe('MessagingService — M2/M3 messaging', () => {
 
   const prisma = {
     $transaction: jest.fn(async (callback: unknown) => callback(prisma)),
+    // E2: read positions and unread counts (raw SQL); nothing moved, nothing unread.
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(1),
     conversation: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -43,6 +46,7 @@ describe('MessagingService — M2/M3 messaging', () => {
     conversationParticipant: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
@@ -129,10 +133,13 @@ describe('MessagingService — M2/M3 messaging', () => {
 
     it('names staff from their Membership and customers from Cliente, both scoped to the Business', async () => {
       prisma.conversation.findMany.mockResolvedValue([conversation]);
+      const seen = new Date('2026-11-25T17:32:00Z');
       prisma.membership.findMany.mockResolvedValue([
-        { userId: 'user-a', role: 'OWNER', User: { nombre: 'Lucía' } },
+        { userId: 'user-a', role: 'OWNER', lastSeenAt: null, User: { nombre: 'Lucía' } },
       ]);
-      prisma.cliente.findMany.mockResolvedValue([{ id: 'customer-a', nombre: 'María' }]);
+      prisma.cliente.findMany.mockResolvedValue([
+        { id: 'customer-a', nombre: 'María', lastSeenAt: seen },
+      ]);
 
       const [row] = await service.listConversations(auth);
 
@@ -146,6 +153,7 @@ describe('MessagingService — M2/M3 messaging', () => {
           role: 'OWNER',
           isAdmin: true,
           isViewer: true,
+          lastSeenAt: null,
         },
         {
           id: 'p-c',
@@ -156,6 +164,8 @@ describe('MessagingService — M2/M3 messaging', () => {
           role: null,
           isAdmin: false,
           isViewer: false,
+          // E2b: «últ. vez», from the Business's own Cliente row.
+          lastSeenAt: seen,
         },
       ]);
       expect(prisma.membership.findMany).toHaveBeenCalledWith(
@@ -891,10 +901,12 @@ describe('MessagingService — M2/M3 messaging', () => {
 
     const result = await service.markMessageRead(auth, 'conversation-a', 'message-a');
 
+    // E2: no receipt, but the reader's position still moves, so their unread count clears.
     expect(result).toEqual({
       messageId: 'message-a',
       read: false,
       receiptsEnabled: false,
+      positionMoved: true,
     });
     expect(prisma.messageReadReceipt.create).not.toHaveBeenCalled();
   });

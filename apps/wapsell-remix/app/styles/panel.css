@@ -137,6 +137,34 @@
   .ws-panel__main { padding: var(--space-32) 40px 48px; }
 }
 
+/* E2 — unread count on «Mensajes» (rail and bottom bar). */
+.ws-panel__nav { position: relative; }
+.ws-panel__nav .ws-panel__badge,
+.ws-conv__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-button);
+  background: var(--text-primary);
+  color: var(--surface-card);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ws-panel__nav .ws-panel__badge {
+  position: absolute;
+  top: -4px;
+  right: 2px;
+  width: auto;
+  height: 18px;
+  overflow: visible;
+  clip: auto;
+  box-shadow: 0 0 0 2px var(--background-default);
+}
+
 /* ------------------------------------------------------- Page parts */
 .ws-page { display: flex; flex-direction: column; gap: var(--space-24); max-width: 1200px; }
 .ws-page__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-16); }
@@ -342,6 +370,24 @@
 .ws-conv__last { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 /* E1 — «escribiendo…» in the inbox row and the chat header. */
 .ws-typing { color: var(--action-primary); font-style: italic; }
+/* E2 — an unread conversation in the inbox, and the ticks of one's own messages. */
+.ws-conv.is-unread .ws-conv__name, .ws-conv.is-unread .ws-conv__last { font-weight: 700; color: var(--text-primary); }
+.ws-conv__last-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-width: 0; }
+.ws-tick { display: inline-flex; vertical-align: -2px; margin-left: 2px; color: var(--text-muted); }
+.ws-tick--leido { color: var(--action-secondary); }
+/* E2b — «en línea»: a dot on the contact's avatar. */
+.ws-conv__avatar { position: relative; }
+.ws-online-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--feedback-success);
+  box-shadow: 0 0 0 2px var(--surface-card);
+}
+.ws-alerts-toggle { display: inline-flex; align-items: center; gap: var(--space-4); }
 
 .ws-chat__head {
   display: flex;
