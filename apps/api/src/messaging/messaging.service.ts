@@ -31,6 +31,14 @@ import {
 } from './message-serializer';
 import { cleanFileName, isServableChatFile, sniffChatFile } from './chat-files';
 import { LINK_PREVIEW_MIME, fetchLinkPreview, firstLink } from './link-preview';
+import {
+  autoRepliesDue,
+  autoRepliesOf,
+  autoRepliesProblem,
+  isOpenAt,
+  type AutoReplies,
+} from './auto-replies';
+import { contactOf } from '../negocio/negocio.service';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
@@ -737,6 +745,8 @@ export class MessagingService {
         AND m."createdAt" > COALESCE(s."lastReadAt", '-infinity'::timestamp)
         AND NOT ((p."userId" IS NOT NULL AND m."authorUserId" IS NOT DISTINCT FROM p."userId")
               OR (p."customerId" IS NOT NULL AND m."authorCustomerId" IS NOT DISTINCT FROM p."customerId"))
+        -- E6b: what the store sent by itself is news for the customer, not for the team.
+        AND NOT (p."userId" IS NOT NULL AND m."automatic")
       GROUP BY p."conversationId"`;
     return new Map(rows.map((row) => [row.conversationId, Number(row.unread)]));
   }
@@ -962,6 +972,244 @@ export class MessagingService {
     return this.getQuickReplies(auth);
   }
 
+  /** E6b — the greeting, the away message and the opening hours (the team reads them). */
+  async getAutoReplies(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo del negocio');
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: context.businessId },
+      select: { configuracion: true },
+    });
+    return {
+      ...autoRepliesOf(business?.configuracion ?? null),
+      puedeEditar: hasCanonicalPermission(context.role, 'MESSAGING_MANAGE'),
+    };
+  }
+
+  /** E6b — Owner/Admin save the automatic messages (checked here whatever the route guard). */
+  async setAutoReplies(auth: AuthenticatedUser, value: AutoReplies) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId || !hasCanonicalPermission(context.role, 'MESSAGING_MANAGE')) {
+      throw new ForbiddenException('Solo el dueño o un administrador');
+    }
+    const clean: AutoReplies = {
+      bienvenida: { activo: value.bienvenida.activo, texto: value.bienvenida.texto.trim() },
+      ausencia: { activo: value.ausencia.activo, texto: value.ausencia.texto.trim() },
+      horario: autoRepliesOf({ mensajesAutomaticos: { horario: value.horario } }).horario,
+    };
+    const problem = autoRepliesProblem(clean);
+    if (problem) throw new BadRequestException(problem);
+    await this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUniqueOrThrow({
+        where: { id: context.businessId },
+        select: { configuracion: true },
+      });
+      const config = {
+        ...((business.configuracion ?? {}) as Record<string, unknown>),
+        mensajesAutomaticos: clean,
+      };
+      await tx.empresa.update({
+        where: { id: context.businessId },
+        data: { configuracion: config as Prisma.InputJsonValue },
+      });
+    });
+    return this.getAutoReplies(auth);
+  }
+
+  /**
+   * E6b — after a customer's message: the greeting and/or the away message when they are due
+   * (auto-replies.ts). Returns what was posted, for the open screens. Never throws: a failure
+   * must not turn the customer's sent message into an error.
+   */
+  async autoRepliesAfter(
+    auth: AuthenticatedUser,
+    message: { id: string; conversationId: string; createdAt: Date },
+  ) {
+    try {
+      const context = await this.resolveContext(auth);
+      if (!context.customerId) return [];
+      const business = await this.prisma.empresa.findUnique({
+        where: { id: context.businessId },
+        select: { configuracion: true },
+      });
+      const settings = autoRepliesOf(business?.configuracion ?? null);
+      if (!settings.bienvenida.activo && !settings.ausencia.activo) return [];
+      const [previous, lastAway] = await Promise.all([
+        this.prisma.message.findFirst({
+          where: {
+            conversationId: message.conversationId,
+            businessId: context.businessId,
+            authorCustomerId: context.customerId,
+            createdAt: { lt: message.createdAt },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        this.prisma.message.findFirst({
+          where: {
+            conversationId: message.conversationId,
+            businessId: context.businessId,
+            automatic: true,
+            clientMessageId: { startsWith: 'auto:ausencia:' },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+      ]);
+      const due = autoRepliesDue(settings, {
+        now: new Date(),
+        previousCustomerMessageAt: previous?.createdAt ?? null,
+        lastAwayAt: lastAway?.createdAt ?? null,
+      });
+      const posted = [];
+      for (const kind of due) {
+        const text = kind === 'bienvenida' ? settings.bienvenida.texto : settings.ausencia.texto;
+        const sent = await this.postAutomatic(
+          context.businessId,
+          message.conversationId,
+          `auto:${kind}:${message.id}`,
+          text,
+        );
+        if (sent) posted.push(sent);
+      }
+      return posted;
+    } catch {
+      return [];
+    }
+  }
+
+  /** E6b — one automatic message from the store, written as the chat's owner. Idempotent by key. */
+  private async postAutomatic(
+    businessId: string,
+    conversationId: string,
+    key: string,
+    text: string,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const exists = await tx.message.findFirst({
+          where: { conversationId, businessId, clientMessageId: key, automatic: true },
+          select: { id: true },
+        });
+        if (exists) return null;
+        const owner =
+          (await tx.conversationParticipant.findFirst({
+            where: {
+              conversationId,
+              businessId,
+              userId: { not: null },
+              isAdmin: true,
+              leftAt: null,
+              removedAt: null,
+            },
+            orderBy: { joinedAt: 'asc' },
+            select: { userId: true },
+          })) ??
+          (await tx.conversationParticipant.findFirst({
+            where: {
+              conversationId,
+              businessId,
+              userId: { not: null },
+              leftAt: null,
+              removedAt: null,
+            },
+            orderBy: { joinedAt: 'asc' },
+            select: { userId: true },
+          }));
+        if (!owner?.userId) return null;
+        const last = await tx.message.findFirst({
+          where: { conversationId, businessId },
+          orderBy: { sequence: 'desc' },
+          select: { sequence: true },
+        });
+        const created = await tx.message.create({
+          data: {
+            conversationId,
+            businessId,
+            authorUserId: owner.userId,
+            sequence: (last?.sequence ?? BigInt(0)) + BigInt(1),
+            clientMessageId: key,
+            type: 'TEXT',
+            content: text,
+            automatic: true,
+          },
+          include: { Attachment: true },
+        });
+        await tx.conversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+        return created;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  /**
+   * E6b — what the customer sees of the store in its chat: its description, hours, address and
+   * phone (Ajustes), and whether it is open now (null when it has no hours loaded).
+   */
+  async storeProfile(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: context.businessId },
+      select: { configuracion: true },
+    });
+    const contact = contactOf(business?.configuracion ?? null);
+    const { horario } = autoRepliesOf(business?.configuracion ?? null);
+    return { ...contact, abiertoAhora: isOpenAt(horario, new Date()) };
+  }
+
+  /**
+   * E6b «+ Productos» — the store customer sends a product of the store (published and
+   * active) to ask about it; the card shows the price they pay.
+   */
+  async sendCustomerProductCard(
+    auth: AuthenticatedUser,
+    clientMessageId: string,
+    productoId: string,
+  ) {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const product = await this.prisma.producto.findFirst({
+      where: { id: productoId, empresaId: context.businessId, activo: true, publicado: true },
+      select: { id: true, nombre: true, precioMinorista: true },
+    });
+    if (!product) throw new NotFoundException('Producto no encontrado');
+    const precio = String(product.precioMinorista);
+    const precioFinal =
+      (await this.storeService
+        ?.customerUnitPrice(context.businessId, product.id, context.customerId)
+        .catch(() => null)) ?? precio;
+    const conversationId = await this.ensureCustomerConversation(context);
+    const message = await this.createTextMessage(
+      auth,
+      conversationId,
+      clientMessageId,
+      `${product.nombre} · $ ${Number(precioFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    );
+    const existing = await this.prisma.attachment.findFirst({
+      where: { messageId: message.id, mimeType: PRODUCT_CARD_MIME },
+    });
+    if (!existing) {
+      await this.prisma.attachment.create({
+        data: {
+          businessId: context.businessId,
+          messageId: message.id,
+          storageKey: `producto:${product.id}`,
+          filename: product.nombre,
+          mimeType: PRODUCT_CARD_MIME,
+          sizeBytes: BigInt(0),
+          metadata: { productoId: product.id, nombre: product.nombre, precio, precioFinal },
+        },
+      });
+    }
+    return this.prisma.message.findUniqueOrThrow({
+      where: { id: message.id },
+      include: { Attachment: true },
+    });
+  }
+
   async listContacts(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
     if (!context.userId)
@@ -1025,6 +1273,8 @@ export class MessagingService {
           ? { editable: true }
           : {}),
         ...(m.forwarded ? { reenviado: true } : {}),
+        // E6b: the greeting or the away message the store sends by itself.
+        ...(m.automatic ? { automatico: true } : {}),
         ...(m.respuesta
           ? {
               respuesta: {

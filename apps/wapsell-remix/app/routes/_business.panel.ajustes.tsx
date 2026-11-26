@@ -11,7 +11,17 @@ import {
   type Business,
 } from '~/utils/settings';
 import { RETURN_WINDOW_DAYS, canManageReturns, windowDaysFrom } from '~/utils/returns';
-import { LABEL_COLORS, quickRepliesFrom, type CustomerLabel, type QuickReply } from '~/utils/messaging';
+import QRCode from 'qrcode';
+import {
+  LABEL_COLORS,
+  WEEK_DAYS,
+  autoRepliesFrom,
+  quickRepliesFrom,
+  type AutoReplies,
+  type CustomerLabel,
+  type QuickReply,
+} from '~/utils/messaging';
+import { CopyLink } from '~/components/panel/CopyLink';
 
 /** E6a — how each label colour is called in Ajustes. */
 const COLOR_NAMES: Record<(typeof LABEL_COLORS)[number], string> = {
@@ -33,13 +43,17 @@ export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [business, returns, user, quick, labels] = await Promise.all([
+  const [business, returns, user, quick, labels, auto] = await Promise.all([
     apiRequest<Business>(token, '/negocio'),
     settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
     getCurrentUser(token),
     settle(apiRequest<{ items: QuickReply[]; puedeEditar: boolean }>(token, '/messaging/conversations/quick-replies')),
     settle(apiRequest<CustomerLabel[]>(token, '/messaging/etiquetas')),
+    settle(apiRequest<AutoReplies & { puedeEditar: boolean }>(token, '/messaging/automaticos')),
   ]);
+  // E6b: the link that opens the store's chat, and its QR (made here, nothing goes out).
+  const chatLink = `${new URL(request.url).origin}/tienda/${business.slug}/chat`;
+  const chatQr = await QRCode.toDataURL(chatLink, { margin: 1, width: 480 }).catch(() => null);
   const role = String(user?.rol ?? '');
   return json({
     business,
@@ -51,6 +65,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // E6a: Owner and Admin make the customer labels.
     labels: labels ?? [],
     editLabels: ['OWNER', 'ADMIN'].includes(role),
+    auto,
+    chatLink,
+    chatQr,
     origin: new URL(request.url).origin,
   });
 }
@@ -79,6 +96,12 @@ export async function action({ request }: ActionFunctionArgs) {
       await apiRequest(token, '/devoluciones/ajustes', { method: 'PUT', body: JSON.stringify({ plazoDias: days }) });
       return json({ intent, ok: true, message: `Listo: se aceptan devoluciones hasta ${days} días después de la venta.` });
     }
+    if (intent === 'auto-replies') {
+      const parsed = autoRepliesFrom(form);
+      if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
+      await apiRequest(token, '/messaging/automaticos', { method: 'PUT', body: JSON.stringify(parsed.value) });
+      return json({ intent, ok: true, message: 'Listo: guardamos los mensajes automáticos y el horario.' });
+    }
     if (intent === 'label-create') {
       const nombre = String(form.get('nombre') ?? '').trim();
       const color = String(form.get('color') ?? 'gris');
@@ -105,7 +128,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels } =
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr } =
     useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
@@ -228,6 +251,94 @@ export default function Ajustes() {
           </Form>
         </section>
       )}
+
+      {auto?.puedeEditar && (
+        <section className="ws-card" id="automaticos" aria-labelledby="auto-title">
+          <h2 id="auto-title" className="ws-card__title">Mensajes automáticos</h2>
+          <p className="ws-meta">
+            Respuestas que la tienda manda sola en el chat, marcadas «Mensaje automático». La bienvenida sale con el primer mensaje de un
+            cliente (o si vuelve después de 14 días); la de ausencia, fuera del horario, una vez cada 12 horas por cliente.
+          </p>
+          <Form method="post" className="ws-auto">
+            <input type="hidden" name="intent" value="auto-replies" />
+            {(
+              [
+                ['bienvenida', 'Mensaje de bienvenida', auto.bienvenida],
+                ['ausencia', 'Mensaje de ausencia', auto.ausencia],
+              ] as const
+            ).map(([key, title, msg]) => (
+              <fieldset key={key} className="ws-auto__message">
+                <legend>{title}</legend>
+                <label className="ws-auto__toggle">
+                  <input type="checkbox" name={`${key}-activo`} defaultChecked={msg.activo} />
+                  Activado
+                </label>
+                <label className="ws-field">
+                  <span className="ws-field__label">Texto</span>
+                  <span className="ws-field__control">
+                    <textarea name={`${key}-texto`} defaultValue={msg.texto} maxLength={1000} rows={3} required />
+                  </span>
+                </label>
+              </fieldset>
+            ))}
+            <fieldset className="ws-auto__hours">
+              <legend>Horario de atención</legend>
+              <small className="ws-meta">Hora de Argentina. Hasta 2 turnos por día; dejá vacío el segundo si cortás de corrido, y el día entero si cerrás.</small>
+              <table className="ws-hours">
+                <thead>
+                  <tr>
+                    <th scope="col">Día</th>
+                    <th scope="col">Turno 1</th>
+                    <th scope="col">Turno 2</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {WEEK_DAYS.map(({ key, nombre }) => (
+                    <tr key={key}>
+                      <th scope="row">{nombre}</th>
+                      {[1, 2].map((turn) => {
+                        const value = auto.horario[key]?.[turn - 1];
+                        return (
+                          <td key={turn}>
+                            <span className="ws-hours__turn">
+                              <input type="time" name={`d${key}-${turn}-desde`} defaultValue={value?.[0] ?? ''} aria-label={`${nombre}, turno ${turn}, desde`} />
+                              <span aria-hidden="true">a</span>
+                              <input type="time" name={`d${key}-${turn}-hasta`} defaultValue={value?.[1] ?? ''} aria-label={`${nombre}, turno ${turn}, hasta`} />
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </fieldset>
+            {notice('auto-replies')}
+            <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>
+              Guardar mensajes automáticos
+            </button>
+          </Form>
+        </section>
+      )}
+
+      <section className="ws-card" id="link-chat" aria-labelledby="chat-link-title">
+        <h2 id="chat-link-title" className="ws-card__title">Link y QR del chat</h2>
+        <p className="ws-meta">
+          Compartilo en tus redes o imprimí el QR para el mostrador: abre el chat con {business.nombre} (el cliente entra con su cuenta).
+        </p>
+        <div className="ws-chat-link">
+          {chatQr ? <img src={chatQr} alt={`QR del chat de ${business.nombre}`} width={160} height={160} /> : null}
+          <div className="ws-chat-link__body">
+            <code>{chatLink}</code>
+            <CopyLink value={chatLink} />
+            {chatQr ? (
+              <a className="ws-button ws-button--outline ws-button--auto" href={chatQr} download={`qr-chat-${business.slug}.png`}>
+                Descargar QR
+              </a>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       {editLabels && (
         <section className="ws-card" id="etiquetas" aria-labelledby="labels-title">

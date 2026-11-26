@@ -1,7 +1,7 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData } from '@remix-run/react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowLeft, Bell, BellRing, Camera, Copy, FileText, ImageIcon, Package, Pencil, Plus, Reply, SendHorizontal, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Bell, BellRing, Camera, Copy, FileText, ImageIcon, Info, Package, PackageSearch, Pencil, Plus, Reply, SendHorizontal, ShoppingBag } from 'lucide-react';
 import {
   EmojiButton,
   MessageMedia,
@@ -13,6 +13,7 @@ import {
   useVoiceRecorder,
 } from '~/components/chat/Media';
 import { StoreHeader } from '~/components/store/StoreHeader';
+import { ProductAsk, StoreProfile, openNowLabel } from '~/components/chat/StoreChatExtras';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import {
@@ -23,6 +24,7 @@ import {
   fetchStore,
   reactAsCustomer,
   sendCustomerMessage,
+  sendCustomerProduct,
   type CustomerChat,
 } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
@@ -55,6 +57,7 @@ import { orderCardOf } from '~/utils/order-card';
 import {
   ComposerContext,
   DeletedText,
+  AutoTag,
   ForwardedTag,
   MenuButton,
   MessageMenu,
@@ -124,6 +127,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   // E4: react, edit or delete one message of the chat.
   const intent = String(form.get('intent') ?? 'send');
+  // E6b «+ Productos»: the customer asks about a product of the store.
+  if (intent === 'product') {
+    try {
+      await sendCustomerProduct(customer.jwt, slug, String(form.get('clientMessageId') ?? '') || crypto.randomUUID(), String(form.get('productoId') ?? ''));
+      return json({ ok: true, message: '', added: '' });
+    } catch (error) {
+      if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
+      throw error;
+    }
+  }
   const messageId = String(form.get('messageId') ?? '');
   if (intent === 'react' || intent === 'delete') {
     try {
@@ -217,6 +230,13 @@ export default function CustomerChat() {
   const cart = useFetcher<typeof action>();
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [menuOpen, setMenuOpen] = useState(false);
+  // E6b: the store's profile sheet and «+ Productos».
+  const [showProfile, setShowProfile] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const ask = useFetcher<typeof action>();
+  useEffect(() => {
+    if (ask.state === 'idle' && ask.data?.ok) setAsking(false);
+  }, [ask.state, ask.data]);
   const fileRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState('');
@@ -380,6 +400,9 @@ export default function CustomerChat() {
   } else if (chat.tiendaEnLinea) {
     status = 'en línea';
     statusClass = ' is-online';
+  } else if (chat.perfil?.abiertoAhora === false) {
+    // E6b: outside its hours the store says so (its away message may also answer).
+    status = openNowLabel(false) ?? status;
   }
 
   return (
@@ -398,6 +421,10 @@ export default function CustomerChat() {
             <span className={`chat-head__status${statusClass}`}>{status}</span>
           </span>
           <span className="chat-head__actions">
+            <button type="button" className="chat-head__action" onClick={() => setShowProfile(true)} aria-label={`Sobre ${store.nombre}`}>
+              <Info size={15} aria-hidden="true" />
+              <span className="chat-only-wide">Info</span>
+            </button>
             <ReplyAlerts slug={store.slug} />
             <Link className="chat-head__action chat-only-mobile" to={`/tienda/${store.slug}?carrito=1`} aria-label="Mi pedido">
               <ShoppingBag size={15} aria-hidden="true" />
@@ -489,6 +516,24 @@ export default function CustomerChat() {
           <ComposerContext kind="reply" who={whoWrote(replyTo)} text={shortText(replyTo.content) || 'Archivo'} onClose={() => setReplyTo(null)} />
         ) : null}
         {editing ? <ComposerContext kind="edit" who="" text={shortText(editing.content)} onClose={stopEdit} /> : null}
+        {asking ? (
+          <ProductAsk
+            slug={store.slug}
+            sending={ask.state !== 'idle'}
+            onClose={() => setAsking(false)}
+            onSend={(productoId) =>
+              ask.submit({ intent: 'product', productoId, clientMessageId: crypto.randomUUID() }, { method: 'post' })
+            }
+          />
+        ) : null}
+        {ask.state === 'idle' && ask.data && !ask.data.ok ? <output className="chat-error">{ask.data.message}</output> : null}
+        {showProfile ? (
+          <StoreProfile
+            name={store.nombre}
+            profile={{ ...(store.contacto ?? { descripcion: '', horario: '', direccion: '', telefono: '' }), ...(chat.perfil ?? {}) }}
+            onClose={() => setShowProfile(false)}
+          />
+        ) : null}
         {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="chat-error">{upload.data.message}</output> : null}
         {fileProblem ? <output className="chat-error">{fileProblem}</output> : null}
         {voice.state === 'denied' ? <MicDenied /> : null}
@@ -531,6 +576,19 @@ export default function CustomerChat() {
                     Cámara
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setAsking(true);
+                  }}
+                >
+                  <span className="chat-menu__icon chat-menu__icon--product">
+                    <PackageSearch size={16} aria-hidden="true" />
+                  </span>
+                  Consultar por un producto
+                </button>
                 <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('archivo')}>
                   <span className="chat-menu__icon chat-menu__icon--file">
                     <FileText size={16} aria-hidden="true" />
@@ -630,8 +688,9 @@ function CustomerBubble({
     />
   );
   const top =
-    message.reenviado || (message.respuesta && !deleted) ? (
+    message.reenviado || message.automatico || (message.respuesta && !deleted) ? (
       <>
+        {message.automatico ? <AutoTag /> : null}
         {message.reenviado ? <ForwardedTag /> : null}
         {message.respuesta && !deleted ? (
           <QuoteLine who={quoteWho} quote={message.respuesta} mine={message.respuesta.mia} onOpen={() => onQuote(message.respuesta!.id)} />

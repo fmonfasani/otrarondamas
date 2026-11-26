@@ -11,6 +11,15 @@ import { waitPort } from './helpers/store-catalog.fixture';
  * opens a DIRECT conversation with the Owner; the Owner answers from Mensajes; the customer
  * only ever sees their own conversation, in their own store.
  */
+/** E6b — the profile of a store with no contact details nor hours loaded. */
+const NO_PROFILE = {
+  telefono: '',
+  direccion: '',
+  horario: '',
+  descripcion: '',
+  abiertoAhora: null,
+};
+
 describe('STORE-V1-04 — customer chat in a Business store', () => {
   const PORT = '3388';
   const BASE = `http://127.0.0.1:${PORT}`;
@@ -111,7 +120,8 @@ describe('STORE-V1-04 — customer chat in a Business store', () => {
       .get(chatOf(companyA.slug))
       .set('Authorization', customerAuth())
       .expect(200);
-    expect(res.body).toEqual({ conversationId: null, messages: [] });
+    // E6b: the store's profile shows even before the first message (nothing loaded here).
+    expect(res.body).toEqual({ conversationId: null, messages: [], perfil: NO_PROFILE });
   });
 
   it('opens a DIRECT conversation with the Owner on the first message', async () => {
@@ -198,7 +208,8 @@ describe('STORE-V1-04 — customer chat in a Business store', () => {
       .get(chatOf(companyA.slug))
       .set('Authorization', `Bearer ${signCustomerToken(otherCustomer.id, companyA.id)}`)
       .expect(200);
-    expect(res.body).toEqual({ conversationId: null, messages: [] });
+    // E6b: the store's profile shows even before the first message (nothing loaded here).
+    expect(res.body).toEqual({ conversationId: null, messages: [], perfil: NO_PROFILE });
   });
 
   it('refuses the account in another store, staff tokens and no session', async () => {

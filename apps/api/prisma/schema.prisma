@@ -890,6 +890,8 @@ model Message {
   replyToMessageId   String?
   /// E4: sent with «Reenviar» from another chat (the bubble says «Reenviado»).
   forwarded          Boolean              @default(false)
+  /// E6b: the greeting or the away message the store sends by itself («Mensaje automático»).
+  automatic          Boolean              @default(false)
   Attachment         Attachment[]
   Cliente            Cliente?             @relation(fields: [authorCustomerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
   Membership         Membership?          @relation(fields: [authorUserId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)

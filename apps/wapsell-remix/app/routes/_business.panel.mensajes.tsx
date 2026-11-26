@@ -77,6 +77,7 @@ import {
 import {
   ComposerContext,
   DeletedText,
+  AutoTag,
   ForwardedTag,
   MenuButton,
   MessageMenu,
@@ -1012,8 +1013,9 @@ function PanelBubble({
   );
   const quote = message.respuesta && !deleted ? message.respuesta : null;
   const top =
-    message.reenviado || quote ? (
+    message.reenviado || message.automatico || quote ? (
       <>
+        {message.automatico && !deleted ? <AutoTag /> : null}
         {message.reenviado ? <ForwardedTag /> : null}
         {quote ? <QuoteLine who={quoteWho} quote={quote} mine={quote.mia} onOpen={() => onQuote(quote.id)} /> : null}
       </>

@@ -127,6 +127,8 @@ export type ChatMessage = {
   }>;
   /** OR-B4-053: posted by the system (the order moved, a return), not typed by someone. */
   aviso?: boolean;
+  /** E6b: the greeting or the away message the store sent by itself. */
+  automatico?: boolean;
   /** E4: deleted, edited, editable (their own typed text), forwarded, the quote and reactions. */
   eliminado?: boolean;
   editado?: boolean;
@@ -148,7 +150,16 @@ export type CustomerChat = {
   tiendaEnLinea?: boolean;
   /** Paquete 1 F2: a full page; older messages can be loaded. */
   hayMas?: boolean;
+  /** E6b: the store's profile, and whether it is open now (null: no hours loaded). */
+  perfil?: { descripcion: string; horario: string; direccion: string; telefono: string; abiertoAhora: boolean | null } | null;
 };
+
+/** E6b «+ Productos» — the customer sends a product of the store to ask about it. */
+export const sendCustomerProduct = (jwt: string, slug: string, clientMessageId: string, productoId: string) =>
+  apiRequest(jwt, storePath(slug, '/chat/productos'), {
+    method: 'POST',
+    body: JSON.stringify({ clientMessageId, productoId }),
+  });
 
 /** The signed-in customer's conversation with the store (empty until they write). */
 /** Paquete 1 F2: the newest page, or the one before message `antes` (its id). */

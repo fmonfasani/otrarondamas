@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
-import { Ban, ChevronDown, Forward, Pencil, Reply, X } from 'lucide-react';
+import { Ban, Bot, ChevronDown, Forward, Pencil, Reply, X } from 'lucide-react';
 import { QUICK_REACTIONS, quotedText, type QuotedMessage, type ReactionChip } from '~/utils/messaging';
 
 /**
@@ -180,6 +180,15 @@ export function ForwardedTag() {
   return (
     <span className="chat-forwarded">
       <Forward size={13} aria-hidden="true" /> Reenviado
+    </span>
+  );
+}
+
+/** E6b — the greeting or the away message the store sent by itself. */
+export function AutoTag() {
+  return (
+    <span className="chat-forwarded chat-auto">
+      <Bot size={13} aria-hidden="true" /> Mensaje automático
     </span>
   );
 }

@@ -290,6 +290,8 @@ export interface Message extends MessagePreview {
   reacciones?: Array<ReactionChip & { autores: Array<{ userId: string | null; customerId: string | null }> }>;
   /** E4: the viewer starred it. */
   destacado?: boolean;
+  /** E6b: the greeting or the away message the store sent by itself. */
+  automatico?: boolean;
 }
 
 /** E4 — the quoted message above a reply. */
@@ -533,3 +535,60 @@ export function canCreateOrder(conversation: Conversation): boolean {
   const viewer = conversation.participants.find((p) => p.isViewer);
   return Boolean(viewer?.isAdmin && (viewer.role === 'OWNER' || viewer.role === 'ADMIN') && customerOf(conversation));
 }
+
+/* ------------------------------------------------------------ E6b: automatic messages */
+
+/** A turn «HH:MM»–«HH:MM»; the week goes from Sunday ('0') to Saturday ('6'). */
+export type Turn = [string, string];
+export type WeekHours = Record<string, Turn[]>;
+export type AutoReplies = {
+  bienvenida: { activo: boolean; texto: string };
+  ausencia: { activo: boolean; texto: string };
+  horario: WeekHours;
+};
+
+/** Monday first, like a shop's door sign. */
+export const WEEK_DAYS: ReadonlyArray<{ key: string; nombre: string }> = [
+  { key: '1', nombre: 'Lunes' },
+  { key: '2', nombre: 'Martes' },
+  { key: '3', nombre: 'Miércoles' },
+  { key: '4', nombre: 'Jueves' },
+  { key: '5', nombre: 'Viernes' },
+  { key: '6', nombre: 'Sábado' },
+  { key: '0', nombre: 'Domingo' },
+];
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * E6b — the Ajustes form as the API takes it: `bienvenida-activo`, `bienvenida-texto`, the same
+ * for `ausencia`, and per day `d<day>-<turn>-desde` / `-hasta` (empty: no turn).
+ */
+export function autoRepliesFrom(form: FormData): { ok: true; value: AutoReplies } | { ok: false; message: string } {
+  const horario: WeekHours = {};
+  for (const { key, nombre } of WEEK_DAYS) {
+    const turns: Turn[] = [];
+    for (const turn of [1, 2]) {
+      const from = String(form.get(`d${key}-${turn}-desde`) ?? '').trim();
+      const to = String(form.get(`d${key}-${turn}-hasta`) ?? '').trim();
+      if (!from && !to) continue;
+      if (!HHMM.test(from) || !HHMM.test(to)) {
+        return { ok: false, message: `${nombre}: completá las dos horas del turno ${turn} (por ejemplo 09:00 y 13:00).` };
+      }
+      turns.push([from, to]);
+    }
+    horario[key] = turns;
+  }
+  return {
+    ok: true,
+    value: {
+      bienvenida: { activo: form.get('bienvenida-activo') === 'on', texto: String(form.get('bienvenida-texto') ?? '').trim() },
+      ausencia: { activo: form.get('ausencia-activo') === 'on', texto: String(form.get('ausencia-texto') ?? '').trim() },
+      horario,
+    },
+  };
+}
+
+/** E6b — «Lun a vie 9 a 13 y 17 a 21»-like summary of one day: «09:00–13:00 y 17:00–21:00». */
+export const turnsText = (turns: Turn[] | undefined) =>
+  turns && turns.length > 0 ? turns.map(([a, b]) => `${a}–${b}`).join(' y ') : 'Cerrado';

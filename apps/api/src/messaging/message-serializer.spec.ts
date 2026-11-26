@@ -71,6 +71,10 @@ describe('message serializer — orders in the chat', () => {
     expect(
       card({ productoId: 'x', nombre: 'Roles', precio: '1600', precioFinal: '1600' }),
     ).not.toHaveProperty('precioFinal');
+    // The same price written differently is not a discount (no «$ 4.200 tachado $ 4.200»).
+    expect(
+      card({ productoId: 'x', nombre: 'Yerba', precio: '4200', precioFinal: '4200.00' }),
+    ).not.toHaveProperty('precioFinal');
   });
 
   it('totals an order: unit price × quantity, less the loyalty %', () => {

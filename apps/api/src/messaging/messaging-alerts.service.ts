@@ -269,6 +269,7 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
         type: true,
         content: true,
         deletedAt: true,
+        automatic: true,
         Attachment: { where: { deletedAt: null }, select: { mimeType: true, filename: true } },
       },
     });
@@ -288,8 +289,9 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
       select: { userId: true, customerId: true },
     });
     const away = (actor: PushOwner) => !this.isOnline(message.businessId, actor);
+    // E6b: nor about what the store sent by itself.
     const staff =
-      message.type === 'SYSTEM'
+      message.type === 'SYSTEM' || message.automatic
         ? []
         : participants
             .filter((p) => p.userId && p.userId !== message.authorUserId)
