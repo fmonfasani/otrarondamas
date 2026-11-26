@@ -11,7 +11,19 @@ import {
   type Business,
 } from '~/utils/settings';
 import { RETURN_WINDOW_DAYS, canManageReturns, windowDaysFrom } from '~/utils/returns';
-import { quickRepliesFrom, type QuickReply } from '~/utils/messaging';
+import { LABEL_COLORS, quickRepliesFrom, type CustomerLabel, type QuickReply } from '~/utils/messaging';
+
+/** E6a — how each label colour is called in Ajustes. */
+const COLOR_NAMES: Record<(typeof LABEL_COLORS)[number], string> = {
+  gris: 'Gris',
+  rojo: 'Rojo',
+  naranja: 'Naranja',
+  amarillo: 'Amarillo',
+  verde: 'Verde',
+  celeste: 'Celeste',
+  azul: 'Azul',
+  violeta: 'Violeta',
+};
 
 export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
 
@@ -21,11 +33,12 @@ export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [business, returns, user, quick] = await Promise.all([
+  const [business, returns, user, quick, labels] = await Promise.all([
     apiRequest<Business>(token, '/negocio'),
     settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
     getCurrentUser(token),
     settle(apiRequest<{ items: QuickReply[]; puedeEditar: boolean }>(token, '/messaging/conversations/quick-replies')),
+    settle(apiRequest<CustomerLabel[]>(token, '/messaging/etiquetas')),
   ]);
   const role = String(user?.rol ?? '');
   return json({
@@ -35,6 +48,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     owner: role === 'OWNER',
     quickReplies: quick?.items ?? [],
     editQuickReplies: Boolean(quick?.puedeEditar),
+    // E6a: Owner and Admin make the customer labels.
+    labels: labels ?? [],
+    editLabels: ['OWNER', 'ADMIN'].includes(role),
     origin: new URL(request.url).origin,
   });
 }
@@ -63,6 +79,18 @@ export async function action({ request }: ActionFunctionArgs) {
       await apiRequest(token, '/devoluciones/ajustes', { method: 'PUT', body: JSON.stringify({ plazoDias: days }) });
       return json({ intent, ok: true, message: `Listo: se aceptan devoluciones hasta ${days} días después de la venta.` });
     }
+    if (intent === 'label-create') {
+      const nombre = String(form.get('nombre') ?? '').trim();
+      const color = String(form.get('color') ?? 'gris');
+      if (!nombre) return json({ intent, ok: false, message: 'Escribí el nombre de la etiqueta.' }, { status: 400 });
+      await apiRequest(token, '/messaging/etiquetas', { method: 'POST', body: JSON.stringify({ nombre, color }) });
+      return json({ intent, ok: true, message: `Listo: etiqueta «${nombre}» creada.` });
+    }
+    if (intent === 'label-delete') {
+      const id = encodeURIComponent(String(form.get('labelId') ?? ''));
+      await apiRequest(token, `/messaging/etiquetas/${id}`, { method: 'DELETE' });
+      return json({ intent: 'label-create', ok: true, message: 'Etiqueta borrada: ya no la tiene ningún cliente.' });
+    }
     if (intent === 'quick-replies') {
       const parsed = quickRepliesFrom(form);
       if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
@@ -77,7 +105,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies } = useLoaderData<typeof loader>();
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels } =
+    useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
   const notice = (intent: string) =>
@@ -197,6 +226,55 @@ export default function Ajustes() {
               Guardar respuestas
             </button>
           </Form>
+        </section>
+      )}
+
+      {editLabels && (
+        <section className="ws-card" id="etiquetas" aria-labelledby="labels-title">
+          <h2 id="labels-title" className="ws-card__title">Etiquetas de clientes</h2>
+          <p className="ws-meta">
+            Para ordenar a tus clientes en Mensajes (por ejemplo «Mayorista» o «VIP»). Las pone cualquiera del equipo; el cliente
+            nunca las ve.
+          </p>
+          {labels.length > 0 ? (
+            <ul className="ws-labels ws-labels--settings">
+              {labels.map((label) => (
+                <li key={label.id}>
+                  <span className={`ws-label ws-label--${label.color} is-on`}>{label.nombre}</span>
+                  <Form method="post">
+                    <input type="hidden" name="intent" value="label-delete" />
+                    <input type="hidden" name="labelId" value={label.id} />
+                    <button className="ws-link" type="submit" disabled={busy} aria-label={`Borrar la etiqueta ${label.nombre}`}>
+                      Borrar
+                    </button>
+                  </Form>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <Form method="post" className="ws-settings-fields ws-settings-fields--pair">
+            <input type="hidden" name="intent" value="label-create" />
+            <label className="ws-field">
+              <span className="ws-field__label">Nueva etiqueta</span>
+              <span className="ws-field__control">
+                <input name="nombre" maxLength={30} placeholder="Ej.: Mayorista" required />
+              </span>
+            </label>
+            <label className="ws-field">
+              <span className="ws-field__label">Color</span>
+              <span className="ws-field__control">
+                <select name="color" defaultValue="verde">
+                  {LABEL_COLORS.map((color) => (
+                    <option key={color} value={color}>{COLOR_NAMES[color]}</option>
+                  ))}
+                </select>
+              </span>
+            </label>
+            <button className="ws-button ws-button--outline ws-button--auto" type="submit" disabled={busy}>
+              Crear etiqueta
+            </button>
+          </Form>
+          {notice('label-create')}
         </section>
       )}
 

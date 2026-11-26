@@ -12,6 +12,8 @@ import { CartModule } from '../cart/cart.module';
 import { EmailModule } from '../email/email.module';
 import { CustomerNoticesModule } from '../customer-notices/customer-notices.module';
 import { MessagingAlertsService } from './messaging-alerts.service';
+import { MessagingInboxService } from './inbox.service';
+import { MessagingInboxController } from './messaging-inbox.controller';
 
 /**
  * Messaging M2 — Conversations.
@@ -41,7 +43,7 @@ import { MessagingAlertsService } from './messaging-alerts.service';
     // OR-B4-053: order and return notices reach the open screens at once.
     CustomerNoticesModule,
   ],
-  controllers: [MessagingController, CustomerChatController],
-  providers: [MessagingService, MessagingGateway, MessagingAlertsService],
+  controllers: [MessagingController, CustomerChatController, MessagingInboxController],
+  providers: [MessagingService, MessagingGateway, MessagingAlertsService, MessagingInboxService],
 })
 export class MessagingModule {}

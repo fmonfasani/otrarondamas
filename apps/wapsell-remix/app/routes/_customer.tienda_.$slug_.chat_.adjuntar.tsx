@@ -18,7 +18,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     request,
     unstable_createMemoryUploadHandler({ maxPartSize: CHAT_UPLOAD_MAX_BYTES }),
   ).catch(() => null);
-  if (!form) return json({ ok: false, message: 'El archivo es demasiado grande: fotos y PDF hasta 10 MB, videos hasta 64 MB.' }, { status: 413 });
+  if (!form) return json({ ok: false, message: 'El archivo es demasiado grande: fotos, videos y PDF hasta 10 MB.' }, { status: 413 });
   const file = form.get('archivo');
   if (!(file instanceof File) || file.size === 0) return json({ ok: false, message: 'Elegí una foto, un video o un PDF.' }, { status: 400 });
   const upload = new FormData();

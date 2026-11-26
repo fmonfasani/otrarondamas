@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
+import { Archive, ArchiveRestore, BellOff, ChevronDown, Pin, PinOff, Tag, UserCheck } from 'lucide-react';
 import { ArrowLeft, Bell, Camera, Copy, Eye, FileText, Forward, ImageIcon, MessageSquareText, Minus, Package, Pencil, Plus, Reply, Search, SendHorizontal, ShoppingBag, SquarePen, Star, StarOff, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
@@ -30,8 +31,14 @@ import {
   previewText,
   shortText,
   sortByActivity,
+  inboxFilterOf,
+  inboxView,
+  isMuted,
+  mutedLabel,
   type Contact,
   type Conversation,
+  type CustomerLabel,
+  type InboxFilter,
   type ConversationCart,
   type Message,
   type QuickReply,
@@ -120,7 +127,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const query = (url.searchParams.get('q') ?? '').trim();
   const showStarred = url.searchParams.get('destacados') === '1';
 
-  const [conversations, me, quick, found, starred] = await Promise.all([
+  const [conversations, me, quick, found, starred, labels] = await Promise.all([
     settle(apiRequest<Conversation[]>(token, '/messaging/conversations')),
     getCurrentUser(token),
     settle(apiRequest<{ items: QuickReply[] }>(token, '/messaging/conversations/quick-replies')),
@@ -128,7 +135,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ? settle(apiRequest<FoundMessage[]>(token, `/messaging/conversations/search?q=${encodeURIComponent(query)}`))
       : null,
     showStarred ? settle(apiRequest<FoundMessage[]>(token, '/messaging/conversations/starred')) : null,
+    // E6a: the Business's customer labels.
+    settle(apiRequest<CustomerLabel[]>(token, '/messaging/etiquetas')),
   ]);
+  // E6a: Owner and Admin give chats to the team.
+  const canManage = ['OWNER', 'ADMIN'].includes(String(me?.rol ?? ''));
+  const team =
+    canManage && selectedId
+      ? await settle(apiRequest<TeamMember[]>(token, '/messaging/equipo'))
+      : null;
 
   let selected: Conversation | null = null;
   let messages: Message[] = [];
@@ -188,8 +203,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     found: found ?? [],
     starred: showStarred ? (starred ?? []) : null,
     jump: url.searchParams.get('m'),
+    labels: labels ?? [],
+    canManage,
+    team: team ?? [],
   });
 }
+
+/** E6a — who a chat can be given to. */
+type TeamMember = { userId: string; nombre: string; rol: string };
 
 type ActionData = { ok: boolean; message?: string; orderId?: string };
 
@@ -236,6 +257,27 @@ export async function action({ request }: ActionFunctionArgs) {
           body: JSON.stringify({ clientMessageId: String(form.get('clientMessageId') ?? '') || crypto.randomUUID(), conversationIds }),
         });
         return json<ActionData>({ ok: true, message: conversationIds.length === 1 ? 'Mensaje reenviado.' : `Reenviado a ${conversationIds.length} chats.` });
+      }
+      return json<ActionData>({ ok: true });
+    }
+    // E6a: this person's inbox (pin, archive, mute), who is in charge, and customer labels.
+    if (['pin', 'archive', 'mute', 'assign', 'label'].includes(String(intent))) {
+      const conversationId = encodeURIComponent(String(form.get('conversationId') ?? ''));
+      const on = form.get('on') === '1';
+      const chat = `/messaging/conversations/${conversationId}`;
+      if (intent === 'pin') await apiRequest(token, `${chat}/fijado`, { method: on ? 'PUT' : 'DELETE' });
+      else if (intent === 'archive') await apiRequest(token, `${chat}/archivado`, { method: on ? 'PUT' : 'DELETE' });
+      else if (intent === 'mute') {
+        const por = String(form.get('por') ?? '');
+        await apiRequest(token, `${chat}/silencio`, por ? { method: 'PUT', body: JSON.stringify({ por }) } : { method: 'DELETE' });
+      } else if (intent === 'assign') {
+        const userId = String(form.get('userId') ?? '');
+        await apiRequest(token, `${chat}/asignado`, userId ? { method: 'PUT', body: JSON.stringify({ userId }) } : { method: 'DELETE' });
+        return json<ActionData>({ ok: true, message: userId ? 'Chat asignado.' : 'El chat quedó sin asignar.' });
+      } else {
+        const customerId = encodeURIComponent(String(form.get('customerId') ?? ''));
+        const labelId = encodeURIComponent(String(form.get('labelId') ?? ''));
+        await apiRequest(token, `/messaging/clientes/${customerId}/etiquetas/${labelId}`, { method: on ? 'PUT' : 'DELETE' });
       }
       return json<ActionData>({ ok: true });
     }
@@ -308,7 +350,10 @@ export default function MessagesPage() {
 
   const base = `/panel/mensajes`;
   const query = searchParams.get('q') ?? '';
-  const filter = searchParams.get('f') === 'clientes' ? 'clientes' : searchParams.get('f') === 'equipo' ? 'equipo' : 'todas';
+  const filter: InboxFilter = inboxFilterOf(searchParams.get('f'));
+  // E6a: a label to filter by, and the archived chats apart.
+  const labelFilter = searchParams.get('etiqueta');
+  const showArchived = searchParams.get('archivados') === '1';
   const hrefWith = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
     for (const [key, value] of Object.entries(changes)) {
@@ -335,10 +380,16 @@ export default function MessagesPage() {
       : null;
   const switching = Boolean(loadingId && loadingId !== data.selectedId);
 
-  const visible = data.conversations
-    .filter((c) => (filter === 'clientes' ? Boolean(customerOf(c)) : filter === 'equipo' ? !customerOf(c) : true))
-    .filter((c) => matchesSearch(c, query));
-  const withCustomers = data.conversations.filter((c) => customerOf(c)).length;
+  const me = data.conversations.flatMap((c) => c.participants).find((p) => p.isViewer && p.userId)?.userId ?? null;
+  const visible = inboxView(data.conversations, {
+    filter,
+    label: labelFilter,
+    archived: showArchived,
+    me,
+    open: data.selectedId,
+  }).filter((c) => matchesSearch(c, query));
+  const archivedCount = data.conversations.filter((c) => c.archivado).length;
+  const unreadChats = data.conversations.filter((c) => !c.archivado && (c.unreadCount ?? 0) > 0).length;
   const showThread = Boolean(data.selectedId) || data.composing || switching;
 
   return (
@@ -367,16 +418,48 @@ export default function MessagesPage() {
           <input name="q" defaultValue={query} placeholder="Buscar chats y mensajes" aria-label="Buscar chats y mensajes" />
         </Form>
         <div className="ws-inbox__filters">
-          <Link className={`ws-chip ${filter === 'todas' ? 'ws-chip--secondary' : ''}`} to={hrefWith({ f: null })}>
-            Todas · {data.conversations.length}
-          </Link>
-          <Link className={`ws-chip ${filter === 'clientes' ? 'ws-chip--secondary' : ''}`} to={hrefWith({ f: 'clientes' })}>
-            Clientes · {withCustomers}
-          </Link>
-          <Link className={`ws-chip ${filter === 'equipo' ? 'ws-chip--secondary' : ''}`} to={hrefWith({ f: 'equipo' })}>
-            Equipo · {data.conversations.length - withCustomers}
-          </Link>
+          {(
+            [
+              ['todas', 'Todas'],
+              ['no-leidos', unreadChats > 0 ? `No leídos · ${unreadChats}` : 'No leídos'],
+              ['mios', 'Míos'],
+              ['clientes', 'Clientes'],
+              ['equipo', 'Equipo'],
+            ] as Array<[InboxFilter, string]>
+          ).map(([key, text]) => (
+            <Link
+              key={key}
+              className={`ws-chip ${filter === key ? 'ws-chip--secondary' : ''}`}
+              to={hrefWith({ f: key === 'todas' ? null : key })}
+              aria-current={filter === key ? 'true' : undefined}
+            >
+              {text}
+            </Link>
+          ))}
         </div>
+        {data.labels.length > 0 ? (
+          <div className="ws-inbox__filters ws-inbox__labels" aria-label="Filtrar por etiqueta">
+            {data.labels.map((label) => (
+              <Link
+                key={label.id}
+                className={`ws-label ws-label--${label.color}${labelFilter === label.id ? ' is-on' : ''}`}
+                to={hrefWith({ etiqueta: labelFilter === label.id ? null : label.id })}
+                aria-current={labelFilter === label.id ? 'true' : undefined}
+              >
+                {label.nombre}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        {showArchived ? (
+          <Link className="ws-archived-link is-open" to={hrefWith({ archivados: null })}>
+            <ArrowLeft size={16} aria-hidden="true" /> Archivados
+          </Link>
+        ) : archivedCount > 0 ? (
+          <Link className="ws-archived-link" to={hrefWith({ archivados: '1' })}>
+            <Archive size={16} aria-hidden="true" /> Archivados <span>{archivedCount}</span>
+          </Link>
+        ) : null}
         {data.starred ? (
           <FoundList
             title="Destacados"
@@ -387,7 +470,19 @@ export default function MessagesPage() {
           />
         ) : null}
         {data.starred ? null : visible.length === 0 && data.found.length === 0 ? (
-          <ChatEmpty title={data.conversations.length === 0 ? 'Todavía no hay conversaciones' : 'Nada coincide con la búsqueda'}>
+          <ChatEmpty
+            title={
+              data.conversations.length === 0
+                ? 'Todavía no hay conversaciones'
+                : showArchived
+                  ? 'No hay chats archivados'
+                  : filter === 'mios'
+                    ? 'No tenés chats asignados'
+                    : filter === 'no-leidos'
+                      ? 'Leíste todo'
+                      : 'Nada coincide con la búsqueda'
+            }
+          >
             {data.conversations.length === 0 ? 'Cuando un cliente te escriba desde la tienda, aparece acá.' : null}
           </ChatEmpty>
         ) : (
@@ -410,6 +505,13 @@ export default function MessagesPage() {
                     <span className="ws-conv__summary">
                       <span className="ws-conv__meta">
                         <span className="ws-conv__name">{title}</span>
+                        {conversation.etiquetas?.length ? (
+                          <span className="ws-conv__labels" aria-label={`Etiquetas: ${conversation.etiquetas.map((l) => l.nombre).join(', ')}`}>
+                            {conversation.etiquetas.slice(0, 3).map((l) => (
+                              <i key={l.id} className={`ws-dot ws-dot--${l.color}`} title={l.nombre} />
+                            ))}
+                          </span>
+                        ) : null}
                         <span className="ws-conv__time">
                           {inboxTime(conversation.lastMessage?.createdAt ?? conversation.createdAt)}
                         </span>
@@ -420,14 +522,22 @@ export default function MessagesPage() {
                         ) : (
                           <span className="ws-conv__last">{previewText(conversation)}</span>
                         )}
+                        {conversation.asignadoA && conversation.asignadoA.userId !== me ? (
+                          <span className="ws-conv__owner" title={`Asignado a ${conversation.asignadoA.nombre}`}>
+                            <UserCheck size={12} aria-hidden="true" /> {conversation.asignadoA.nombre.split(' ')[0]}
+                          </span>
+                        ) : null}
+                        {isMuted(conversation) ? <BellOff size={14} className="ws-conv__icon" aria-label="Silenciado" /> : null}
+                        {conversation.fijado ? <Pin size={14} className="ws-conv__icon" aria-label="Fijado" /> : null}
                         {unread > 0 ? (
-                          <span className="ws-conv__badge" aria-label={`${unread} sin leer`}>
+                          <span className={`ws-conv__badge${isMuted(conversation) ? ' is-muted' : ''}`} aria-label={`${unread} sin leer`}>
                             {badgeText(unread)}
                           </span>
                         ) : null}
                       </span>
                     </span>
                   </Link>
+                  <RowMenu conversation={conversation} />
                 </li>
               );
             })}
@@ -478,7 +588,16 @@ export default function MessagesPage() {
         )}
       </section>
 
-      {data.selected && <ContextPanel conversation={data.selected} customer={data.customer} lang={lang} />}
+      {data.selected && (
+        <ContextPanel
+          conversation={data.selected}
+          customer={data.customer}
+          lang={lang}
+          labels={data.labels}
+          canManage={data.canManage}
+          team={data.team}
+        />
+      )}
     </div>
   );
 }
@@ -1366,9 +1485,101 @@ function ProductPicker({
   );
 }
 
-function ContextPanel({ conversation, customer }: { conversation: Conversation; customer: Customer | null; lang: string }) {
+/**
+ * E6a — a chat's options in the inbox, like WhatsApp: pin, archive and mute. Each person's own;
+ * the ⌄ appears on hover (always on touch screens).
+ */
+function RowMenu({ conversation }: Readonly<{ conversation: Conversation }>) {
+  const [open, setOpen] = useState(false);
+  const change = useFetcher<ActionData>();
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', close);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', close);
+    };
+  }, [open]);
+  useEffect(() => {
+    if (change.state === 'idle' && change.data?.ok) setOpen(false);
+  }, [change.state, change.data]);
+  const muted = isMuted(conversation);
+  const act = (fields: Record<string, string>) =>
+    change.submit({ conversationId: conversation.id, ...fields }, { method: 'post', action: '/panel/mensajes' });
+  return (
+    <div className={`ws-conv__more${open ? ' is-open' : ''}`} ref={box}>
+      <button
+        type="button"
+        className="ws-conv__more-button"
+        aria-label={`Opciones del chat ${conversationTitle(conversation)}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="chat-menu ws-conv__menu" role="menu">
+          {conversation.archivado ? null : (
+            <button type="button" role="menuitem" onClick={() => act({ intent: 'pin', on: conversation.fijado ? '0' : '1' })}>
+              {conversation.fijado ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}
+              {conversation.fijado ? 'Desfijar' : 'Fijar arriba'}
+            </button>
+          )}
+          <button type="button" role="menuitem" onClick={() => act({ intent: 'archive', on: conversation.archivado ? '0' : '1' })}>
+            {conversation.archivado ? <ArchiveRestore size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />}
+            {conversation.archivado ? 'Desarchivar' : 'Archivar'}
+          </button>
+          {muted ? (
+            <button type="button" role="menuitem" onClick={() => act({ intent: 'mute', por: '' })}>
+              <Bell size={16} aria-hidden="true" /> Quitar silencio
+              <small>{mutedLabel(conversation.silenciadoHasta)}</small>
+            </button>
+          ) : (
+            (
+              [
+                ['8h', 'Silenciar 8 horas'],
+                ['1w', 'Silenciar 1 semana'],
+                ['siempre', 'Silenciar siempre'],
+              ] as const
+            ).map(([por, text]) => (
+              <button key={por} type="button" role="menuitem" onClick={() => act({ intent: 'mute', por })}>
+                <BellOff size={16} aria-hidden="true" /> {text}
+              </button>
+            ))
+          )}
+          {change.state === 'idle' && change.data && !change.data.ok ? (
+            <output className="chat-error">{change.data.message}</output>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ContextPanel({
+  conversation,
+  customer,
+  labels,
+  canManage,
+  team,
+}: {
+  conversation: Conversation;
+  customer: Customer | null;
+  lang: string;
+  labels: CustomerLabel[];
+  canManage: boolean;
+  team: TeamMember[];
+}) {
   const customerParticipant = customerOf(conversation);
   const staff = conversation.participants.filter((p) => p.kind === 'STAFF');
+  const change = useFetcher<ActionData>();
+  const mine = new Set((conversation.etiquetas ?? []).map((l) => l.id));
   return (
     <aside className="ws-inbox__context" aria-label="Contexto de la conversación">
       {customerParticipant ? (
@@ -1387,6 +1598,75 @@ function ContextPanel({ conversation, customer }: { conversation: Conversation; 
             </div>
           )}
           <Link className="ws-link" to={`/panel/pedidos`}>Ver pedidos</Link>
+          <div className="ws-divider" />
+          {/* E6a: who is in charge of this customer (Owner/Admin choose). */}
+          <div className="ws-context__group">
+            <span>ATIENDE</span>
+            {canManage ? (
+              <change.Form method="post" className="ws-assign">
+                <input type="hidden" name="intent" value="assign" />
+                <input type="hidden" name="conversationId" value={conversation.id} />
+                <select
+                  name="userId"
+                  aria-label="Asignar el chat a"
+                  value={conversation.asignadoA?.userId ?? ''}
+                  disabled={change.state !== 'idle'}
+                  onChange={(event) => change.submit(event.currentTarget.form)}
+                >
+                  <option value="">Sin asignar</option>
+                  {team.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.nombre}
+                      {member.rol ? ` · ${ROLE_LABELS[member.rol] ?? member.rol}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </change.Form>
+            ) : (
+              <b className="ws-assign__who">{conversation.asignadoA ? conversation.asignadoA.nombre : 'Sin asignar'}</b>
+            )}
+          </div>
+          {/* E6a: the customer's labels; only the team sees them. */}
+          <div className="ws-context__group">
+            <span>ETIQUETAS</span>
+            {labels.length === 0 ? (
+              <small className="ws-context__hint">
+                {canManage ? (
+                  <>
+                    Creá etiquetas en <Link to="/panel/ajustes#etiquetas">Ajustes</Link>.
+                  </>
+                ) : (
+                  'El dueño todavía no creó etiquetas.'
+                )}
+              </small>
+            ) : (
+              <div className="ws-labels" role="group" aria-label="Etiquetas del cliente">
+                {labels.map((label) => {
+                  const on = mine.has(label.id);
+                  return (
+                    <change.Form key={label.id} method="post">
+                      <input type="hidden" name="intent" value="label" />
+                      <input type="hidden" name="customerId" value={customerParticipant.customerId ?? ''} />
+                      <input type="hidden" name="labelId" value={label.id} />
+                      <input type="hidden" name="on" value={on ? '0' : '1'} />
+                      <button
+                        type="submit"
+                        className={`ws-label ws-label--${label.color}${on ? ' is-on' : ''}`}
+                        aria-pressed={on}
+                        disabled={change.state !== 'idle'}
+                      >
+                        {on ? <Tag size={12} aria-hidden="true" /> : null}
+                        {label.nombre}
+                      </button>
+                    </change.Form>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {change.state === 'idle' && change.data && !change.data.ok ? (
+            <p className="ws-alert" role="alert">{change.data.message}</p>
+          ) : null}
           <div className="ws-divider" />
         </>
       ) : (
