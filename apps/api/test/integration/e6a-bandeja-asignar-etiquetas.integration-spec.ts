@@ -22,6 +22,7 @@ describe('E6a — bandeja, asignar chats y etiquetas', () => {
   const staff: Record<string, { usuarioId: string; userId: string; auth: string }> = {};
   const customers: Array<{ id: string }> = [];
   const chats: string[] = [];
+  let sent = 0;
 
   const customerAuth = (i = 0) => `Bearer ${signCustomerToken(customers[i].id, company.id)}`;
 
@@ -57,7 +58,7 @@ describe('E6a — bandeja, asignar chats y etiquetas', () => {
     request(BASE)
       .post(`/${company.slug}/tienda/chat/mensajes`)
       .set('Authorization', customerAuth(i))
-      .send({ clientMessageId: `c-${i}-${Math.random()}`, content })
+      .send({ clientMessageId: `c-${i}-${(sent += 1)}`, content })
       .expect(201);
 
   beforeAll(async () => {

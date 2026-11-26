@@ -10,7 +10,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessContextService } from '../business-context/business-context.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
-import { PrismaService } from '../prisma/prisma.service';
+import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
 import { LABEL_COLORS, type LabelColor } from './labels';
 
 /** E6a — like WhatsApp: at most 3 chats pinned on top. */
@@ -40,7 +40,7 @@ export type InboxExtras = {
 @Injectable()
 export class MessagingInboxService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly businessContext: BusinessContextService,
   ) {}
 
@@ -67,21 +67,23 @@ export class MessagingInboxService {
     context: BusinessContext & { userId: string },
     conversationId: string,
   ) {
-    const conversation = await this.prisma.conversation.findFirst({
-      where: {
-        id: conversationId,
-        businessId: context.businessId,
-        deletedAt: null,
-        ...(hasCanonicalPermission(context.role, 'MESSAGING_MANAGE')
-          ? {}
-          : {
-              ConversationParticipant: {
-                some: { userId: context.userId, leftAt: null, removedAt: null },
-              },
-            }),
-      },
-      select: { id: true, createdAt: true, assignedUserId: true },
-    });
+    const conversation = await this.prismaFactory
+      .forCompany(context.businessId)
+      .conversation.findFirst({
+        where: {
+          id: conversationId,
+          businessId: context.businessId,
+          deletedAt: null,
+          ...(hasCanonicalPermission(context.role, 'MESSAGING_MANAGE')
+            ? {}
+            : {
+                ConversationParticipant: {
+                  some: { userId: context.userId, leftAt: null, removedAt: null },
+                },
+              }),
+        },
+        select: { id: true, createdAt: true, assignedUserId: true },
+      });
     if (!conversation) throw new NotFoundException('Conversación no encontrada');
     return conversation;
   }
@@ -91,16 +93,24 @@ export class MessagingInboxService {
     conversationId: string,
     data: Prisma.ConversationPreferenceUncheckedUpdateInput,
   ) {
-    await this.prisma.conversationPreference.upsert({
-      where: { conversationId_userId: { conversationId, userId: context.userId } },
-      create: {
-        businessId: context.businessId,
-        conversationId,
-        userId: context.userId,
-        ...(data as Prisma.ConversationPreferenceUncheckedCreateInput),
-      },
-      update: data,
-    });
+    // The business-scope extension has no upsert: find, then update or create. Two taps at
+    // once: the second create hits the unique key and becomes an update.
+    const db = this.prismaFactory.forCompany(context.businessId);
+    const where = { conversationId, userId: context.userId, businessId: context.businessId };
+    const existing = await db.conversationPreference.findFirst({ where, select: { id: true } });
+    if (existing) {
+      await db.conversationPreference.updateMany({ where, data });
+      return;
+    }
+    try {
+      await db.conversationPreference.create({
+        data: { ...where, ...(data as Prisma.ConversationPreferenceUncheckedCreateInput) },
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'))
+        throw error;
+      await db.conversationPreference.updateMany({ where, data });
+    }
   }
 
   /** Pins a chat on top of this person's inbox (at most 3), or unpins it. */
@@ -108,15 +118,17 @@ export class MessagingInboxService {
     const context = await this.staffContext(auth);
     await this.visibleConversation(context, conversationId);
     if (pinned) {
-      const others = await this.prisma.conversationPreference.count({
-        where: {
-          businessId: context.businessId,
-          userId: context.userId,
-          pinnedAt: { not: null },
-          conversationId: { not: conversationId },
-          Conversation: { deletedAt: null },
-        },
-      });
+      const others = await this.prismaFactory
+        .forCompany(context.businessId)
+        .conversationPreference.count({
+          where: {
+            businessId: context.businessId,
+            userId: context.userId,
+            pinnedAt: { not: null },
+            conversationId: { not: conversationId },
+            Conversation: { deletedAt: null },
+          },
+        });
       if (others >= MAX_PINNED) {
         throw new ConflictException(`Podés fijar hasta ${MAX_PINNED} chats`);
       }
@@ -159,26 +171,28 @@ export class MessagingInboxService {
   async assign(auth: AuthenticatedUser, conversationId: string, userId: string | null) {
     const context = await this.managerContext(auth);
     const conversation = await this.visibleConversation(context, conversationId);
-    const withCustomer = await this.prisma.conversationParticipant.count({
-      where: {
-        conversationId,
-        businessId: context.businessId,
-        customerId: { not: null },
-        leftAt: null,
-        removedAt: null,
-      },
-    });
+    const withCustomer = await this.prismaFactory
+      .forCompany(context.businessId)
+      .conversationParticipant.count({
+        where: {
+          conversationId,
+          businessId: context.businessId,
+          customerId: { not: null },
+          leftAt: null,
+          removedAt: null,
+        },
+      });
     if (withCustomer === 0) throw new BadRequestException('Solo se asignan los chats con clientes');
     let assignee: { userId: string; role: string } | null = null;
     if (userId) {
-      assignee = await this.prisma.membership.findFirst({
+      assignee = await this.prismaFactory.forCompany(context.businessId).membership.findFirst({
         where: { businessId: context.businessId, userId, status: MembershipStatus.ACTIVE },
         select: { userId: true, role: true },
       });
       if (!assignee) throw new BadRequestException('Esa persona no es parte del equipo');
     }
     const previous = conversation.assignedUserId;
-    await this.prisma.$transaction(async (tx) => {
+    await this.prismaFactory.forCompany(context.businessId).$transaction(async (tx) => {
       if (assignee) {
         const active = await tx.conversationParticipant.findFirst({
           where: {
@@ -235,7 +249,7 @@ export class MessagingInboxService {
   /** The team members a chat can be given to (active memberships of this Business). */
   async assignableTeam(auth: AuthenticatedUser) {
     const context = await this.managerContext(auth);
-    const members = await this.prisma.membership.findMany({
+    const members = await this.prismaFactory.forCompany(context.businessId).membership.findMany({
       where: { businessId: context.businessId, status: MembershipStatus.ACTIVE },
       select: { userId: true, role: true, User: { select: { nombre: true } } },
       orderBy: { createdAt: 'asc' },
@@ -247,7 +261,7 @@ export class MessagingInboxService {
 
   async listLabels(auth: AuthenticatedUser): Promise<LabelWire[]> {
     const context = await this.staffContext(auth);
-    const labels = await this.prisma.customerLabel.findMany({
+    const labels = await this.prismaFactory.forCompany(context.businessId).customerLabel.findMany({
       where: { businessId: context.businessId },
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true, color: true },
@@ -267,13 +281,13 @@ export class MessagingInboxService {
   async createLabel(auth: AuthenticatedUser, nombre: string, color: string): Promise<LabelWire> {
     const context = await this.managerContext(auth);
     const clean = this.checkLabel(nombre, color);
-    const count = await this.prisma.customerLabel.count({
+    const count = await this.prismaFactory.forCompany(context.businessId).customerLabel.count({
       where: { businessId: context.businessId },
     });
     if (count >= MAX_LABELS)
       throw new ConflictException(`Puede haber hasta ${MAX_LABELS} etiquetas`);
     try {
-      const label = await this.prisma.customerLabel.create({
+      const label = await this.prismaFactory.forCompany(context.businessId).customerLabel.create({
         data: { businessId: context.businessId, nombre: clean, color },
         select: { id: true, nombre: true, color: true },
       });
@@ -289,12 +303,12 @@ export class MessagingInboxService {
   async updateLabel(auth: AuthenticatedUser, labelId: string, nombre: string, color: string) {
     const context = await this.managerContext(auth);
     const clean = this.checkLabel(nombre, color);
-    const found = await this.prisma.customerLabel.findFirst({
+    const found = await this.prismaFactory.forCompany(context.businessId).customerLabel.findFirst({
       where: { id: labelId, businessId: context.businessId },
     });
     if (!found) throw new NotFoundException('Etiqueta no encontrada');
     try {
-      const label = await this.prisma.customerLabel.update({
+      const label = await this.prismaFactory.forCompany(context.businessId).customerLabel.update({
         where: { id: labelId },
         data: { nombre: clean, color },
         select: { id: true, nombre: true, color: true },
@@ -311,16 +325,16 @@ export class MessagingInboxService {
   /** Deletes a label and takes it off every customer. */
   async deleteLabel(auth: AuthenticatedUser, labelId: string) {
     const context = await this.managerContext(auth);
-    const found = await this.prisma.customerLabel.findFirst({
+    const found = await this.prismaFactory.forCompany(context.businessId).customerLabel.findFirst({
       where: { id: labelId, businessId: context.businessId },
     });
     if (!found) throw new NotFoundException('Etiqueta no encontrada');
-    await this.prisma.$transaction([
-      this.prisma.customerLabelAssignment.deleteMany({
+    await this.prismaFactory.forCompany(context.businessId).$transaction(async (tx) => {
+      await tx.customerLabelAssignment.deleteMany({
         where: { labelId, businessId: context.businessId },
-      }),
-      this.prisma.customerLabel.delete({ where: { id: labelId } }),
-    ]);
+      });
+      await tx.customerLabel.delete({ where: { id: labelId } });
+    });
   }
 
   /** Puts a label on a customer of this Business, or takes it off. */
@@ -332,24 +346,33 @@ export class MessagingInboxService {
   ) {
     const context = await this.staffContext(auth);
     const [label, customer] = await Promise.all([
-      this.prisma.customerLabel.findFirst({
+      this.prismaFactory.forCompany(context.businessId).customerLabel.findFirst({
         where: { id: labelId, businessId: context.businessId },
         select: { id: true },
       }),
-      this.prisma.cliente.findFirst({
+      this.prismaFactory.forCompany(context.businessId).cliente.findFirst({
         where: { id: customerId, empresaId: context.businessId },
         select: { id: true },
       }),
     ]);
     if (!label || !customer) throw new NotFoundException('Cliente o etiqueta no encontrados');
     if (on) {
-      await this.prisma.customerLabelAssignment.upsert({
-        where: { labelId_customerId: { labelId, customerId } },
-        create: { businessId: context.businessId, labelId, customerId },
-        update: {},
+      const db = this.prismaFactory.forCompany(context.businessId);
+      const found = await db.customerLabelAssignment.findFirst({
+        where: { labelId, customerId, businessId: context.businessId },
+        select: { id: true },
       });
+      if (!found) {
+        await db.customerLabelAssignment
+          .create({ data: { businessId: context.businessId, labelId, customerId } })
+          .catch((error: unknown) => {
+            // Already on (two taps at once): nothing to do.
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'))
+              throw error;
+          });
+      }
     } else {
-      await this.prisma.customerLabelAssignment.deleteMany({
+      await this.prismaFactory.forCompany(context.businessId).customerLabelAssignment.deleteMany({
         where: { labelId, customerId, businessId: context.businessId },
       });
     }
@@ -361,7 +384,7 @@ export class MessagingInboxService {
   private async customerLabels(businessId: string, customerIds: string[]) {
     const byCustomer = new Map<string, LabelWire[]>();
     if (customerIds.length === 0) return byCustomer;
-    const rows = await this.prisma.customerLabelAssignment.findMany({
+    const rows = await this.prismaFactory.forCompany(businessId).customerLabelAssignment.findMany({
       where: { businessId, customerId: { in: customerIds } },
       select: {
         customerId: true,
@@ -412,7 +435,7 @@ export class MessagingInboxService {
       ...new Set(rows.flatMap((r) => (r.assignedUserId ? [r.assignedUserId] : []))),
     ];
     const [preferences, labels, assignees] = await Promise.all([
-      this.prisma.conversationPreference.findMany({
+      this.prismaFactory.forCompany(context.businessId).conversationPreference.findMany({
         where: {
           businessId: context.businessId,
           userId: context.userId,
@@ -421,7 +444,7 @@ export class MessagingInboxService {
       }),
       this.customerLabels(context.businessId, customerIds),
       assigneeIds.length
-        ? this.prisma.membership.findMany({
+        ? this.prismaFactory.forCompany(context.businessId).membership.findMany({
             where: { businessId: context.businessId, userId: { in: assigneeIds } },
             select: { userId: true, User: { select: { nombre: true } } },
           })
