@@ -384,7 +384,9 @@ function ReplyAlerts({ slug }: Readonly<{ slug: string }>) {
   useEffect(() => {
     if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (Notification.permission === 'granted') {
-      ensurePushSubscription(storePushSettings(slug)).then((ok) => setState(ok ? 'on' : 'unknown'));
+      ensurePushSubscription(storePushSettings(slug))
+        .then((ok) => setState(ok ? 'on' : 'unknown'))
+        .catch(() => setState('unknown'));
     } else {
       setState(Notification.permission === 'denied' ? 'blocked' : 'ask');
     }

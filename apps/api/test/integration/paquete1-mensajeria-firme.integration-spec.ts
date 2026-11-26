@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import type { ChildProcess } from 'child_process';
 import * as net from 'net';
 import request from 'supertest';
@@ -337,7 +337,8 @@ describe('Paquete 1 — mensajería firme (compiled stack + real PostgreSQL)', (
     const attempt = (email: string) =>
       request(BASE)
         .post(`/auth/cliente/negocio/${slug}/login`)
-        .send({ email, password: 'no-es-la-clave' });
+        // A random wrong password each run (never a fixed one in the code).
+        .send({ email, password: randomBytes(12).toString('base64url') });
     const target = `p1-victima-${suffix}@example.test`;
     const statuses: number[] = [];
     for (let i = 0; i < 9; i += 1) statuses.push((await attempt(target)).status);
