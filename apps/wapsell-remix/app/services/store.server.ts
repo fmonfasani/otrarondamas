@@ -2,6 +2,7 @@ import { ApiError, apiRequest, getApiBaseUrl } from './api.server';
 import type { ServerCart } from '~/utils/store';
 import { EMPTY_LISTING, type StoreListing, type StoreProductDetail, type Suggestions } from '~/utils/store-browse';
 import type { OrderCardData } from '~/utils/order-card';
+import type { QuotedMessage, ReactionChip } from '~/utils/messaging';
 
 /** Server-side calls of the per-Business store (/tienda/:slug). */
 
@@ -119,6 +120,13 @@ export type ChatMessage = {
   }>;
   /** OR-B4-053: posted by the system (the order moved, a return), not typed by someone. */
   aviso?: boolean;
+  /** E4: deleted, edited, editable (their own typed text), forwarded, the quote and reactions. */
+  eliminado?: boolean;
+  editado?: boolean;
+  editable?: boolean;
+  reenviado?: boolean;
+  respuesta?: QuotedMessage;
+  reacciones?: ReactionChip[];
 };
 
 /** OR-B4-037 — the customer adds a product shared in the chat to their saved cart. */
@@ -140,10 +148,33 @@ export type CustomerChat = {
 export const fetchCustomerChat = (jwt: string, slug: string, antes?: string | null) =>
   apiRequest<CustomerChat>(jwt, storePath(slug, `/chat${antes ? `?antes=${encodeURIComponent(antes)}` : ''}`));
 
-export const sendCustomerMessage = (jwt: string, slug: string, clientMessageId: string, content: string) =>
+export const sendCustomerMessage = (
+  jwt: string,
+  slug: string,
+  clientMessageId: string,
+  content: string,
+  replyToMessageId?: string | null,
+) =>
   apiRequest<{ conversationId: string; message: ChatMessage }>(jwt, storePath(slug, '/chat/mensajes'), {
     method: 'POST',
-    body: JSON.stringify({ clientMessageId, content }),
+    body: JSON.stringify({ clientMessageId, content, ...(replyToMessageId ? { replyToMessageId } : {}) }),
+  });
+
+/** E4 — the customer edits their message (15 minutes) or deletes it for everyone (2 days). */
+export const editCustomerMessage = (jwt: string, slug: string, messageId: string, content: string) =>
+  apiRequest(jwt, storePath(slug, `/chat/mensajes/${encodeURIComponent(messageId)}`), {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  });
+
+export const deleteCustomerMessage = (jwt: string, slug: string, messageId: string) =>
+  apiRequest(jwt, storePath(slug, `/chat/mensajes/${encodeURIComponent(messageId)}`), { method: 'DELETE' });
+
+/** E4 — the customer's reaction (null takes it back). */
+export const reactAsCustomer = (jwt: string, slug: string, messageId: string, emoji: string | null) =>
+  apiRequest(jwt, storePath(slug, `/chat/mensajes/${encodeURIComponent(messageId)}/reaccion`), {
+    method: emoji ? 'PUT' : 'DELETE',
+    ...(emoji ? { body: JSON.stringify({ emoji }) } : {}),
   });
 
 /** OR-B4-035 rule 1 — a sale made to the customer, what is still returnable and its returns. */

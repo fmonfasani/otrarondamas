@@ -119,6 +119,8 @@ export const LIMITS = {
   typing: { name: 'chat-typing', limit: 40, windowMs: 60_000 },
   files: { name: 'chat-files', limit: 10, windowMs: 60_000 },
   read: { name: 'chat-read', limit: 120, windowMs: 60_000 },
+  react: { name: 'chat-react', limit: 60, windowMs: 60_000 },
+  search: { name: 'chat-search', limit: 30, windowMs: 60_000 },
   products: { name: 'chat-products', limit: 30, windowMs: 60_000 },
   push: { name: 'push-subscribe', limit: 10, windowMs: 60_000 },
   conversations: { name: 'chat-open', limit: 20, windowMs: 60_000 },

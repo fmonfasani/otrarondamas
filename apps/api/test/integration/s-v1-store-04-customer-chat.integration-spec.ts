@@ -169,10 +169,12 @@ describe('STORE-V1-04 — customer chat in a Business store', () => {
         'clientMessageId',
         'content',
         'createdAt',
+        // E4: only their own typed text can be edited.
         // E2: ticks only on the customer's own messages; the store's carry nothing more.
-        ...(message.mine ? ['estado'] : []),
+        ...(message.mine ? ['editable', 'estado'] : []),
         'id',
         'mine',
+        'reacciones', // E4: grouped by emoji, never who (no staff ids)
       ]);
     }
   });
