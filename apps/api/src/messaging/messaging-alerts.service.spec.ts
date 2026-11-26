@@ -26,6 +26,8 @@ describe('MessagingAlertsService — push', () => {
     message: { findUnique: jest.fn() },
     conversationParticipant: { findMany: jest.fn() },
     pushSubscription: { findMany: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    // E6a: nobody muted the chat in these cases.
+    conversationPreference: { findMany: jest.fn().mockResolvedValue([]) },
     cliente: { findFirst: jest.fn() },
     user: { findUnique: jest.fn() },
     empresa: { findUnique: jest.fn() },
@@ -103,6 +105,19 @@ describe('MessagingAlertsService — push', () => {
             { customerId: { not: null } },
           ],
         }),
+      }),
+    );
+  });
+
+  it('pushes nothing to whoever muted the chat (E6a)', async () => {
+    prisma.conversationPreference.findMany.mockResolvedValueOnce([{ userId: 'seller' }]);
+    expect(await alerts.pushNewMessage('m-1')).toBe(1);
+    expect(send.mock.calls.map(([target]) => target.endpoint)).toEqual([
+      'https://fcm.googleapis.com/fcm/send/s-owner',
+    ]);
+    expect(prisma.conversationPreference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ mutedUntil: { gt: expect.any(Date) } }),
       }),
     );
   });

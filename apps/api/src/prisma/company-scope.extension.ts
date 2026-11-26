@@ -115,6 +115,10 @@ export const MODELS_WITH_BUSINESS_ID = [
   'PushSubscription',
   // E4: a team member's starred messages.
   'MessageStar',
+  // E6a: each person's inbox, and customer labels.
+  'ConversationPreference',
+  'CustomerLabel',
+  'CustomerLabelAssignment',
 ] as const;
 
 type ModelWithCompanyId = (typeof MODELS_WITH_COMPANY_ID)[number];

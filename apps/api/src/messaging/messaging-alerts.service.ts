@@ -295,18 +295,21 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
             .filter((p) => p.userId && p.userId !== message.authorUserId)
             .filter(away)
             .map((p) => p.userId as string);
+    // E6a: whoever muted this chat hears nothing from it.
+    const muted = await this.mutedIn(message.businessId, message.conversationId, staff);
+    const staffAwake = staff.filter((id) => !muted.has(id));
     const customers = message.authorCustomerId
       ? []
       : participants
           .filter((p) => p.customerId)
           .filter(away)
           .map((p) => p.customerId as string);
-    if (staff.length === 0 && customers.length === 0) return 0;
+    if (staffAwake.length === 0 && customers.length === 0) return 0;
 
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: {
         businessId: message.businessId,
-        OR: [{ userId: { in: staff } }, { customerId: { in: customers } }],
+        OR: [{ userId: { in: staffAwake } }, { customerId: { in: customers } }],
       },
     });
     if (subscriptions.length === 0) return 0;
@@ -381,6 +384,21 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
     return webpush.sendNotification(target, payload, options);
   }
 
+  /** E6a — the team members who muted this chat. */
+  private async mutedIn(businessId: string, conversationId: string, userIds: string[]) {
+    if (userIds.length === 0) return new Set<string>();
+    const rows = await this.prisma.conversationPreference.findMany({
+      where: {
+        businessId,
+        conversationId,
+        userId: { in: userIds },
+        mutedUntil: { gt: new Date() },
+      },
+      select: { userId: true },
+    });
+    return new Set(rows.map((r) => r.userId));
+  }
+
   private async authorName(message: {
     businessId: string;
     authorUserId: string | null;
@@ -425,6 +443,12 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
           AND m."authorCustomerId" IS NOT NULL AND m."deletedAt" IS NULL
           AND m."createdAt" >= p."joinedAt"
           AND m."createdAt" > COALESCE(s."lastReadAt", '-infinity'::timestamp)
+          -- E6a: a muted chat sends no e-mail.
+          AND NOT EXISTS (
+            SELECT 1 FROM "ConversationPreference" cp
+            WHERE cp."conversationId" = p."conversationId" AND cp."businessId" = p."businessId"
+              AND cp."userId" = p."userId" AND cp."mutedUntil" > ${now}
+          )
         GROUP BY p.id, p."businessId", p."userId", p."conversationId", s."lastAlertedAt"
         HAVING min(m."createdAt") <= ${new Date(now.getTime() - alertAfterMs())}
            AND (s."lastAlertedAt" IS NULL OR s."lastAlertedAt" < min(m."createdAt"))

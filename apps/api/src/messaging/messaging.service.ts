@@ -749,6 +749,19 @@ export class MessagingService {
   async unreadSummary(auth: AuthenticatedUser) {
     const context = await this.resolveContext(auth);
     const unread = await this.unreadByConversation(context);
+    // E6a: a muted chat does not ring nor count in the menu (it keeps its count in the inbox).
+    if (context.userId && unread.size > 0) {
+      const muted = await this.prisma.conversationPreference.findMany({
+        where: {
+          businessId: context.businessId,
+          userId: context.userId,
+          conversationId: { in: [...unread.keys()] },
+          mutedUntil: { gt: new Date() },
+        },
+        select: { conversationId: true },
+      });
+      for (const row of muted) unread.delete(row.conversationId);
+    }
     const total = [...unread.values()].reduce((sum, n) => sum + n, 0);
     if (total === 0) return { total, conversations: 0, latest: null };
 

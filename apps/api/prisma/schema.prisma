@@ -238,6 +238,7 @@ model Cliente {
   passwordHash            String?
   razonSocial             String?
   Cart                    Cart[]
+  CustomerLabelAssignment CustomerLabelAssignment[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   ConversationParticipant ConversationParticipant[]
   CuentaCorriente         CuentaCorriente[]
@@ -310,12 +311,18 @@ model Conversation {
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   deletedAt               DateTime?
+  /// E6 — the team member in charge of this chat (Owner/Admin assign it); null: nobody yet.
+  assignedUserId          String?
+  assignedAt              DateTime?
   Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
+  Assignee                Membership?               @relation("ConversationAssignee", fields: [assignedUserId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
   ConversationAssociation ConversationAssociation[]
   ConversationParticipant ConversationParticipant[]
+  ConversationPreference  ConversationPreference[]
   Message                 Message[]
 
   @@unique([id, businessId])
+  @@index([businessId, assignedUserId])
   @@index([businessId, deletedAt])
   @@index([businessId, updatedAt])
 }
@@ -359,6 +366,56 @@ model ConversationParticipant {
   @@index([businessId, userId])
   @@index([conversationId, joinedAt])
   @@index([conversationId, leftAt])
+}
+
+/// E6 — how one team member keeps a chat in their own inbox, like WhatsApp: pinned on top,
+/// archived out of the way, or muted (no sound, push or e-mail) until a time. Personal: what
+/// one person does never changes anyone else's inbox.
+model ConversationPreference {
+  id             String       @id @default(uuid())
+  businessId     String
+  conversationId String
+  userId         String
+  pinnedAt       DateTime?
+  archivedAt     DateTime?
+  mutedUntil     DateTime?
+  updatedAt      DateTime     @updatedAt
+  Conversation   Conversation @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Membership     Membership   @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([conversationId, userId])
+  @@index([businessId, userId])
+}
+
+/// E6 — the Business's customer labels («Mayorista», «VIP»…), made by Owner/Admin. Only the
+/// team ever sees them.
+model CustomerLabel {
+  id                      String                    @id @default(uuid())
+  businessId              String
+  nombre                  String
+  /// One of the chat's label colours (see messaging/labels.ts).
+  color                   String
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  Empresa                 Empresa                   @relation(fields: [businessId], references: [id])
+  CustomerLabelAssignment CustomerLabelAssignment[]
+
+  @@unique([id, businessId])
+  @@unique([businessId, nombre])
+}
+
+/// E6 — a label put on a customer (anyone on the team).
+model CustomerLabelAssignment {
+  id            String        @id @default(uuid())
+  businessId    String
+  labelId       String
+  customerId    String
+  createdAt     DateTime      @default(now())
+  CustomerLabel CustomerLabel @relation(fields: [labelId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Cliente       Cliente       @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([labelId, customerId])
+  @@index([businessId, customerId])
 }
 
 /// E2 (messaging like WhatsApp) — how far one participant got in its conversation: up to which
@@ -575,6 +632,7 @@ model Empresa {
   Cliente                 Cliente[]
   Compra                  Compra[]
   Conversation            Conversation[]
+  CustomerLabel           CustomerLabel[]
   CuentaCorriente         CuentaCorriente[]
   Deuda                   Deuda[]
   DevolucionCliente       DevolucionCliente[]
@@ -803,6 +861,8 @@ model Membership {
   RoleGrant               RoleGrant?
   PushSubscription        PushSubscription[]
   MessageStar             MessageStar[]
+  ConversationPreference  ConversationPreference[]
+  AssignedConversations   Conversation[]            @relation("ConversationAssignee")
 
   @@unique([userId, businessId])
   /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.

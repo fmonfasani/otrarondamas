@@ -96,6 +96,12 @@ export async function createStoreProduct(
  */
 export async function deleteMessagingOf(prisma: PrismaService, companies: string[]) {
   const scope = { where: { businessId: { in: companies } } };
+  // E4/E6a: stars, read positions, each person's inbox and customer labels go first.
+  await prisma.messageStar.deleteMany(scope);
+  await prisma.conversationReadState.deleteMany(scope);
+  await prisma.conversationPreference.deleteMany(scope);
+  await prisma.customerLabelAssignment.deleteMany(scope);
+  await prisma.customerLabel.deleteMany(scope);
   await prisma.reaction.deleteMany(scope);
   await prisma.attachment.deleteMany(scope);
   await prisma.messageReadReceipt.deleteMany(scope);

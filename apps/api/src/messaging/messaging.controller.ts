@@ -10,6 +10,7 @@ import {
   Patch,
   Put,
   Logger,
+  Optional,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -42,6 +43,7 @@ import { MessagingAlertsService } from './messaging-alerts.service';
 import { BusinessContextService } from '../business-context/business-context.service';
 import { toMessageWire } from './message-serializer';
 import { CanonicalPermission } from '../authorization/canonical-permission.decorator';
+import { MessagingInboxService } from './inbox.service';
 
 // The public message representation lives in `message-serializer.ts` so HTTP
 // and Socket.IO emit the same shape from one definition. Serializing here with
@@ -59,6 +61,8 @@ export class MessagingController {
     private readonly messagingGateway: MessagingGateway,
     private readonly alerts: MessagingAlertsService,
     private readonly businessContext: BusinessContextService,
+    // E6a: pinned, archived, muted, who is in charge, the customer's labels.
+    @Optional() private readonly inbox?: MessagingInboxService,
   ) {}
 
   // Realtime is best-effort: the mutation is already committed when an event
@@ -119,7 +123,8 @@ export class MessagingController {
   async list(@CurrentUser() user: AuthenticatedUser) {
     const conversations = await this.messagingService.listConversations(user);
     await this.deliveredTo(user);
-    return conversations.map((row) => this.withPresence(row));
+    const rows = conversations.map((row) => this.withPresence(row));
+    return this.inbox ? this.inbox.decorate(user, rows) : rows;
   }
 
   /** E3 — whether push is on, and the public key a browser subscribes with. */
@@ -215,7 +220,8 @@ export class MessagingController {
   @CanonicalPermission('MESSAGING_USE')
   @Get(':id')
   async get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.withPresence(await this.messagingService.getConversation(user, id));
+    const row = this.withPresence(await this.messagingService.getConversation(user, id));
+    return this.inbox ? (await this.inbox.decorate(user, [row]))[0] : row;
   }
 
   @CanonicalPermission('MESSAGING_USE')

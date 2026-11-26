@@ -38,6 +38,72 @@ export interface Conversation {
   lastMessage: MessagePreview | null;
   /** E2 — messages from others this person has not read (0 when only reading). */
   unreadCount?: number;
+  /** E6a — this person's own inbox: pinned on top, archived away, muted until a time. */
+  fijado?: boolean;
+  archivado?: boolean;
+  silenciadoHasta?: string | null;
+  /** E6a — the team member in charge (Owner/Admin assign). */
+  asignadoA?: { userId: string; nombre: string } | null;
+  /** E6a — the customer's labels (only the team sees them). */
+  etiquetas?: CustomerLabel[];
+}
+
+/** E6a — the colours of a customer label (the API accepts these). */
+export const LABEL_COLORS = ['gris', 'rojo', 'naranja', 'amarillo', 'verde', 'celeste', 'azul', 'violeta'] as const;
+export type LabelColor = (typeof LABEL_COLORS)[number];
+export type CustomerLabel = { id: string; nombre: string; color: LabelColor };
+
+/** E6a — the inbox's filters, like WhatsApp Business. */
+export type InboxFilter = 'todas' | 'no-leidos' | 'mios' | 'clientes' | 'equipo';
+
+export function inboxFilterOf(value: string | null): InboxFilter {
+  return value === 'no-leidos' || value === 'mios' || value === 'clientes' || value === 'equipo' ? value : 'todas';
+}
+
+/**
+ * E6a — what the inbox shows: archived chats only in «Archivados», the rest filtered, by label
+ * when one is chosen, pinned ones on top (each group keeps its order by activity).
+ */
+export function inboxView(
+  conversations: Conversation[],
+  options: { filter: InboxFilter; label?: string | null; archived?: boolean; me?: string | null; open?: string | null },
+): Conversation[] {
+  const { filter, label, archived = false, me, open } = options;
+  const shown = conversations.filter((c) => {
+    if (Boolean(c.archivado) !== archived) return false;
+    if (label && !(c.etiquetas ?? []).some((l) => l.id === label)) return false;
+    switch (filter) {
+      // The open chat stays while reading it, even once it has no unread messages.
+      case 'no-leidos':
+        return (c.unreadCount ?? 0) > 0 || c.id === open;
+      case 'mios':
+        return Boolean(me) && c.asignadoA?.userId === me;
+      case 'clientes':
+        return Boolean(customerOf(c));
+      case 'equipo':
+        return !customerOf(c);
+      default:
+        return true;
+    }
+  });
+  return archived ? shown : [...shown.filter((c) => c.fijado), ...shown.filter((c) => !c.fijado)];
+}
+
+/** E6a — whether a chat is muted now. */
+export const isMuted = (c: Pick<Conversation, 'silenciadoHasta'>, now = Date.now()) =>
+  Boolean(c.silenciadoHasta && Date.parse(c.silenciadoHasta) > now);
+
+/** E6a — «hasta las 18:30», «hasta el 3/12», «siempre». */
+export function mutedLabel(until: string | null | undefined, now = Date.now()): string {
+  if (!until) return '';
+  const at = Date.parse(until);
+  if (at - now > 365 * 24 * 3600 * 1000) return 'Silenciado';
+  const date = new Date(at);
+  const sameDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const time = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
+  if (sameDay.format(date) === sameDay.format(new Date(now))) return `Silenciado hasta las ${time}`;
+  const day = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: 'numeric', month: 'numeric' }).format(date);
+  return `Silenciado hasta el ${day}`;
 }
 
 /** OR-B4-037 — what a message carries besides its text: a product card, or a photo or file. */
@@ -98,18 +164,20 @@ export function fileSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** Same limits the API applies (OR-B4-037): photos or PDF, up to 10 MB; E5: videos up to 64 MB. */
+/** Same limits as the API and the server (OR-B4-037): photos, PDF and (E5) videos up to 10 MB. */
 export const CHAT_FILE_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 export const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
 export const CHAT_VIDEO_ACCEPT = 'video/mp4,video/quicktime,video/webm,video/3gpp';
-export const CHAT_VIDEO_MAX_BYTES = 64 * 1024 * 1024;
+// The API takes videos up to 64 MB, but the server's front door (nginx) lets 10 MB through
+// (Owner, 2026-11-26): the screen says the real limit before uploading.
+export const CHAT_VIDEO_MAX_BYTES = 10 * 1024 * 1024;
 /** What the upload route reads at most (the largest kind, a video). */
 export const CHAT_UPLOAD_MAX_BYTES = CHAT_VIDEO_MAX_BYTES;
 export const CHAT_PHOTO_OR_VIDEO_ACCEPT = `image/jpeg,image/png,image/webp,${CHAT_VIDEO_ACCEPT}`;
 
 /** E5 — why a picked file cannot go, before uploading it (the API checks again). */
 export function fileTooBig(file: { size: number; type: string }): string | null {
-  if (file.type.startsWith('video/')) return file.size > CHAT_VIDEO_MAX_BYTES ? 'El video puede pesar hasta 64 MB.' : null;
+  if (file.type.startsWith('video/')) return file.size > CHAT_VIDEO_MAX_BYTES ? 'El video puede pesar hasta 10 MB.' : null;
   return file.size > CHAT_FILE_MAX_BYTES ? 'El archivo puede pesar hasta 10 MB.' : null;
 }
 

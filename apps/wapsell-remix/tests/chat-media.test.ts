@@ -33,8 +33,8 @@ describe('voice notes and videos', () => {
 
   it('says before uploading when a file is over its limit', () => {
     const mb = 1024 * 1024;
-    expect(fileTooBig({ size: 60 * mb, type: 'video/mp4' })).toBeNull();
-    expect(fileTooBig({ size: 65 * mb, type: 'video/quicktime' })).toBe('El video puede pesar hasta 64 MB.');
+    expect(fileTooBig({ size: 9 * mb, type: 'video/mp4' })).toBeNull();
+    expect(fileTooBig({ size: 11 * mb, type: 'video/quicktime' })).toBe('El video puede pesar hasta 10 MB.');
     expect(fileTooBig({ size: 11 * mb, type: 'image/jpeg' })).toBe('El archivo puede pesar hasta 10 MB.');
     expect(fileTooBig({ size: 2 * mb, type: 'application/pdf' })).toBeNull();
   });
