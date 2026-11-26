@@ -2284,3 +2284,34 @@ model PushSubscription {
   @@index([businessId, userId])
   @@index([businessId, customerId])
 }
+
+/// Rendimiento (Owner, 2026-11-26) — one minute of how the platform answered: requests, how
+/// long they took, errors, the chat, the API process, the server and the database. Kept 30
+/// days. Platform-wide: no business data, nothing about who did what.
+model PerformanceMinute {
+  at         DateTime @id
+  requests   Int
+  errors4xx  Int
+  errors5xx  Int
+  p50Ms      Float
+  p95Ms      Float
+  p99Ms      Float
+  maxMs      Float
+  cpuPct     Float
+  rssMb      Float
+  loopP99Ms  Float
+  load1      Float
+  memPct     Float
+  diskPct    Float
+  dbPingMs   Float
+  dbConns    Int
+  messages   Int
+  /// How long the team took to answer a customer (automatic answers do not count).
+  replyP50Ms Float?
+  replyP95Ms Float?
+  online     Int
+  pushOk     Int
+  pushFailed Int
+  /// The slowest routes of the minute: [{ ruta, cantidad, p95Ms, promedioMs, errores }].
+  routes     Json
+}

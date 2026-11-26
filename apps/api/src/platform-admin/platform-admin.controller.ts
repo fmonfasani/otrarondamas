@@ -7,6 +7,8 @@ import { CanonicalPermission } from '../authorization/canonical-permission.decor
 import { PlatformAdminService } from './platform-admin.service';
 import { PlatformInsightsService } from './platform-insights.service';
 import { businessCreationStatus } from './business-creation-gate';
+import { PerformanceReportService } from '../performance/performance-report.service';
+import { rangeOf } from '../performance/performance-math';
 
 /* eslint-disable indent */
 export class CreatePlatformBusinessDto {
@@ -43,7 +45,18 @@ export class PlatformAdminController {
   constructor(
     private readonly platform: PlatformAdminService,
     private readonly insights: PlatformInsightsService,
+    private readonly performance: PerformanceReportService,
   ) {}
+
+  /**
+   * Rendimiento (Owner, 2026-11-26) — how the platform answers: now, and the last hour, day,
+   * week or month (`rango` 1h | 24h | 7d | 30d). Aggregates only.
+   */
+  @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')
+  @Get('performance')
+  getPerformance(@Query('rango') rango?: string) {
+    return this.performance.report(rangeOf(rango));
+  }
 
   /** OR-B4-040 — Businesses that need attention, most urgent first. */
   @CanonicalPermission('PLATFORM_BUSINESSES_VIEW')

@@ -48,6 +48,8 @@
     "payments/mercadopago/mercadopago-account.service.ts",
     "payments/mercadopago/mercadopago-checkout.service.ts",
     "payments/payment.service.ts",
+    "performance/performance-report.service.ts",
+    "performance/performance.collector.ts",
     "platform-admin/platform-admin.service.ts",
     "platform-admin/platform-insights.service.ts",
     "refunds/refund-queue.service.ts",
