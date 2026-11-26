@@ -9,6 +9,7 @@ import {
 import { useEffect } from "react";
 import styles from "./app.css?url";
 import wapsellStyles from "./styles/wapsell.css?url";
+import chatStyles from "./styles/chat.css?url";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -19,6 +20,8 @@ export const links: LinksFunction = () => [
   },
   { rel: "stylesheet", href: styles },
   { rel: "stylesheet", href: wapsellStyles },
+  // Paquete 2: the chat's one look, for the store and the panel.
+  { rel: "stylesheet", href: chatStyles },
   // Installable app (PWA): manifest and icons.
   { rel: "manifest", href: "/manifest.webmanifest" },
   { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },

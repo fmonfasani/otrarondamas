@@ -215,29 +215,70 @@ export function messageTime(iso: string): string {
   );
 }
 
-/** Groups messages by calendar day with the mockup's day label ("HOY", "AYER", date). */
-export function groupByDay<T extends { createdAt: string }>(messages: T[], now = new Date()) {
+/**
+ * Paquete 2 A2 — the day label above each day's messages, like WhatsApp: «Hoy», «Ayer», the
+ * weekday within the last week, and the date before that (with the year when it is another).
+ */
+export function dayLabel(iso: string, now = new Date()): string {
+  const key = dayKey(iso);
   const today = dayKey(now.toISOString());
-  const yesterday = dayKey(new Date(now.getTime() - 86_400_000).toISOString());
+  if (key === today) return 'Hoy';
+  if (key === dayKey(new Date(now.getTime() - 86_400_000).toISOString())) return 'Ayer';
+  const daysAgo = Math.round((Date.parse(today) - Date.parse(key)) / 86_400_000);
+  const date = new Date(iso);
+  if (daysAgo > 1 && daysAgo < 7) {
+    return new Intl.DateTimeFormat('es-AR', { timeZone: AR_TZ, weekday: 'long' }).format(date);
+  }
+  const sameYear = key.slice(0, 4) === today.slice(0, 4);
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: AR_TZ,
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(date);
+}
+
+/** Groups messages by Buenos Aires calendar day, each with its label (see dayLabel). */
+export function groupByDay<T extends { createdAt: string }>(messages: T[], now = new Date()) {
   const groups: Array<{ key: string; label: string; items: T[] }> = [];
   for (const message of messages) {
     const key = dayKey(message.createdAt);
     let group = groups[groups.length - 1];
     if (!group || group.key !== key) {
-      const label =
-        key === today
-          ? 'HOY'
-          : key === yesterday
-            ? 'AYER'
-            : new Intl.DateTimeFormat('es-AR', { timeZone: AR_TZ, day: 'numeric', month: 'long' })
-                .format(new Date(message.createdAt))
-                .toUpperCase();
-      group = { key, label, items: [] };
+      group = { key, label: dayLabel(message.createdAt, now), items: [] };
       groups.push(group);
     }
     group.items.push(message);
   }
   return groups;
+}
+
+/** Paquete 2 A3 — how a bubble sits in a run of messages from the same person. */
+export interface BubbleRun {
+  /** It follows a message of the same person: tight spacing and no name again. */
+  cont: boolean;
+  /** The last of the run: it carries the tail. */
+  tail: boolean;
+}
+
+/**
+ * Paquete 2 A3 — consecutive messages of the same author go together (WhatsApp): a run breaks
+ * on another author, on a notice (null key) or after a pause of `gapMs`.
+ */
+export function bubbleRuns<T extends { createdAt: string }>(
+  items: T[],
+  authorKey: (item: T) => string | null,
+  gapMs = 10 * 60_000,
+): BubbleRun[] {
+  const keys = items.map(authorKey);
+  const joins = (a: number, b: number) =>
+    keys[a] !== null &&
+    keys[a] === keys[b] &&
+    Date.parse(items[b].createdAt) - Date.parse(items[a].createdAt) <= gapMs;
+  return items.map((_, i) => ({
+    cont: i > 0 && joins(i - 1, i),
+    tail: !(i < items.length - 1 && joins(i, i + 1)),
+  }));
 }
 
 export function matchesSearch(conversation: Conversation, query: string): boolean {
