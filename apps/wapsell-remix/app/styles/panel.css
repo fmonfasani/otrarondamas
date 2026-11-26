@@ -953,3 +953,21 @@ a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-
 .ws-assign select { min-width: 180px; padding: 6px 8px; border: 1px solid rgba(176, 174, 165, 0.6); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); font: inherit; font-size: 13px; }
 .ws-assign__who { font-size: 13px; }
 .ws-context__hint { color: var(--text-muted, #667781); font-size: 12px; }
+
+/* ------------------------------------------------------------ E6b: automatic messages, chat link */
+.ws-auto { display: grid; gap: var(--space-16); }
+.ws-auto fieldset { display: grid; gap: var(--space-8); margin: 0; padding: var(--space-12); border: 1px solid rgba(176, 174, 165, 0.45); border-radius: var(--radius-control); }
+.ws-auto legend { padding: 0 4px; font-size: 13px; font-weight: 700; }
+.ws-hours-wrap, .ws-auto__hours { overflow-x: auto; }
+.ws-hours { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ws-hours th, .ws-hours td { padding: 6px 8px; text-align: left; }
+.ws-hours tbody tr + tr { border-top: 1px solid rgba(176, 174, 165, 0.3); }
+.ws-hours__turn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ws-hours input[type='time'] { padding: 4px 6px; border: 1px solid rgba(176, 174, 165, 0.6); border-radius: 6px; background: var(--surface-card); color: var(--text-primary); font: inherit; font-size: 13px; }
+.ws-chat-link { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-16); }
+.ws-chat-link img { border-radius: 8px; background: #fff; }
+.ws-chat-link__body { display: grid; flex: 1; gap: var(--space-8); min-width: 0; justify-items: start; }
+.ws-chat-link__body code { max-width: 100%; overflow-wrap: anywhere; font-size: 13px; }
+.ws-auto__toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.ws-auto__toggle input { width: 18px; height: 18px; accent-color: var(--action-primary, #0a6fd6); }
+.ws-auto .ws-field__control, .ws-auto textarea { width: 100%; }

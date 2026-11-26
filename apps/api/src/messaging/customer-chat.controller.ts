@@ -31,7 +31,11 @@ import {
   CUSTOMER_POLICY,
 } from '../authorization/canonical-permission.decorator';
 import { BusinessContextService } from '../business-context/business-context.service';
-import { CustomerEditMessageDto, CustomerMessageDto } from './dto/customer-message.dto';
+import {
+  CustomerEditMessageDto,
+  CustomerMessageDto,
+  CustomerProductDto,
+} from './dto/customer-message.dto';
 import { ReactionDto } from './dto/message-operations.dto';
 import { MessagingGateway } from './messaging.gateway';
 import { MessagingService } from './messaging.service';
@@ -134,16 +138,18 @@ export class CustomerChatController {
         }),
       );
     }
+    // E6b: the store's description, hours, address and phone, and whether it is open now.
+    const perfil = await this.messagingService.storeProfile(user).catch(() => null);
     // E2b: whether someone of the store's team in this conversation has a screen open.
     // Before the first message there is no conversation and nobody of the team in it.
-    if (!chat.conversationId) return chat;
+    if (!chat.conversationId) return { ...chat, perfil };
     const audience = await this.messagingService.realtimeAudience(chat.conversationId);
     const tiendaEnLinea = Boolean(
       audience?.userIds.some((userId) =>
         this.messagingGateway.isOnline(audience.businessId, { userId, customerId: null }),
       ),
     );
-    return { ...chat, tiendaEnLinea };
+    return { ...chat, perfil, tiendaEnLinea };
   }
 
   /**
@@ -205,6 +211,7 @@ export class CustomerChatController {
       );
     }
     this.previewLink(user, message.id);
+    await this.autoReply(user, message);
     return {
       conversationId: message.conversationId,
       message: {
@@ -245,6 +252,43 @@ export class CustomerChatController {
     );
     this.previewLink(user, message.id);
     return { id: message.id, content: message.content, editado: true };
+  }
+
+  /**
+   * E6b — the greeting and/or the away message, when due; they reach the open screens like any
+   * message. Never fails the customer's own message.
+   */
+  private async autoReply(
+    user: AuthenticatedUser,
+    message: { id: string; conversationId: string; createdAt: Date },
+  ) {
+    const posted = await this.messagingService.autoRepliesAfter(user, message);
+    for (const reply of posted) {
+      this.publishQuietly(() => this.messagingGateway.publishMessageCreated(reply));
+    }
+  }
+
+  /** E6b «+ Productos» — the customer sends a product of the store to ask about it. */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.products)
+  @Post('productos')
+  async shareProduct(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: CustomerProductDto,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    const message = await this.messagingService.sendCustomerProductCard(
+      user,
+      dto.clientMessageId,
+      dto.productoId,
+    );
+    this.publishQuietly(() => this.messagingGateway.publishMessageCreated(message));
+    await this.autoReply(user, message);
+    return {
+      conversationId: message.conversationId,
+      adjuntos: toMessageWire(message).adjuntos ?? [],
+    };
   }
 
   /** E5 — after answering: the link's preview, then the open screens reload the message. */
@@ -374,6 +418,7 @@ export class CustomerChatController {
     } catch {
       // Realtime is best-effort; HTTP stays the recovery path.
     }
+    await this.autoReply(user, message);
     return {
       conversationId: message.conversationId,
       adjuntos: toMessageWire(message).adjuntos ?? [],

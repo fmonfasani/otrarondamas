@@ -48,6 +48,8 @@ export interface SerializableMessage {
   Attachment?: SerializableAttachment[];
   /** E4 — sent with «Reenviar». */
   forwarded?: boolean;
+  /** E6b — sent by the store itself (greeting or away message). */
+  automatic?: boolean;
   /** E4 — computed by the service for the viewer. */
   respuesta?: ReplyPreview;
   reacciones?: ReactionGroup[];
@@ -177,6 +179,8 @@ export interface MessageWire {
   respuesta?: ReplyPreview;
   reacciones?: ReactionGroup[];
   destacado?: true;
+  /** E6b: the greeting or the away message the store sent by itself. */
+  automatico?: true;
 }
 
 function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
@@ -193,7 +197,7 @@ function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
       productoId: String(meta.productoId ?? ''),
       nombre: String(meta.nombre ?? a.filename),
       precio: String(meta.precio ?? '0'),
-      ...(meta.precioFinal && meta.precioFinal !== meta.precio
+      ...(meta.precioFinal && Number(meta.precioFinal) !== Number(meta.precio)
         ? { precioFinal: String(meta.precioFinal) }
         : {}),
     };
@@ -295,6 +299,7 @@ export function toMessageWire(message: SerializableMessage): MessageWire {
   if (message.respuesta) wire.respuesta = message.respuesta;
   if (message.reacciones !== undefined) wire.reacciones = message.reacciones;
   if (message.destacado) wire.destacado = true;
+  if (message.automatic) wire.automatico = true;
 
   return wire;
 }

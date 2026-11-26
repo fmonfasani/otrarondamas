@@ -25,3 +25,14 @@ export class CustomerEditMessageDto {
   @MaxLength(2000)
   content!: string;
 }
+
+/** E6b «+ Productos» — a product of the store the customer asks about. */
+export class CustomerProductDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  clientMessageId: string;
+
+  @IsUUID()
+  productoId: string;
+}

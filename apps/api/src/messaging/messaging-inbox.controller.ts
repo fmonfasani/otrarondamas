@@ -17,6 +17,8 @@ import { LIMITS, RateLimit } from '../common/rate-limit/rate-limit';
 import { AssignDto, LabelDto, MuteDto } from './dto/inbox.dto';
 import { MessagingInboxService } from './inbox.service';
 import { MessagingGateway } from './messaging.gateway';
+import { MessagingService } from './messaging.service';
+import { AutoRepliesDto } from './dto/auto-replies.dto';
 
 const MUTE_HOURS: Record<MuteDto['por'], number | null> = { '8h': 8, '1w': 24 * 7, siempre: null };
 
@@ -30,7 +32,27 @@ export class MessagingInboxController {
   constructor(
     private readonly inbox: MessagingInboxService,
     private readonly gateway: MessagingGateway,
+    private readonly messaging: MessagingService,
   ) {}
+
+  /** E6b — the greeting, the away message and the opening hours (Ajustes). */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('automaticos')
+  autoReplies(@CurrentUser() user: AuthenticatedUser) {
+    return this.messaging.getAutoReplies(user);
+  }
+
+  /** E6b — Owner/Admin save them (also checked in the service). */
+  @CanonicalPermission('MESSAGING_MANAGE')
+  @RateLimit(LIMITS.react)
+  @Put('automaticos')
+  saveAutoReplies(@CurrentUser() user: AuthenticatedUser, @Body() dto: AutoRepliesDto) {
+    return this.messaging.setAutoReplies(user, {
+      bienvenida: dto.bienvenida,
+      ausencia: dto.ausencia,
+      horario: dto.horario as never,
+    });
+  }
 
   @CanonicalPermission('MESSAGING_USE')
   @RateLimit(LIMITS.react)
