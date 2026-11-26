@@ -33,7 +33,10 @@ describe('MessagingService — M2/M3 messaging', () => {
   };
 
   const prisma = {
-    $transaction: jest.fn(async (callback: unknown) => callback(prisma)),
+    // A callback runs with this client; a list of operations (E4 delete) resolves them in order.
+    $transaction: jest.fn(async (work: unknown) =>
+      Array.isArray(work) ? Promise.all(work) : (work as (tx: unknown) => unknown)(prisma),
+    ),
     // E2: read positions and unread counts (raw SQL); nothing moved, nothing unread.
     $queryRaw: jest.fn().mockResolvedValue([]),
     $executeRaw: jest.fn().mockResolvedValue(1),
@@ -73,6 +76,11 @@ describe('MessagingService — M2/M3 messaging', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+    },
+    attachment: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    reaction: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      upsert: jest.fn(),
     },
   };
 
@@ -779,11 +787,12 @@ describe('MessagingService — M2/M3 messaging', () => {
         where: expect.objectContaining({
           businessId: 'business-a',
           conversationId: 'conversation-a',
-          deletedAt: null,
           createdAt: { gte: joinedAt },
         }),
       }),
     );
+    // E4: a deleted message stays in place as «Se eliminó este mensaje».
+    expect(prisma.message.findMany.mock.calls[0][0].where).not.toHaveProperty('deletedAt');
   });
 
   it('allows only the message author to edit text', async () => {
@@ -792,6 +801,9 @@ describe('MessagingService — M2/M3 messaging', () => {
       conversationId: 'conversation-a',
       businessId: 'business-a',
       authorUserId: 'user-a',
+      type: 'TEXT',
+      forwarded: false,
+      createdAt: new Date(),
       deletedAt: null,
     });
     prisma.message.update.mockResolvedValue({
@@ -819,6 +831,8 @@ describe('MessagingService — M2/M3 messaging', () => {
       conversationId: 'conversation-a',
       businessId: 'business-a',
       authorUserId: 'user-a',
+      type: 'TEXT',
+      createdAt: new Date(),
       deletedAt: null,
     });
     prisma.message.update.mockResolvedValue({
@@ -840,6 +854,124 @@ describe('MessagingService — M2/M3 messaging', () => {
         }),
       }),
     );
+  });
+
+  describe('E4 — edit, delete and react like WhatsApp', () => {
+    const own = (over: Record<string, unknown> = {}) => ({
+      id: 'message-a',
+      conversationId: 'conversation-a',
+      businessId: 'business-a',
+      authorUserId: 'user-a',
+      authorCustomerId: null,
+      type: 'TEXT',
+      forwarded: false,
+      createdAt: new Date(),
+      deletedAt: null,
+      Attachment: [],
+      ...over,
+    });
+    const participant = {
+      id: 'participant-a',
+      userId: 'user-a',
+      joinedAt: new Date('2026-01-01T00:00:00Z'),
+      leftAt: null,
+      removedAt: null,
+    };
+
+    beforeEach(() => {
+      prisma.conversationParticipant.findFirst.mockResolvedValue(participant);
+      prisma.conversation.findFirst.mockResolvedValue({ id: 'conversation-a' });
+    });
+
+    it('edits for 15 minutes, then refuses', async () => {
+      prisma.message.findFirst.mockResolvedValue(
+        own({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }),
+      );
+      await expect(service.editMessage(auth, 'conversation-a', 'message-a', 'x')).rejects.toThrow(
+        'Pasaron más de 15 minutos',
+      );
+      expect(prisma.message.update).not.toHaveBeenCalled();
+    });
+
+    it('never edits a photo, a file or a forwarded message', async () => {
+      prisma.message.findFirst.mockResolvedValueOnce(own({ type: 'IMAGE' }));
+      await expect(service.editMessage(auth, 'conversation-a', 'message-a', 'x')).rejects.toThrow(
+        ForbiddenException,
+      );
+      prisma.message.findFirst.mockResolvedValueOnce(own({ forwarded: true }));
+      await expect(service.editMessage(auth, 'conversation-a', 'message-a', 'x')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('deletes an own message for everyone for 2 days, then refuses', async () => {
+      prisma.message.findFirst.mockResolvedValue(
+        own({ createdAt: new Date(Date.now() - 49 * 60 * 60 * 1000) }),
+      );
+      await expect(service.deleteMessage(auth, 'conversation-a', 'message-a')).rejects.toThrow(
+        'Pasaron más de 2 días',
+      );
+      expect(prisma.message.update).not.toHaveBeenCalled();
+    });
+
+    it('deleting also drops its files and reactions', async () => {
+      prisma.message.findFirst.mockResolvedValue(own());
+      prisma.message.update.mockResolvedValue({ id: 'message-a', content: null });
+      await service.deleteMessage(auth, 'conversation-a', 'message-a');
+      expect(prisma.attachment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ messageId: 'message-a', businessId: 'business-a' }),
+          data: expect.objectContaining({ deletedAt: expect.any(Date) }),
+        }),
+      );
+      expect(prisma.reaction.deleteMany).toHaveBeenCalledWith({
+        where: { messageId: 'message-a', businessId: 'business-a' },
+      });
+    });
+
+    it('one reaction per person: another emoji replaces it', async () => {
+      prisma.message.findFirst.mockResolvedValue(own({ authorUserId: 'user-b' }));
+      await service.reactToMessage(auth, 'conversation-a', 'message-a', '❤️');
+      expect(prisma.reaction.upsert).toHaveBeenCalledWith({
+        where: { messageId_userId: { messageId: 'message-a', userId: 'user-a' } },
+        create: expect.objectContaining({
+          emoji: '❤️',
+          userId: 'user-a',
+          businessId: 'business-a',
+        }),
+        update: expect.objectContaining({ emoji: '❤️' }),
+      });
+    });
+
+    it('a reaction is an emoji, never text, and never on a system notice', async () => {
+      prisma.message.findFirst.mockResolvedValueOnce(own());
+      await expect(
+        service.reactToMessage(auth, 'conversation-a', 'message-a', 'hola'),
+      ).rejects.toThrow('Elegí un emoji');
+      prisma.message.findFirst.mockResolvedValueOnce(own({ type: 'SYSTEM', authorUserId: null }));
+      await expect(
+        service.reactToMessage(auth, 'conversation-a', 'message-a', '👍'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.reaction.upsert).not.toHaveBeenCalled();
+    });
+
+    it('only participants react (reading every chat is not taking part)', async () => {
+      prisma.conversationParticipant.findFirst.mockResolvedValue(null);
+      await expect(
+        service.reactToMessage(auth, 'conversation-a', 'message-a', '👍'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('never forwards a product or order card', async () => {
+      prisma.message.findFirst.mockResolvedValue(
+        own({
+          Attachment: [{ mimeType: 'application/vnd.wapsell.product+json', filename: 'Yerba' }],
+        }),
+      );
+      await expect(
+        service.forwardMessage(auth, 'conversation-a', 'message-a', 'k', ['conversation-b']),
+      ).rejects.toThrow('Este mensaje no se puede reenviar');
+    });
   });
 
   it('creates an idempotent read receipt within the canonical BusinessContext', async () => {

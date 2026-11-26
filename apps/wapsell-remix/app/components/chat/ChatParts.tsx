@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowDown, Check, CheckCheck, Clock3 } from 'lucide-react';
+import { useEffect, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { ArrowDown, Check, CheckCheck, Clock3, Star } from 'lucide-react';
 import { TICK_LABELS, type BubbleRun, type MessageTick } from '~/utils/messaging';
 
 /**
@@ -31,9 +31,11 @@ export function BubbleMeta({
   dateTime,
   edited,
   estado,
-}: Readonly<{ time: string; dateTime?: string; edited?: boolean; estado?: MessageTick | 'pendiente' | null }>) {
+  starred,
+}: Readonly<{ time: string; dateTime?: string; edited?: boolean; estado?: MessageTick | 'pendiente' | null; starred?: boolean }>) {
   return (
     <span className="chat-meta">
+      {starred ? <Star size={11} className="chat-meta__star" aria-label="Destacado" /> : null}
       {edited ? 'editado · ' : null}
       <time dateTime={dateTime}>{time}</time>
       {estado ? <Ticks estado={estado} /> : null}
@@ -53,6 +55,12 @@ export function Bubble({
   meta,
   pending,
   children,
+  id,
+  top,
+  reactions,
+  menu,
+  press,
+  deleted,
 }: Readonly<{
   mine: boolean;
   run: BubbleRun;
@@ -62,6 +70,17 @@ export function Bubble({
   meta: ReactNode;
   pending?: boolean;
   children?: ReactNode;
+  /** E4 — the message id: a quote or a search result jumps here (#msg-…). */
+  id?: string;
+  /** E4 — «Reenviado» and the quoted message, above the content. */
+  top?: ReactNode;
+  /** E4 — the reaction chips, hanging from the bottom edge. */
+  reactions?: ReactNode;
+  /** E4 — the ⌄ that opens the message's menu (shown on hover). */
+  menu?: ReactNode;
+  /** E4 — long press and right click open the menu. */
+  press?: HTMLAttributes<HTMLDivElement>;
+  deleted?: boolean;
 }>) {
   const classes = [
     'chat-bubble',
@@ -69,10 +88,14 @@ export function Bubble({
     run.cont ? 'is-cont' : '',
     run.tail ? 'is-tail' : '',
     pending ? 'is-pending' : '',
+    reactions ? 'has-reactions' : '',
+    deleted ? 'is-deleted' : '',
   ].filter(Boolean);
   return (
-    <div className={classes.join(' ')}>
+    <div id={id ? `msg-${id}` : undefined} className={classes.join(' ')} {...press}>
+      {menu}
       {author && !run.cont ? <span className="chat-bubble__author">{author}</span> : null}
+      {top}
       {children}
       {text != null ? (
         <p className="chat-bubble__text">
@@ -82,6 +105,7 @@ export function Bubble({
       ) : (
         <div className="chat-bubble__foot">{meta}</div>
       )}
+      {reactions}
     </div>
   );
 }

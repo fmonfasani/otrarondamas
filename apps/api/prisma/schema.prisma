@@ -245,6 +245,7 @@ model Cliente {
   DevolucionCliente       DevolucionCliente[]
   Legajo                  Legajo?
   PushSubscription        PushSubscription[]
+  Reaction                Reaction[]
   Message                 Message[]
   MessageReadReceipt      MessageReadReceipt[]
   MessagingReadPreference MessagingReadPreference[]
@@ -801,6 +802,7 @@ model Membership {
   MessagingReadPreference MessagingReadPreference[]
   RoleGrant               RoleGrant?
   PushSubscription        PushSubscription[]
+  MessageStar             MessageStar[]
 
   @@unique([userId, businessId])
   /// ADR-DAT-020 (Fase 2 PR 4, module 4c): references carry the business.
@@ -826,12 +828,15 @@ model Message {
   deletedAt          DateTime?
   deletedByUserId    String?
   replyToMessageId   String?
+  /// E4: sent with «Reenviar» from another chat (the bubble says «Reenviado»).
+  forwarded          Boolean              @default(false)
   Attachment         Attachment[]
   Cliente            Cliente?             @relation(fields: [authorCustomerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
   Membership         Membership?          @relation(fields: [authorUserId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
   Conversation       Conversation         @relation(fields: [conversationId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
   MessageReadReceipt MessageReadReceipt[]
   Reaction           Reaction[]
+  MessageStar        MessageStar[]
 
   @@unique([conversationId, clientMessageId, authorCustomerId])
   @@unique([conversationId, clientMessageId, authorUserId])
@@ -1222,18 +1227,38 @@ model Proveedor {
   @@unique([empresaId, id])
 }
 
+/// E4 — one reaction per person and message (choosing another replaces it, like WhatsApp), from a
+/// team member OR a customer, never both (check constraint Reaction_one_owner).
 model Reaction {
   id         String   @id @default(uuid())
   messageId  String
   businessId String
-  userId     String
+  userId     String?
+  customerId String?
   emoji      String
   createdAt  DateTime @default(now())
   Message    Message  @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
-  User       User     @relation(fields: [userId], references: [id])
+  User       User?    @relation(fields: [userId], references: [id])
+  Cliente    Cliente? @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
 
-  @@unique([messageId, userId, emoji])
+  @@unique([messageId, userId])
+  @@unique([messageId, customerId])
   @@index([userId, messageId])
+  @@index([businessId, messageId])
+}
+
+/// E4 — a message a team member starred (⭐): personal, only they see it in «Destacados».
+model MessageStar {
+  id         String     @id @default(uuid())
+  messageId  String
+  businessId String
+  userId     String
+  createdAt  DateTime   @default(now())
+  Message    Message    @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Membership Membership @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([messageId, userId])
+  @@index([businessId, userId, createdAt])
 }
 
 model RecepcionCompra {

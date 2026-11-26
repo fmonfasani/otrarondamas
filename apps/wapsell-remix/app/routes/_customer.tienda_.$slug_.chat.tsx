@@ -1,14 +1,23 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData } from '@remix-run/react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowLeft, Bell, BellRing, Camera, FileText, ImageIcon, Package, Plus, SendHorizontal, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Bell, BellRing, Camera, Copy, FileText, ImageIcon, Package, Pencil, Plus, Reply, SendHorizontal, ShoppingBag } from 'lucide-react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
-import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage, type CustomerChat } from '~/services/store.server';
+import {
+  addToServerCart,
+  deleteCustomerMessage,
+  editCustomerMessage,
+  fetchCustomerChat,
+  fetchStore,
+  reactAsCustomer,
+  sendCustomerMessage,
+  type CustomerChat,
+} from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
 import { storeMark } from '~/utils/store';
-import { bubbleRuns, groupByDay, messageTime } from '~/utils/messaging';
+import { bubbleRuns, canStillDelete, canStillEdit, groupByDay, messageTime, shortText } from '~/utils/messaging';
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import {
   Bubble,
@@ -22,6 +31,18 @@ import {
   useTouchScreen,
 } from '~/components/chat/ChatParts';
 import { orderCardOf } from '~/utils/order-card';
+import {
+  ComposerContext,
+  DeletedText,
+  ForwardedTag,
+  MenuButton,
+  MessageMenu,
+  QuoteLine,
+  ReactionChips,
+  useJumpTo,
+  usePressToOpen,
+  type MessageAction,
+} from '~/components/chat/MessageActions';
 import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { useStickToBottom } from '~/hooks/useStickToBottom';
 import { playChime, titleWithCount } from '~/utils/alerts';
@@ -80,15 +101,37 @@ export async function action({ request, params }: ActionFunctionArgs) {
       throw error;
     }
   }
+  // E4: react, edit or delete one message of the chat.
+  const intent = String(form.get('intent') ?? 'send');
+  const messageId = String(form.get('messageId') ?? '');
+  if (intent === 'react' || intent === 'delete') {
+    try {
+      if (intent === 'react') await reactAsCustomer(customer.jwt, slug, messageId, String(form.get('emoji') ?? '') || null);
+      else await deleteCustomerMessage(customer.jwt, slug, messageId);
+      return json({ ok: true, message: '', added: '' });
+    } catch (error) {
+      if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
+      throw error;
+    }
+  }
   const content = String(form.get('content') ?? '').trim();
   const clientMessageId = String(form.get('clientMessageId') ?? '');
   if (!content) return json({ ok: false, message: 'Escribí un mensaje.', added: '' }, { status: 400 });
   if (content.length > MAX_LENGTH) {
     return json({ ok: false, message: `El mensaje puede tener hasta ${MAX_LENGTH} caracteres.`, added: '' }, { status: 400 });
   }
+  if (intent === 'edit') {
+    try {
+      await editCustomerMessage(customer.jwt, slug, messageId, content);
+      return json({ ok: true, message: '', added: '' });
+    } catch (error) {
+      if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
+      throw error;
+    }
+  }
   if (!clientMessageId) return json({ ok: false, message: 'No pudimos enviar el mensaje.', added: '' }, { status: 400 });
   try {
-    await sendCustomerMessage(customer.jwt, slug, clientMessageId, content);
+    await sendCustomerMessage(customer.jwt, slug, clientMessageId, content, String(form.get('replyToMessageId') ?? '') || null);
     return json({ ok: true, message: '', added: '' });
   } catch (error) {
     if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
@@ -158,7 +201,46 @@ export default function CustomerChat() {
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
   const sending = send.state !== 'idle';
-  const pending = sending ? String(send.formData?.get('content') ?? '').trim() : '';
+  // E4: an edit goes out through `send` too, but it is not a new bubble.
+  const pending = sending && send.formData?.get('intent') !== 'edit' ? String(send.formData?.get('content') ?? '').trim() : '';
+  const act = useFetcher<typeof action>();
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const [menuFor, setMenuFor] = useState<ChatMessage | null>(null);
+  const jumpTo = useJumpTo({
+    canLoadOlder: (olderMore ?? newest.hayMas) === true,
+    loading: olderPage.state !== 'idle',
+    loadOlder: () => {
+      const oldest = chat.messages[0]?.id;
+      if (oldest) olderPage.load(`/tienda/${store.slug}/chat?antes=${encodeURIComponent(oldest)}`);
+    },
+    loadedCount: chat.messages.length,
+  });
+  const whoWrote = (m: { mine?: boolean; mia?: boolean }) => (m.mine ?? m.mia ? 'Vos' : store.nombre);
+  const react = (messageId: string, emoji: string | null) =>
+    act.submit({ intent: 'react', messageId, emoji: emoji ?? '' }, { method: 'post' });
+  const startEdit = (message: ChatMessage) => {
+    setReplyTo(null);
+    setEditing(message);
+    setDraft(message.content ?? '');
+    requestAnimationFrame(() => {
+      const box = boxRef.current;
+      if (!box) return;
+      growTextarea(box);
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    });
+  };
+  const stopEdit = () => {
+    setEditing(null);
+    setDraft('');
+    growTextarea(boxRef.current, true);
+  };
+  const startReply = (message: ChatMessage) => {
+    if (editing) stopEdit();
+    setReplyTo(message);
+    boxRef.current?.focus();
+  };
   const touch = useTouchScreen();
 
   // E1: the store's answers and «escribiendo…» at once — also with the tab in the background
@@ -201,6 +283,8 @@ export default function CustomerChat() {
     if (send.state === 'idle' && send.data?.ok) {
       setDraft('');
       setClientMessageId(newMessageId());
+      setReplyTo(null);
+      setEditing(null);
       growTextarea(boxRef.current, true);
     }
   }, [send.state, send.data]);
@@ -211,11 +295,20 @@ export default function CustomerChat() {
 
   const submit = () => {
     if (!draft.trim() || sending) return;
-    send.submit({ content: draft, clientMessageId }, { method: 'post' });
+    if (editing) {
+      send.submit({ intent: 'edit', messageId: editing.id, content: draft }, { method: 'post' });
+      return;
+    }
+    send.submit({ content: draft, clientMessageId, replyToMessageId: replyTo?.id ?? '' }, { method: 'post' });
   };
   // Paquete 1 F3: a message that did not go out goes by itself when the connection is back.
   useWhenBackOnline(send.state === 'idle' && send.data?.ok === false && Boolean(draft.trim()), submit);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Escape' && (editing || replyTo)) {
+      if (editing) stopEdit();
+      setReplyTo(null);
+      return;
+    }
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       submit();
@@ -301,6 +394,10 @@ export default function CustomerChat() {
                         run={runs[index]}
                         slug={store.slug}
                         cart={cart}
+                        quoteWho={message.respuesta ? whoWrote(message.respuesta) : ''}
+                        onOpenMenu={() => setMenuFor(message)}
+                        onReact={(emoji) => react(message.id, emoji)}
+                        onQuote={jumpTo}
                       />
                     );
                   })}
@@ -324,6 +421,25 @@ export default function CustomerChat() {
           </output>
         ) : null}
         {cart.data && !cart.data.ok ? <output className="chat-error">{cart.data.message}</output> : null}
+        {act.state === 'idle' && act.data && !act.data.ok ? <output className="chat-error">{act.data.message}</output> : null}
+        {menuFor ? (
+          <MessageMenu
+            preview={menuFor.eliminado ? '' : shortText(menuFor.content) || 'Foto o archivo'}
+            myReaction={menuFor.reacciones?.find((r) => r.mia)?.emoji ?? null}
+            onReact={menuFor.eliminado ? null : (emoji) => react(menuFor.id, emoji)}
+            actions={customerActions(menuFor, { reply: startReply, edit: startEdit })}
+            confirmDelete={
+              menuFor.mine && !menuFor.eliminado && canStillDelete(menuFor.createdAt)
+                ? () => act.submit({ intent: 'delete', messageId: menuFor.id }, { method: 'post' })
+                : null
+            }
+            onClose={() => setMenuFor(null)}
+          />
+        ) : null}
+        {replyTo ? (
+          <ComposerContext kind="reply" who={whoWrote(replyTo)} text={shortText(replyTo.content) || 'Archivo'} onClose={() => setReplyTo(null)} />
+        ) : null}
+        {editing ? <ComposerContext kind="edit" who="" text={shortText(editing.content)} onClose={stopEdit} /> : null}
         {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="chat-error">{upload.data.message}</output> : null}
         <send.Form
           method="post"
@@ -417,18 +533,60 @@ function CustomerBubble({
   run,
   slug,
   cart,
-}: Readonly<{ message: ChatMessage; run: { cont: boolean; tail: boolean }; slug: string; cart: CartFetcher }>) {
+  quoteWho,
+  onOpenMenu,
+  onReact,
+  onQuote,
+}: Readonly<{
+  message: ChatMessage;
+  run: { cont: boolean; tail: boolean };
+  slug: string;
+  cart: CartFetcher;
+  quoteWho: string;
+  onOpenMenu: () => void;
+  onReact: (emoji: string | null) => void;
+  onQuote: (messageId: string) => void;
+}>) {
   const files = (message.adjuntos ?? []).filter((a) => a.tipo === 'imagen' || a.tipo === 'archivo');
   const products = (message.adjuntos ?? []).filter((a) => a.tipo === 'producto' && a.productoId);
-  const deleted = message.content == null && files.length === 0 && products.length === 0;
+  // E4: «Se eliminó este mensaje» — what it said is gone.
+  const deleted = Boolean(message.eliminado) || (message.content == null && files.length === 0 && products.length === 0);
   let text: string | null = message.content ?? null;
   if (products.length > 0 || deleted) text = null;
   else if (files.some((a) => a.nombre === message.content)) text = null;
+  const press = usePressToOpen(onOpenMenu);
   const meta = (
-    <BubbleMeta time={messageTime(message.createdAt)} dateTime={message.createdAt} estado={message.mine ? message.estado : null} />
+    <BubbleMeta
+      time={messageTime(message.createdAt)}
+      dateTime={message.createdAt}
+      edited={Boolean(message.editado)}
+      estado={message.mine && !deleted ? message.estado : null}
+    />
   );
+  const top =
+    message.reenviado || (message.respuesta && !deleted) ? (
+      <>
+        {message.reenviado ? <ForwardedTag /> : null}
+        {message.respuesta && !deleted ? (
+          <QuoteLine who={quoteWho} quote={message.respuesta} mine={message.respuesta.mia} onOpen={() => onQuote(message.respuesta!.id)} />
+        ) : null}
+      </>
+    ) : null;
   return (
-    <Bubble mine={Boolean(message.mine)} run={run} text={text} meta={meta}>
+    <Bubble
+      id={message.id}
+      mine={Boolean(message.mine)}
+      run={run}
+      text={text}
+      meta={meta}
+      deleted={deleted}
+      top={top}
+      press={press}
+      menu={<MenuButton onClick={onOpenMenu} />}
+      reactions={
+        message.reacciones?.length && !deleted ? <ReactionChips reactions={message.reacciones} onPick={onReact} /> : null
+      }
+    >
       {files.map((a) =>
         a.tipo === 'imagen' ? (
           <a key={a.id} href={`/tienda/${slug}/chat/adjunto/${a.id}`} target="_blank" rel="noreferrer" className="chat-photo">
@@ -465,9 +623,34 @@ function CustomerBubble({
           )}
         </span>
       ))}
-      {deleted ? <span className="chat-bubble__deleted">Mensaje eliminado</span> : null}
+      {deleted ? <DeletedText mine={Boolean(message.mine)} /> : null}
     </Bubble>
   );
+}
+
+/** E4 — what the customer can do with a message: reply, copy, and edit their own text (15 min). */
+function customerActions(
+  message: ChatMessage,
+  { reply, edit }: { reply: (m: ChatMessage) => void; edit: (m: ChatMessage) => void },
+): MessageAction[] {
+  if (message.eliminado) return [];
+  const actions: MessageAction[] = [{ key: 'reply', label: 'Responder', icon: <Reply size={18} aria-hidden="true" />, run: () => reply(message) }];
+  if (message.content) {
+    actions.push({
+      key: 'copy',
+      label: 'Copiar',
+      icon: <Copy size={18} aria-hidden="true" />,
+      run: () => {
+        navigator.clipboard?.writeText(message.content ?? '').catch(() => {
+          // Nothing to do: the browser did not let us copy.
+        });
+      },
+    });
+  }
+  if (message.editable && canStillEdit(message.createdAt)) {
+    actions.push({ key: 'edit', label: 'Editar', icon: <Pencil size={18} aria-hidden="true" />, run: () => edit(message) });
+  }
+  return actions;
 }
 
 function newMessageId() {

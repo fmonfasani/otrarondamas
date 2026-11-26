@@ -113,6 +113,56 @@ export interface Message extends MessagePreview {
   estado?: MessageTick;
   /** OR-B4-053: posted by the system (an order or return moved), not typed by someone. */
   aviso?: boolean;
+  /** E4: «Se eliminó este mensaje» (content and files are gone). */
+  eliminado?: boolean;
+  reenviado?: boolean;
+  respuesta?: QuotedMessage & { autorUserId: string | null; autorCustomerId: string | null };
+  reacciones?: Array<ReactionChip & { autores: Array<{ userId: string | null; customerId: string | null }> }>;
+  /** E4: the viewer starred it. */
+  destacado?: boolean;
+}
+
+/** E4 — the quoted message above a reply. */
+export interface QuotedMessage {
+  id: string;
+  mia: boolean;
+  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido';
+  texto: string | null;
+  eliminado?: boolean;
+}
+
+/** E4 — the reactions with one emoji. */
+export interface ReactionChip {
+  emoji: string;
+  cantidad: number;
+  mia: boolean;
+}
+
+/** E4 — the quick reactions of the menu (like WhatsApp). */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
+
+/** E4 — like WhatsApp: editing lasts 15 minutes, deleting for everyone 2 days (the API checks too). */
+export const EDIT_WINDOW_MS = 15 * 60 * 1000;
+export const DELETE_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+export const canStillEdit = (createdAt: string, now = Date.now()) => now - Date.parse(createdAt) < EDIT_WINDOW_MS;
+export const canStillDelete = (createdAt: string, now = Date.now()) => now - Date.parse(createdAt) < DELETE_WINDOW_MS;
+
+/** E4 — what the quote line says of the quoted message. */
+export function quotedText(quote: Pick<QuotedMessage, 'tipo' | 'texto' | 'eliminado'>): string {
+  if (quote.eliminado) return 'Se eliminó este mensaje';
+  const kind = { imagen: '📷 Foto', archivo: '📄 Documento', producto: '🛍️ Producto', pedido: '🧾 Pedido', texto: '' }[quote.tipo];
+  const text = (quote.texto ?? '').trim();
+  if (!kind) return text || 'Mensaje';
+  // A product says which; a photo says its caption (not a file name); a document, just that.
+  const caption = quote.tipo === 'imagen' && !/\.(jpe?g|png|webp)$/i.test(text);
+  if (text && (quote.tipo === 'producto' || caption)) return `${kind} · ${text}`;
+  return kind;
+}
+
+/** E4 — the start of a message, for the menu and the «Respondiendo a» bar. */
+export function shortText(text: string | null | undefined, max = 90): string {
+  const clean = (text ?? '').replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
 export type MessageTick = 'enviado' | 'entregado' | 'leido';

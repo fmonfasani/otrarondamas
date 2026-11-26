@@ -22,7 +22,13 @@ import { StoreService } from '../store/store.service';
 import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
-import { ORDER_CARD_MIME, PRODUCT_CARD_MIME, toMessageWire } from './message-serializer';
+import {
+  ORDER_CARD_MIME,
+  PRODUCT_CARD_MIME,
+  toMessageWire,
+  type ReactionGroup,
+  type ReplyPreview,
+} from './message-serializer';
 import { CHAT_FILE_MAX_BYTES, cleanFileName, sniffChatFile } from './chat-files';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
@@ -166,6 +172,50 @@ function conversationOrderKey(
 export const MESSAGES_PAGE = 50;
 const MESSAGES_PAGE_MAX = 100;
 
+/** E4 — like WhatsApp: a message can be edited for 15 minutes and deleted for everyone for 2 days. */
+export const EDIT_WINDOW_MS = 15 * 60 * 1000;
+export const DELETE_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+/** E4 — «Reenviar» reaches at most this many chats at once (WhatsApp: 5). */
+export const FORWARD_MAX_CHATS = 5;
+const SEARCH_MAX = 30;
+
+/** E4 — a reaction is one emoji (with its skin tone or joined sequence), never text. */
+const EMOJI =
+  /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:\u{FE0F}|\u{200D}|\p{Emoji_Modifier}|\p{Extended_Pictographic}|\p{Regional_Indicator})*$/u;
+export function isReactionEmoji(value: string): boolean {
+  return value.length <= 32 && EMOJI.test(value);
+}
+
+/** E4 — what a quoted message is, for the line above the reply. */
+function quotedKind(message: { Attachment: Array<{ mimeType: string }> }): ReplyPreview['tipo'] {
+  const mime = message.Attachment[0]?.mimeType;
+  if (!mime) return 'texto';
+  if (mime === ORDER_CARD_MIME) return 'pedido';
+  if (mime === PRODUCT_CARD_MIME) return 'producto';
+  return mime.startsWith('image/') ? 'imagen' : 'archivo';
+}
+
+/** E4 — the reactions of a message grouped by emoji, most used first. */
+export function groupReactions(
+  reactions: Array<{ emoji: string; userId: string | null; customerId: string | null }>,
+  viewer: { userId: string | null; customerId: string | null },
+): ReactionGroup[] {
+  const groups = new Map<string, ReactionGroup>();
+  for (const r of reactions) {
+    const group = groups.get(r.emoji) ?? { emoji: r.emoji, cantidad: 0, mia: false, autores: [] };
+    group.cantidad += 1;
+    group.autores.push({ userId: r.userId, customerId: r.customerId });
+    if (
+      (viewer.userId !== null && r.userId === viewer.userId) ||
+      (viewer.customerId !== null && r.customerId === viewer.customerId)
+    ) {
+      group.mia = true;
+    }
+    groups.set(r.emoji, group);
+  }
+  return [...groups.values()].sort((a, b) => b.cantidad - a.cantidad);
+}
+
 @Injectable()
 export class MessagingService {
   constructor(
@@ -277,11 +327,20 @@ export class MessagingService {
           where: { id: conversationId, businessId: context.businessId, deletedAt: null },
         });
         if (!conversation) throw new NotFoundException('Conversación no encontrada');
-        await this.assertActiveParticipant(tx, conversationId, context);
+        const participant = await this.assertActiveParticipant(tx, conversationId, context);
 
         if (replyToMessageId) {
+          // E4: only a message the writer can see (not deleted, not from before they joined).
           const parent = await tx.message.findFirst({
-            where: { id: replyToMessageId, conversationId, businessId: context.businessId },
+            where: {
+              id: replyToMessageId,
+              conversationId,
+              businessId: context.businessId,
+              deletedAt: null,
+              ...(canReadAllConversations(context)
+                ? {}
+                : { createdAt: { gte: participant.joinedAt } }),
+            },
           });
           if (!parent) throw new NotFoundException('Mensaje de respuesta no encontrado');
         }
@@ -394,20 +453,87 @@ export class MessagingService {
     }
     const messages = (
       await this.prisma.message.findMany({
+        // E4: deleted messages stay in place («Se eliminó este mensaje»), without what they said.
         where: {
           conversationId,
           businessId: context.businessId,
-          deletedAt: null,
           ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
           ...(beforeSequence !== undefined ? { sequence: { lt: beforeSequence } } : {}),
         },
         orderBy: { sequence: 'desc' },
         take,
-        include: { Reaction: true, Attachment: true },
+        include: {
+          Reaction: true,
+          Attachment: true,
+          MessageStar: { where: { userId: context.userId ?? '-' }, select: { id: true } },
+        },
       })
     ).reverse();
     await this.withOrderCards(messages, context.businessId);
-    return this.withTicks(messages, conversationId, context);
+    return this.withTicks(
+      await this.withQuotesAndReactions(messages, context, joinedAt),
+      conversationId,
+      context,
+    );
+  }
+
+  /**
+   * E4 — what a bubble needs besides itself: the quoted message as a short preview (only when
+   * the viewer may see it), its reactions grouped by emoji, whether the viewer starred it, and
+   * nothing of what a deleted message said or showed.
+   */
+  private async withQuotesAndReactions<
+    T extends {
+      deletedAt: Date | null;
+      replyToMessageId: string | null;
+      content: string | null;
+      Attachment: unknown[];
+      Reaction: Array<{ emoji: string; userId: string | null; customerId: string | null }>;
+      MessageStar?: unknown[];
+    },
+  >(messages: T[], context: BusinessContext, joinedAt?: Date) {
+    const quotedIds = [
+      ...new Set(messages.map((m) => m.replyToMessageId).filter((id): id is string => !!id)),
+    ];
+    const quoted = quotedIds.length
+      ? await this.prisma.message.findMany({
+          where: {
+            id: { in: quotedIds },
+            businessId: context.businessId,
+            ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
+          },
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            authorUserId: true,
+            authorCustomerId: true,
+            Attachment: { where: { deletedAt: null }, select: { mimeType: true } },
+          },
+        })
+      : [];
+    const byId = new Map(quoted.map((q) => [q.id, q]));
+    return messages.map((m) => {
+      const q = m.replyToMessageId ? byId.get(m.replyToMessageId) : undefined;
+      const respuesta: ReplyPreview | undefined = q && {
+        id: q.id,
+        autorUserId: q.authorUserId,
+        autorCustomerId: q.authorCustomerId,
+        mia:
+          (context.userId !== null && q.authorUserId === context.userId) ||
+          (context.customerId !== null && q.authorCustomerId === context.customerId),
+        tipo: q.deletedAt ? 'texto' : quotedKind(q),
+        texto: q.deletedAt ? null : (q.content ?? '').slice(0, 160),
+        ...(q.deletedAt ? { eliminado: true as const } : {}),
+      };
+      return {
+        ...m,
+        ...(m.deletedAt ? { content: null, Attachment: [] as T['Attachment'] } : {}),
+        reacciones: m.deletedAt ? [] : groupReactions(m.Reaction, context),
+        destacado: !m.deletedAt && (m.MessageStar?.length ?? 0) > 0,
+        ...(respuesta ? { respuesta } : {}),
+      };
+    });
   }
 
   /**
@@ -674,6 +800,13 @@ export class MessagingService {
       (context.userId !== null && message.authorUserId === context.userId) ||
       (context.customerId !== null && message.authorCustomerId === context.customerId);
     if (!isAuthor) throw new ForbiddenException('Solo el autor puede editar el mensaje');
+    // E4: like WhatsApp — only typed text, not a forwarded one, and for 15 minutes.
+    if (message.type !== 'TEXT' || message.forwarded) {
+      throw new ForbiddenException('Solo se pueden editar los mensajes de texto que escribiste');
+    }
+    if (Date.now() - message.createdAt.getTime() > EDIT_WINDOW_MS) {
+      throw new ForbiddenException('Pasaron más de 15 minutos: el mensaje ya no se puede editar');
+    }
 
     return this.prisma.message.update({
       where: { id: messageId },
@@ -699,12 +832,29 @@ export class MessagingService {
     } else {
       // Author must still be an active participant to edit/delete their own message
       await this.assertActiveParticipant(this.prisma, conversationId, context);
+      // E4: like WhatsApp, «Eliminar para todos» lasts 2 days (a conversation admin moderates
+      // without a limit).
+      if (Date.now() - message.createdAt.getTime() > DELETE_WINDOW_MS) {
+        throw new ForbiddenException(
+          'Pasaron más de 2 días: el mensaje ya no se puede eliminar para todos',
+        );
+      }
     }
 
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: { deletedAt: new Date(), deletedByUserId: context.userId ?? null, content: null },
-    });
+    // E4: what it said or showed goes for good; the bubble stays as «Se eliminó este mensaje».
+    const deletedAt = new Date();
+    const [deleted] = await this.prisma.$transaction([
+      this.prisma.message.update({
+        where: { id: messageId },
+        data: { deletedAt, deletedByUserId: context.userId ?? null, content: null },
+      }),
+      this.prisma.attachment.updateMany({
+        where: { messageId, businessId: context.businessId, deletedAt: null },
+        data: { deletedAt, metadata: Prisma.DbNull },
+      }),
+      this.prisma.reaction.deleteMany({ where: { messageId, businessId: context.businessId } }),
+    ]);
+    return deleted;
   }
 
   /**
@@ -820,6 +970,26 @@ export class MessagingService {
         adjuntos: toMessageWire(m).adjuntos ?? [],
         // OR-B4-053: an order or return update the system posted (a short centred line).
         ...(toMessageWire(m).aviso ? { aviso: true } : {}),
+        // E4: deleted, edited, the quoted message and the reactions — never a staff id.
+        ...(m.deletedAt ? { eliminado: true } : {}),
+        ...(m.editedAt && !m.deletedAt ? { editado: true } : {}),
+        // Only typed text of their own can be edited (for 15 minutes; the screen checks the time).
+        ...(m.authorCustomerId === context.customerId && m.type === 'TEXT' && !m.forwarded
+          ? { editable: true }
+          : {}),
+        ...(m.forwarded ? { reenviado: true } : {}),
+        ...(m.respuesta
+          ? {
+              respuesta: {
+                id: m.respuesta.id,
+                mia: m.respuesta.mia,
+                tipo: m.respuesta.tipo,
+                texto: m.respuesta.texto,
+                ...(m.respuesta.eliminado ? { eliminado: true } : {}),
+              },
+            }
+          : {}),
+        reacciones: m.reacciones.map(({ emoji, cantidad, mia }) => ({ emoji, cantidad, mia })),
       })),
     };
   }
@@ -853,11 +1023,264 @@ export class MessagingService {
    * opened DIRECT with the Business Owner (Owner ruling OR-B4-031), who can add teammates;
    * it is associated to the Customer like a conversation started from Clientes.
    */
-  async sendCustomerMessage(auth: AuthenticatedUser, clientMessageId: string, content: string) {
+  async sendCustomerMessage(
+    auth: AuthenticatedUser,
+    clientMessageId: string,
+    content: string,
+    replyToMessageId?: string,
+  ) {
     const context = await this.resolveContext(auth);
     if (!context.customerId) throw new ForbiddenException('Solo para clientes');
     const conversationId = await this.ensureCustomerConversation(context);
-    return this.createTextMessage(auth, conversationId, clientMessageId, content);
+    return this.createTextMessage(auth, conversationId, clientMessageId, content, replyToMessageId);
+  }
+
+  /** E4 — the store customer's conversation, for editing, deleting or reacting in it. */
+  async customerConversationId(auth: AuthenticatedUser): Promise<string> {
+    const context = await this.resolveContext(auth);
+    if (!context.customerId) throw new ForbiddenException('Solo para clientes');
+    const conversationId = await this.findCustomerConversationId(this.prisma, context);
+    if (!conversationId) throw new NotFoundException('Mensaje no encontrado');
+    return conversationId;
+  }
+
+  /**
+   * E4 — a message the actor may see right now: in a conversation they read (every one for
+   * MESSAGING_MANAGE, otherwise theirs from when they joined), not deleted.
+   */
+  private async visibleMessage(
+    context: BusinessContext,
+    conversationId: string,
+    messageId: string,
+    { mustParticipate = false }: { mustParticipate?: boolean } = {},
+  ) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId: context.businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+    let joinedAt: Date | undefined;
+    if (mustParticipate || !canReadAllConversations(context)) {
+      const participant = await this.assertActiveParticipant(this.prisma, conversationId, context);
+      if (!canReadAllConversations(context)) joinedAt = participant.joinedAt;
+    }
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        conversationId,
+        businessId: context.businessId,
+        deletedAt: null,
+        ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
+      },
+      include: { Attachment: { where: { deletedAt: null } } },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+    return message;
+  }
+
+  /**
+   * E4 — reacts to a message (or takes the reaction back with null): one per person and message,
+   * choosing another emoji replaces it. Team members and the customer alike, while they take
+   * part in the conversation; never on a system notice.
+   */
+  async reactToMessage(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    messageId: string,
+    emoji: string | null,
+  ) {
+    const context = await this.resolveContext(auth);
+    const message = await this.visibleMessage(context, conversationId, messageId, {
+      mustParticipate: true,
+    });
+    if (message.type === 'SYSTEM') {
+      throw new ForbiddenException('Los avisos automáticos no llevan reacciones');
+    }
+    const owner = context.userId
+      ? { userId: context.userId }
+      : { customerId: context.customerId as string };
+    if (emoji === null) {
+      await this.prisma.reaction.deleteMany({
+        where: { messageId, businessId: context.businessId, ...owner },
+      });
+    } else {
+      if (!isReactionEmoji(emoji)) throw new BadRequestException('Elegí un emoji');
+      await this.prisma.reaction.upsert({
+        where: context.userId
+          ? { messageId_userId: { messageId, userId: context.userId } }
+          : { messageId_customerId: { messageId, customerId: context.customerId as string } },
+        create: { messageId, businessId: context.businessId, emoji, ...owner },
+        update: { emoji, createdAt: new Date() },
+      });
+    }
+    return { id: messageId, conversationId };
+  }
+
+  /** E4 — ⭐ a message (or un-star it). Personal: only the team member sees their stars. */
+  async setStar(auth: AuthenticatedUser, conversationId: string, messageId: string, on: boolean) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo destaca mensajes');
+    const userId = context.userId;
+    if (!on) {
+      await this.prisma.messageStar.deleteMany({
+        where: { messageId, userId, businessId: context.businessId },
+      });
+      return { destacado: false };
+    }
+    await this.visibleMessage(context, conversationId, messageId);
+    await this.prisma.messageStar.upsert({
+      where: { messageId_userId: { messageId, userId } },
+      create: { messageId, userId, businessId: context.businessId },
+      update: {},
+    });
+    return { destacado: true };
+  }
+
+  /**
+   * E4 — the team member's starred messages, newest star first, from the conversations they
+   * still read (a star in a chat they left, or a deleted message, does not show).
+   */
+  async listStarred(auth: AuthenticatedUser) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo destaca mensajes');
+    const canReadAll = canReadAllConversations(context);
+    const stars = await this.prisma.messageStar.findMany({
+      where: {
+        businessId: context.businessId,
+        userId: context.userId,
+        Message: { deletedAt: null, Conversation: { deletedAt: null } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { Message: { include: { Attachment: { where: { deletedAt: null } } } } },
+    });
+    const joined = canReadAll ? null : await this.joinedAtByConversation(context);
+    return stars
+      .filter((star) => {
+        if (!joined) return true;
+        const at = joined.get(star.Message.conversationId);
+        return at !== undefined && star.Message.createdAt >= at;
+      })
+      .map((star) => ({ ...toMessageWire(star.Message), destacadoEl: star.createdAt }));
+  }
+
+  /** When the actor joined each conversation they still take part in. */
+  private async joinedAtByConversation(context: BusinessContext): Promise<Map<string, Date>> {
+    const rows = await this.prisma.conversationParticipant.findMany({
+      where: {
+        businessId: context.businessId,
+        leftAt: null,
+        removedAt: null,
+        ...(context.userId
+          ? { userId: context.userId }
+          : { customerId: context.customerId as string }),
+      },
+      select: { conversationId: true, joinedAt: true },
+    });
+    return new Map(rows.map((r) => [r.conversationId, r.joinedAt]));
+  }
+
+  /**
+   * E4 — searches the text of the messages the team member can read, newest first. A few
+   * letters at least; deleted messages and system notices are never found.
+   */
+  async searchMessages(auth: AuthenticatedUser, query: string) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo para el equipo');
+    const term = query.trim();
+    if (term.length < 2) return [];
+    const joined = canReadAllConversations(context)
+      ? null
+      : await this.joinedAtByConversation(context);
+    if (joined && joined.size === 0) return [];
+    const found = await this.prisma.message.findMany({
+      where: {
+        businessId: context.businessId,
+        deletedAt: null,
+        type: { in: ['TEXT', 'IMAGE', 'FILE'] },
+        content: { contains: term.slice(0, 100), mode: 'insensitive' },
+        Conversation: { deletedAt: null },
+        ...(joined ? { conversationId: { in: [...joined.keys()] } } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: SEARCH_MAX * 2,
+      select: {
+        id: true,
+        conversationId: true,
+        content: true,
+        createdAt: true,
+        authorUserId: true,
+        authorCustomerId: true,
+      },
+    });
+    return found
+      .filter((m) => !joined || m.createdAt >= (joined.get(m.conversationId) as Date))
+      .slice(0, SEARCH_MAX);
+  }
+
+  /**
+   * E4 — «Reenviar»: a copy of the message in up to five other chats of the Business the team
+   * member takes part in, marked «Reenviado». Text, photos and PDFs; never a system notice or a
+   * product or order card (those belong to their customer: share the product again instead).
+   * Idempotent by clientMessageId per chat.
+   */
+  async forwardMessage(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    messageId: string,
+    clientMessageId: string,
+    targets: string[],
+  ) {
+    const context = await this.resolveContext(auth);
+    if (!context.userId) throw new ForbiddenException('Solo el equipo reenvía mensajes');
+    const chats = [...new Set(targets)];
+    if (chats.length === 0) throw new BadRequestException('Elegí a qué chat reenviarlo');
+    if (chats.length > FORWARD_MAX_CHATS) {
+      throw new BadRequestException(`Podés reenviar a ${FORWARD_MAX_CHATS} chats a la vez`);
+    }
+    const source = await this.visibleMessage(context, conversationId, messageId);
+    const cards = source.Attachment.some(
+      (a) => a.mimeType === PRODUCT_CARD_MIME || a.mimeType === ORDER_CARD_MIME,
+    );
+    if (source.type === 'SYSTEM' || source.type === 'VOICE' || cards) {
+      throw new ForbiddenException('Este mensaje no se puede reenviar');
+    }
+    const sent = [];
+    for (const target of chats) {
+      const message = await this.createTextMessage(
+        auth,
+        target,
+        `${clientMessageId}:${target}`,
+        source.content ?? source.Attachment[0]?.filename ?? '',
+      );
+      if (!message.forwarded) {
+        await this.prisma.$transaction([
+          this.prisma.message.update({
+            where: { id: message.id },
+            data: { forwarded: true, type: source.type },
+          }),
+          ...source.Attachment.map((a) =>
+            this.prisma.attachment.create({
+              data: {
+                businessId: context.businessId,
+                messageId: message.id,
+                storageKey: a.storageKey,
+                filename: a.filename,
+                mimeType: a.mimeType,
+                sizeBytes: a.sizeBytes,
+              },
+            }),
+          ),
+        ]);
+      }
+      sent.push(
+        await this.prisma.message.findUniqueOrThrow({
+          where: { id: message.id },
+          include: { Attachment: true },
+        }),
+      );
+    }
+    return sent;
   }
 
   /** The store customer's conversation; without one, it is opened DIRECT with the Owner. */

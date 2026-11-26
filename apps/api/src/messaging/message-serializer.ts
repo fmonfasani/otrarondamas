@@ -44,6 +44,33 @@ export interface SerializableMessage {
   estado?: 'enviado' | 'entregado' | 'leido';
   /** Loaded with the message when the caller included it (`Attachment`). */
   Attachment?: SerializableAttachment[];
+  /** E4 — sent with «Reenviar». */
+  forwarded?: boolean;
+  /** E4 — computed by the service for the viewer. */
+  respuesta?: ReplyPreview;
+  reacciones?: ReactionGroup[];
+  destacado?: boolean;
+}
+
+/** E4 — the quoted message, as the line above a reply shows it. */
+export interface ReplyPreview {
+  id: string;
+  autorUserId: string | null;
+  autorCustomerId: string | null;
+  /** Written by whoever is looking. */
+  mia: boolean;
+  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido';
+  /** At most 160 characters; null when it was deleted. */
+  texto: string | null;
+  eliminado?: true;
+}
+
+/** E4 — the reactions with one emoji: how many, whether the viewer's is one, and whose. */
+export interface ReactionGroup {
+  emoji: string;
+  cantidad: number;
+  mia: boolean;
+  autores: Array<{ userId: string | null; customerId: string | null }>;
 }
 
 export interface SerializableAttachment {
@@ -116,6 +143,12 @@ export interface MessageWire {
   estado?: 'enviado' | 'entregado' | 'leido';
   /** OR-B4-053: posted by the system (see isNotice). */
   aviso?: boolean;
+  /** E4: «Se eliminó este mensaje» (content and attachments are gone). */
+  eliminado?: true;
+  reenviado?: true;
+  respuesta?: ReplyPreview;
+  reacciones?: ReactionGroup[];
+  destacado?: true;
 }
 
 function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
@@ -200,6 +233,16 @@ export function toMessageWire(message: SerializableMessage): MessageWire {
   if (message.Attachment !== undefined) {
     wire.adjuntos = message.Attachment.filter((a) => !a.deletedAt).map(toAttachmentWire);
   }
+  if (message.deletedAt) {
+    // E4: never what a deleted message said or showed, whatever the caller loaded.
+    wire.eliminado = true;
+    wire.content = null;
+    if (wire.adjuntos) wire.adjuntos = [];
+  }
+  if (message.forwarded) wire.reenviado = true;
+  if (message.respuesta) wire.respuesta = message.respuesta;
+  if (message.reacciones !== undefined) wire.reacciones = message.reacciones;
+  if (message.destacado) wire.destacado = true;
 
   return wire;
 }

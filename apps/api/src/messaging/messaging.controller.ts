@@ -22,7 +22,7 @@ import { MessagingGateway } from './messaging.gateway';
 import { AddParticipantDto } from './dto/add-participant.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { EditMessageDto } from './dto/message-operations.dto';
+import { EditMessageDto, ForwardMessageDto, ReactionDto } from './dto/message-operations.dto';
 import { ReadReceiptPreferenceDto } from './dto/read-receipt.dto';
 import {
   CreateConversationAssociationDto,
@@ -195,6 +195,21 @@ export class MessagingController {
   @Get('contacts')
   contacts(@CurrentUser() user: AuthenticatedUser) {
     return this.messagingService.listContacts(user);
+  }
+
+  /** E4 — the team member's ⭐ messages. */
+  @CanonicalPermission('MESSAGING_USE')
+  @Get('starred')
+  starred(@CurrentUser() user: AuthenticatedUser) {
+    return this.messagingService.listStarred(user);
+  }
+
+  /** E4 — finds messages by their text in the chats the team member reads. */
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.search)
+  @Get('search')
+  search(@CurrentUser() user: AuthenticatedUser, @Query('q') query?: string) {
+    return this.messagingService.searchMessages(user, query ?? '');
   }
 
   @CanonicalPermission('MESSAGING_USE')
@@ -447,6 +462,86 @@ export class MessagingController {
       }),
     );
     return serializeMessageSequence(message);
+  }
+
+  /** E4 — reacts to a message (another emoji replaces the previous one). */
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.react)
+  @Put(':id/messages/:messageId/reaction')
+  async react(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: ReactionDto,
+  ) {
+    const changed = await this.messagingService.reactToMessage(user, id, messageId, dto.emoji);
+    this.publishSafely('conversation.message.reaction', id, () =>
+      this.messagingGateway.publishMessageReaction(changed),
+    );
+    return changed;
+  }
+
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.react)
+  @Delete(':id/messages/:messageId/reaction')
+  async unreact(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    const changed = await this.messagingService.reactToMessage(user, id, messageId, null);
+    this.publishSafely('conversation.message.reaction', id, () =>
+      this.messagingGateway.publishMessageReaction(changed),
+    );
+    return changed;
+  }
+
+  /** E4 — ⭐ (personal: nobody else is told). */
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.react)
+  @Put(':id/messages/:messageId/star')
+  star(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagingService.setStar(user, id, messageId, true);
+  }
+
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.react)
+  @Delete(':id/messages/:messageId/star')
+  unstar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagingService.setStar(user, id, messageId, false);
+  }
+
+  /** E4 — «Reenviar» to up to five chats the team member takes part in. */
+  @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.send)
+  @Post(':id/messages/:messageId/forward')
+  async forward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: ForwardMessageDto,
+  ) {
+    const sent = await this.messagingService.forwardMessage(
+      user,
+      id,
+      messageId,
+      dto.clientMessageId,
+      dto.conversationIds,
+    );
+    for (const message of sent) {
+      this.publishSafely('conversation.message.created', message.conversationId, () =>
+        this.messagingGateway.publishMessageCreated(message),
+      );
+    }
+    return sent.map(serializeMessageSequence);
   }
 
   @CanonicalPermission('MESSAGING_USE')

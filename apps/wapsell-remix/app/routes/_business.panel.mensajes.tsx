@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, Bell, Camera, Eye, FileText, ImageIcon, MessageSquareText, Minus, Package, Plus, Search, SendHorizontal, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Copy, Eye, FileText, Forward, ImageIcon, MessageSquareText, Minus, Package, Pencil, Plus, Reply, Search, SendHorizontal, ShoppingBag, SquarePen, Star, StarOff, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
@@ -10,6 +10,8 @@ import {
   authorOf,
   bubbleRuns,
   canCreateOrder,
+  canStillDelete,
+  canStillEdit,
   canEditCustomerCart,
   CHAT_FILE_ACCEPT,
   CHAT_FILE_MAX_BYTES,
@@ -26,6 +28,7 @@ import {
   matchesSearch,
   messageTime,
   previewText,
+  shortText,
   sortByActivity,
   type Contact,
   type Conversation,
@@ -54,6 +57,28 @@ import {
   growTextarea,
   useTouchScreen,
 } from '~/components/chat/ChatParts';
+import {
+  ComposerContext,
+  DeletedText,
+  ForwardedTag,
+  MenuButton,
+  MessageMenu,
+  QuoteLine,
+  ReactionChips,
+  useJumpTo,
+  usePressToOpen,
+  type MessageAction,
+} from '~/components/chat/MessageActions';
+
+/** E4 — a message found by search, or one of the viewer's ⭐. */
+interface FoundMessage {
+  id: string;
+  conversationId: string;
+  content: string | null;
+  createdAt: string;
+  authorUserId: string | null;
+  authorCustomerId: string | null;
+}
 
 /** Paquete 1 F2 — messages per page, as the API sends them. */
 const MESSAGES_PAGE = 50;
@@ -81,11 +106,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const selectedId = url.searchParams.get('c');
   const composing = url.searchParams.get('nueva') === '1';
+  // E4: messages found by their text, and the viewer's ⭐.
+  const query = (url.searchParams.get('q') ?? '').trim();
+  const showStarred = url.searchParams.get('destacados') === '1';
 
-  const [conversations, me, quick] = await Promise.all([
+  const [conversations, me, quick, found, starred] = await Promise.all([
     settle(apiRequest<Conversation[]>(token, '/messaging/conversations')),
     getCurrentUser(token),
     settle(apiRequest<{ items: QuickReply[] }>(token, '/messaging/conversations/quick-replies')),
+    query.length >= 2
+      ? settle(apiRequest<FoundMessage[]>(token, `/messaging/conversations/search?q=${encodeURIComponent(query)}`))
+      : null,
+    showStarred ? settle(apiRequest<FoundMessage[]>(token, '/messaging/conversations/starred')) : null,
   ]);
 
   let selected: Conversation | null = null;
@@ -143,6 +175,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     customers: customers ?? [],
     canEditCart: canEditCustomerCart(String(me?.rol ?? '')),
     quickReplies: quick?.items ?? [],
+    found: found ?? [],
+    starred: showStarred ? (starred ?? []) : null,
+    jump: url.searchParams.get('m'),
   });
 }
 
@@ -159,10 +194,39 @@ export async function action({ request }: ActionFunctionArgs) {
       if (!conversationId || !content) return json<ActionData>({ ok: false, message: 'Escribe un mensaje.' }, { status: 400 });
       // Paquete 1 F3: the screen's key, so «Reintentar» after a lost answer never duplicates.
       const clientMessageId = String(form.get('clientMessageId') ?? '') || crypto.randomUUID();
+      // E4: answering one message quotes it above.
+      const replyToMessageId = String(form.get('replyToMessageId') ?? '');
       await apiRequest(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ clientMessageId, content }),
+        body: JSON.stringify({ clientMessageId, content, ...(replyToMessageId ? { replyToMessageId } : {}) }),
       });
+      return json<ActionData>({ ok: true });
+    }
+    // E4: one message — edit (15 min), delete for everyone (2 days), react, ⭐ and forward.
+    if (['edit', 'delete', 'react', 'star', 'forward'].includes(String(intent))) {
+      const conversationId = encodeURIComponent(String(form.get('conversationId') ?? ''));
+      const messageId = encodeURIComponent(String(form.get('messageId') ?? ''));
+      const path = `/messaging/conversations/${conversationId}/messages/${messageId}`;
+      if (intent === 'edit') {
+        const content = String(form.get('content') ?? '').trim();
+        if (!content) return json<ActionData>({ ok: false, message: 'Escribe un mensaje.' }, { status: 400 });
+        await apiRequest(token, path, { method: 'PATCH', body: JSON.stringify({ content }) });
+      } else if (intent === 'delete') {
+        await apiRequest(token, path, { method: 'DELETE' });
+      } else if (intent === 'react') {
+        const emoji = String(form.get('emoji') ?? '');
+        await apiRequest(token, `${path}/reaction`, emoji ? { method: 'PUT', body: JSON.stringify({ emoji }) } : { method: 'DELETE' });
+      } else if (intent === 'star') {
+        await apiRequest(token, `${path}/star`, { method: form.get('on') === '1' ? 'PUT' : 'DELETE' });
+      } else {
+        const conversationIds = form.getAll('to').map(String).filter(Boolean);
+        if (conversationIds.length === 0) return json<ActionData>({ ok: false, message: 'Elegí a qué chat reenviarlo.' }, { status: 400 });
+        await apiRequest(token, `${path}/forward`, {
+          method: 'POST',
+          body: JSON.stringify({ clientMessageId: String(form.get('clientMessageId') ?? '') || crypto.randomUUID(), conversationIds }),
+        });
+        return json<ActionData>({ ok: true, message: conversationIds.length === 1 ? 'Mensaje reenviado.' : `Reenviado a ${conversationIds.length} chats.` });
+      }
       return json<ActionData>({ ok: true });
     }
     if (intent === 'share-product') {
@@ -273,6 +337,15 @@ export default function MessagesPage() {
         <div className="ws-inbox__list-head">
           <h1 id="inbox-title">Bandeja de entrada</h1>
           <AlertsToggle />
+          <Link
+            className={`ws-icon-button${data.starred ? ' is-active' : ''}`}
+            to={hrefWith({ destacados: data.starred ? null : '1' })}
+            aria-label="Mensajes destacados"
+            aria-pressed={Boolean(data.starred)}
+            title="Mensajes destacados"
+          >
+            <Star size={18} aria-hidden="true" />
+          </Link>
           <Link className="ws-icon-button" to={hrefWith({ nueva: '1', c: null })} aria-label="Nueva conversación" title="Nueva conversación">
             <SquarePen size={18} aria-hidden="true" />
           </Link>
@@ -281,7 +354,7 @@ export default function MessagesPage() {
           {data.selectedId && <input type="hidden" name="c" value={data.selectedId} />}
           {filter !== 'todas' && <input type="hidden" name="f" value={filter} />}
           <Search size={16} aria-hidden="true" />
-          <input name="q" defaultValue={query} placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" />
+          <input name="q" defaultValue={query} placeholder="Buscar chats y mensajes" aria-label="Buscar chats y mensajes" />
         </Form>
         <div className="ws-inbox__filters">
           <Link className={`ws-chip ${filter === 'todas' ? 'ws-chip--secondary' : ''}`} to={hrefWith({ f: null })}>
@@ -294,7 +367,16 @@ export default function MessagesPage() {
             Equipo · {data.conversations.length - withCustomers}
           </Link>
         </div>
-        {visible.length === 0 ? (
+        {data.starred ? (
+          <FoundList
+            title="Destacados"
+            items={data.starred}
+            conversations={data.conversations}
+            hrefOf={(m) => hrefWith({ c: m.conversationId, m: m.id, nueva: null })}
+            empty="Destaca un mensaje con ⭐ desde su menú para tenerlo a mano acá."
+          />
+        ) : null}
+        {data.starred ? null : visible.length === 0 && data.found.length === 0 ? (
           <ChatEmpty title={data.conversations.length === 0 ? 'Todavía no hay conversaciones' : 'Nada coincide con la búsqueda'}>
             {data.conversations.length === 0 ? 'Cuando un cliente te escriba desde la tienda, aparece acá.' : null}
           </ChatEmpty>
@@ -341,6 +423,15 @@ export default function MessagesPage() {
             })}
           </ul>
         )}
+        {!data.starred && data.found.length > 0 ? (
+          <FoundList
+            title="Mensajes"
+            items={data.found}
+            conversations={data.conversations}
+            hrefOf={(m) => hrefWith({ c: m.conversationId, m: m.id, nueva: null })}
+            highlight={query}
+          />
+        ) : null}
       </section>
 
       <section className="ws-inbox__chat" aria-label="Conversación">
@@ -362,6 +453,8 @@ export default function MessagesPage() {
             customerName={data.customer?.nombre ?? null}
             typing={typing[data.selected.id] ?? null}
             presence={presence}
+            conversations={data.conversations}
+            jump={data.jump}
           />
         ) : data.selectedId ? (
           <div className="ws-inbox__placeholder">
@@ -392,6 +485,8 @@ function Thread({
   customerName,
   typing,
   presence,
+  conversations,
+  jump,
 }: Readonly<{
   conversation: Conversation;
   messages: Message[];
@@ -404,6 +499,8 @@ function Thread({
   customerName: string | null;
   typing: TypingSignal | null;
   presence: PresenceMap;
+  conversations: Conversation[];
+  jump: string | null;
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -450,13 +547,116 @@ function Thread({
     }
   };
 
+  // E4: what the viewer is doing with one message.
+  const act = useFetcher<ActionData>();
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editing, setEditing] = useState<Message | null>(null);
+  const [menuFor, setMenuFor] = useState<Message | null>(null);
+  const [forwarding, setForwarding] = useState<Message | null>(null);
+  const jumpTo = useJumpTo({
+    canLoadOlder: Boolean(canLoadOlder),
+    loading: olderPage.state !== 'idle',
+    loadOlder,
+    loadedCount: allMessages.length,
+  });
+  // A search result or a ⭐ opens the chat on that message.
   useEffect(() => {
-    if (sender.state === 'idle' && sender.data?.ok) formRef.current?.reset();
+    if (jump) jumpTo(jump);
+  }, [jump]);
+
+  useEffect(() => {
+    if (sender.state === 'idle' && sender.data?.ok) {
+      formRef.current?.reset();
+      setReplyTo(null);
+      setEditing(null);
+    }
   }, [sender.state, sender.data]);
 
-  const pending = sender.state !== 'idle' ? String(sender.formData?.get('content') ?? '').trim() : '';
+  const pending =
+    sender.state !== 'idle' && sender.formData?.get('intent') === 'send' ? String(sender.formData?.get('content') ?? '').trim() : '';
   const canSend = conversation.viewerAccess.canSend;
-  const visibleMessages = allMessages.filter((m) => !m.deletedAt);
+  // E4: a deleted message stays in place as «Se eliminó este mensaje».
+  const visibleMessages = allMessages;
+  const nameOf = (who: { userId?: string | null; customerId?: string | null; authorUserId?: string | null; authorCustomerId?: string | null }) => {
+    const author = authorOf(conversation, {
+      id: '',
+      content: null,
+      createdAt: '',
+      authorUserId: who.authorUserId ?? who.userId ?? null,
+      authorCustomerId: who.authorCustomerId ?? who.customerId ?? null,
+    });
+    if (author?.isViewer) return 'Vos';
+    return author?.name ?? 'Ex participante';
+  };
+  const react = (message: Message, emoji: string | null) =>
+    act.submit({ intent: 'react', conversationId: conversation.id, messageId: message.id, emoji: emoji ?? '' }, { method: 'post' });
+  const startEdit = (message: Message) => {
+    setReplyTo(null);
+    setEditing(message);
+    const box = formRef.current?.querySelector('textarea');
+    if (box) {
+      box.value = message.content ?? '';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      growTextarea(box);
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    }
+  };
+  const stopEdit = () => {
+    setEditing(null);
+    const box = formRef.current?.querySelector('textarea');
+    if (box) {
+      box.value = '';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      growTextarea(box, true);
+    }
+  };
+  const startReply = (message: Message) => {
+    if (editing) stopEdit();
+    setReplyTo(message);
+    formRef.current?.querySelector('textarea')?.focus();
+  };
+  const actionsOf = (message: Message): MessageAction[] => {
+    if (message.eliminado || message.deletedAt) return [];
+    const mine = Boolean(authorOf(conversation, message)?.isViewer);
+    const cardsOrOrder = (message.adjuntos ?? []).some((a) => a.tipo === 'producto' || a.tipo === 'pedido');
+    const list: MessageAction[] = [];
+    if (canSend) list.push({ key: 'reply', label: 'Responder', icon: <Reply size={18} aria-hidden="true" />, run: () => startReply(message) });
+    if (message.content) {
+      list.push({
+        key: 'copy',
+        label: 'Copiar',
+        icon: <Copy size={18} aria-hidden="true" />,
+        run: () => {
+          navigator.clipboard?.writeText(message.content ?? '').catch(() => {
+            // The browser did not let us copy.
+          });
+        },
+      });
+    }
+    if (!cardsOrOrder && message.type !== 'VOICE') {
+      list.push({ key: 'forward', label: 'Reenviar', icon: <Forward size={18} aria-hidden="true" />, run: () => setForwarding(message) });
+    }
+    list.push(
+      message.destacado
+        ? {
+            key: 'star',
+            label: 'Quitar destacado',
+            icon: <StarOff size={18} aria-hidden="true" />,
+            run: () => act.submit({ intent: 'star', conversationId: conversation.id, messageId: message.id, on: '0' }, { method: 'post' }),
+          }
+        : {
+            key: 'star',
+            label: 'Destacar',
+            icon: <Star size={18} aria-hidden="true" />,
+            run: () => act.submit({ intent: 'star', conversationId: conversation.id, messageId: message.id, on: '1' }, { method: 'post' }),
+          },
+    );
+    if (canSend && mine && message.type === 'TEXT' && !message.reenviado && canStillEdit(message.createdAt)) {
+      list.push({ key: 'edit', label: 'Editar', icon: <Pencil size={18} aria-hidden="true" />, run: () => startEdit(message) });
+    }
+    return list;
+  };
   // Paquete 2 A6: follow the newest while at the bottom; «↓ N nuevos» while reading above.
   const items = useMemo(
     () => visibleMessages.map((m) => ({ id: m.id, mine: Boolean(authorOf(conversation, m)?.isViewer) })),
@@ -511,7 +711,19 @@ function Thread({
               if (message.aviso) {
                 return <NoticeLine key={message.id} text={message.content ?? ''} time={messageTime(message.createdAt)} />;
               }
-              return <PanelBubble key={message.id} conversation={conversation} message={message} run={runs[index]} />;
+              return (
+                <PanelBubble
+                  key={message.id}
+                  conversation={conversation}
+                  message={message}
+                  run={runs[index]}
+                  quoteWho={message.respuesta ? nameOf({ userId: message.respuesta.autorUserId, customerId: message.respuesta.autorCustomerId }) : ''}
+                  nameOf={nameOf}
+                  onOpenMenu={() => setMenuFor(message)}
+                  onReact={canSend ? (emoji) => react(message, emoji) : null}
+                  onQuote={jumpTo}
+                />
+              );
             })}
           </div>
           );
@@ -533,8 +745,46 @@ function Thread({
         </p>
       )}
 
+      {act.state === 'idle' && act.data && !act.data.ok ? (
+        <p className="chat-error" role="alert">
+          {act.data.message}
+        </p>
+      ) : null}
+      {menuFor ? (
+        <MessageMenu
+          preview={menuFor.eliminado ? '' : shortText(menuFor.content) || 'Foto o archivo'}
+          myReaction={menuFor.reacciones?.find((r) => r.mia)?.emoji ?? null}
+          onReact={canSend && !menuFor.eliminado ? (emoji) => react(menuFor, emoji) : null}
+          actions={actionsOf(menuFor)}
+          confirmDelete={
+            canSend && !menuFor.eliminado && authorOf(conversation, menuFor)?.isViewer && canStillDelete(menuFor.createdAt)
+              ? () => act.submit({ intent: 'delete', conversationId: conversation.id, messageId: menuFor.id }, { method: 'post' })
+              : null
+          }
+          onClose={() => setMenuFor(null)}
+        />
+      ) : null}
+      {forwarding ? (
+        <ForwardDialog from={conversation.id} message={forwarding} conversations={conversations} onClose={() => setForwarding(null)} />
+      ) : null}
+      {canSend && replyTo ? (
+        <ComposerContext
+          kind="reply"
+          who={nameOf(replyTo)}
+          text={shortText(replyTo.content) || 'Foto o archivo'}
+          onClose={() => setReplyTo(null)}
+        />
+      ) : null}
+      {canSend && editing ? <ComposerContext kind="edit" who="" text={shortText(editing.content)} onClose={stopEdit} /> : null}
+
       {canSend ? (
         <Composer
+          replyToId={replyTo?.id ?? null}
+          editingId={editing?.id ?? null}
+          onEscape={() => {
+            if (editing) stopEdit();
+            setReplyTo(null);
+          }}
           conversation={conversation}
           sender={sender}
           formRef={formRef}
@@ -579,25 +829,73 @@ function PanelBubble({
   conversation,
   message,
   run,
-}: Readonly<{ conversation: Conversation; message: Message; run: { cont: boolean; tail: boolean } }>) {
+  quoteWho,
+  nameOf,
+  onOpenMenu,
+  onReact,
+  onQuote,
+}: Readonly<{
+  conversation: Conversation;
+  message: Message;
+  run: { cont: boolean; tail: boolean };
+  quoteWho: string;
+  nameOf: (who: { userId: string | null; customerId: string | null }) => string;
+  onOpenMenu: () => void;
+  onReact: ((emoji: string | null) => void) | null;
+  onQuote: (messageId: string) => void;
+}>) {
   const own = isOwnSide(conversation, message);
   const author = authorOf(conversation, message);
   const showAuthor = !author?.isViewer && (conversation.type === 'GROUP' || own);
-  const cards = productCards(message);
-  const files = fileAttachments(message);
+  const deleted = Boolean(message.eliminado || message.deletedAt);
+  const cards = deleted ? [] : productCards(message);
+  const files = deleted ? [] : fileAttachments(message);
   let text: string | null = message.content ?? '';
-  if (cards.length > 0 || files.some((f) => f.nombre === message.content)) text = null;
+  if (deleted || cards.length > 0 || files.some((f) => f.nombre === message.content)) text = null;
   else if (files.length > 0 && !message.content) text = null;
+  const press = usePressToOpen(onOpenMenu);
   const meta = (
     <BubbleMeta
       time={messageTime(message.createdAt)}
       dateTime={message.createdAt}
-      edited={Boolean(message.editedAt)}
-      estado={own && author?.isViewer ? (message.estado ?? null) : null}
+      edited={Boolean(message.editedAt) && !deleted}
+      starred={Boolean(message.destacado) && !deleted}
+      estado={own && author?.isViewer && !deleted ? (message.estado ?? null) : null}
     />
   );
+  const quote = message.respuesta && !deleted ? message.respuesta : null;
+  const top =
+    message.reenviado || quote ? (
+      <>
+        {message.reenviado ? <ForwardedTag /> : null}
+        {quote ? <QuoteLine who={quoteWho} quote={quote} mine={quote.mia} onOpen={() => onQuote(quote.id)} /> : null}
+      </>
+    ) : null;
   return (
-    <Bubble mine={own} run={run} author={showAuthor ? (author?.name ?? 'Ex participante') : null} text={text} meta={meta}>
+    <Bubble
+      id={message.id}
+      mine={own}
+      run={run}
+      author={showAuthor ? (author?.name ?? 'Ex participante') : null}
+      text={text}
+      meta={meta}
+      deleted={deleted}
+      top={top}
+      press={press}
+      menu={<MenuButton onClick={onOpenMenu} />}
+      reactions={
+        message.reacciones?.length && !deleted ? (
+          <ReactionChips
+            reactions={message.reacciones}
+            onPick={onReact}
+            titleOf={(chip) =>
+              (message.reacciones?.find((r) => r.emoji === chip.emoji)?.autores ?? []).map((who) => nameOf(who)).join(', ')
+            }
+          />
+        ) : null
+      }
+    >
+      {deleted ? <DeletedText mine={Boolean(author?.isViewer)} /> : null}
       {cards.map((card) => (
         <span key={card.id} className="chat-product">
           <span className="chat-product__name">
@@ -665,6 +963,9 @@ type ComposerPanel = 'productos' | 'carrito' | 'respuestas' | null;
  * just above it.
  */
 function Composer({
+  replyToId,
+  editingId,
+  onEscape,
   conversation,
   sender,
   formRef,
@@ -682,6 +983,10 @@ function Composer({
   quickReplies: QuickReply[];
   customerName: string | null;
   lang: string;
+  /** E4: the message being answered (quoted above) or edited. */
+  replyToId: string | null;
+  editingId: string | null;
+  onEscape: () => void;
 }>) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<ComposerPanel>(null);
@@ -790,9 +1095,11 @@ function Composer({
       </upload.Form>
 
       <sender.Form method="post" className="chat-composer" ref={formRef}>
-        <input type="hidden" name="intent" value="send" />
+        <input type="hidden" name="intent" value={editingId ? 'edit' : 'send'} />
         <input type="hidden" name="conversationId" value={conversation.id} />
         <input type="hidden" name="clientMessageId" value={clientMessageId} />
+        {editingId ? <input type="hidden" name="messageId" value={editingId} /> : null}
+        {replyToId && !editingId ? <input type="hidden" name="replyToMessageId" value={replyToId} /> : null}
         <div className="chat-plus">
           <button
             type="button"
@@ -852,6 +1159,10 @@ function Composer({
             notifyTyping();
           }}
           onKeyDown={(event) => {
+            if (event.key === 'Escape' && (replyToId || editingId)) {
+              onEscape();
+              return;
+            }
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
               event.currentTarget.form?.requestSubmit();
@@ -1102,6 +1413,150 @@ function NewConversation({ base, contacts, customers }: { base: string; contacts
         )}
         <button className="ws-button ws-button--primary" disabled={navigation.state !== 'idle'}>Crear conversación</button>
       </Form>
+    </div>
+  );
+}
+
+/**
+ * E4 — messages found by search, or the viewer's ⭐: the chat, the text and when. A click opens
+ * the chat on that message.
+ */
+function FoundList({
+  title,
+  items,
+  conversations,
+  hrefOf,
+  highlight,
+  empty,
+}: Readonly<{
+  title: string;
+  items: FoundMessage[];
+  conversations: Conversation[];
+  hrefOf: (m: FoundMessage) => string;
+  highlight?: string;
+  empty?: string;
+}>) {
+  const byId = new Map(conversations.map((c) => [c.id, c]));
+  return (
+    <section className="ws-found" aria-label={title}>
+      <h2 className="ws-found__title">{title}</h2>
+      {items.length === 0 ? (
+        <p className="ws-found__empty">{empty ?? 'Sin resultados.'}</p>
+      ) : (
+        <ul className="ws-found__rows">
+          {items.map((m) => {
+            const conversation = byId.get(m.conversationId);
+            return (
+              <li key={m.id}>
+                <Link className="ws-found__row" to={hrefOf(m)}>
+                  <span className="ws-found__meta">
+                    <b>{conversation ? conversationTitle(conversation) : 'Conversación'}</b>
+                    <time dateTime={m.createdAt}>{inboxTime(m.createdAt)}</time>
+                  </span>
+                  <span className="ws-found__text">
+                    <Highlighted text={shortText(m.content, 140) || 'Foto o archivo'} term={highlight ?? ''} />
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** The searched words in bold inside a found message. */
+function Highlighted({ text, term }: Readonly<{ text: string; term: string }>) {
+  const q = term.trim();
+  if (q.length < 2) return <>{text}</>;
+  const at = text.toLocaleLowerCase('es').indexOf(q.toLocaleLowerCase('es'));
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark>{text.slice(at, at + q.length)}</mark>
+      {text.slice(at + q.length)}
+    </>
+  );
+}
+
+/** E4 — «Reenviar»: up to 5 chats of the Business where the viewer takes part. */
+function ForwardDialog({
+  from,
+  message,
+  conversations,
+  onClose,
+}: Readonly<{ from: string; message: Message; conversations: Conversation[]; onClose: () => void }>) {
+  const forward = useFetcher<ActionData>();
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [filter, setFilter] = useState('');
+  const [clientMessageId] = useState(newClientMessageId);
+  const targets = conversations.filter((c) => c.viewerAccess.canSend && matchesSearch(c, filter));
+  const done = forward.state === 'idle' && forward.data?.ok;
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [onClose]);
+  return (
+    <div className="chat-sheet" role="presentation" onClick={onClose}>
+      <div className="chat-sheet__panel chat-forward" role="dialog" aria-modal="true" aria-label="Reenviar mensaje" onClick={(e) => e.stopPropagation()}>
+        <div className="chat-forward__head">
+          <b>Reenviar a…</b>
+          <button type="button" className="ws-icon-button" aria-label="Cerrar" onClick={onClose}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+        <p className="chat-sheet__preview">{shortText(message.content) || 'Foto o archivo'}</p>
+        {done ? (
+          <div className="chat-forward__done">
+            <output>{forward.data?.message}</output>
+            <button type="button" className="chat-sheet__btn" onClick={onClose}>
+              Listo
+            </button>
+          </div>
+        ) : (
+          <forward.Form method="post" className="chat-forward__form">
+            <input type="hidden" name="intent" value="forward" />
+            <input type="hidden" name="conversationId" value={from} />
+            <input type="hidden" name="messageId" value={message.id} />
+            <input type="hidden" name="clientMessageId" value={clientMessageId} />
+            <label className="chat-forward__search">
+              <Search size={15} aria-hidden="true" />
+              <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar chat" aria-label="Buscar chat" />
+            </label>
+            <ul className="chat-forward__list">
+              {targets.map((c) => {
+                const on = chosen.includes(c.id);
+                return (
+                  <li key={c.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="to"
+                        value={c.id}
+                        checked={on}
+                        disabled={!on && chosen.length >= 5}
+                        onChange={() => setChosen((list) => (on ? list.filter((id) => id !== c.id) : [...list, c.id]))}
+                      />
+                      <ChatAvatar name={conversationTitle(c)} tone={customerOf(c) ? 'customer' : 'neutral'} />
+                      <span>{conversationTitle(c)}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            {forward.data && !forward.data.ok ? <output className="chat-error">{forward.data.message}</output> : null}
+            <div className="chat-forward__foot">
+              <small>{chosen.length === 0 ? 'Elegí hasta 5 chats' : `${chosen.length} de 5`}</small>
+              <button type="submit" className="chat-round chat-send" aria-label="Reenviar" disabled={chosen.length === 0 || forward.state !== 'idle'}>
+                <SendHorizontal size={20} aria-hidden="true" />
+              </button>
+            </div>
+          </forward.Form>
+        )}
+      </div>
     </div>
   );
 }

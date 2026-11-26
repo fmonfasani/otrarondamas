@@ -470,6 +470,14 @@ export class MessagingGateway
     });
   }
 
+  /** E4 — a reaction changed: screens reload the message (ids only, never who). */
+  publishMessageReaction(message: { id: string; conversationId: string }): void {
+    this.publishToConversation('conversation.message.reaction', message.conversationId, {
+      id: message.id,
+      conversationId: message.conversationId,
+    });
+  }
+
   publishMessageRead(receipt: {
     messageId: string;
     conversationId: string;

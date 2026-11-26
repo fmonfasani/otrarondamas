@@ -8,7 +8,9 @@ import {
   HttpCode,
   Logger,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   Res,
   UploadedFile,
@@ -29,7 +31,8 @@ import {
   CUSTOMER_POLICY,
 } from '../authorization/canonical-permission.decorator';
 import { BusinessContextService } from '../business-context/business-context.service';
-import { CustomerMessageDto } from './dto/customer-message.dto';
+import { CustomerEditMessageDto, CustomerMessageDto } from './dto/customer-message.dto';
+import { ReactionDto } from './dto/message-operations.dto';
 import { MessagingGateway } from './messaging.gateway';
 import { MessagingService } from './messaging.service';
 import { MessagingAlertsService } from './messaging-alerts.service';
@@ -187,6 +190,7 @@ export class CustomerChatController {
       user,
       dto.clientMessageId,
       dto.content,
+      dto.replyToMessageId,
     );
     // Realtime is best-effort: the message is committed; HTTP stays the recovery path.
     try {
@@ -210,6 +214,113 @@ export class CustomerChatController {
         mine: true,
       },
     };
+  }
+
+  /** E4 — the customer edits a message they wrote (text only, for 15 minutes). */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.send)
+  @Patch('mensajes/:messageId')
+  async edit(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: CustomerEditMessageDto,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    const conversationId = await this.messagingService.customerConversationId(user);
+    const message = await this.messagingService.editMessage(
+      user,
+      conversationId,
+      messageId,
+      dto.content,
+    );
+    this.publishQuietly(() =>
+      this.messagingGateway.publishMessageUpdated({
+        id: message.id,
+        conversationId: message.conversationId,
+        content: message.content,
+        editedAt: message.editedAt,
+      }),
+    );
+    return { id: message.id, content: message.content, editado: true };
+  }
+
+  /** E4 — «Eliminar para todos» (their own message, for 2 days). */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.send)
+  @Delete('mensajes/:messageId')
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('messageId') messageId: string,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    const conversationId = await this.messagingService.customerConversationId(user);
+    const message = await this.messagingService.deleteMessage(user, conversationId, messageId);
+    this.publishQuietly(() =>
+      this.messagingGateway.publishMessageDeleted({
+        id: message.id,
+        conversationId: message.conversationId,
+        deletedAt: message.deletedAt,
+      }),
+    );
+    return { id: message.id, eliminado: true };
+  }
+
+  /** E4 — reacts to a message of the chat (another emoji replaces the previous one). */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.react)
+  @Put('mensajes/:messageId/reaccion')
+  async react(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: ReactionDto,
+  ) {
+    return this.reaction(user, businessSlug, messageId, dto.emoji);
+  }
+
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.react)
+  @Delete('mensajes/:messageId/reaccion')
+  async unreact(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.reaction(user, businessSlug, messageId, null);
+  }
+
+  private async reaction(
+    user: AuthenticatedUser,
+    businessSlug: string,
+    messageId: string,
+    emoji: string | null,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    const conversationId = await this.messagingService.customerConversationId(user);
+    const changed = await this.messagingService.reactToMessage(
+      user,
+      conversationId,
+      messageId,
+      emoji,
+    );
+    this.publishQuietly(() => this.messagingGateway.publishMessageReaction(changed));
+    return { id: changed.id };
+  }
+
+  /** Realtime is best-effort: the change is committed; HTTP stays the recovery path. */
+  private publishQuietly(publish: () => void) {
+    try {
+      publish();
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'messaging.realtime.publish_failed',
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
   }
 
   /**
