@@ -1,3 +1,4 @@
+import { LIMITS, RateLimit } from '../common/rate-limit/rate-limit';
 import {
   Body,
   Controller,
@@ -12,6 +13,7 @@ import {
   Res,
   UploadedFile,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -129,6 +131,7 @@ export class MessagingController {
 
   /** E3 — this browser accepted notifications: new messages reach it with Wapsell closed. */
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.push)
   @Post('push/subscriptions')
   @HttpCode(204)
   async subscribePush(
@@ -158,6 +161,7 @@ export class MessagingController {
   }
 
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.conversations)
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateConversationDto) {
     return this.messagingService.createConversation(user, dto);
@@ -247,6 +251,7 @@ export class MessagingController {
 
   /** OR-B4-037 — send a photo (JPG, PNG, WebP) or a PDF, up to 10 MB, field `archivo`. */
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.files)
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
   async sendAttachment(
@@ -270,6 +275,7 @@ export class MessagingController {
 
   /** OR-B4-037 — share a catalogue product as a card in the conversation. */
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.products)
   @Post(':id/products')
   shareProduct(
     @CurrentUser() user: AuthenticatedUser,
@@ -315,6 +321,7 @@ export class MessagingController {
   }
 
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.send)
   @Post(':id/messages')
   createMessage(
     @CurrentUser() user: AuthenticatedUser,
@@ -345,13 +352,23 @@ export class MessagingController {
 
   @CanonicalPermission('MESSAGING_USE')
   @Get(':id/messages')
-  async getMessages(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    const messages = await this.messagingService.getMessages(user, id);
+  async getMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query('antes') before?: string,
+    @Query('limite') limit?: string,
+  ) {
+    // Paquete 1 F2: the newest page; `antes` (a sequence) asks for older ones.
+    const messages = await this.messagingService.getMessages(user, id, {
+      before,
+      limit: limit ? Number(limit) : undefined,
+    });
     await this.deliveredTo(user, id);
     return messages.map(serializeMessageSequence);
   }
 
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.read)
   @Post(':id/messages/:messageId/read')
   async markMessageRead(
     @CurrentUser() user: AuthenticatedUser,
@@ -378,6 +395,7 @@ export class MessagingController {
 
   /** E1 — «escribiendo…»: tells the others in the conversation. Sent every few seconds. */
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.typing)
   @Post(':id/typing')
   @HttpCode(204)
   async typing(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
@@ -411,6 +429,7 @@ export class MessagingController {
   }
 
   @CanonicalPermission('MESSAGING_USE')
+  @RateLimit(LIMITS.send)
   @Patch(':id/messages/:messageId')
   async editMessage(
     @CurrentUser() user: AuthenticatedUser,

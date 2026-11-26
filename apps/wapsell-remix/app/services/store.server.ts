@@ -131,10 +131,14 @@ export type CustomerChat = {
   messages: ChatMessage[];
   /** E2b — someone of the store's team in this chat has a screen open. */
   tiendaEnLinea?: boolean;
+  /** Paquete 1 F2: a full page; older messages can be loaded. */
+  hayMas?: boolean;
 };
 
 /** The signed-in customer's conversation with the store (empty until they write). */
-export const fetchCustomerChat = (jwt: string, slug: string) => apiRequest<CustomerChat>(jwt, storePath(slug, '/chat'));
+/** Paquete 1 F2: the newest page, or the one before message `antes` (its id). */
+export const fetchCustomerChat = (jwt: string, slug: string, antes?: string | null) =>
+  apiRequest<CustomerChat>(jwt, storePath(slug, `/chat${antes ? `?antes=${encodeURIComponent(antes)}` : ''}`));
 
 export const sendCustomerMessage = (jwt: string, slug: string, clientMessageId: string, content: string) =>
   apiRequest<{ conversationId: string; message: ChatMessage }>(jwt, storePath(slug, '/chat/mensajes'), {

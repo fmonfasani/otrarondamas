@@ -157,7 +157,11 @@ export class MessagingGateway
   afterInit(namespace: Namespace): void {
     // E3: alerts skip whoever has a screen open; only this gateway knows that.
     this.alerts?.usePresence((businessId, actor) => this.isOnline(businessId, actor));
-    this.notices?.onPosted((conversationId) => this.publishInboxChanged(conversationId));
+    this.notices?.onPosted(({ conversationId, messageId }) => {
+      this.publishInboxChanged(conversationId);
+      // Paquete 1 F1: «Confirmamos tu pedido» reaches the customer with the store closed.
+      this.pushInBackground(messageId);
+    });
     namespace.use(async (socket, next) => {
       try {
         const token = this.extractToken(socket);
@@ -422,18 +426,21 @@ export class MessagingGateway
       message.conversationId,
       toMessageWire(message),
     );
-    // E3: push to the team members who are away. Best-effort, never back to the caller.
-    if (this.alerts) {
-      Promise.resolve()
-        .then(() => this.alerts?.pushNewMessage(message.id))
-        .catch((error: unknown) =>
-          this.logger.warn(
-            `push failed for message ${message.id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          ),
-        );
-    }
+    // E3: push to whoever of the conversation is away. Best-effort, never back to the caller.
+    this.pushInBackground(message.id);
+  }
+
+  private pushInBackground(messageId: string): void {
+    if (!this.alerts) return;
+    Promise.resolve()
+      .then(() => this.alerts?.pushNewMessage(messageId))
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `push failed for message ${messageId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      );
   }
 
   publishMessageUpdated(message: {

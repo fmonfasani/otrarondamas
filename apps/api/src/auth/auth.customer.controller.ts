@@ -1,3 +1,4 @@
+import { LIMITS, RateLimit } from '../common/rate-limit/rate-limit';
 import {
   BadRequestException,
   Body,
@@ -47,6 +48,7 @@ export class AuthCustomerController {
    * slug (never by a client-supplied id).
    */
   @Public()
+  @RateLimit(LIMITS.signUp)
   @Post('negocio/:businessSlug/registro')
   @HttpCode(HttpStatus.CREATED)
   async registerInStore(
@@ -59,6 +61,7 @@ export class AuthCustomerController {
 
   /** STORE-V1-03 — login in the store of one Business (accounts are per Business). */
   @Public()
+  @RateLimit(LIMITS.signIn)
   @Post('negocio/:businessSlug/login')
   @HttpCode(HttpStatus.OK)
   async loginInStore(@Param('businessSlug') businessSlug: string, @Body() dto: LoginDto) {

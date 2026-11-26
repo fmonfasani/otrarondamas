@@ -23,15 +23,14 @@ describe('message serializer — orders in the chat', () => {
     metadata,
   });
 
-  it('marks what the system posted for the Business as a notice, never what people type', () => {
-    expect(isNotice({ authorUserId: 'owner', clientMessageId: 'pedido-1-recibido' })).toBe(true);
-    expect(isNotice({ authorUserId: 'owner', clientMessageId: 'devolucion-1-APROBADA' })).toBe(
-      true,
+  it('marks what the system posted as a notice by its own type, never by its key (S3)', () => {
+    expect(isNotice({ type: 'SYSTEM' })).toBe(true);
+    expect(isNotice({ type: 'TEXT' })).toBe(false);
+    // A person's message with a notice-looking key stays a person's message.
+    expect(toMessageWire({ ...base, clientMessageId: 'pedido-1-CONFIRMADO' })).not.toHaveProperty(
+      'aviso',
     );
-    expect(isNotice({ authorUserId: 'owner', clientMessageId: 'b3f1-uuid' })).toBe(false);
-    expect(isNotice({ authorUserId: null, clientMessageId: 'pedido-1-recibido' })).toBe(false);
-    expect(toMessageWire({ ...base, clientMessageId: 'pedido-1-CONFIRMADO' }).aviso).toBe(true);
-    expect(toMessageWire(base)).not.toHaveProperty('aviso');
+    expect(toMessageWire({ ...base, type: 'SYSTEM' }).aviso).toBe(true);
   });
 
   it('sends the order card with what the service filled in', () => {

@@ -23,12 +23,12 @@ export type NoticeCard = { pedidoId: string; numero: number | null };
 export class CustomerNoticeService {
   private readonly logger = new Logger(CustomerNoticeService.name);
 
-  /** Set by the messaging gateway: tells the screens of the conversation that it changed. */
-  private posted?: (conversationId: string) => void;
+  /** Set by the messaging gateway: updates the open screens and alerts whoever is away. */
+  private posted?: (notice: { conversationId: string; messageId: string }) => void;
 
   constructor(private readonly prisma: PrismaService) {}
 
-  onPosted(listener: (conversationId: string) => void): void {
+  onPosted(listener: (notice: { conversationId: string; messageId: string }) => void): void {
     this.posted = listener;
   }
 
@@ -44,8 +44,8 @@ export class CustomerNoticeService {
     card?: NoticeCard,
   ) {
     try {
-      const conversationId = await this.post(companyId, customerId, key, text, card);
-      if (conversationId) this.posted?.(conversationId);
+      const notice = await this.post(companyId, customerId, key, text, card);
+      if (notice) this.posted?.(notice);
     } catch (error) {
       this.logger.warn(`No se pudo avisar al cliente (${key}): ${(error as Error).message}`);
     }
@@ -57,7 +57,7 @@ export class CustomerNoticeService {
     clientMessageId: string,
     text: string,
     card?: NoticeCard,
-  ): Promise<string | null> {
+  ): Promise<{ conversationId: string; messageId: string } | null> {
     return this.prisma.$transaction(
       async (tx) => {
         const conversationId =
@@ -85,7 +85,8 @@ export class CustomerNoticeService {
             authorUserId: author,
             sequence: (last?.sequence ?? BigInt(0)) + BigInt(1),
             clientMessageId,
-            type: 'TEXT',
+            // Paquete 1 S3: its own kind; the chat shows it as a notice, never as a person's.
+            type: 'SYSTEM',
             content: text,
           },
         });
@@ -106,7 +107,7 @@ export class CustomerNoticeService {
           where: { id: conversationId },
           data: { updatedAt: new Date() },
         });
-        return conversationId;
+        return { conversationId, messageId: message.id };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );

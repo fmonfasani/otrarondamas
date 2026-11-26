@@ -1,6 +1,6 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData } from '@remix-run/react';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
@@ -10,6 +10,8 @@ import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import { orderCardOf } from '~/utils/order-card';
 import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { playChime, titleWithCount } from '~/utils/alerts';
+import { keepSlidOut, useWhenBackOnline } from '~/hooks/useRetry';
+import { ensurePushSubscription, storePushSettings } from '~/utils/push';
 
 /**
  * Chat of the store customer with the Business — /tienda/:slug/chat (STORE-V1-04).
@@ -36,7 +38,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const customer = await getStoreCustomer(request, slug);
   if (!customer) throw redirect(`/tienda/${slug}/cuenta?volver=chat`);
   try {
-    const chat = await fetchCustomerChat(customer.jwt, slug);
+    const chat = await fetchCustomerChat(customer.jwt, slug, new URL(request.url).searchParams.get('antes'));
     return json({ store, customer: { nombre: customer.nombre }, chat, error: null as string | null });
   } catch (error) {
     if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
@@ -77,12 +79,44 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ ok: true, message: '', added: '' });
   } catch (error) {
     if (error instanceof ApiError) return json({ ok: false, message: error.message, added: '' }, { status: error.status });
-    throw error;
+    if (error instanceof Response) throw error;
+    // Paquete 1 F3: the API did not answer — keep the text for «Reintentar».
+    return json({ ok: false, message: 'No se pudo enviar. Revisá tu conexión y reintentá.', added: '' }, { status: 503 });
   }
 }
 
 export default function CustomerChat() {
-  const { store, customer, chat, error } = useLoaderData<typeof loader>();
+  const { store, customer, chat: newest, error } = useLoaderData<typeof loader>();
+  // Paquete 1 F2: older pages the customer asked for, above the newest page (which stays live).
+  const olderPage = useFetcher<typeof loader>();
+  const [older, setOlder] = useState<typeof newest.messages>([]);
+  const [olderMore, setOlderMore] = useState<boolean | null>(null);
+  useEffect(() => {
+    const page = olderPage.data?.chat;
+    if (olderPage.state !== 'idle' || !page) return;
+    setOlder((current) => {
+      const known = new Set(current.map((m) => m.id));
+      return [...page.messages.filter((m) => !known.has(m.id)), ...current];
+    });
+    setOlderMore(Boolean(page.hayMas));
+  }, [olderPage.state, olderPage.data]);
+  // A message that slides out of the newest page (a new one came in) stays with the older ones.
+  const previousNewest = useRef(newest.messages);
+  useEffect(() => {
+    const before = previousNewest.current;
+    previousNewest.current = newest.messages;
+    if (older.length === 0 || newest.messages.length === 0) return;
+    setOlder((current) => keepSlidOut(current, before, newest.messages));
+  }, [newest.messages, older.length]);
+  const chat = useMemo(() => {
+    const known = new Set(newest.messages.map((m) => m.id));
+    return { ...newest, messages: [...older.filter((m) => !known.has(m.id)), ...newest.messages] };
+  }, [newest, older]);
+  const canLoadOlder = (olderMore ?? newest.hayMas) === true;
+  const loadOlder = () => {
+    const oldest = chat.messages[0]?.id;
+    if (oldest && olderPage.state === 'idle') olderPage.load(`/tienda/${store.slug}/chat?antes=${encodeURIComponent(oldest)}`);
+  };
   const send = useFetcher<typeof action>();
   const cart = useFetcher<typeof action>();
   const upload = useFetcher<{ ok: boolean; message: string }>();
@@ -136,14 +170,18 @@ export default function CustomerChat() {
     }
   }, [send.state, send.data]);
 
+  // Follows the newest message (a page stays at 50, so its length would not change).
+  const newestId = newest.messages[newest.messages.length - 1]?.id;
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
-  }, [chat.messages.length, storeTyping]);
+  }, [newestId, storeTyping]);
 
   const submit = () => {
     if (!draft.trim() || sending) return;
     send.submit({ content: draft, clientMessageId }, { method: 'post' });
   };
+  // Paquete 1 F3: a message that did not go out goes by itself when the connection is back.
+  useWhenBackOnline(send.state === 'idle' && send.data?.ok === false && Boolean(draft.trim()), submit);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -161,10 +199,16 @@ export default function CustomerChat() {
           <span className="eyebrow">MENSAJES</span>
           <h1>Hablá con {store.nombre}</h1>
           {chat.tiendaEnLinea ? <span className="store-online">● En línea</span> : null}
+          <ReplyAlerts slug={store.slug} />
           <p>Consultá por productos, envíos o tu pedido. Te responden por acá.</p>
         </div>
         <div className="store-chat" aria-live="polite">
           {error ? <output className="form-error">{error}</output> : null}
+          {canLoadOlder ? (
+            <button type="button" className="chat-older" onClick={loadOlder} disabled={olderPage.state !== 'idle'}>
+              {olderPage.state !== 'idle' ? 'Cargando…' : 'Ver mensajes anteriores'}
+            </button>
+          ) : null}
           {!error && chat.messages.length === 0 ? (
             <p className="store-chat__empty">Todavía no hay mensajes. Escribí tu consulta y el comercio te va a responder acá.</p>
           ) : null}
@@ -297,7 +341,14 @@ export default function CustomerChat() {
             ↑
           </button>
         </send.Form>
-        {send.data && !send.data.ok ? <output className="form-error">{send.data.message}</output> : null}
+        {send.data && !send.data.ok && send.state === 'idle' ? (
+          <output className="form-error">
+            {send.data.message}{' '}
+            <button type="button" className="chat-retry" onClick={submit}>
+              Reintentar
+            </button>
+          </output>
+        ) : null}
         {cart.data && !cart.data.ok ? <output className="form-error">{cart.data.message}</output> : null}
         <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} hidden>
           <input
@@ -321,4 +372,36 @@ export default function CustomerChat() {
 
 function newMessageId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.round(performance.now() * 1000)}`;
+}
+
+/**
+ * Paquete 1 F1 — «Avisarme cuando me respondan»: with the customer's OK, the store's answers
+ * (and «Confirmamos tu pedido») reach this browser with the store closed. Once allowed, it
+ * re-subscribes by itself; it hides where the browser cannot do push.
+ */
+function ReplyAlerts({ slug }: Readonly<{ slug: string }>) {
+  const [state, setState] = useState<'unknown' | 'ask' | 'on' | 'blocked'>('unknown');
+  useEffect(() => {
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission === 'granted') {
+      ensurePushSubscription(storePushSettings(slug)).then((ok) => setState(ok ? 'on' : 'unknown'));
+    } else {
+      setState(Notification.permission === 'denied' ? 'blocked' : 'ask');
+    }
+  }, [slug]);
+  if (state === 'unknown' || state === 'blocked') return null;
+  if (state === 'on') return <span className="store-alerts" aria-live="polite">🔔 Te avisamos cuando te respondan</span>;
+  return (
+    <button
+      type="button"
+      className="store-alerts"
+      onClick={async () => {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return setState(permission === 'denied' ? 'blocked' : 'ask');
+        setState((await ensurePushSubscription(storePushSettings(slug))) ? 'on' : 'unknown');
+      }}
+    >
+      🔔 Avisarme cuando me respondan
+    </button>
+  );
 }

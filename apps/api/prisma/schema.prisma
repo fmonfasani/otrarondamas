@@ -244,6 +244,7 @@ model Cliente {
   Deuda                   Deuda[]
   DevolucionCliente       DevolucionCliente[]
   Legajo                  Legajo?
+  PushSubscription        PushSubscription[]
   Message                 Message[]
   MessageReadReceipt      MessageReadReceipt[]
   MessagingReadPreference MessagingReadPreference[]
@@ -1708,6 +1709,8 @@ enum MessagingMessageType {
   IMAGE
   FILE
   VOICE
+  /// Paquete 1 S3: posted by the system for the Business (order and return notices).
+  SYSTEM
 }
 
 enum NivelFidelidad {
@@ -2175,17 +2178,22 @@ model CompradorToken {
 /// E3 (messaging like WhatsApp) — a browser of a team member that accepted push notifications:
 /// new messages reach it with Wapsell closed. One row per browser (endpoint); keys are the
 /// browser's public ones (Web Push, RFC 8291), not secrets of Wapsell.
+/// E3 / paquete 1 F1 — a browser that accepted push: of a team member OR of a customer
+/// (CHECK «PushSubscription_one_owner»).
 model PushSubscription {
-  id         String     @id @default(uuid())
+  id         String      @id @default(uuid())
   businessId String
-  userId     String
+  userId     String?
+  customerId String?
   endpoint   String
   p256dh     String
   auth       String
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime    @default(now())
   lastUsedAt DateTime?
-  Membership Membership @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Membership Membership? @relation(fields: [userId, businessId], references: [userId, businessId], onDelete: Restrict, onUpdate: Restrict)
+  Cliente    Cliente?    @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([businessId, endpoint])
   @@index([businessId, userId])
+  @@index([businessId, customerId])
 }

@@ -243,7 +243,11 @@ describe('MessagingController — HTTP JSON contract', () => {
 
     expect(result.map((row) => row.sequence)).toEqual(['7', '8']);
     expect(() => JSON.stringify(result)).not.toThrow();
-    expect(service.getMessages).toHaveBeenCalledWith(user, 'conversation-a');
+    // Paquete 1 F2: the newest page unless the screen asks for older ones.
+    expect(service.getMessages).toHaveBeenCalledWith(user, 'conversation-a', {
+      before: undefined,
+      limit: undefined,
+    });
   });
 
   describe('Participant removal (M4-04 — membership revocation enforcement)', () => {
