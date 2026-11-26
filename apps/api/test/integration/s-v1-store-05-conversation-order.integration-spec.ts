@@ -112,6 +112,8 @@ describe('STORE-V1-05 — order from a conversation', () => {
     const scope = { where: { businessId: { in: businessIds } } };
     const empresaScope = { where: { empresaId: { in: businessIds } } };
     await prisma.messageReadReceipt.deleteMany(scope);
+    // OR-B4-053: the order notice carries the order card.
+    await prisma.attachment.deleteMany(scope);
     await prisma.message.deleteMany(scope);
     await prisma.conversationAssociation.deleteMany(scope);
     await prisma.conversationParticipant.deleteMany(scope);
@@ -178,8 +180,33 @@ describe('STORE-V1-05 — order from a conversation', () => {
     expect(cart.body.items).toEqual([]);
   });
 
-  it('a second order in the same conversation is a new order with the new cart', async () => {
+  it('a second cart while the order is still open goes into that same order (OR-B4-053)', async () => {
     await fillCart([{ productoId: productB.id, cantidad: 3 }]);
+    const res = await createOrder();
+    expect(res.status).toBe(201);
+    // Not confirmed yet: one open order per customer, like an ERP's open sales order.
+    expect(res.body.id).toBe(firstOrderId);
+    expect(res.body.sumado).toBe(true);
+    const order = await prisma.pedido.findUnique({
+      where: { id: firstOrderId },
+      include: { PedidoItem: true },
+    });
+    const quantities = Object.fromEntries(
+      (order?.PedidoItem ?? []).map((line) => [line.productoId, Number(line.cantidad)]),
+    );
+    expect(quantities).toEqual({ [productA.id]: 2, [productB.id]: 4 });
+    expect(await prisma.pedido.count({ where: { empresaId: company.id } })).toBe(1);
+    // The new cart was still taken (the C3 bug this guards: a later cart swallowed by the first).
+    const cart = await request(BASE)
+      .get(`/messaging/conversations/${conversationId}/cart`)
+      .set('Authorization', ownerAuth())
+      .expect(200);
+    expect(cart.body.items).toEqual([]);
+  });
+
+  it('once the order is confirmed, the next cart is a new order', async () => {
+    await prisma.pedido.update({ where: { id: firstOrderId }, data: { estado: 'CONFIRMADO' } });
+    await fillCart([{ productoId: productB.id, cantidad: 1 }]);
     const res = await createOrder();
     expect(res.status).toBe(201);
     expect(res.body.id).not.toBe(firstOrderId);
@@ -188,7 +215,6 @@ describe('STORE-V1-05 — order from a conversation', () => {
       include: { PedidoItem: true },
     });
     expect(order?.PedidoItem).toEqual([expect.objectContaining({ productoId: productB.id })]);
-    expect(Number(order?.PedidoItem[0].cantidad)).toBe(3);
     expect(await prisma.pedido.count({ where: { empresaId: company.id } })).toBe(2);
   });
 
@@ -234,6 +260,9 @@ describe('STORE-V1-05 — order from a conversation', () => {
       where: { id: res.body.id },
       include: { PedidoItem: true },
     });
-    expect(order?.PedidoItem).toEqual([expect.objectContaining({ productoId: productA.id })]);
+    // It went into the open order (OR-B4-053), next to what it already had.
+    expect(order?.PedidoItem).toEqual(
+      expect.arrayContaining([expect.objectContaining({ productoId: productA.id })]),
+    );
   });
 });

@@ -163,6 +163,30 @@ describe('P13-1 — productos y carrito en la conversación', () => {
     expect(thread.body.find((m: { id: string }) => m.id === res.body.id).adjuntos).toHaveLength(1);
   });
 
+  it('the card shows what the customer pays today when there is a discount (OR-B4-053)', async () => {
+    const { precioMinorista } = await prisma.producto.findUniqueOrThrow({
+      where: { id: product.id },
+    });
+    await prisma.producto.update({ where: { id: product.id }, data: { descuentoPorcentaje: 20 } });
+    try {
+      const res = await share(staff.vendedor.auth, product.id, 'p-descuento').expect(201);
+      const final = (Number(precioMinorista) * 0.8).toFixed(2);
+      expect(res.body.adjuntos[0]).toMatchObject({
+        tipo: 'producto',
+        precio: String(precioMinorista),
+        precioFinal: final,
+      });
+      expect(res.body.content).toContain(
+        Number(final).toLocaleString('es-AR', { minimumFractionDigits: 2 }),
+      );
+    } finally {
+      await prisma.producto.update({
+        where: { id: product.id },
+        data: { descuentoPorcentaje: null },
+      });
+    }
+  });
+
   it('never shares another Business’s product', async () => {
     await share(staff.owner.auth, foreignProduct.id, 'p-2').expect(404);
   });

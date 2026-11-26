@@ -329,7 +329,7 @@ export class MercadoPagoCheckoutService {
     if (data.estado === 'APROBADO' && !wasApproved && this.orderNotices) {
       const order = await this.prisma.pedido.findFirst({
         where: { id: orderId, empresaId: businessId },
-        select: { id: true, clienteId: true, total: true },
+        select: { id: true, clienteId: true, total: true, numero: true },
       });
       if (order) {
         await this.orderNotices.paid(

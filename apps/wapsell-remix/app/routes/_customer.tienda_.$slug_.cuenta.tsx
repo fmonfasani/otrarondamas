@@ -269,7 +269,10 @@ function Orders({
           return (
             <li key={order.id} className="account-order">
               <div className="account-order__head">
-                <strong>{formatDateTime(order.createdAt)}</strong>
+                <strong>
+                  {order.numero ? `Pedido N° ${order.numero} · ` : ''}
+                  {formatDateTime(order.createdAt)}
+                </strong>
                 <span className={`account-chip account-chip--${state.tone}`}>{state.label}</span>
               </div>
               <p>{order.items.map((item) => `${item.cantidad} × ${item.producto}`).join(' · ')}</p>

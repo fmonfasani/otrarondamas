@@ -99,8 +99,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
     if (intent === 'order') {
       if (!items.length) return json({ intent, ok: false, message: 'Agregá al menos un producto.' }, { status: 400 });
-      await placeCustomerOrder(customer.jwt, slug, items);
-      return json({ intent, ok: true, message: '¡Pedido recibido! El comercio se va a comunicar para confirmar los detalles.' });
+      const placed = await placeCustomerOrder(customer.jwt, slug, items);
+      const name = placed.numero ? `tu pedido N° ${placed.numero}` : 'tu pedido';
+      // OR-B4-053: while the store has not confirmed it, what the customer orders again joins it.
+      const message = placed.sumado
+        ? `¡Listo! Lo sumamos a ${name}, que el comercio todavía no confirmó.`
+        : `¡Recibimos ${name}! El comercio se va a comunicar para confirmar los detalles.`;
+      return json({ intent, ok: true, message });
     }
   } catch (error) {
     if (error instanceof ApiError) return json({ intent, ok: false, message: error.message }, { status: error.status });

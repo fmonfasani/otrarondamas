@@ -58,9 +58,40 @@ export interface SerializableAttachment {
 /** A product shared in the chat (OR-B4-037): an Attachment with this media type. */
 export const PRODUCT_CARD_MIME = 'application/vnd.wapsell.product+json';
 
+/** OR-B4-053 — the order card in the customer's chat: one per order, it follows its state. */
+export const ORDER_CARD_MIME = 'application/vnd.wapsell.order+json';
+
+/** The order as its card shows it; the service fills it live from the order when it reads. */
+export type OrderCardWire = {
+  tipo: 'pedido';
+  id: string;
+  pedidoId: string;
+  numero: number | null;
+  estado: string | null;
+  total: string | null;
+  items: Array<{ producto: string; cantidad: number }>;
+};
+
 export type AttachmentWire =
-  | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string }
-  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number };
+  | {
+      tipo: 'producto';
+      id: string;
+      productoId: string;
+      nombre: string;
+      precio: string;
+      /** OR-B4-053: what the customer pays today, when it is less than the list price. */
+      precioFinal?: string;
+    }
+  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number }
+  | OrderCardWire;
+
+/**
+ * OR-B4-053 — a notice the system posted for the Business (order and return updates), not
+ * something a person typed: the chat shows it as a short centred line, without ticks.
+ */
+export function isNotice(message: { authorUserId: string | null; clientMessageId: string }) {
+  return message.authorUserId !== null && /^(pedido|devolucion)-/.test(message.clientMessageId);
+}
 
 /** The wire shape. Explicit allowlist: a new Prisma column does not reach the
  *  API until it is added here deliberately. */
@@ -82,17 +113,39 @@ export interface MessageWire {
   reactions?: unknown[];
   adjuntos?: AttachmentWire[];
   estado?: 'enviado' | 'entregado' | 'leido';
+  /** OR-B4-053: posted by the system (see isNotice). */
+  aviso?: boolean;
 }
 
 function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
   if (a.mimeType === PRODUCT_CARD_MIME) {
-    const meta = (a.metadata ?? {}) as { productoId?: string; nombre?: string; precio?: string };
+    const meta = (a.metadata ?? {}) as {
+      productoId?: string;
+      nombre?: string;
+      precio?: string;
+      precioFinal?: string;
+    };
     return {
       tipo: 'producto',
       id: a.id,
       productoId: String(meta.productoId ?? ''),
       nombre: String(meta.nombre ?? a.filename),
       precio: String(meta.precio ?? '0'),
+      ...(meta.precioFinal && meta.precioFinal !== meta.precio
+        ? { precioFinal: String(meta.precioFinal) }
+        : {}),
+    };
+  }
+  if (a.mimeType === ORDER_CARD_MIME) {
+    const meta = (a.metadata ?? {}) as Partial<Omit<OrderCardWire, 'tipo' | 'id'>>;
+    return {
+      tipo: 'pedido',
+      id: a.id,
+      pedidoId: String(meta.pedidoId ?? ''),
+      numero: typeof meta.numero === 'number' ? meta.numero : null,
+      estado: meta.estado ?? null,
+      total: meta.total ?? null,
+      items: Array.isArray(meta.items) ? meta.items : [],
     };
   }
   return {
@@ -139,6 +192,9 @@ export function toMessageWire(message: SerializableMessage): MessageWire {
   }
   if (message.estado !== undefined) {
     wire.estado = message.estado;
+  }
+  if (isNotice(message)) {
+    wire.aviso = true;
   }
   if (message.Attachment !== undefined) {
     wire.adjuntos = message.Attachment.filter((a) => !a.deletedAt).map(toAttachmentWire);

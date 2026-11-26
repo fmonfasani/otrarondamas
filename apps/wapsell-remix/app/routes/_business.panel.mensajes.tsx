@@ -39,6 +39,8 @@ import { useLiveSource, useLiveUpdates, useSharedLive, useTypingNotifier } from 
 import { badgeText } from '~/utils/alerts';
 import { ensurePushSubscription } from '~/utils/push';
 import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingSignal } from '~/utils/live';
+import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
+import { orderCardOf } from '~/utils/order-card';
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
 
@@ -415,6 +417,14 @@ function Thread({
           <div key={group.key} className="ws-thread__day-group">
             <span className="ws-thread__day">{group.label}</span>
             {group.items.map((message) => {
+              // OR-B4-053: the order as one live card; the system's other notices as short lines.
+              const orderCard = message.aviso ? orderCardOf(message) : null;
+              if (orderCard) {
+                return <OrderCard key={message.id} card={orderCard} time={messageTime(message.createdAt)} href={`/panel/pedidos/${orderCard.pedidoId}`} />;
+              }
+              if (message.aviso) {
+                return <NoticeLine key={message.id} text={message.content ?? ''} time={messageTime(message.createdAt)} />;
+              }
               const own = isOwnSide(conversation, message);
               const author = authorOf(conversation, message);
               const showAuthor = !author?.isViewer && (conversation.type === 'GROUP' || own);
@@ -427,7 +437,13 @@ function Thread({
                         <Package size={18} aria-hidden="true" />
                         <span>
                           <b>{card.nombre}</b>
-                          <small>{formatMoney(card.precio)}</small>
+                          {card.precioFinal ? (
+                            <small>
+                              <s>{formatMoney(card.precio)}</s> {formatMoney(card.precioFinal)}
+                            </small>
+                          ) : (
+                            <small>{formatMoney(card.precio)}</small>
+                          )}
                         </span>
                       </span>
                     ))

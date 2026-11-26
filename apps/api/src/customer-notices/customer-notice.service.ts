@@ -6,6 +6,10 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ORDER_CARD_MIME } from '../messaging/message-serializer';
+
+/** OR-B4-053 — the order a notice shows as a card in the chat (the card reads it live). */
+export type NoticeCard = { pedidoId: string; numero: number | null };
 
 /**
  * A notice from the Business in the customer's conversation (the one the store chat shows):
@@ -19,15 +23,29 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CustomerNoticeService {
   private readonly logger = new Logger(CustomerNoticeService.name);
 
+  /** Set by the messaging gateway: tells the screens of the conversation that it changed. */
+  private posted?: (conversationId: string) => void;
+
   constructor(private readonly prisma: PrismaService) {}
+
+  onPosted(listener: (conversationId: string) => void): void {
+    this.posted = listener;
+  }
 
   /**
    * Posts `text` in the customer's conversation. `key` makes it idempotent (one message per
    * key); best effort: a failure is logged and never undoes what triggered it.
    */
-  async notify(companyId: string, customerId: string, key: string, text: string) {
+  async notify(
+    companyId: string,
+    customerId: string,
+    key: string,
+    text: string,
+    card?: NoticeCard,
+  ) {
     try {
-      await this.post(companyId, customerId, key, text);
+      const conversationId = await this.post(companyId, customerId, key, text, card);
+      if (conversationId) this.posted?.(conversationId);
     } catch (error) {
       this.logger.warn(`No se pudo avisar al cliente (${key}): ${(error as Error).message}`);
     }
@@ -38,28 +56,29 @@ export class CustomerNoticeService {
     customerId: string,
     clientMessageId: string,
     text: string,
-  ) {
-    await this.prisma.$transaction(
+    card?: NoticeCard,
+  ): Promise<string | null> {
+    return this.prisma.$transaction(
       async (tx) => {
         const conversationId =
           (await this.findConversation(tx, businessId, customerId)) ??
           (await this.openConversation(tx, businessId, customerId));
-        if (!conversationId) return;
+        if (!conversationId) return null;
 
         const exists = await tx.message.findFirst({
           where: { conversationId, businessId, clientMessageId, authorCustomerId: null },
           select: { id: true },
         });
-        if (exists) return;
+        if (exists) return null;
 
         const author = await this.author(tx, businessId, conversationId);
-        if (!author) return;
+        if (!author) return null;
         const last = await tx.message.findFirst({
           where: { conversationId, businessId },
           orderBy: { sequence: 'desc' },
           select: { sequence: true },
         });
-        await tx.message.create({
+        const message = await tx.message.create({
           data: {
             conversationId,
             businessId,
@@ -70,10 +89,24 @@ export class CustomerNoticeService {
             content: text,
           },
         });
+        if (card) {
+          await tx.attachment.create({
+            data: {
+              businessId,
+              messageId: message.id,
+              storageKey: `pedido:${card.pedidoId}`,
+              filename: card.numero ? `Pedido N° ${card.numero}` : 'Pedido',
+              mimeType: ORDER_CARD_MIME,
+              sizeBytes: BigInt(0),
+              metadata: { pedidoId: card.pedidoId, numero: card.numero },
+            },
+          });
+        }
         await tx.conversation.update({
           where: { id: conversationId },
           data: { updatedAt: new Date() },
         });
+        return conversationId;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );

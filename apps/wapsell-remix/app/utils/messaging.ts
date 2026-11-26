@@ -3,6 +3,8 @@
  * Mensajes screen uses to present them. No I/O here, so it is unit-tested directly.
  */
 
+import type { OrderCardData } from './order-card';
+
 export interface Participant {
   id: string;
   userId: string | null;
@@ -40,8 +42,9 @@ export interface Conversation {
 
 /** OR-B4-037 — what a message carries besides its text: a product card, or a photo or file. */
 export type Attachment =
-  | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string }
-  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number };
+  | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string; precioFinal?: string }
+  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number }
+  | OrderCardData;
 
 export type ProductCard = Extract<Attachment, { tipo: 'producto' }>;
 
@@ -51,7 +54,9 @@ export const productCards = (m: { adjuntos?: Attachment[] }) =>
 
 /** OR-B4-037 — the photos and files of a message (not product cards). */
 export const fileAttachments = (m: { adjuntos?: Attachment[] }) =>
-  (m.adjuntos ?? []).filter((a): a is Exclude<Attachment, ProductCard> => a.tipo !== 'producto');
+  (m.adjuntos ?? []).filter(
+    (a): a is Extract<Attachment, { tipo: 'imagen' | 'archivo' }> => a.tipo === 'imagen' || a.tipo === 'archivo',
+  );
 
 /** "1,2 MB" / "350 KB". */
 export function fileSize(bytes: number) {
@@ -106,6 +111,8 @@ export interface Message extends MessagePreview {
   readAt: string | null;
   /** E2 — ticks of one's own message: ✓ saved, ✓✓ reached the others, blue ✓✓ read. */
   estado?: MessageTick;
+  /** OR-B4-053: posted by the system (an order or return moved), not typed by someone. */
+  aviso?: boolean;
 }
 
 export type MessageTick = 'enviado' | 'entregado' | 'leido';

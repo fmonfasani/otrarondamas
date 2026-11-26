@@ -99,15 +99,27 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     await prisma.$disconnect();
   });
 
-  it('tells the customer each order arrived, in their chat with the Business', async () => {
+  it('the order enters the chat as one card with its number; ordering again while open adds to it', async () => {
     const first = await order();
-    const second = await order();
+    // OR-B4-053: not confirmed yet, so this goes into the same order (one open order).
+    const again = await order();
+    expect(again).toBe(first);
+    const placed = await prisma.pedido.findUniqueOrThrow({
+      where: { id: first },
+      include: { PedidoItem: true },
+    });
+    expect(placed.numero).toBe(1);
+    expect(placed.PedidoItem).toHaveLength(1);
+    expect(Number(placed.PedidoItem[0].cantidad)).toBe(2);
+
     const received = await notices();
     expect(received.map((m) => m.clientMessageId)).toEqual([
       `pedido-${first}-recibido`,
-      `pedido-${second}-recibido`,
+      expect.stringMatching(new RegExp(`^pedido-${first}-suma-`)),
     ]);
-    expect(received[0].content).toContain('Recibimos tu pedido');
+    expect(received[0].content).toContain('Recibimos tu pedido N° 1');
+    expect(received[1].content).toMatch(/^Sumamos 1 producto a tu pedido N° 1\. Total: \$ /);
+
     const chat = await request(BASE)
       .get(`/${company.slug}/tienda/chat`)
       .set('Authorization', customerAuth())
@@ -116,10 +128,23 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
       received.map((m) => m.content),
     );
     expect(chat.body.messages.every((m: { mine: boolean }) => !m.mine)).toBe(true);
+    // Both are system notices; the first carries the live order card.
+    expect(chat.body.messages.every((m: { aviso?: boolean }) => m.aviso === true)).toBe(true);
+    expect(chat.body.messages[0].adjuntos).toEqual([
+      {
+        tipo: 'pedido',
+        id: expect.any(String),
+        pedidoId: first,
+        numero: 1,
+        estado: 'RECIBIDO',
+        total: placed.total.toFixed(2),
+        items: [{ producto: expect.any(String), cantidad: 2 }],
+      },
+    ]);
   });
 
-  it('tells it when the order is confirmed, and when it is cancelled with the reason — once', async () => {
-    const [first, second] = (await notices()).map((m) =>
+  it('tells it when the order is confirmed (the card follows), and a later order is a new one — cancelled with the reason, once', async () => {
+    const [first] = (await notices()).map((m) =>
       m.clientMessageId.split('-').slice(1, -1).join('-'),
     );
     await request(BASE)
@@ -127,6 +152,10 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
       .set('Authorization', owner.auth)
       .send({ estado: 'CONFIRMADO' })
       .expect(200);
+    // Confirmed: ordering again opens a new order, with the next number.
+    const second = await order();
+    expect(second).not.toBe(first);
+    expect((await prisma.pedido.findUniqueOrThrow({ where: { id: second } })).numero).toBe(2);
     await request(BASE)
       .post(`/pedidos/${second}/cancel`)
       .set('Authorization', owner.auth)
@@ -141,11 +170,58 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     const all = await notices();
     const confirmed = all.find((m) => m.clientMessageId === `pedido-${first}-CONFIRMADO`);
     const cancelled = all.filter((m) => m.clientMessageId === `pedido-${second}-CANCELADO`);
-    expect(confirmed?.content).toMatch(/^Confirmamos tu pedido por \$ /);
+    expect(confirmed?.content).toMatch(/^Confirmamos tu pedido N° 1 por \$ /);
     // No online payments in this store: no pay link.
     expect(confirmed?.content).not.toContain('pagarlo online');
+    expect(all.some((m) => m.clientMessageId === `pedido-${second}-recibido`)).toBe(true);
     expect(cancelled).toHaveLength(1);
-    expect(cancelled[0].content).toBe('Cancelamos tu pedido. Motivo: Sin stock del sabor pedido');
+    expect(cancelled[0].content).toBe(
+      'Cancelamos tu pedido N° 2. Motivo: Sin stock del sabor pedido',
+    );
     expect(new Set(all.map((m) => m.conversationId)).size).toBe(1);
+
+    // The first card now shows the order confirmed.
+    const chat = await request(BASE)
+      .get(`/${company.slug}/tienda/chat`)
+      .set('Authorization', customerAuth())
+      .expect(200);
+    const cards = chat.body.messages.flatMap(
+      (m: { adjuntos: Array<{ tipo: string; numero: number; estado: string }> }) => m.adjuntos,
+    );
+    expect(cards.map((c: { numero: number; estado: string }) => [c.numero, c.estado])).toEqual([
+      [1, 'CONFIRMADO'],
+      [2, 'CANCELADO'],
+    ]);
+  });
+
+  it('numbers orders placed at the same moment without repeating (one sequence per business)', async () => {
+    const others = await Promise.all(
+      [1, 2, 3].map((n) =>
+        prisma.cliente.create({
+          data: {
+            empresaId: company.id,
+            nombre: `Cliente ${n}`,
+            email: `p13-2-otro-${n}-${suffix}@example.test`,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
+    const ids = await Promise.all(
+      others.map(
+        async (other) =>
+          (
+            await request(BASE)
+              .post(`/${company.slug}/tienda/mis-pedidos`)
+              .set('Authorization', `Bearer ${signCustomerToken(other.id, company.id)}`)
+              .send({ items: [{ productoId: product.id, cantidad: 1 }] })
+              .expect(201)
+          ).body.id as string,
+      ),
+    );
+    const numbers = (
+      await prisma.pedido.findMany({ where: { id: { in: ids } }, select: { numero: true } })
+    ).map((o) => o.numero);
+    expect([...numbers].sort()).toEqual([3, 4, 5]);
   });
 });

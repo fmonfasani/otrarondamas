@@ -12,6 +12,8 @@ interface OrderRow {
   total: string;
   createdAt: string;
   canalOrigen: string;
+  /** OR-B4-053: N° per business. */
+  numero?: number | null;
   Cliente?: { nombre: string; telefono?: string | null } | null;
   PedidoItem?: unknown[];
 }
@@ -84,7 +86,10 @@ export default function OrdersPage() {
               return (
                 <Link key={order.id} className="ws-list__row" to={`/panel/pedidos/${order.id}`}>
                   <span className="ws-list__main">
-                    <b>{order.Cliente?.nombre ?? 'Cliente'}</b>
+                    <b>
+                      {order.numero ? `N° ${order.numero} · ` : ''}
+                      {order.Cliente?.nombre ?? 'Cliente'}
+                    </b>
                     <span>
                       {formatDateTime(order.createdAt)} · {order.canalOrigen}
                       {order.PedidoItem ? ` · ${order.PedidoItem.length} producto${order.PedidoItem.length === 1 ? '' : 's'}` : ''}
