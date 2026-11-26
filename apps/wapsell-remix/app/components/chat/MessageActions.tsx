@@ -98,7 +98,14 @@ export function MessageMenu({
     onClose();
   };
   return (
-    <div className="chat-sheet" role="presentation" onClick={onClose}>
+    <div
+      className="chat-sheet"
+      role="presentation"
+      onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose();
+      }}
+    >
       <div
         ref={panel}
         className="chat-sheet__panel"

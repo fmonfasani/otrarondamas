@@ -1238,7 +1238,7 @@ model Reaction {
   emoji      String
   createdAt  DateTime @default(now())
   Message    Message  @relation(fields: [messageId, businessId], references: [id, businessId], onDelete: Restrict, onUpdate: Restrict)
-  User       User?    @relation(fields: [userId], references: [id])
+  User       User?    @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   Cliente    Cliente? @relation(fields: [customerId, businessId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([messageId, userId])
