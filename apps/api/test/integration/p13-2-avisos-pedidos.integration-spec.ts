@@ -222,6 +222,6 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     const numbers = (
       await prisma.pedido.findMany({ where: { id: { in: ids } }, select: { numero: true } })
     ).map((o) => o.numero);
-    expect([...numbers].sort()).toEqual([3, 4, 5]);
+    expect([...numbers].sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([3, 4, 5]);
   });
 });

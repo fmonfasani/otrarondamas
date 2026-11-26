@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
 import { ArrowLeft, ArrowUp, Bell, Check, CheckCheck, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
@@ -41,6 +41,10 @@ import { ensurePushSubscription } from '~/utils/push';
 import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingSignal } from '~/utils/live';
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import { orderCardOf } from '~/utils/order-card';
+import { keepSlidOut, newClientMessageId, useWhenBackOnline } from '~/hooks/useRetry';
+
+/** Paquete 1 F2 — messages per page, as the API sends them. */
+const MESSAGES_PAGE = 50;
 
 export const meta: MetaFunction = () => [{ title: 'Mensajes · Wapsell' }];
 
@@ -141,9 +145,11 @@ export async function action({ request }: ActionFunctionArgs) {
       const conversationId = String(form.get('conversationId') ?? '');
       const content = String(form.get('content') ?? '').trim();
       if (!conversationId || !content) return json<ActionData>({ ok: false, message: 'Escribe un mensaje.' }, { status: 400 });
+      // Paquete 1 F3: the screen's key, so «Reintentar» after a lost answer never duplicates.
+      const clientMessageId = String(form.get('clientMessageId') ?? '') || crypto.randomUUID();
       await apiRequest(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ clientMessageId: crypto.randomUUID(), content }),
+        body: JSON.stringify({ clientMessageId, content }),
       });
       return json<ActionData>({ ok: true });
     }
@@ -190,7 +196,9 @@ export async function action({ request }: ActionFunctionArgs) {
     return json<ActionData>({ ok: false, message: 'Acción desconocida.' }, { status: 400 });
   } catch (error) {
     if (error instanceof ApiError) return json<ActionData>({ ok: false, message: error.message }, { status: error.status });
-    throw error;
+    if (error instanceof Response) throw error;
+    // Paquete 1 F3: the API did not answer — say so and keep the text for «Reintentar».
+    return json<ActionData>({ ok: false, message: 'No se pudo enviar. Revisá la conexión y reintentá.' }, { status: 503 });
   }
 }
 
@@ -382,6 +390,48 @@ function Thread({
   const formRef = useRef<HTMLFormElement>(null);
   const lastId = messages[messages.length - 1]?.id;
 
+  // Paquete 1 F2: older pages asked for, above the newest page (which the loader keeps live).
+  const olderPage = useFetcher<{ messages: Message[] }>();
+  const [older, setOlder] = useState<Message[]>([]);
+  const [olderMore, setOlderMore] = useState<boolean | null>(null);
+  const keepScroll = useRef<number | null>(null);
+  useEffect(() => {
+    const page = olderPage.data?.messages;
+    if (olderPage.state !== 'idle' || !page) return;
+    const el = threadRef.current;
+    keepScroll.current = el ? el.scrollHeight - el.scrollTop : null;
+    setOlder((current) => {
+      const known = new Set(current.map((m) => m.id));
+      return [...page.filter((m) => !known.has(m.id)), ...current];
+    });
+    setOlderMore(page.length === MESSAGES_PAGE);
+  }, [olderPage.state, olderPage.data]);
+  useEffect(() => {
+    // Stay on the same message while older ones appear above it.
+    const el = threadRef.current;
+    if (el && keepScroll.current !== null) el.scrollTop = el.scrollHeight - keepScroll.current;
+    keepScroll.current = null;
+  }, [older]);
+  // A message that slides out of the newest page (a new one came in) stays with the older ones.
+  const previousNewest = useRef(messages);
+  useEffect(() => {
+    const before = previousNewest.current;
+    previousNewest.current = messages;
+    if (older.length === 0 || messages.length === 0) return;
+    setOlder((current) => keepSlidOut(current, before, messages));
+  }, [messages, older.length]);
+  const allMessages = useMemo(() => {
+    const known = new Set(messages.map((m) => m.id));
+    return [...older.filter((m) => !known.has(m.id)), ...messages];
+  }, [older, messages]);
+  const canLoadOlder = olderMore ?? messages.length === MESSAGES_PAGE;
+  const loadOlder = () => {
+    const oldest = allMessages[0]?.sequence;
+    if (oldest && olderPage.state === 'idle') {
+      olderPage.load(`/panel/mensajes/anteriores?c=${encodeURIComponent(conversation.id)}&antes=${oldest}`);
+    }
+  };
+
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -393,7 +443,7 @@ function Thread({
 
   const pending = sender.state !== 'idle' ? String(sender.formData?.get('content') ?? '').trim() : '';
   const canSend = conversation.viewerAccess.canSend;
-  const visibleMessages = messages.filter((m) => !m.deletedAt);
+  const visibleMessages = allMessages.filter((m) => !m.deletedAt);
 
   return (
     <>
@@ -412,6 +462,11 @@ function Thread({
       </header>
 
       <div className="ws-thread" ref={threadRef} aria-live="polite">
+        {canLoadOlder ? (
+          <button type="button" className="chat-older" onClick={loadOlder} disabled={olderPage.state !== 'idle'}>
+            {olderPage.state !== 'idle' ? 'Cargando…' : 'Ver mensajes anteriores'}
+          </button>
+        ) : null}
         {visibleMessages.length === 0 && !pending && <p className="ws-thread__empty">Todavía no hay mensajes. Escribe el primero.</p>}
         {groupByDay(visibleMessages).map((group) => (
           <div key={group.key} className="ws-thread__day-group">
@@ -485,7 +540,12 @@ function Thread({
       </div>
 
       {sender.data && !sender.data.ok && sender.state === 'idle' && (
-        <p className="ws-alert ws-chat__error" role="alert">{sender.data.message}</p>
+        <p className="ws-alert ws-chat__error" role="alert">
+          {sender.data.message}{' '}
+          <button type="button" className="chat-retry" onClick={() => formRef.current?.requestSubmit()}>
+            Reintentar
+          </button>
+        </p>
       )}
 
       {canSend ? (
@@ -596,6 +656,12 @@ function Composer({
   const [panel, setPanel] = useState<ComposerPanel>(null);
   const notifyTyping = useTypingNotifier('/panel/mensajes/escribiendo', conversation.id);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Paquete 1 F3: one key per message, kept until it is saved (a retry reuses it).
+  const [clientMessageId, setClientMessageId] = useState(newClientMessageId);
+  useEffect(() => {
+    if (sender.state === 'idle' && sender.data?.ok) setClientMessageId(newClientMessageId());
+  }, [sender.state, sender.data]);
+  useWhenBackOnline(sender.state === 'idle' && sender.data?.ok === false, () => formRef.current?.requestSubmit());
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [tooBig, setTooBig] = useState(false);
   const units = cart?.items.reduce((sum, item) => sum + item.cantidad, 0) ?? 0;
@@ -676,6 +742,7 @@ function Composer({
       <sender.Form method="post" className="ws-composer ws-composer--simple" ref={formRef}>
         <input type="hidden" name="intent" value="send" />
         <input type="hidden" name="conversationId" value={conversation.id} />
+        <input type="hidden" name="clientMessageId" value={clientMessageId} />
         <div className="ws-plus">
           <button
             type="button"

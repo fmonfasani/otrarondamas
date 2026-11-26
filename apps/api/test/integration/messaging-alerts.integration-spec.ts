@@ -161,6 +161,8 @@ describe('E3 messaging alerts (compiled stack + real PostgreSQL)', () => {
         MESSAGE_ALERT_EVERY_MS: '300',
         VAPID_PUBLIC_KEY: vapid.publicKey,
         VAPID_PRIVATE_KEY: vapid.privateKey,
+        // S2 only lets real push services through; this test's made-up one is allowed here.
+        PUSH_EXTRA_HOSTS: 'push.example.test',
         // Nothing leaves the machine.
         RESEND_API_KEY: '',
         SENDGRID_API_KEY: '',

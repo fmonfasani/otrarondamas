@@ -1,12 +1,15 @@
+import { LIMITS, RateLimit } from '../common/rate-limit/rate-limit';
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
   Logger,
   Param,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -29,6 +32,8 @@ import { BusinessContextService } from '../business-context/business-context.ser
 import { CustomerMessageDto } from './dto/customer-message.dto';
 import { MessagingGateway } from './messaging.gateway';
 import { MessagingService } from './messaging.service';
+import { MessagingAlertsService } from './messaging-alerts.service';
+import { PushSubscriptionDto, PushUnsubscribeDto } from './dto/push-subscription.dto';
 
 /**
  * STORE-V1-04 — chat of the signed-in store customer with the Business (OR-B4-031).
@@ -47,6 +52,7 @@ export class CustomerChatController {
     private readonly messagingService: MessagingService,
     private readonly messagingGateway: MessagingGateway,
     private readonly businessContext: BusinessContextService,
+    private readonly alerts: MessagingAlertsService,
   ) {}
 
   private async assertStoreCustomer(user: AuthenticatedUser, businessSlug: string) {
@@ -57,12 +63,61 @@ export class CustomerChatController {
     }
   }
 
+  /** Paquete 1 F1 — whether push is on, and the key a customer's browser subscribes with. */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Get('avisos')
+  async pushSettings(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ) {
+    await this.assertStoreCustomer(user, businessSlug);
+    return this.alerts.pushSettings();
+  }
+
+  /** Paquete 1 F1 — this browser accepted notifications: the store's answers reach it. */
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.push)
+  @Post('avisos')
+  @HttpCode(204)
+  async subscribePush(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: PushSubscriptionDto,
+  ): Promise<void> {
+    await this.assertStoreCustomer(user, businessSlug);
+    const customer = await this.businessContext.resolveForCustomer(user);
+    await this.alerts.subscribe(
+      { businessId: customer.businessId, userId: null, customerId: customer.customerId },
+      dto,
+    );
+  }
+
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Delete('avisos')
+  @HttpCode(204)
+  async unsubscribePush(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: PushUnsubscribeDto,
+  ): Promise<void> {
+    await this.assertStoreCustomer(user, businessSlug);
+    const customer = await this.businessContext.resolveForCustomer(user);
+    await this.alerts.unsubscribe(
+      { businessId: customer.businessId, userId: null, customerId: customer.customerId },
+      dto.endpoint,
+    );
+  }
+
   /** GET /:slug/tienda/chat — the conversation with the store and its messages. */
   @CanonicalPermission(CUSTOMER_POLICY)
   @Get()
-  async chat(@CurrentUser() user: AuthenticatedUser, @Param('businessSlug') businessSlug: string) {
+  async chat(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Query('antes') before?: string,
+  ) {
     await this.assertStoreCustomer(user, businessSlug);
-    const chat = await this.messagingService.getCustomerChat(user);
+    const chat = await this.messagingService.getCustomerChat(user, before);
     // E2: the store's messages reached the customer's screen (✓✓ for the store).
     try {
       const moved = await this.messagingService.markDelivered(user);
@@ -93,6 +148,7 @@ export class CustomerChatController {
    * (blue ✓✓ for the store when both sides have read receipts on).
    */
   @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.read)
   @Post('leido')
   @HttpCode(204)
   async read(
@@ -119,6 +175,7 @@ export class CustomerChatController {
 
   /** POST /:slug/tienda/chat/mensajes — write to the store (opens the chat if needed). */
   @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.send)
   @Post('mensajes')
   async send(
     @CurrentUser() user: AuthenticatedUser,
@@ -160,6 +217,7 @@ export class CustomerChatController {
    * conversation yet there is nobody to tell.
    */
   @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.typing)
   @Post('escribiendo')
   @HttpCode(204)
   async typing(
@@ -173,6 +231,7 @@ export class CustomerChatController {
 
   /** OR-B4-037 — the customer sends a photo or PDF (opens the chat if needed). */
   @CanonicalPermission(CUSTOMER_POLICY)
+  @RateLimit(LIMITS.files)
   @Post('adjuntos')
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
   async sendFile(

@@ -88,9 +88,10 @@ export type AttachmentWire =
 /**
  * OR-B4-053 — a notice the system posted for the Business (order and return updates), not
  * something a person typed: the chat shows it as a short centred line, without ticks.
+ * Paquete 1 S3: told by its own message type, which no person can send.
  */
-export function isNotice(message: { authorUserId: string | null; clientMessageId: string }) {
-  return message.authorUserId !== null && /^(pedido|devolucion)-/.test(message.clientMessageId);
+export function isNotice(message: { type: string }) {
+  return message.type === 'SYSTEM';
 }
 
 /** The wire shape. Explicit allowlist: a new Prisma column does not reach the

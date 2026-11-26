@@ -162,6 +162,10 @@ function conversationOrderKey(
  * DO NOT weaken these invariants without Owner approval (DEC-001 precedence; see TO-BE).
  */
 
+/** Paquete 1 F2 — messages per page of a chat, and the most a caller may ask for. */
+export const MESSAGES_PAGE = 50;
+const MESSAGES_PAGE_MAX = 100;
+
 @Injectable()
 export class MessagingService {
   constructor(
@@ -359,7 +363,16 @@ export class MessagingService {
     );
   }
 
-  async getMessages(auth: AuthenticatedUser, conversationId: string) {
+  /**
+   * Paquete 1 F2 — the newest PAGE_SIZE messages (oldest first), or those before `before` (a
+   * sequence) when the screen asks for older ones: a months-long chat never loads whole. A
+   * full page means there may be more above.
+   */
+  async getMessages(
+    auth: AuthenticatedUser,
+    conversationId: string,
+    { before, limit = MESSAGES_PAGE }: { before?: string; limit?: number } = {},
+  ) {
     const context = await this.resolveContext(auth);
     const canReadAll = canReadAllConversations(context);
     const conversation = await this.prisma.conversation.findFirst({
@@ -373,16 +386,26 @@ export class MessagingService {
       joinedAt = participant.joinedAt;
     }
 
-    const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId,
-        businessId: context.businessId,
-        deletedAt: null,
-        ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
-      },
-      orderBy: { sequence: 'asc' },
-      include: { Reaction: true, Attachment: true },
-    });
+    const take = Math.min(Math.max(Math.trunc(limit) || MESSAGES_PAGE, 1), MESSAGES_PAGE_MAX);
+    let beforeSequence: bigint | undefined;
+    if (before !== undefined && before !== '') {
+      if (!/^\d{1,19}$/.test(before)) throw new BadRequestException('Página inválida');
+      beforeSequence = BigInt(before);
+    }
+    const messages = (
+      await this.prisma.message.findMany({
+        where: {
+          conversationId,
+          businessId: context.businessId,
+          deletedAt: null,
+          ...(joinedAt ? { createdAt: { gte: joinedAt } } : {}),
+          ...(beforeSequence !== undefined ? { sequence: { lt: beforeSequence } } : {}),
+        },
+        orderBy: { sequence: 'desc' },
+        take,
+        include: { Reaction: true, Attachment: true },
+      })
+    ).reverse();
     await this.withOrderCards(messages, context.businessId);
     return this.withTicks(messages, conversationId, context);
   }
@@ -642,6 +665,10 @@ export class MessagingService {
       where: { id: messageId, conversationId, businessId: context.businessId, deletedAt: null },
     });
     if (!message) throw new NotFoundException('Mensaje no encontrado');
+    // Paquete 1 S3: what the system posted (an order or return notice) is nobody's to change.
+    if (message.type === 'SYSTEM') {
+      throw new ForbiddenException('Los avisos automáticos no se editan');
+    }
 
     const isAuthor =
       (context.userId !== null && message.authorUserId === context.userId) ||
@@ -660,6 +687,9 @@ export class MessagingService {
       where: { id: messageId, conversationId, businessId: context.businessId, deletedAt: null },
     });
     if (!message) throw new NotFoundException('Mensaje no encontrado');
+    if (message.type === 'SYSTEM') {
+      throw new ForbiddenException('Los avisos automáticos no se borran');
+    }
 
     const isAuthor =
       (context.userId !== null && message.authorUserId === context.userId) ||
@@ -757,14 +787,27 @@ export class MessagingService {
    * conversation (one the team opened with them, or one they started). Only messages from
    * when they joined, reduced to what a customer may see: no staff ids, no internal fields.
    */
-  async getCustomerChat(auth: AuthenticatedUser) {
+  async getCustomerChat(auth: AuthenticatedUser, before?: string) {
     const context = await this.resolveContext(auth);
     if (!context.customerId) throw new ForbiddenException('Solo para clientes');
     const conversationId = await this.findCustomerConversationId(this.prisma, context);
     if (!conversationId) return { conversationId: null, messages: [] };
-    const messages = await this.getMessages(auth, conversationId);
+    // Paquete 1 F2: the customer pages by the id of the oldest message they have (a customer
+    // never sees sequences).
+    let beforeSequence: string | undefined;
+    if (before) {
+      const oldest = await this.prisma.message.findFirst({
+        where: { id: before, conversationId, businessId: context.businessId },
+        select: { sequence: true },
+      });
+      if (!oldest) throw new BadRequestException('Página inválida');
+      beforeSequence = oldest.sequence.toString();
+    }
+    const messages = await this.getMessages(auth, conversationId, { before: beforeSequence });
     return {
       conversationId,
+      // Paquete 1 F2: a full page — there may be older messages to load.
+      hayMas: messages.length === MESSAGES_PAGE,
       messages: messages.map((m) => ({
         id: m.id,
         clientMessageId: m.clientMessageId,

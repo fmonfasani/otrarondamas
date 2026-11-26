@@ -4,6 +4,9 @@
  */
 const SETTINGS = '/panel/mensajes/avisos';
 
+/** Paquete 1 F1 — the customer's own door, per store. */
+export const storePushSettings = (slug: string) => `/tienda/${encodeURIComponent(slug)}/chat/avisos`;
+
 /** The VAPID public key (base64url) as the bytes PushManager wants. */
 export function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   const base64 = (base64url + '='.repeat((4 - (base64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
@@ -13,11 +16,11 @@ export function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-export async function ensurePushSubscription(): Promise<boolean> {
+export async function ensurePushSubscription(settingsUrl: string = SETTINGS): Promise<boolean> {
   try {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
-    const settings = (await (await fetch(SETTINGS, { credentials: 'same-origin' })).json()) as {
+    const settings = (await (await fetch(settingsUrl, { credentials: 'same-origin' })).json()) as {
       enabled: boolean;
       publicKey: string | null;
     };
@@ -26,7 +29,7 @@ export async function ensurePushSubscription(): Promise<boolean> {
     const subscription =
       (await registration.pushManager.getSubscription()) ??
       (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(settings.publicKey) }));
-    const response = await fetch(SETTINGS, {
+    const response = await fetch(settingsUrl, {
       method: 'POST',
       credentials: 'same-origin',
       body: JSON.stringify(subscription.toJSON()),
