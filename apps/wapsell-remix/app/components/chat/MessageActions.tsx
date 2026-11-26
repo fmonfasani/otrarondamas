@@ -114,6 +114,9 @@ export function MessageMenu({
         aria-modal="true"
         aria-label="Opciones del mensaje"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onClose();
+        }}
       >
         <p className="chat-sheet__preview">{preview}</p>
         {confirming && confirmDelete ? (

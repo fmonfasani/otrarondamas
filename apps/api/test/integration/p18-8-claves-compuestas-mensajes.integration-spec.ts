@@ -15,6 +15,8 @@ const MODULE_TABLES = [
   'ConversationAssociation',
   'Attachment',
   'Reaction',
+  // E4: a team member's ⭐ (its message and its membership).
+  'MessageStar',
 ];
 
 const DROPPED_COLUMNS = [
@@ -140,8 +142,8 @@ describe('P18-8 — claves compuestas: mensajes (ADR-DAT-020, D6)', () => {
       ORDER BY 1`;
 
     // ConversationParticipant 3, Message 3, MessageReadReceipt 3, MessagingReadPreference 2,
-    // ConversationAssociation 1, Attachment 1, Reaction 1.
-    expect(fks).toHaveLength(14);
+    // ConversationAssociation 1, Attachment 1, Reaction 2 (E4: its customer), MessageStar 2.
+    expect(fks).toHaveLength(17);
     const wrong = fks
       .filter((fk) => {
         const at = fk.columns.indexOf('businessId');

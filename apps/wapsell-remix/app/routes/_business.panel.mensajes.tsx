@@ -1508,7 +1508,10 @@ function ForwardDialog({
         if (event.key === 'Escape') onClose();
       }}
     >
-      <div className="chat-sheet__panel chat-forward" role="dialog" aria-modal="true" aria-label="Reenviar mensaje" onClick={(e) => e.stopPropagation()}>
+      <div className="chat-sheet__panel chat-forward" role="dialog" aria-modal="true" aria-label="Reenviar mensaje" onClick={(e) => e.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onClose();
+        }}>
         <div className="chat-forward__head">
           <b>Reenviar a…</b>
           <button type="button" className="ws-icon-button" aria-label="Cerrar" onClick={onClose}>
