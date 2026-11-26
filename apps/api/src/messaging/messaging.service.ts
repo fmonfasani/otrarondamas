@@ -22,7 +22,7 @@ import { StoreService } from '../store/store.service';
 import { CartService } from '../cart/cart.service';
 import { CreateConversationDto, ConversationTypeDto } from './dto/create-conversation.dto';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
-import { PRODUCT_CARD_MIME, toMessageWire } from './message-serializer';
+import { ORDER_CARD_MIME, PRODUCT_CARD_MIME, toMessageWire } from './message-serializer';
 import { CHAT_FILE_MAX_BYTES, cleanFileName, sniffChatFile } from './chat-files';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
@@ -383,7 +383,52 @@ export class MessagingService {
       orderBy: { sequence: 'asc' },
       include: { Reaction: true, Attachment: true },
     });
+    await this.withOrderCards(messages, context.businessId);
     return this.withTicks(messages, conversationId, context);
+  }
+
+  /**
+   * OR-B4-053 — an order card shows the order as it is now (number, state, total, products),
+   * not as it was when the card was posted: its attachment is filled from the order on read.
+   */
+  private async withOrderCards(
+    messages: Array<{ Attachment: Array<{ mimeType: string; metadata: Prisma.JsonValue }> }>,
+    businessId: string,
+  ) {
+    const cards = messages
+      .flatMap((m) => m.Attachment)
+      .filter((a) => a.mimeType === ORDER_CARD_MIME);
+    if (cards.length === 0) return;
+    const ids = cards.map((a) => String((a.metadata as { pedidoId?: string })?.pedidoId ?? ''));
+    const orders = await this.prisma.pedido.findMany({
+      where: { id: { in: ids }, empresaId: businessId },
+      select: {
+        id: true,
+        numero: true,
+        estado: true,
+        total: true,
+        PedidoItem: {
+          select: { cantidad: true, Producto: { select: { nombre: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    const byId = new Map(orders.map((o) => [o.id, o]));
+    for (const card of cards) {
+      const meta = (card.metadata ?? {}) as Record<string, unknown>;
+      const order = byId.get(String(meta.pedidoId ?? ''));
+      if (!order) continue;
+      card.metadata = {
+        ...meta,
+        numero: order.numero,
+        estado: order.estado,
+        total: order.total.toFixed(2),
+        items: order.PedidoItem.map((i) => ({
+          producto: i.Producto.nombre,
+          cantidad: Number(i.cantidad),
+        })),
+      };
+    }
   }
 
   /**
@@ -730,6 +775,8 @@ export class MessagingService {
         ...(m.estado ? { estado: m.estado } : {}),
         // OR-B4-037: product cards (and later photos) the team shared.
         adjuntos: toMessageWire(m).adjuntos ?? [],
+        // OR-B4-053: an order or return update the system posted (a short centred line).
+        ...(toMessageWire(m).aviso ? { aviso: true } : {}),
       })),
     };
   }
@@ -1317,11 +1364,21 @@ export class MessagingService {
     });
     if (!product) throw new NotFoundException('Producto no encontrado');
     const precio = String(product.precioMinorista);
+    // OR-B4-053: the card shows what the conversation's customer pays today (discounts,
+    // offers, loyalty), so it never says $1.600 for something the order charges $1.280.
+    const precioFinal =
+      (await this.storeService
+        ?.customerUnitPrice(
+          context.businessId,
+          product.id,
+          await this.conversationCustomer(context, conversationId),
+        )
+        .catch(() => null)) ?? precio;
     const message = await this.createTextMessage(
       auth,
       conversationId,
       clientMessageId,
-      `${product.nombre} · $ ${Number(precio).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `${product.nombre} · $ ${Number(precioFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     );
     const existing = await this.prisma.attachment.findFirst({
       where: { messageId: message.id, mimeType: PRODUCT_CARD_MIME },
@@ -1335,7 +1392,7 @@ export class MessagingService {
           filename: product.nombre,
           mimeType: PRODUCT_CARD_MIME,
           sizeBytes: BigInt(0),
-          metadata: { productoId: product.id, nombre: product.nombre, precio },
+          metadata: { productoId: product.id, nombre: product.nombre, precio, precioFinal },
         },
       });
     }

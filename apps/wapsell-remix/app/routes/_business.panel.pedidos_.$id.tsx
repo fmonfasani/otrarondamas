@@ -23,6 +23,8 @@ interface OrderDetail {
   descuento: string;
   createdAt: string;
   canalOrigen: string;
+  /** OR-B4-053: N° per business. */
+  numero?: number | null;
   Cliente: { nombre: string; email?: string | null; telefono?: string | null };
   PedidoItem: { id: string; cantidad: string; precioUnitario: string; Producto?: { nombre: string } | null }[];
   Pago?: { id: string; monto: string; estado: string; medio: string; createdAt: string }[];
@@ -118,7 +120,9 @@ export default function OrderPage() {
       </Link>
       <div className="ws-page__head">
         <div className="ws-page__titles">
-          <p className="ws-page__eyebrow">PEDIDO · {order.canalOrigen.toUpperCase()}</p>
+          <p className="ws-page__eyebrow">
+            PEDIDO{order.numero ? ` N° ${order.numero}` : ''} · {order.canalOrigen.toUpperCase()}
+          </p>
           <h1 className="ws-page__title">{order.Cliente.nombre}</h1>
           <p className="ws-page__lead">{formatDateTime(order.createdAt)}</p>
         </div>

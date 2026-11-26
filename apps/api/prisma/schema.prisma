@@ -992,6 +992,9 @@ model Pedido {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   idempotencyKey String?
+  /// OR-B4-053: N° per business (1, 2, 3…). The database assigns it on insert (trigger
+  /// «Pedido_numerar»); never set it by hand.
+  numero         Int?
   Entrega        Entrega?
   Notificacion   Notificacion[]
   Pago           Pago[]
@@ -1001,6 +1004,7 @@ model Pedido {
   PedidoItem     PedidoItem[]
 
   @@unique([empresaId, id])
+  @@unique([empresaId, numero])
 }
 
 model PedidoItem {

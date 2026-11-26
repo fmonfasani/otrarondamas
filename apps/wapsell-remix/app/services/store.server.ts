@@ -1,6 +1,7 @@
 import { ApiError, apiRequest, getApiBaseUrl } from './api.server';
 import type { ServerCart } from '~/utils/store';
 import { EMPTY_LISTING, type StoreListing, type StoreProductDetail, type Suggestions } from '~/utils/store-browse';
+import type { OrderCardData } from '~/utils/order-card';
 
 /** Server-side calls of the per-Business store (/tienda/:slug). */
 
@@ -62,7 +63,8 @@ export async function replaceServerCart(jwt: string, items: Array<{ productoId: 
 }
 
 export async function placeCustomerOrder(jwt: string, slug: string, items: Array<{ productoId: string; cantidad: number }>) {
-  const order = await apiRequest<{ id: string }>(jwt, storePath(slug, '/mis-pedidos'), {
+  // OR-B4-053: `sumado` — it went into the order still waiting for confirmation.
+  const order = await apiRequest<{ id: string; numero: number | null; sumado?: boolean }>(jwt, storePath(slug, '/mis-pedidos'), {
     method: 'POST',
     body: JSON.stringify({ items }),
   });
@@ -73,6 +75,8 @@ export async function placeCustomerOrder(jwt: string, slug: string, items: Array
 
 export type CustomerOrder = {
   id: string;
+  /** OR-B4-053: N° per business. */
+  numero?: number | null;
   estado: string;
   total: string;
   /** Approved online payments so far (OR-B4-032). */
@@ -96,8 +100,25 @@ export type ChatMessage = {
   mine: boolean;
   /** E2 — ticks of the customer's own message: ✓ saved, ✓✓ reached the store, blue ✓✓ read. */
   estado?: 'enviado' | 'entregado' | 'leido';
-  /** OR-B4-037: product cards (and photos) the team shared. */
-  adjuntos?: Array<{ tipo: string; id: string; productoId?: string; nombre: string; precio?: string; mimeType?: string; tamano?: number }>;
+  /** OR-B4-037: product cards (and photos) the team shared; OR-B4-053: the order card. */
+  adjuntos?: Array<{
+    tipo: string;
+    id: string;
+    productoId?: string;
+    nombre: string;
+    precio?: string;
+    precioFinal?: string;
+    mimeType?: string;
+    tamano?: number;
+    // The order card (tipo 'pedido'): read with orderCardOf.
+    pedidoId?: OrderCardData['pedidoId'];
+    numero?: OrderCardData['numero'];
+    estado?: OrderCardData['estado'];
+    total?: OrderCardData['total'];
+    items?: OrderCardData['items'];
+  }>;
+  /** OR-B4-053: posted by the system (the order moved, a return), not typed by someone. */
+  aviso?: boolean;
 };
 
 /** OR-B4-037 — the customer adds a product shared in the chat to their saved cart. */

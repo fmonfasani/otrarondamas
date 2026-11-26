@@ -16,7 +16,11 @@ export const ORDER_NOTICES: Record<string, string> = {
   ENTREGA_FALLIDA: 'No pudimos entregar tu pedido. Te escribimos para coordinar.',
 };
 
-type Order = { id: string; clienteId: string; total: unknown };
+type Order = { id: string; clienteId: string; total: unknown; numero?: number | null };
+
+/** «tu pedido N° 12», or «tu pedido» for an order read without its number. */
+export const orderName = (order: Pick<Order, 'numero'>) =>
+  order.numero ? `tu pedido N° ${order.numero}` : 'tu pedido';
 
 /**
  * OR-B4-037 — automatic notices of an order in the customer's chat: received, every status
@@ -30,17 +34,30 @@ export class OrderNoticeService {
     private readonly prisma: PrismaService,
   ) {}
 
+  /** OR-B4-053: the order enters the chat as one card that follows its state. */
   received(companyId: string, order: Order) {
     return this.notices.notify(
       companyId,
       order.clienteId,
       `pedido-${order.id}-recibido`,
-      `Recibimos tu pedido por ${money(String(order.total))}. Te avisamos cuando lo confirmemos.`,
+      `Recibimos ${orderName(order)} por ${money(String(order.total))}. Te avisamos cuando lo confirmemos.`,
+      { pedidoId: order.id, numero: order.numero ?? null },
+    );
+  }
+
+  /** OR-B4-053: the customer ordered again while the order was still open; it grew. */
+  added(companyId: string, order: Order, products: number) {
+    const what = products === 1 ? '1 producto' : `${products} productos`;
+    return this.notices.notify(
+      companyId,
+      order.clienteId,
+      `pedido-${order.id}-suma-${Date.now()}`,
+      `Sumamos ${what} a ${orderName(order)}. Total: ${money(String(order.total))}.`,
     );
   }
 
   async confirmed(companyId: string, order: Order, pagosOnline: boolean) {
-    let text = `Confirmamos tu pedido por ${money(String(order.total))}.`;
+    let text = `Confirmamos ${orderName(order)} por ${money(String(order.total))}.`;
     if (pagosOnline) {
       const business = await this.prisma.empresa.findUnique({
         where: { id: companyId },
@@ -59,14 +76,16 @@ export class OrderNoticeService {
       companyId,
       order.clienteId,
       `pedido-${order.id}-CANCELADO`,
-      `Cancelamos tu pedido.${reason ? ` Motivo: ${reason}` : ''}`,
+      `Cancelamos ${orderName(order)}.${reason ? ` Motivo: ${reason}` : ''}`,
     );
   }
 
   /** Any other status (preparation, delivery…), when something moves the order there. */
   status(companyId: string, order: Order, estado: string) {
-    const text = ORDER_NOTICES[estado];
-    if (!text) return Promise.resolve();
+    const template = ORDER_NOTICES[estado];
+    if (!template) return Promise.resolve();
+    const name = orderName(order);
+    const text = template.replace('tu pedido', name);
     return this.notices.notify(companyId, order.clienteId, `pedido-${order.id}-${estado}`, text);
   }
 
@@ -81,7 +100,7 @@ export class OrderNoticeService {
       companyId,
       order.clienteId,
       `pedido-${order.id}-pago-${paymentKey}`,
-      `Recibimos tu pago de ${money(amount)}${medio === 'MERCADOPAGO' ? ' por Mercado Pago' : ''}. ¡Gracias!`,
+      `Recibimos tu pago de ${money(amount)}${medio === 'MERCADOPAGO' ? ' por Mercado Pago' : ''}${order.numero ? ` para el pedido N° ${order.numero}` : ''}. ¡Gracias!`,
     );
   }
 }

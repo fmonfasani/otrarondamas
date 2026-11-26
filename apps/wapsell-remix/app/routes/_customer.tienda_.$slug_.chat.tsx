@@ -6,6 +6,8 @@ import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage, type CustomerChat } from '~/services/store.server';
 import { formatMoney, formatTime } from '~/utils/format';
+import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
+import { orderCardOf } from '~/utils/order-card';
 import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
 import { playChime, titleWithCount } from '~/utils/alerts';
 
@@ -166,7 +168,16 @@ export default function CustomerChat() {
           {!error && chat.messages.length === 0 ? (
             <p className="store-chat__empty">Todavía no hay mensajes. Escribí tu consulta y el comercio te va a responder acá.</p>
           ) : null}
-          {chat.messages.map((message) => (
+          {chat.messages.map((message) => {
+            // OR-B4-053: the order as one live card; the system's other notices as short lines.
+            const orderCard = message.aviso ? orderCardOf(message) : null;
+            if (orderCard) {
+              return <OrderCard key={message.id} card={orderCard} time={formatTime(message.createdAt)} href={`/tienda/${store.slug}/cuenta`} />;
+            }
+            if (message.aviso) {
+              return <NoticeLine key={message.id} text={message.content ?? ''} time={formatTime(message.createdAt)} />;
+            }
+            return (
             <div key={message.id} className={`store-bubble ${message.mine ? 'store-bubble--mine' : ''}`}>
               {message.mine ? null : <span className="store-bubble__from">{store.nombre}</span>}
               {message.adjuntos?.some((a) => a.tipo === 'imagen' || a.tipo === 'archivo') ? (
@@ -192,7 +203,13 @@ export default function CustomerChat() {
                   .map((a) => (
                     <span key={a.id} className="store-product-card">
                       <b>{a.nombre}</b>
-                      <span>{formatMoney(a.precio ?? '0')}</span>
+                      {a.precioFinal ? (
+                        <span className="store-product-card__price">
+                          <s>{formatMoney(a.precio ?? '0')}</s> <b>{formatMoney(a.precioFinal)}</b>
+                        </span>
+                      ) : (
+                        <span>{formatMoney(a.precio ?? '0')}</span>
+                      )}
                       {cart.state === 'idle' && cart.data?.ok && cart.data.added === a.productoId ? (
                         <Link to={`/tienda/${store.slug}?carrito=1`}>Agregado · Ver mi pedido</Link>
                       ) : (
@@ -222,7 +239,8 @@ export default function CustomerChat() {
                 ) : null}
               </time>
             </div>
-          ))}
+            );
+          })}
           {storeTyping ? <p className="store-chat__typing">{store.nombre} está escribiendo…</p> : null}
           <div ref={end} />
         </div>

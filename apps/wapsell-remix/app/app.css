@@ -417,3 +417,31 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .product-gallery__thumbs a { display: block; width: 68px; height: 68px; overflow: hidden; border: 2px solid transparent; border-radius: 8px; background: #f0eee9; }
 .product-gallery__thumbs a.is-active { border-color: #191919; }
 .product-gallery__thumbs img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* OR-B4-053 — the order in the chat (store and panel): one card that follows the order, and the
+   system's notices as short centred lines, like WhatsApp's «Juan se unió al grupo». */
+.order-card { align-self: center; display: grid; gap: 10px; width: min(360px, 100%); padding: 14px 16px; border: 1px solid #d6e3ee; border-radius: 14px; background: #fff; color: #141413; box-shadow: 0 1px 2px rgba(20, 20, 19, 0.06); }
+.order-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.order-card__head b { font-size: 15px; }
+.order-card__state { color: #0a6fd6; font-size: 12px; font-weight: 700; }
+.order-card--off .order-card__state { color: #b3261e; }
+.order-card__items { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.order-card__items li { display: flex; justify-content: space-between; gap: 12px; }
+.order-card__items li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.order-card__total { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding-top: 8px; border-top: 1px solid #eee9e1; color: #5f6b76; font-size: 12px; }
+.order-card__total b { color: #141413; font-size: 15px; }
+.order-card__steps { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; padding: 0; list-style: none; }
+.order-card__steps li { position: relative; display: grid; justify-items: center; gap: 4px; color: #8b8882; text-align: center; }
+.order-card__steps li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: #e5e2dc; }
+.order-card__steps li:first-child::before { display: none; }
+.order-card__steps li.is-done { color: #141413; }
+.order-card__steps li.is-done::before { background: #0a6fd6; }
+.order-card__dot { position: relative; z-index: 1; width: 12px; height: 12px; border: 2px solid #d6d2ca; border-radius: 50%; background: #fff; }
+.order-card__steps li.is-done .order-card__dot { border-color: #0a6fd6; background: #0a6fd6; }
+.order-card__steps li[aria-current="step"] .order-card__dot { box-shadow: 0 0 0 3px #d6ecfc; }
+.order-card__steps small { font-size: 10px; }
+.order-card__foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8b8882; }
+.order-card .order-card__foot a { color: #0a6fd6; font-weight: 600; }
+.chat-notice { align-self: center; max-width: min(420px, 92%); margin: 0; padding: 5px 12px; border-radius: 10px; background: #eef2f5; color: #4f5b66; font-size: 12px; line-height: 1.4; text-align: center; }
+.chat-notice time { margin-left: 4px; color: #8b8882; font-size: 10px; white-space: nowrap; }
+.store-product-card__price s, .ws-product-card s { color: #8b8882; font-weight: 400; }

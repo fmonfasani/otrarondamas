@@ -26,6 +26,7 @@ import { MembershipRevocationService } from '../membership/membership-revocation
 import { canReadAllConversations, MessagingService } from './messaging.service';
 import { toMessageWire, type SerializableMessage } from './message-serializer';
 import { MessagingAlertsService } from './messaging-alerts.service';
+import { CustomerNoticeService } from '../customer-notices/customer-notice.service';
 
 interface MessagingSocketData {
   authenticatedUser: AuthenticatedUser;
@@ -149,11 +150,14 @@ export class MessagingGateway
     private readonly membershipRevocation: MembershipRevocationService,
     // E3: push to team members with Wapsell closed. Optional so unit tests may omit it.
     @Optional() private readonly alerts?: MessagingAlertsService,
+    // OR-B4-053: a notice posted by the system (an order changed) updates the open screens.
+    @Optional() private readonly notices?: CustomerNoticeService,
   ) {}
 
   afterInit(namespace: Namespace): void {
     // E3: alerts skip whoever has a screen open; only this gateway knows that.
     this.alerts?.usePresence((businessId, actor) => this.isOnline(businessId, actor));
+    this.notices?.onPosted((conversationId) => this.publishInboxChanged(conversationId));
     namespace.use(async (socket, next) => {
       try {
         const token = this.extractToken(socket);
