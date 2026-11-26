@@ -470,6 +470,14 @@ export class MessagingGateway
     });
   }
 
+  /** E5 — a message gained its link preview: screens reload it (ids only). */
+  publishMessageChanged(message: { id: string; conversationId: string }): void {
+    this.publishToConversation('conversation.message.changed', message.conversationId, {
+      id: message.id,
+      conversationId: message.conversationId,
+    });
+  }
+
   /** E4 — a reaction changed: screens reload the message (ids only, never who). */
   publishMessageReaction(message: { id: string; conversationId: string }): void {
     this.publishToConversation('conversation.message.reaction', message.conversationId, {

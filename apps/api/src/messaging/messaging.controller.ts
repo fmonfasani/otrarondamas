@@ -34,7 +34,7 @@ import { ChatFileDto } from './dto/chat-file.dto';
 import { sendChatFile } from './send-chat-file';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CHAT_FILE_MAX_BYTES } from './chat-files';
+import { CHAT_UPLOAD_MAX_BYTES } from './chat-files';
 
 import { QuickRepliesDto } from './dto/quick-replies.dto';
 import { PushSubscriptionDto, PushUnsubscribeDto } from './dto/push-subscription.dto';
@@ -264,11 +264,14 @@ export class MessagingController {
     return this.messagingService.setCustomerCartItem(user, id, dto.productoId, dto.cantidad);
   }
 
-  /** OR-B4-037 — send a photo (JPG, PNG, WebP) or a PDF, up to 10 MB, field `archivo`. */
+  /**
+   * OR-B4-037 — send a photo (JPG, PNG, WebP) or a PDF, up to 10 MB, field `archivo`; E5 adds
+   * videos up to 64 MB and voice notes (`voz=1`, `duracion` in seconds).
+   */
   @CanonicalPermission('MESSAGING_USE')
   @RateLimit(LIMITS.files)
   @Post(':id/attachments')
-  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_UPLOAD_MAX_BYTES } }))
   async sendAttachment(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -281,6 +284,7 @@ export class MessagingController {
       dto.clientMessageId,
       file,
       dto.caption,
+      { voice: dto.voz === '1', durationSec: dto.duracion ? Number(dto.duracion) : undefined },
     );
     this.publishSafely('conversation.message.created', message.conversationId, () =>
       this.messagingGateway.publishMessageCreated(message),
@@ -361,8 +365,19 @@ export class MessagingController {
           // fields here is what let the socket payload drift from HTTP.
           this.messagingGateway.publishMessageCreated(message),
         );
+        this.previewLink(user, message.id);
         return serializeMessageSequence(message);
       });
+  }
+
+  /** E5 — after answering: the link's preview, then the open screens reload the message. */
+  private previewLink(user: AuthenticatedUser, messageId: string) {
+    void this.messagingService.addLinkPreview(user, messageId).then((message) => {
+      if (!message) return;
+      this.publishSafely('conversation.message.changed', message.conversationId, () =>
+        this.messagingGateway.publishMessageChanged(message),
+      );
+    });
   }
 
   @CanonicalPermission('MESSAGING_USE')
@@ -461,6 +476,7 @@ export class MessagingController {
         editedAt: message.editedAt,
       }),
     );
+    this.previewLink(user, message.id);
     return serializeMessageSequence(message);
   }
 

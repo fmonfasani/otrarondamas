@@ -82,21 +82,26 @@ export async function apiUpload<T>(token: string, path: string, body: FormData):
  * OR-B4-037 — passes a chat file from the API to the browser, which never holds the token.
  * Keeps the API's safe headers (type, nosniff, disposition, private cache).
  */
-export async function proxyFile(token: string, path: string): Promise<Response> {
+export async function proxyFile(token: string, path: string, request?: Request): Promise<Response> {
   let response: Response;
+  // E5: a voice note or a video is read in pieces (seeking; Safari needs it to play at all).
+  const range = request?.headers.get('range');
+  const asked: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (range && /^bytes=\d*-\d*$/.test(range)) asked.Range = range;
   try {
-    response = await fetch(`${getApiBaseUrl()}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    response = await fetch(`${getApiBaseUrl()}${path}`, { headers: asked });
   } catch {
     return new Response('No pudimos traer el archivo.', { status: 503 });
   }
+  if (response.status === 416) return new Response(null, { status: 416, headers: { 'Content-Range': response.headers.get('content-range') ?? '' } });
   if (!response.ok) return new Response('Archivo no encontrado', { status: response.status === 403 ? 404 : response.status });
   const headers = new Headers();
-  for (const name of ['content-type', 'content-disposition', 'x-content-type-options', 'cache-control', 'content-length']) {
+  for (const name of ['content-type', 'content-disposition', 'x-content-type-options', 'cache-control', 'content-length', 'accept-ranges', 'content-range']) {
     const value = response.headers.get(name);
     if (value) headers.set(name, value);
   }
   headers.set('X-Content-Type-Options', 'nosniff');
-  return new Response(response.body, { status: 200, headers });
+  return new Response(response.body, { status: response.status === 206 ? 206 : 200, headers });
 }
 
 /**

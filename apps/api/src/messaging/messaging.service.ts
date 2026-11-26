@@ -29,7 +29,8 @@ import {
   type ReactionGroup,
   type ReplyPreview,
 } from './message-serializer';
-import { CHAT_FILE_MAX_BYTES, cleanFileName, sniffChatFile } from './chat-files';
+import { cleanFileName, isServableChatFile, sniffChatFile } from './chat-files';
+import { LINK_PREVIEW_MIME, fetchLinkPreview, firstLink } from './link-preview';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
@@ -70,10 +71,14 @@ export function notificationPreview(message: {
   const file = message.Attachment[0];
   const text = (message.content ?? '').trim();
   if (file?.mimeType === PRODUCT_CARD_MIME) return `🛍️ ${file.filename}`;
+  if (file?.mimeType.startsWith('audio/')) return '🎤 Nota de voz';
+  if (file?.mimeType.startsWith('video/')) {
+    return text && text !== file.filename ? `🎥 ${text}` : '🎥 Video';
+  }
   if (file?.mimeType.startsWith('image/')) {
     return text && text !== file.filename ? `📷 ${text}` : '📷 Foto';
   }
-  if (file) return `📄 ${file.filename}`;
+  if (file && file.mimeType !== LINK_PREVIEW_MIME) return `📄 ${file.filename}`;
   return text.length > 80 ? `${text.slice(0, 79)}…` : text;
 }
 
@@ -173,6 +178,19 @@ export const MESSAGES_PAGE = 50;
 const MESSAGES_PAGE_MAX = 100;
 
 /** E4 — like WhatsApp: a message can be edited for 15 minutes and deleted for everyone for 2 days. */
+/** E5 — a voice note's length as the recorder measured it, kept within sane bounds. */
+function voiceSeconds(value: number | undefined): number | null {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) return null;
+  return Math.min(Math.round(value), 3600);
+}
+
+/** E5 — what to say when a file is over the limit of its kind. */
+function tooBigMessage(kind: { mimeType: string; type: string }) {
+  if (kind.mimeType.startsWith('video/')) return 'El video puede pesar hasta 64 MB.';
+  if (kind.type === 'VOICE') return 'La nota de voz es demasiado larga.';
+  return 'El archivo puede pesar hasta 10 MB.';
+}
+
 export const EDIT_WINDOW_MS = 15 * 60 * 1000;
 export const DELETE_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 /** E4 — «Reenviar» reaches at most this many chats at once (WhatsApp: 5). */
@@ -192,6 +210,9 @@ function quotedKind(message: { Attachment: Array<{ mimeType: string }> }): Reply
   if (!mime) return 'texto';
   if (mime === ORDER_CARD_MIME) return 'pedido';
   if (mime === PRODUCT_CARD_MIME) return 'producto';
+  if (mime === LINK_PREVIEW_MIME) return 'texto';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
   return mime.startsWith('image/') ? 'imagen' : 'archivo';
 }
 
@@ -808,10 +829,23 @@ export class MessagingService {
       throw new ForbiddenException('Pasaron más de 15 minutos: el mensaje ya no se puede editar');
     }
 
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: { content, editedAt: new Date() },
-    });
+    // E5: the old link's preview goes; the controller asks for the new one.
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.message.update({
+        where: { id: messageId },
+        data: { content, editedAt: new Date() },
+      }),
+      this.prisma.attachment.updateMany({
+        where: {
+          messageId,
+          businessId: context.businessId,
+          mimeType: LINK_PREVIEW_MIME,
+          deletedAt: null,
+        },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
+    return updated;
   }
 
   async deleteMessage(auth: AuthenticatedUser, conversationId: string, messageId: string) {
@@ -1268,6 +1302,8 @@ export class MessagingService {
                 filename: a.filename,
                 mimeType: a.mimeType,
                 sizeBytes: a.sizeBytes,
+                durationSec: a.durationSec,
+                metadata: a.metadata ?? Prisma.DbNull,
               },
             }),
           ),
@@ -1350,9 +1386,10 @@ export class MessagingService {
 
   /**
    * OR-B4-037 — a photo (JPG, PNG, WebP) or a PDF in the conversation, up to 10 MB, from the
-   * team or from the store customer (who gets their conversation opened if needed). The file
-   * is checked by its content, stored outside any web root, and served only through the API
-   * to whoever may read the conversation. Idempotent by clientMessageId.
+   * team or from the store customer (who gets their conversation opened if needed). E5 adds
+   * voice notes (from the microphone, `voice`) and videos up to 64 MB. The file is checked by
+   * its content, stored outside any web root, and served only through the API to whoever may
+   * read the conversation. Idempotent by clientMessageId.
    */
   async sendAttachment(
     auth: AuthenticatedUser,
@@ -1360,19 +1397,28 @@ export class MessagingService {
     clientMessageId: string,
     file: { buffer: Buffer; originalname: string; size: number } | undefined,
     caption?: string,
+    options: { voice?: boolean; durationSec?: number } = {},
   ) {
     if (!file?.buffer?.length) throw new BadRequestException('Elegí un archivo.');
-    if (file.size > CHAT_FILE_MAX_BYTES)
-      throw new BadRequestException('El archivo puede pesar hasta 10 MB.');
-    const kind = sniffChatFile(file.buffer);
-    if (!kind) throw new BadRequestException('Solo se pueden mandar fotos (JPG, PNG, WebP) o PDF.');
+    const kind = sniffChatFile(file.buffer, { voice: options.voice });
+    if (!kind) {
+      throw new BadRequestException(
+        options.voice
+          ? 'No pudimos leer la nota de voz. Probá grabarla de nuevo.'
+          : 'Solo se pueden mandar fotos (JPG, PNG, WebP), PDF o videos (MP4, MOV, WebM).',
+      );
+    }
+    if (file.size > kind.maxBytes) throw new BadRequestException(tooBigMessage(kind));
     const dir = this.chatStorageDir();
     const context = await this.resolveContext(auth);
     const target =
       conversationId ??
       (context.customerId ? await this.ensureCustomerConversation(context) : null);
     if (!target) throw new BadRequestException('Falta la conversación');
-    const filename = cleanFileName(file.originalname || 'archivo', kind.ext);
+    const filename =
+      kind.type === 'VOICE'
+        ? `nota-de-voz.${kind.ext}`
+        : cleanFileName(file.originalname || 'archivo', kind.ext);
     const message = await this.createTextMessage(
       auth,
       target,
@@ -1394,6 +1440,7 @@ export class MessagingService {
             filename,
             mimeType: kind.mimeType,
             sizeBytes: BigInt(file.size),
+            ...(kind.type === 'VOICE' ? { durationSec: voiceSeconds(options.durationSec) } : {}),
           },
         }),
       ]);
@@ -1415,7 +1462,15 @@ export class MessagingService {
       },
       include: { Message: { select: { conversationId: true, createdAt: true } } },
     });
-    if (!attachment || attachment.mimeType === PRODUCT_CARD_MIME) {
+    // Cards are data, not files; a link's preview hands back only its checked photo (E5).
+    const linkPhoto =
+      attachment?.mimeType === LINK_PREVIEW_MIME
+        ? ((attachment.metadata ?? {}) as { imagenMime?: string }).imagenMime
+        : undefined;
+    const servable = linkPhoto
+      ? linkPhoto.startsWith('image/')
+      : !!attachment && isServableChatFile(attachment.mimeType);
+    if (!attachment || !servable) {
       throw new NotFoundException('Archivo no encontrado');
     }
     const conversationId = attachment.Message.conversationId;
@@ -1438,8 +1493,104 @@ export class MessagingService {
     return {
       // Absolute: res.sendFile refuses relative paths (a relative MESSAGING_STORAGE_DIR is fine).
       path: path.resolve(this.chatStorageDir(), attachment.storageKey),
-      filename: attachment.filename,
-      mimeType: attachment.mimeType,
+      filename: linkPhoto ? 'vista-previa' : attachment.filename,
+      mimeType: linkPhoto ?? attachment.mimeType,
+    };
+  }
+
+  /**
+   * E5 — the preview of the first link of a text message (title, description, photo), fetched
+   * by the protected visitor of link-preview.ts after the message is sent. Returns the message
+   * when a preview was added, so the caller tells the open screens; null otherwise. Never
+   * throws: a page that cannot be read just leaves the plain link. A link already previewed in
+   * this Business in the last day is reused (no second visit).
+   */
+  async addLinkPreview(auth: AuthenticatedUser, messageId: string) {
+    if (process.env.LINK_PREVIEWS === 'off') return null;
+    try {
+      const context = await this.resolveContext(auth);
+      const message = await this.prisma.message.findFirst({
+        where: { id: messageId, businessId: context.businessId, deletedAt: null, type: 'TEXT' },
+        include: { Attachment: { where: { deletedAt: null } } },
+      });
+      const link = firstLink(message?.content);
+      if (!message || !link || message.Attachment.length > 0) return null;
+      const data =
+        (await this.knownLinkPreview(context, message.id, link)) ??
+        (await this.freshLinkPreview(context, message.id, link));
+      if (!data) return null;
+      // The message may have been edited or deleted while the page was being read.
+      const still = await this.prisma.message.findFirst({
+        where: { id: message.id, deletedAt: null, content: message.content },
+        select: { id: true },
+      });
+      if (!still) return null;
+      await this.prisma.attachment.create({ data });
+      return message;
+    } catch {
+      return null;
+    }
+  }
+
+  /** A preview of the same link made in this Business in the last day, reused as it is. */
+  private async knownLinkPreview(
+    context: BusinessContext,
+    messageId: string,
+    link: string,
+  ): Promise<Prisma.AttachmentUncheckedCreateInput | null> {
+    const known = await this.prisma.attachment.findFirst({
+      where: {
+        businessId: context.businessId,
+        mimeType: LINK_PREVIEW_MIME,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        metadata: { path: ['url'], equals: link },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!known) return null;
+    return {
+      businessId: context.businessId,
+      messageId,
+      storageKey: known.storageKey,
+      filename: known.filename,
+      mimeType: LINK_PREVIEW_MIME,
+      sizeBytes: known.sizeBytes,
+      metadata: known.metadata ?? Prisma.DbNull,
+    };
+  }
+
+  /** Visits the page (link-preview.ts) and keeps its photo with the chat files. */
+  private async freshLinkPreview(
+    context: BusinessContext,
+    messageId: string,
+    link: string,
+  ): Promise<Prisma.AttachmentUncheckedCreateInput | null> {
+    const preview = await fetchLinkPreview(link, (bytes) => sniffChatFile(bytes)?.type === 'IMAGE');
+    if (!preview) return null;
+    const photo = preview.imagen ? sniffChatFile(preview.imagen.buffer) : null;
+    let storageKey = `enlace:${createHash('sha256').update(preview.url).digest('hex').slice(0, 32)}`;
+    let stored: { mimeType: string; bytes: number } | null = null;
+    if (preview.imagen && photo && process.env.MESSAGING_STORAGE_DIR) {
+      storageKey = `${context.businessId}/${randomUUID()}.${photo.ext}`;
+      const dir = this.chatStorageDir();
+      await fs.mkdir(path.join(dir, context.businessId), { recursive: true });
+      await fs.writeFile(path.join(dir, storageKey), preview.imagen.buffer);
+      stored = { mimeType: photo.mimeType, bytes: preview.imagen.buffer.length };
+    }
+    return {
+      businessId: context.businessId,
+      messageId,
+      storageKey,
+      filename: preview.titulo.slice(0, 200),
+      mimeType: LINK_PREVIEW_MIME,
+      sizeBytes: BigInt(stored?.bytes ?? 0),
+      metadata: {
+        url: link,
+        titulo: preview.titulo,
+        descripcion: preview.descripcion,
+        sitio: preview.sitio,
+        ...(stored ? { imagenMime: stored.mimeType } : {}),
+      },
     };
   }
 

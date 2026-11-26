@@ -1,3 +1,5 @@
+import { LINK_PREVIEW_MIME } from './link-preview';
+
 /**
  * Public wire representation of a Message.
  *
@@ -59,7 +61,7 @@ export interface ReplyPreview {
   autorCustomerId: string | null;
   /** Written by whoever is looking. */
   mia: boolean;
-  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido';
+  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido' | 'audio' | 'video';
   /** At most 160 characters; null when it was deleted. */
   texto: string | null;
   eliminado?: true;
@@ -80,6 +82,8 @@ export interface SerializableAttachment {
   sizeBytes: bigint | number;
   metadata: unknown;
   deletedAt?: Date | string | null;
+  /** E5: a voice note's length in seconds. */
+  durationSec?: number | null;
 }
 
 /** A product shared in the chat (OR-B4-037): an Attachment with this media type. */
@@ -87,6 +91,9 @@ export const PRODUCT_CARD_MIME = 'application/vnd.wapsell.product+json';
 
 /** OR-B4-053 — the order card in the customer's chat: one per order, it follows its state. */
 export const ORDER_CARD_MIME = 'application/vnd.wapsell.order+json';
+
+/** E5 — the preview of a link (title, description, photo), kept as an Attachment of the text. */
+export { LINK_PREVIEW_MIME };
 
 /** The order as its card shows it; the service fills it live from the order when it reads. */
 export type OrderCardWire = {
@@ -110,7 +117,28 @@ export type AttachmentWire =
       precioFinal?: string;
     }
   | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number }
+  /** E5: a voice note (`duracion` in seconds) or a video, played in the chat. */
+  | {
+      tipo: 'audio' | 'video';
+      id: string;
+      nombre: string;
+      mimeType: string;
+      tamano: number;
+      duracion: number | null;
+    }
+  | LinkPreviewWire
   | OrderCardWire;
+
+/** E5 — a link's preview; `imagen` says the photo can be fetched like any chat file. */
+export type LinkPreviewWire = {
+  tipo: 'enlace';
+  id: string;
+  url: string;
+  titulo: string;
+  descripcion: string | null;
+  sitio: string;
+  imagen: boolean;
+};
 
 /**
  * OR-B4-053 — a notice the system posted for the Business (order and return updates), not
@@ -180,6 +208,30 @@ function toAttachmentWire(a: SerializableAttachment): AttachmentWire {
       estado: meta.estado ?? null,
       total: meta.total ?? null,
       items: Array.isArray(meta.items) ? meta.items : [],
+    };
+  }
+  if (a.mimeType === LINK_PREVIEW_MIME) {
+    const meta = (a.metadata ?? {}) as Partial<Omit<LinkPreviewWire, 'tipo' | 'id' | 'imagen'>> & {
+      imagenMime?: string;
+    };
+    return {
+      tipo: 'enlace',
+      id: a.id,
+      url: String(meta.url ?? ''),
+      titulo: String(meta.titulo ?? a.filename),
+      descripcion: meta.descripcion ?? null,
+      sitio: String(meta.sitio ?? ''),
+      imagen: Boolean(meta.imagenMime),
+    };
+  }
+  if (a.mimeType.startsWith('audio/') || a.mimeType.startsWith('video/')) {
+    return {
+      tipo: a.mimeType.startsWith('audio/') ? 'audio' : 'video',
+      id: a.id,
+      nombre: a.filename,
+      mimeType: a.mimeType,
+      tamano: Number(a.sizeBytes),
+      duracion: a.durationSec ?? null,
     };
   }
   return {

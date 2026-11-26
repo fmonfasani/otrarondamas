@@ -1,6 +1,7 @@
 import { useEffect, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { ArrowDown, Check, CheckCheck, Clock3, Star } from 'lucide-react';
 import { TICK_LABELS, type BubbleRun, type MessageTick } from '~/utils/messaging';
+import { Linkified } from './Media';
 
 /**
  * Paquete 2 — the chat's pieces, one look for the store and the panel (A9): bubbles in runs with
@@ -99,7 +100,7 @@ export function Bubble({
       {children}
       {text != null ? (
         <p className="chat-bubble__text">
-          {text}
+          <Linkified text={text} />
           {meta}
         </p>
       ) : (
