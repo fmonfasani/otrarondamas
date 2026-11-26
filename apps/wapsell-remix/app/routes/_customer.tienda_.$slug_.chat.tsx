@@ -1,14 +1,29 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData } from '@remix-run/react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { ArrowLeft, Bell, BellRing, Camera, FileText, ImageIcon, Package, Plus, SendHorizontal, ShoppingBag } from 'lucide-react';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import { addToServerCart, fetchCustomerChat, fetchStore, sendCustomerMessage, type CustomerChat } from '~/services/store.server';
-import { formatMoney, formatTime } from '~/utils/format';
+import { formatMoney } from '~/utils/format';
+import { storeMark } from '~/utils/store';
+import { bubbleRuns, groupByDay, messageTime } from '~/utils/messaging';
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
+import {
+  Bubble,
+  BubbleMeta,
+  ChatAvatar,
+  ChatEmpty,
+  DayDivider,
+  NewBelow,
+  TypingBubble,
+  growTextarea,
+  useTouchScreen,
+} from '~/components/chat/ChatParts';
 import { orderCardOf } from '~/utils/order-card';
 import { useLiveSource, useLiveUpdates, useTabVisible, useTypingNotifier } from '~/hooks/useLiveUpdates';
+import { useStickToBottom } from '~/hooks/useStickToBottom';
 import { playChime, titleWithCount } from '~/utils/alerts';
 import { keepSlidOut, useWhenBackOnline } from '~/hooks/useRetry';
 import { ensurePushSubscription, storePushSettings } from '~/utils/push';
@@ -18,6 +33,7 @@ import { ensurePushSubscription, storePushSettings } from '~/utils/push';
  * The first message opens a conversation with the Owner (OR-B4-031), who answers from
  * Mensajes in the panel. Answers and «escribiendo…» appear at once through the page's own
  * stream (E1, chat/eventos); the token stays on the server. Without the stream, every 5 s.
+ * Paquete 2: it looks like the panel's chat, and fills the phone's screen like WhatsApp.
  */
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
@@ -25,9 +41,6 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => [
 ];
 
 const MAX_LENGTH = 2000;
-
-/** E2 — the ticks of the customer's own messages, read aloud. */
-const TICK_WORDS = { enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' } as const;
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const slug = params.slug ?? '';
@@ -85,21 +98,40 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 }
 
+type FilePick = 'foto' | 'camara' | 'archivo';
+
+/** What each «+» option lets the customer pick (the API takes JPG, PNG, WebP and PDF). */
+const FILE_PICKS: Record<FilePick, string> = {
+  foto: 'image/jpeg,image/png,image/webp',
+  camara: 'image/jpeg,image/png,image/webp',
+  archivo: 'application/pdf',
+};
+
 export default function CustomerChat() {
   const { store, customer, chat: newest, error } = useLoaderData<typeof loader>();
   // Paquete 1 F2: older pages the customer asked for, above the newest page (which stays live).
   const olderPage = useFetcher<typeof loader>();
   const [older, setOlder] = useState<typeof newest.messages>([]);
   const [olderMore, setOlderMore] = useState<boolean | null>(null);
+  const wall = useRef<HTMLDivElement>(null);
+  const keepScroll = useRef<number | null>(null);
   useEffect(() => {
     const page = olderPage.data?.chat;
     if (olderPage.state !== 'idle' || !page) return;
+    const el = wall.current;
+    keepScroll.current = el ? el.scrollHeight - el.scrollTop : null;
     setOlder((current) => {
       const known = new Set(current.map((m) => m.id));
       return [...page.messages.filter((m) => !known.has(m.id)), ...current];
     });
     setOlderMore(Boolean(page.hayMas));
   }, [olderPage.state, olderPage.data]);
+  useEffect(() => {
+    // Stay on the same message while older ones appear above it.
+    const el = wall.current;
+    if (el && keepScroll.current !== null) el.scrollTop = el.scrollHeight - keepScroll.current;
+    keepScroll.current = null;
+  }, [older]);
   // A message that slides out of the newest page (a new one came in) stays with the older ones.
   const previousNewest = useRef(newest.messages);
   useEffect(() => {
@@ -122,10 +154,12 @@ export default function CustomerChat() {
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState('');
   const [clientMessageId, setClientMessageId] = useState(() => newMessageId());
-  const end = useRef<HTMLDivElement>(null);
   const sending = send.state !== 'idle';
+  const pending = sending ? String(send.formData?.get('content') ?? '').trim() : '';
+  const touch = useTouchScreen();
 
   // E1: the store's answers and «escribiendo…» at once — also with the tab in the background
   // (E2), so the title can count them; reading happens only when the customer looks.
@@ -167,14 +201,13 @@ export default function CustomerChat() {
     if (send.state === 'idle' && send.data?.ok) {
       setDraft('');
       setClientMessageId(newMessageId());
+      growTextarea(boxRef.current, true);
     }
   }, [send.state, send.data]);
 
-  // Follows the newest message (a page stays at 50, so its length would not change).
-  const newestId = newest.messages[newest.messages.length - 1]?.id;
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: 'end' });
-  }, [newestId, storeTyping]);
+  // Paquete 2 A6: follow the newest message while at the bottom; «↓ N nuevos» while reading above.
+  const items = useMemo(() => chat.messages.map((m) => ({ id: m.id, mine: Boolean(m.mine) })), [chat.messages]);
+  const { unseen, away, toBottom } = useStickToBottom(wall, items, { extraBelow: storeTyping || Boolean(pending) });
 
   const submit = () => {
     if (!draft.trim() || sending) return;
@@ -183,148 +216,162 @@ export default function CustomerChat() {
   // Paquete 1 F3: a message that did not go out goes by itself when the connection is back.
   useWhenBackOnline(send.state === 'idle' && send.data?.ok === false && Boolean(draft.trim()), submit);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       submit();
     }
   };
+  const pick = (kind: FilePick) => {
+    setMenuOpen(false);
+    const input = fileRef.current;
+    if (!input) return;
+    input.accept = FILE_PICKS[kind];
+    if (kind === 'camara') input.setAttribute('capture', 'environment');
+    else input.removeAttribute('capture');
+    input.click();
+  };
+
+  let status = 'Te responden por acá';
+  let statusClass = '';
+  if (storeTyping) {
+    status = 'escribiendo…';
+    statusClass = ' is-typing';
+  } else if (chat.tiendaEnLinea) {
+    status = 'en línea';
+    statusClass = ' is-online';
+  }
 
   return (
-    <main className="store-shell">
+    <main className="store-shell store-shell--chat">
       <StoreHeader store={store} customerName={customer.nombre}>
         <Link className="cart-trigger" to={`/tienda/${store.slug}?carrito=1`}>Mi pedido</Link>
       </StoreHeader>
-      <section className="chat-section">
-        <div className="account-intro">
-          <span className="eyebrow">MENSAJES</span>
-          <h1>Hablá con {store.nombre}</h1>
-          {chat.tiendaEnLinea ? <span className="store-online">● En línea</span> : null}
-          <ReplyAlerts slug={store.slug} />
-          <p>Consultá por productos, envíos o tu pedido. Te responden por acá.</p>
+      <section className="chat-screen store-chat-screen" aria-label={`Mensajes con ${store.nombre}`}>
+        <header className="chat-head">
+          <Link className="chat-head__back chat-only-mobile" to={`/tienda/${store.slug}`} aria-label="Volver a la tienda">
+            <ArrowLeft size={20} aria-hidden="true" />
+          </Link>
+          <ChatAvatar name={store.nombre} letters={storeMark(store.nombre)} tone="store" online={Boolean(chat.tiendaEnLinea)} />
+          <span className="chat-head__who">
+            <h1>{store.nombre}</h1>
+            <span className={`chat-head__status${statusClass}`}>{status}</span>
+          </span>
+          <span className="chat-head__actions">
+            <ReplyAlerts slug={store.slug} />
+            <Link className="chat-head__action chat-only-mobile" to={`/tienda/${store.slug}?carrito=1`} aria-label="Mi pedido">
+              <ShoppingBag size={15} aria-hidden="true" />
+            </Link>
+          </span>
+        </header>
+
+        <div className="chat-wall-wrap">
+          <div className="chat-wall" ref={wall} aria-live="polite">
+            {error ? <output className="form-error">{error}</output> : null}
+            {canLoadOlder ? (
+              <button type="button" className="chat-older" onClick={loadOlder} disabled={olderPage.state !== 'idle'}>
+                {olderPage.state === 'idle' ? 'Ver mensajes anteriores' : 'Cargando…'}
+              </button>
+            ) : null}
+            {!error && chat.messages.length === 0 && !pending ? (
+              <ChatEmpty title={`Escribile a ${store.nombre}`}>
+                Consultá por productos, envíos o tu pedido. Te responden por acá.
+              </ChatEmpty>
+            ) : null}
+            {groupByDay(chat.messages).map((day) => {
+              const runs = bubbleRuns(day.items, (m) => {
+                if (m.aviso) return null;
+                return m.mine ? 'me' : 'store';
+              });
+              return (
+                <div key={day.key} className="chat-day-group">
+                  <DayDivider label={day.label} />
+                  {day.items.map((message, index) => {
+                    // OR-B4-053: the order as one live card; the system's other notices as short lines.
+                    const orderCard = message.aviso ? orderCardOf(message) : null;
+                    if (orderCard) {
+                      return <OrderCard key={message.id} card={orderCard} time={messageTime(message.createdAt)} href={`/tienda/${store.slug}/cuenta`} />;
+                    }
+                    if (message.aviso) {
+                      return <NoticeLine key={message.id} text={message.content ?? ''} time={messageTime(message.createdAt)} />;
+                    }
+                    return (
+                      <CustomerBubble
+                        key={message.id}
+                        message={message}
+                        run={runs[index]}
+                        slug={store.slug}
+                        cart={cart}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {pending ? (
+              <Bubble mine run={{ cont: false, tail: true }} text={pending} pending meta={<BubbleMeta time="" estado="pendiente" />} />
+            ) : null}
+            {storeTyping ? <TypingBubble label={`${store.nombre} está escribiendo…`} /> : null}
+          </div>
+          <NewBelow count={unseen} away={away} onClick={() => toBottom(true)} />
         </div>
-        <div className="store-chat" aria-live="polite">
-          {error ? <output className="form-error">{error}</output> : null}
-          {canLoadOlder ? (
-            <button type="button" className="chat-older" onClick={loadOlder} disabled={olderPage.state !== 'idle'}>
-              {olderPage.state !== 'idle' ? 'Cargando…' : 'Ver mensajes anteriores'}
+
+        {send.data && !send.data.ok && send.state === 'idle' ? (
+          <output className="chat-error">
+            {send.data.message}{' '}
+            <button type="button" className="chat-retry" onClick={submit}>
+              Reintentar
             </button>
-          ) : null}
-          {!error && chat.messages.length === 0 ? (
-            <p className="store-chat__empty">Todavía no hay mensajes. Escribí tu consulta y el comercio te va a responder acá.</p>
-          ) : null}
-          {chat.messages.map((message) => {
-            // OR-B4-053: the order as one live card; the system's other notices as short lines.
-            const orderCard = message.aviso ? orderCardOf(message) : null;
-            if (orderCard) {
-              return <OrderCard key={message.id} card={orderCard} time={formatTime(message.createdAt)} href={`/tienda/${store.slug}/cuenta`} />;
-            }
-            if (message.aviso) {
-              return <NoticeLine key={message.id} text={message.content ?? ''} time={formatTime(message.createdAt)} />;
-            }
-            return (
-            <div key={message.id} className={`store-bubble ${message.mine ? 'store-bubble--mine' : ''}`}>
-              {message.mine ? null : <span className="store-bubble__from">{store.nombre}</span>}
-              {message.adjuntos?.some((a) => a.tipo === 'imagen' || a.tipo === 'archivo') ? (
-                <>
-                  {message.adjuntos
-                    .filter((a) => a.tipo === 'imagen' || a.tipo === 'archivo')
-                    .map((a) =>
-                      a.tipo === 'imagen' ? (
-                        <a key={a.id} href={`/tienda/${store.slug}/chat/adjunto/${a.id}`} target="_blank" rel="noreferrer" className="store-chat-photo">
-                          <img src={`/tienda/${store.slug}/chat/adjunto/${a.id}`} alt={a.nombre} loading="lazy" />
-                        </a>
-                      ) : (
-                        <a key={a.id} href={`/tienda/${store.slug}/chat/adjunto/${a.id}`} className="store-chat-file">
-                          📄 {a.nombre}
-                        </a>
-                      ),
-                    )}
-                  {message.content && !message.adjuntos.some((a) => a.nombre === message.content) ? <p>{message.content}</p> : null}
-                </>
-              ) : message.adjuntos?.some((a) => a.tipo === 'producto') ? (
-                message.adjuntos
-                  .filter((a) => a.tipo === 'producto' && a.productoId)
-                  .map((a) => (
-                    <span key={a.id} className="store-product-card">
-                      <b>{a.nombre}</b>
-                      {a.precioFinal ? (
-                        <span className="store-product-card__price">
-                          <s>{formatMoney(a.precio ?? '0')}</s> <b>{formatMoney(a.precioFinal)}</b>
-                        </span>
-                      ) : (
-                        <span>{formatMoney(a.precio ?? '0')}</span>
-                      )}
-                      {cart.state === 'idle' && cart.data?.ok && cart.data.added === a.productoId ? (
-                        <Link to={`/tienda/${store.slug}?carrito=1`}>Agregado · Ver mi pedido</Link>
-                      ) : (
-                        <cart.Form method="post">
-                          <input type="hidden" name="intent" value="cart-add" />
-                          <input type="hidden" name="productoId" value={a.productoId} />
-                          <button type="submit" className="submit-order" disabled={cart.state !== 'idle'}>
-                            Agregar a mi pedido
-                          </button>
-                        </cart.Form>
-                      )}
-                    </span>
-                  ))
-              ) : (
-                <p>{message.content ?? 'Mensaje eliminado'}</p>
-              )}
-              <time dateTime={message.createdAt}>
-                {formatTime(message.createdAt)}
-                {message.mine && message.estado ? (
-                  <span
-                    className={`store-tick store-tick--${message.estado}`}
-                    aria-label={TICK_WORDS[message.estado]}
-                    title={TICK_WORDS[message.estado]}
-                  >
-                    {message.estado === 'enviado' ? ' ✓' : ' ✓✓'}
-                  </span>
-                ) : null}
-              </time>
-            </div>
-            );
-          })}
-          {storeTyping ? <p className="store-chat__typing">{store.nombre} está escribiendo…</p> : null}
-          <div ref={end} />
-        </div>
+          </output>
+        ) : null}
+        {cart.data && !cart.data.ok ? <output className="chat-error">{cart.data.message}</output> : null}
+        {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="chat-error">{upload.data.message}</output> : null}
         <send.Form
           method="post"
-          className="store-chat__composer"
+          className="chat-composer"
           onSubmit={(event) => {
             event.preventDefault();
             submit();
           }}
         >
-          <div className="store-plus">
+          <div className="chat-plus">
             <button
               type="button"
-              className={`store-plus__button${menuOpen ? ' is-open' : ''}`}
-              aria-label="Más opciones"
+              className={`chat-round chat-plus__button${menuOpen ? ' is-open' : ''}`}
+              aria-label="Adjuntar"
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
             >
-              +
+              <Plus size={22} aria-hidden="true" />
             </button>
             {menuOpen ? (
-              <div className="store-plus__menu" role="menu">
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={upload.state !== 'idle'}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    fileRef.current?.click();
-                  }}
-                >
-                  📎 {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
+              <div className="chat-menu" role="menu">
+                <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('foto')}>
+                  <span className="chat-menu__icon chat-menu__icon--photo">
+                    <ImageIcon size={16} aria-hidden="true" />
+                  </span>
+                  {upload.state === 'idle' ? 'Foto' : 'Enviando…'}
+                </button>
+                {touch ? (
+                  <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('camara')}>
+                    <span className="chat-menu__icon chat-menu__icon--camera">
+                      <Camera size={16} aria-hidden="true" />
+                    </span>
+                    Cámara
+                  </button>
+                ) : null}
+                <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('archivo')}>
+                  <span className="chat-menu__icon chat-menu__icon--file">
+                    <FileText size={16} aria-hidden="true" />
+                  </span>
+                  Documento PDF
                 </button>
               </div>
             ) : null}
           </div>
           <label className="sr-only" htmlFor="chat-content">Tu mensaje</label>
           <textarea
+            ref={boxRef}
             id="chat-content"
             name="content"
             rows={1}
@@ -333,30 +380,22 @@ export default function CustomerChat() {
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value);
+              growTextarea(event.currentTarget);
               notifyTyping();
             }}
             onKeyDown={onKeyDown}
           />
-          <button type="submit" className="store-send" aria-label="Enviar" disabled={sending || !draft.trim()}>
-            ↑
+          <button type="submit" className="chat-round chat-send" aria-label="Enviar" disabled={sending || !draft.trim()}>
+            <SendHorizontal size={20} aria-hidden="true" />
           </button>
         </send.Form>
-        {send.data && !send.data.ok && send.state === 'idle' ? (
-          <output className="form-error">
-            {send.data.message}{' '}
-            <button type="button" className="chat-retry" onClick={submit}>
-              Reintentar
-            </button>
-          </output>
-        ) : null}
-        {cart.data && !cart.data.ok ? <output className="form-error">{cart.data.message}</output> : null}
         <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} hidden>
           <input
             ref={fileRef}
             type="file"
             name="archivo"
             aria-label="Foto o PDF"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
+            accept={FILE_PICKS.foto}
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];
               if (file) upload.submit(event.currentTarget.form);
@@ -364,9 +403,70 @@ export default function CustomerChat() {
             }}
           />
         </upload.Form>
-        {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="form-error">{upload.data.message}</output> : null}
       </section>
     </main>
+  );
+}
+
+type ChatMessage = CustomerChat['messages'][number];
+type CartFetcher = ReturnType<typeof useFetcher<typeof action>>;
+
+/** One message of the customer or the store: text, photos, files or product cards. */
+function CustomerBubble({
+  message,
+  run,
+  slug,
+  cart,
+}: Readonly<{ message: ChatMessage; run: { cont: boolean; tail: boolean }; slug: string; cart: CartFetcher }>) {
+  const files = (message.adjuntos ?? []).filter((a) => a.tipo === 'imagen' || a.tipo === 'archivo');
+  const products = (message.adjuntos ?? []).filter((a) => a.tipo === 'producto' && a.productoId);
+  const deleted = message.content == null && files.length === 0 && products.length === 0;
+  let text: string | null = message.content ?? null;
+  if (products.length > 0 || deleted) text = null;
+  else if (files.some((a) => a.nombre === message.content)) text = null;
+  const meta = (
+    <BubbleMeta time={messageTime(message.createdAt)} dateTime={message.createdAt} estado={message.mine ? message.estado : null} />
+  );
+  return (
+    <Bubble mine={Boolean(message.mine)} run={run} text={text} meta={meta}>
+      {files.map((a) =>
+        a.tipo === 'imagen' ? (
+          <a key={a.id} href={`/tienda/${slug}/chat/adjunto/${a.id}`} target="_blank" rel="noreferrer" className="chat-photo">
+            <img src={`/tienda/${slug}/chat/adjunto/${a.id}`} alt={a.nombre} loading="lazy" />
+          </a>
+        ) : (
+          <a key={a.id} href={`/tienda/${slug}/chat/adjunto/${a.id}`} className="chat-file">
+            <FileText size={18} aria-hidden="true" /> {a.nombre}
+          </a>
+        ),
+      )}
+      {products.map((a) => (
+        <span key={a.id} className="chat-product">
+          <span className="chat-product__name">
+            <Package size={16} aria-hidden="true" /> {a.nombre}
+          </span>
+          {a.precioFinal ? (
+            <span className="chat-product__price">
+              <s>{formatMoney(a.precio ?? '0')}</s> <b>{formatMoney(a.precioFinal)}</b>
+            </span>
+          ) : (
+            <span className="chat-product__price">{formatMoney(a.precio ?? '0')}</span>
+          )}
+          {cart.state === 'idle' && cart.data?.ok && cart.data.added === a.productoId ? (
+            <Link to={`/tienda/${slug}?carrito=1`}>Agregado · Ver mi pedido</Link>
+          ) : (
+            <cart.Form method="post">
+              <input type="hidden" name="intent" value="cart-add" />
+              <input type="hidden" name="productoId" value={a.productoId} />
+              <button type="submit" className="submit-order" disabled={cart.state !== 'idle'}>
+                Agregar a mi pedido
+              </button>
+            </cart.Form>
+          )}
+        </span>
+      ))}
+      {deleted ? <span className="chat-bubble__deleted">Mensaje eliminado</span> : null}
+    </Bubble>
   );
 }
 
@@ -392,18 +492,25 @@ function ReplyAlerts({ slug }: Readonly<{ slug: string }>) {
     }
   }, [slug]);
   if (state === 'unknown' || state === 'blocked') return null;
-  if (state === 'on') return <span className="store-alerts" aria-live="polite">🔔 Te avisamos cuando te respondan</span>;
+  if (state === 'on') {
+    return (
+      <span className="chat-head__action store-alerts is-on" aria-live="polite" title="Te avisamos cuando te respondan">
+        <BellRing size={15} aria-hidden="true" /> <span className="chat-only-wide">Avisos activos</span>
+      </span>
+    );
+  }
   return (
     <button
       type="button"
-      className="store-alerts"
+      className="chat-head__action store-alerts"
+      title="Avisarme cuando me respondan"
       onClick={async () => {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return setState(permission === 'denied' ? 'blocked' : 'ask');
         setState((await ensurePushSubscription(storePushSettings(slug))) ? 'on' : 'unknown');
       }}
     >
-      🔔 Avisarme cuando me respondan
+      <Bell size={15} aria-hidden="true" /> <span className="chat-only-wide">Avisarme</span>
     </button>
   );
 }

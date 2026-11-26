@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useParams, useSearchParams } from '@remix-run/react';
-import { ArrowLeft, ArrowUp, Bell, Check, CheckCheck, Eye, FileText, MessageSquareText, Minus, Package, Paperclip, Plus, Search, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Eye, FileText, ImageIcon, MessageSquareText, Minus, Package, Plus, Search, SendHorizontal, ShoppingBag, SquarePen, Users, X } from 'lucide-react';
 import { initials } from '~/components/panel/AppShell';
 import { formatMoney } from '~/utils/format';
 import { getCurrentUser, requireAuth } from '~/services/auth.server';
 import { ApiError, apiRequest, settle } from '~/services/api.server';
 import {
   authorOf,
+  bubbleRuns,
   canCreateOrder,
   canEditCustomerCart,
   CHAT_FILE_ACCEPT,
@@ -31,8 +32,6 @@ import {
   type ConversationCart,
   type Message,
   type QuickReply,
-  type MessageTick,
-  TICK_LABELS,
 } from '~/utils/messaging';
 import type { SearchProduct } from '~/utils/sales';
 import { useLiveSource, useLiveUpdates, useSharedLive, useTypingNotifier } from '~/hooks/useLiveUpdates';
@@ -42,6 +41,19 @@ import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingS
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import { orderCardOf } from '~/utils/order-card';
 import { keepSlidOut, newClientMessageId, useWhenBackOnline } from '~/hooks/useRetry';
+import { useStickToBottom } from '~/hooks/useStickToBottom';
+import {
+  Bubble,
+  BubbleMeta,
+  ChatAvatar,
+  ChatEmpty,
+  ChatSkeleton,
+  DayDivider,
+  NewBelow,
+  TypingBubble,
+  growTextarea,
+  useTouchScreen,
+} from '~/components/chat/ChatParts';
 
 /** Paquete 1 F2 — messages per page, as the API sends them. */
 const MESSAGES_PAGE = 50;
@@ -242,11 +254,18 @@ export default function MessagesPage() {
     );
   }
 
+  // Paquete 2 A8: while another conversation is on its way, its shape instead of the old one.
+  const loadingId =
+    navigation.state === 'loading' && navigation.location.pathname === base
+      ? new URLSearchParams(navigation.location.search).get('c')
+      : null;
+  const switching = Boolean(loadingId && loadingId !== data.selectedId);
+
   const visible = data.conversations
     .filter((c) => (filter === 'clientes' ? Boolean(customerOf(c)) : filter === 'equipo' ? !customerOf(c) : true))
     .filter((c) => matchesSearch(c, query));
   const withCustomers = data.conversations.filter((c) => customerOf(c)).length;
-  const showThread = Boolean(data.selectedId) || data.composing;
+  const showThread = Boolean(data.selectedId) || data.composing || switching;
 
   return (
     <div className={`ws-inbox${showThread ? ' has-selection' : ''}`}>
@@ -276,10 +295,9 @@ export default function MessagesPage() {
           </Link>
         </div>
         {visible.length === 0 ? (
-          <div className="ws-empty">
-            <b>{data.conversations.length === 0 ? 'Todavía no hay conversaciones.' : 'Nada coincide con la búsqueda.'}</b>
-            {data.conversations.length === 0 && 'Empieza una con alguien de tu equipo o un cliente.'}
-          </div>
+          <ChatEmpty title={data.conversations.length === 0 ? 'Todavía no hay conversaciones' : 'Nada coincide con la búsqueda'}>
+            {data.conversations.length === 0 ? 'Cuando un cliente te escriba desde la tienda, aparece acá.' : null}
+          </ChatEmpty>
         ) : (
           <ul className="ws-inbox__rows">
             {visible.map((conversation) => {
@@ -326,7 +344,9 @@ export default function MessagesPage() {
       </section>
 
       <section className="ws-inbox__chat" aria-label="Conversación">
-        {data.composing ? (
+        {switching ? (
+          <ChatSkeleton />
+        ) : data.composing ? (
           <NewConversation base={hrefWith({ nueva: null })} contacts={data.contacts} customers={data.customers} />
         ) : data.selected ? (
           <Thread
@@ -349,9 +369,8 @@ export default function MessagesPage() {
             <Link className="ws-link" to={hrefWith({ c: null })}>Volver a la bandeja</Link>
           </div>
         ) : (
-          <div className="ws-inbox__placeholder">
-            <b>Elige una conversación</b>
-            <span>O empieza una nueva con alguien de tu equipo o un cliente.</span>
+          <div className="ws-inbox__placeholder chat-screen">
+            <ChatEmpty title="Elige una conversación">O empieza una nueva con alguien de tu equipo o un cliente.</ChatEmpty>
           </div>
         )}
       </section>
@@ -388,7 +407,6 @@ function Thread({
 }>) {
   const threadRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const lastId = messages[messages.length - 1]?.id;
 
   // Paquete 1 F2: older pages asked for, above the newest page (which the loader keeps live).
   const olderPage = useFetcher<{ messages: Message[] }>();
@@ -433,45 +451,58 @@ function Thread({
   };
 
   useEffect(() => {
-    const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [lastId]);
-
-  useEffect(() => {
     if (sender.state === 'idle' && sender.data?.ok) formRef.current?.reset();
   }, [sender.state, sender.data]);
 
   const pending = sender.state !== 'idle' ? String(sender.formData?.get('content') ?? '').trim() : '';
   const canSend = conversation.viewerAccess.canSend;
   const visibleMessages = allMessages.filter((m) => !m.deletedAt);
+  // Paquete 2 A6: follow the newest while at the bottom; «↓ N nuevos» while reading above.
+  const items = useMemo(
+    () => visibleMessages.map((m) => ({ id: m.id, mine: Boolean(authorOf(conversation, m)?.isViewer) })),
+    [visibleMessages, conversation],
+  );
+  const { unseen, away, toBottom } = useStickToBottom(threadRef, items, { extraBelow: Boolean(typing) || Boolean(pending) });
+  const title = conversationTitle(conversation);
+  const customer = customerOf(conversation);
+  const online = otherIsOnline(conversation, presence);
 
   return (
     <>
-      <header className="ws-chat__head">
-        <Link className="ws-chat__back" to={back} aria-label="Volver a la bandeja">
+      <header className="chat-head ws-chat__head">
+        <Link className="chat-head__back ws-chat__back" to={back} aria-label="Volver a la bandeja">
           <ArrowLeft size={20} aria-hidden="true" />
         </Link>
-        <span className="ws-chat__contact">
-          <b>{conversationTitle(conversation)}</b>
+        <ChatAvatar name={title} tone={customer ? 'customer' : 'neutral'} online={online} />
+        <span className="chat-head__who">
+          <b>{title}</b>
           {typing ? (
-            <span className="ws-typing">{typingLabel(conversation, typing)}</span>
+            <span className="chat-head__status is-typing">{typingLabel(conversation, typing)}</span>
           ) : (
-            <span>{contactStatus(conversation, presence) || conversationSubtitle(conversation)}</span>
+            <span className={`chat-head__status${online ? ' is-online' : ''}`}>
+              {contactStatus(conversation, presence) || conversationSubtitle(conversation)}
+            </span>
           )}
         </span>
       </header>
 
-      <div className="ws-thread" ref={threadRef} aria-live="polite">
+      <div className="chat-wall-wrap">
+      <div className="chat-wall" ref={threadRef} aria-live="polite">
         {canLoadOlder ? (
           <button type="button" className="chat-older" onClick={loadOlder} disabled={olderPage.state !== 'idle'}>
             {olderPage.state !== 'idle' ? 'Cargando…' : 'Ver mensajes anteriores'}
           </button>
         ) : null}
-        {visibleMessages.length === 0 && !pending && <p className="ws-thread__empty">Todavía no hay mensajes. Escribe el primero.</p>}
-        {groupByDay(visibleMessages).map((group) => (
-          <div key={group.key} className="ws-thread__day-group">
-            <span className="ws-thread__day">{group.label}</span>
-            {group.items.map((message) => {
+        {visibleMessages.length === 0 && !pending ? (
+          <ChatEmpty title="Todavía no hay mensajes">Escribe el primero.</ChatEmpty>
+        ) : null}
+        {groupByDay(visibleMessages).map((group) => {
+          // A3: runs of the same author; a notice or the order card breaks them.
+          const runs = bubbleRuns(group.items, (m) => (m.aviso ? null : (m.authorUserId ?? m.authorCustomerId ?? null)));
+          return (
+          <div key={group.key} className="chat-day-group">
+            <DayDivider label={group.label} />
+            {group.items.map((message, index) => {
               // OR-B4-053: the order as one live card; the system's other notices as short lines.
               const orderCard = message.aviso ? orderCardOf(message) : null;
               if (orderCard) {
@@ -480,67 +511,21 @@ function Thread({
               if (message.aviso) {
                 return <NoticeLine key={message.id} text={message.content ?? ''} time={messageTime(message.createdAt)} />;
               }
-              const own = isOwnSide(conversation, message);
-              const author = authorOf(conversation, message);
-              const showAuthor = !author?.isViewer && (conversation.type === 'GROUP' || own);
-              return (
-                <div key={message.id} className={`ws-bubble${own ? ' ws-bubble--team' : ''}`}>
-                  {showAuthor && <span className="ws-bubble__author">{author?.name ?? 'Ex participante'}</span>}
-                  {productCards(message).length > 0 ? (
-                    productCards(message).map((card) => (
-                      <span key={card.id} className="ws-product-card">
-                        <Package size={18} aria-hidden="true" />
-                        <span>
-                          <b>{card.nombre}</b>
-                          {card.precioFinal ? (
-                            <small>
-                              <s>{formatMoney(card.precio)}</s> {formatMoney(card.precioFinal)}
-                            </small>
-                          ) : (
-                            <small>{formatMoney(card.precio)}</small>
-                          )}
-                        </span>
-                      </span>
-                    ))
-                  ) : fileAttachments(message).length > 0 ? (
-                    <>
-                      {fileAttachments(message).map((file) =>
-                        file.tipo === 'imagen' ? (
-                          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="ws-chat-photo">
-                            <img src={`/panel/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
-                          </a>
-                        ) : (
-                          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} className="ws-chat-file">
-                            <FileText size={18} aria-hidden="true" /> {file.nombre} <small>{fileSize(file.tamano)}</small>
-                          </a>
-                        ),
-                      )}
-                      {message.content && !fileAttachments(message).some((f) => f.nombre === message.content) ? <p>{message.content}</p> : null}
-                    </>
-                  ) : (
-                    <p>{message.content}</p>
-                  )}
-                  <small>
-                    {messageTime(message.createdAt)}
-                    {message.editedAt ? ' · editado' : ''}
-                    {own && author?.isViewer && message.estado ? <Ticks estado={message.estado} /> : null}
-                  </small>
-                </div>
-              );
+              return <PanelBubble key={message.id} conversation={conversation} message={message} run={runs[index]} />;
             })}
           </div>
-        ))}
-        {pending && (
-          <div className="ws-bubble ws-bubble--team is-pending">
-            <p>{pending}</p>
-            <small>Enviando…</small>
-          </div>
-        )}
-        {typing ? <p className="ws-typing ws-thread__typing">{typingLabel(conversation, typing)}</p> : null}
+          );
+        })}
+        {pending ? (
+          <Bubble mine run={{ cont: false, tail: true }} text={pending} pending meta={<BubbleMeta time="" estado="pendiente" />} />
+        ) : null}
+        {typing ? <TypingBubble label={typingLabel(conversation, typing)} /> : null}
+      </div>
+      <NewBelow count={unseen} away={away} onClick={() => toBottom(true)} />
       </div>
 
       {sender.data && !sender.data.ok && sender.state === 'idle' && (
-        <p className="ws-alert ws-chat__error" role="alert">
+        <p className="chat-error" role="alert">
           {sender.data.message}{' '}
           <button type="button" className="chat-retry" onClick={() => formRef.current?.requestSubmit()}>
             Reintentar
@@ -586,13 +571,59 @@ function otherIsOnline(conversation: Conversation, presence: PresenceMap): boole
   return Boolean(other && (presence[presenceKey(other)] ?? other).online);
 }
 
-/** E2 — ✓ saved, ✓✓ reached the others, blue ✓✓ read (like WhatsApp). */
-function Ticks({ estado }: Readonly<{ estado: MessageTick }>) {
-  const Icon = estado === 'enviado' ? Check : CheckCheck;
+/**
+ * One message in the panel: on the right our side (the viewer, and the team in a chat with a
+ * customer); the author's name in groups and when a teammate answered the customer.
+ */
+function PanelBubble({
+  conversation,
+  message,
+  run,
+}: Readonly<{ conversation: Conversation; message: Message; run: { cont: boolean; tail: boolean } }>) {
+  const own = isOwnSide(conversation, message);
+  const author = authorOf(conversation, message);
+  const showAuthor = !author?.isViewer && (conversation.type === 'GROUP' || own);
+  const cards = productCards(message);
+  const files = fileAttachments(message);
+  let text: string | null = message.content ?? '';
+  if (cards.length > 0 || files.some((f) => f.nombre === message.content)) text = null;
+  else if (files.length > 0 && !message.content) text = null;
+  const meta = (
+    <BubbleMeta
+      time={messageTime(message.createdAt)}
+      dateTime={message.createdAt}
+      edited={Boolean(message.editedAt)}
+      estado={own && author?.isViewer ? (message.estado ?? null) : null}
+    />
+  );
   return (
-    <span className={`ws-tick ws-tick--${estado}`} title={TICK_LABELS[estado]} aria-label={TICK_LABELS[estado]}>
-      <Icon size={14} aria-hidden="true" />
-    </span>
+    <Bubble mine={own} run={run} author={showAuthor ? (author?.name ?? 'Ex participante') : null} text={text} meta={meta}>
+      {cards.map((card) => (
+        <span key={card.id} className="chat-product">
+          <span className="chat-product__name">
+            <Package size={16} aria-hidden="true" /> {card.nombre}
+          </span>
+          {card.precioFinal ? (
+            <span className="chat-product__price">
+              <s>{formatMoney(card.precio)}</s> <b>{formatMoney(card.precioFinal)}</b>
+            </span>
+          ) : (
+            <span className="chat-product__price">{formatMoney(card.precio)}</span>
+          )}
+        </span>
+      ))}
+      {files.map((file) =>
+        file.tipo === 'imagen' ? (
+          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="chat-photo">
+            <img src={`/panel/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
+          </a>
+        ) : (
+          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} className="chat-file">
+            <FileText size={18} aria-hidden="true" /> {file.nombre} <small>{fileSize(file.tamano)}</small>
+          </a>
+        ),
+      )}
+    </Bubble>
   );
 }
 
@@ -664,6 +695,23 @@ function Composer({
   useWhenBackOnline(sender.state === 'idle' && sender.data?.ok === false, () => formRef.current?.requestSubmit());
   const upload = useFetcher<{ ok: boolean; message: string }>();
   const [tooBig, setTooBig] = useState(false);
+  const [hasText, setHasText] = useState(false);
+  const touch = useTouchScreen();
+  useEffect(() => {
+    if (sender.state === 'idle' && sender.data?.ok) {
+      setHasText(false);
+      growTextarea(formRef.current?.querySelector('textarea') ?? null, true);
+    }
+  }, [sender.state, sender.data, formRef]);
+  const pick = (kind: 'foto' | 'camara' | 'archivo') => {
+    setMenuOpen(false);
+    const input = fileRef.current;
+    if (!input) return;
+    input.accept = kind === 'archivo' ? 'application/pdf' : CHAT_FILE_ACCEPT.split(',').filter((t) => t.startsWith('image/')).join(',');
+    if (kind === 'camara') input.setAttribute('capture', 'environment');
+    else input.removeAttribute('capture');
+    input.click();
+  };
   const units = cart?.items.reduce((sum, item) => sum + item.cantidad, 0) ?? 0;
   const open = (next: ComposerPanel) => {
     setPanel(next);
@@ -673,6 +721,8 @@ function Composer({
     const box = formRef.current?.querySelector('textarea');
     if (!box) return;
     box.value = box.value.trim() ? `${box.value.trim()} ${text}` : text;
+    setHasText(true);
+    growTextarea(box);
     box.focus();
   };
 
@@ -718,9 +768,9 @@ function Composer({
         </div>
       ) : null}
 
-      {tooBig ? <output className="ws-alert ws-chat__error">El archivo puede pesar hasta 10 MB.</output> : null}
+      {tooBig ? <output className="chat-error">El archivo puede pesar hasta 10 MB.</output> : null}
       {upload.state === 'idle' && upload.data && !upload.data.ok ? (
-        <output className="ws-alert ws-chat__error">{upload.data.message}</output>
+        <output className="chat-error">{upload.data.message}</output>
       ) : null}
       <upload.Form method="post" encType="multipart/form-data" action={`/panel/mensajes/adjuntar`} hidden>
         <input type="hidden" name="conversationId" value={conversation.id} />
@@ -739,46 +789,52 @@ function Composer({
         />
       </upload.Form>
 
-      <sender.Form method="post" className="ws-composer ws-composer--simple" ref={formRef}>
+      <sender.Form method="post" className="chat-composer" ref={formRef}>
         <input type="hidden" name="intent" value="send" />
         <input type="hidden" name="conversationId" value={conversation.id} />
         <input type="hidden" name="clientMessageId" value={clientMessageId} />
-        <div className="ws-plus">
+        <div className="chat-plus">
           <button
             type="button"
-            className={`ws-plus__button${menuOpen ? ' is-open' : ''}`}
+            className={`chat-round chat-plus__button${menuOpen ? ' is-open' : ''}`}
             aria-label="Más opciones"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
-            <Plus size={20} aria-hidden="true" />
-            {units > 0 ? <span className="ws-plus__badge" aria-label={`${units} en el carrito`}>{units}</span> : null}
+            <Plus size={22} aria-hidden="true" />
+            {units > 0 ? <span className="chat-plus__badge" aria-label={`${units} en el carrito`}>{units}</span> : null}
           </button>
           {menuOpen ? (
-            <div className="ws-plus__menu" role="menu">
+            <div className="chat-menu" role="menu">
               <button type="button" role="menuitem" onClick={() => open('productos')}>
-                <Search size={16} aria-hidden="true" /> Buscar y mostrar un producto
+                <span className="chat-menu__icon chat-menu__icon--product"><Search size={16} aria-hidden="true" /></span>
+                Mostrar un producto
               </button>
               {cart ? (
                 <button type="button" role="menuitem" onClick={() => open('carrito')}>
-                  <ShoppingBag size={16} aria-hidden="true" /> Carrito y crear pedido{units > 0 ? ` · ${units}` : ''}
+                  <span className="chat-menu__icon chat-menu__icon--cart"><ShoppingBag size={16} aria-hidden="true" /></span>
+                  Carrito y crear pedido{units > 0 ? ` · ${units}` : ''}
                 </button>
               ) : null}
-              <button
-                type="button"
-                role="menuitem"
-                disabled={upload.state !== 'idle'}
-                onClick={() => {
-                  setMenuOpen(false);
-                  fileRef.current?.click();
-                }}
-              >
-                <Paperclip size={16} aria-hidden="true" /> {upload.state !== 'idle' ? 'Enviando…' : 'Foto o PDF'}
+              <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('foto')}>
+                <span className="chat-menu__icon chat-menu__icon--photo"><ImageIcon size={16} aria-hidden="true" /></span>
+                {upload.state === 'idle' ? 'Foto' : 'Enviando…'}
+              </button>
+              {touch ? (
+                <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('camara')}>
+                  <span className="chat-menu__icon chat-menu__icon--camera"><Camera size={16} aria-hidden="true" /></span>
+                  Cámara
+                </button>
+              ) : null}
+              <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('archivo')}>
+                <span className="chat-menu__icon chat-menu__icon--file"><FileText size={16} aria-hidden="true" /></span>
+                Documento PDF
               </button>
               {quickReplies.length > 0 ? (
                 <button type="button" role="menuitem" onClick={() => open('respuestas')}>
-                  <MessageSquareText size={16} aria-hidden="true" /> Respuestas rápidas
+                  <span className="chat-menu__icon chat-menu__icon--quick"><MessageSquareText size={16} aria-hidden="true" /></span>
+                  Respuestas rápidas
                 </button>
               ) : null}
             </div>
@@ -790,7 +846,11 @@ function Composer({
           required
           placeholder="Escribe un mensaje"
           aria-label="Mensaje"
-          onInput={notifyTyping}
+          onInput={(event) => {
+            setHasText(Boolean(event.currentTarget.value.trim()));
+            growTextarea(event.currentTarget);
+            notifyTyping();
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
@@ -798,8 +858,8 @@ function Composer({
             }
           }}
         />
-        <button className="ws-composer__send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle'}>
-          <ArrowUp size={18} aria-hidden="true" />
+        <button className="chat-round chat-send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle' || !hasText}>
+          <SendHorizontal size={20} aria-hidden="true" />
         </button>
       </sender.Form>
     </div>

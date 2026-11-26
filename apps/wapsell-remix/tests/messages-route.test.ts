@@ -4,6 +4,8 @@ import { action, loader } from '../app/routes/_business.panel.mensajes';
 import {
   canCreateOrder,
   conversationTitle,
+  bubbleRuns,
+  dayLabel,
   groupByDay,
   isOwnSide,
   matchesSearch,
@@ -107,8 +109,35 @@ describe('messaging presentation', () => {
       now,
     );
     expect(groups.map((g) => [g.label, g.items.map((m) => m.id)])).toEqual([
-      ['AYER', ['1', '2']],
-      ['HOY', ['3']],
+      ['Ayer', ['1', '2']],
+      ['Hoy', ['3']],
+    ]);
+  });
+
+  it('names the days like WhatsApp: weekday this week, then the date', () => {
+    const now = new Date('2026-11-26T15:00:00Z'); // jueves
+    expect(dayLabel('2026-11-23T15:00:00Z', now)).toBe('lunes');
+    expect(dayLabel('2026-11-19T15:00:00Z', now)).toBe('19 de noviembre');
+    expect(dayLabel('2025-12-31T15:00:00Z', now)).toBe('31 de diciembre de 2025');
+  });
+
+  it('keeps runs of the same author together, with the tail on the last one', () => {
+    const at = (min: number) => new Date(Date.UTC(2026, 10, 26, 12, min)).toISOString();
+    const items = [
+      { a: 'ana', createdAt: at(0) },
+      { a: 'ana', createdAt: at(1) },
+      { a: 'ana', createdAt: at(30) }, // pause: a new run
+      { a: null, createdAt: at(31) }, // a notice breaks it
+      { a: 'ana', createdAt: at(32) },
+      { a: 'beto', createdAt: at(33) },
+    ];
+    expect(bubbleRuns(items, (i) => i.a)).toEqual([
+      { cont: false, tail: false },
+      { cont: true, tail: true },
+      { cont: false, tail: true },
+      { cont: false, tail: true },
+      { cont: false, tail: true },
+      { cont: false, tail: true },
     ]);
   });
 });

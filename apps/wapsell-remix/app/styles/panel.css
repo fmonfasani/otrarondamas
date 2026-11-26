@@ -373,9 +373,6 @@
 /* E2 — an unread conversation in the inbox, and the ticks of one's own messages. */
 .ws-conv.is-unread .ws-conv__name, .ws-conv.is-unread .ws-conv__last { font-weight: 700; color: var(--text-primary); }
 .ws-conv__last-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-width: 0; }
-/* Own messages are light blue with black text (like WhatsApp's green); the ticks read on it. */
-.ws-tick { display: inline-flex; vertical-align: -2px; margin-left: 2px; color: #5f6b76; }
-.ws-tick--leido { color: #0a6fd6; }
 /* E2b — «en línea»: a dot on the contact's avatar. */
 .ws-conv__avatar { position: relative; }
 .ws-online-dot {
@@ -402,35 +399,6 @@
 .ws-chat__contact { display: flex; flex: 1 0 0; flex-direction: column; gap: var(--space-4); min-width: 0; line-height: normal; }
 .ws-chat__contact b { font-size: 15px; font-weight: 600; }
 .ws-chat__contact span { font-size: 11px; }
-.ws-thread {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: var(--space-16);
-  min-height: 0;
-  padding: var(--space-24) var(--space-16);
-  overflow-y: auto;
-}
-.ws-thread__day-group { display: flex; flex-direction: column; gap: var(--space-16); }
-.ws-thread__day { font-size: 10px; letter-spacing: 0.5px; text-align: center; }
-.ws-thread__empty { margin: auto; font-size: 13px; }
-.ws-thread__typing { align-self: flex-start; margin: 0; font-size: 12px; }
-.ws-bubble {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-  max-width: min(420px, 85%);
-  padding: 14px;
-  border-radius: var(--radius-card);
-  background: var(--surface-card);
-}
-.ws-bubble--team { align-self: flex-end; color: #141413; background: #d6ecfc; }
-.ws-bubble--team small { color: #4f5b66; }
-.ws-bubble.is-pending { opacity: 0.6; }
-.ws-bubble__author { font-size: 11px; font-weight: 600; line-height: normal; }
-.ws-bubble p { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.ws-bubble small { font-size: 10px; text-align: right; white-space: pre; }
-.ws-chat__error { margin: 0 var(--space-16) var(--space-8); }
 .ws-composer {
   display: flex;
   flex-direction: column;
@@ -453,16 +421,6 @@
 }
 .ws-composer__tools { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
 .ws-composer__hint { font-size: 11px; }
-.ws-composer__send {
-  display: inline-flex;
-  padding: var(--space-8);
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--action-primary);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-.ws-composer__send:disabled { opacity: 0.5; cursor: progress; }
 .ws-composer--readonly { flex-direction: row; align-items: center; gap: var(--space-8); font-size: 13px; }
 .ws-inbox__placeholder {
   display: flex;
@@ -523,7 +481,6 @@
   .ws-inbox.has-selection .ws-inbox__list { display: flex; }
   .ws-inbox__chat { display: flex; }
   .ws-chat__back { display: none; }
-  .ws-thread { padding: var(--space-24); }
 }
 @media (min-width: 1280px) {
   .ws-inbox:has(.ws-inbox__context) { grid-template-columns: 278px minmax(0, 1fr) 240px; }
@@ -809,9 +766,6 @@ a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-
 .ws-link--inline { display: inline; }
 
 /* OR-B4-037 — products in the conversation */
-.ws-product-card { display: flex; gap: 10px; align-items: center; padding: 10px 12px; margin: 2px 0 4px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); }
-.ws-product-card > span { display: flex; flex-direction: column; }
-.ws-product-card small { font-size: 12px; }
 .ws-picker { border-top: 1px solid var(--text-muted); padding: 8px 16px; }
 .ws-picker summary { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 600; font-size: 14px; }
 .ws-picker__search { display: flex; gap: 8px; margin: 8px 0; }
@@ -822,9 +776,6 @@ a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-
 .ws-picker__results small { font-size: 12px; }
 .ws-orderbar__qty { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
 .ws-orderbar__qty .ws-icon-button { width: 26px; height: 26px; }
-.ws-chat-photo { display: block; margin: 2px 0 4px; }
-.ws-chat-photo img { display: block; max-width: min(260px, 100%); max-height: 260px; border-radius: var(--radius-control); object-fit: cover; }
-.ws-chat-file { display: inline-flex; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); color: var(--text-primary); text-decoration: none; }
 .ws-attach { padding: 6px 16px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ws-attach__button { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-size: 13px; font-weight: 600; }
 .ws-composer__quick { max-width: 190px; padding: 6px 8px; border: 1px solid var(--text-muted); border-radius: var(--radius-control); background: var(--surface-card); font: inherit; font-size: 13px; }
@@ -833,19 +784,8 @@ a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-
 @media (max-width: 640px) { .ws-quick-list li { grid-template-columns: 1fr; } }
 .ws-quick-list textarea { width: 100%; resize: vertical; font: inherit; border: 0; background: transparent; }
 
-/* Simple composer: «+» | text | send arrow; the tools open just above it. */
+/* The composer's tool panels (products, cart, quick replies) open just above it (chat.css). */
 .ws-composer-wrap { position: relative; border-top: 1px solid var(--text-muted); background: var(--surface-card); }
-.ws-composer--simple { display: flex; flex-direction: row; align-items: flex-end; gap: 8px; padding: 10px 12px; border-top: 0; }
-.ws-composer--simple textarea { flex: 1; width: auto; min-width: 0; min-height: 40px; max-height: 160px; padding: 9px 14px; border: 1px solid var(--text-muted); border-radius: 20px; resize: none; font: inherit; line-height: 1.4; background: var(--background-default); field-sizing: content; }
-.ws-composer--simple .ws-composer__send { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
-.ws-plus { position: relative; flex: 0 0 40px; }
-.ws-plus__button { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--text-muted); background: var(--surface-card); color: var(--text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s ease; }
-.ws-plus__button.is-open { transform: rotate(45deg); background: var(--text-primary); color: var(--surface-card); }
-.ws-plus__badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--action-primary); color: var(--text-primary); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
-.ws-plus__button.is-open .ws-plus__badge { transform: rotate(-45deg); }
-.ws-plus__menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 5; min-width: 250px; padding: 6px; border: 1px solid var(--text-muted); border-radius: var(--radius-card); background: var(--surface-card); box-shadow: 0 8px 24px rgba(20, 20, 19, 0.12); display: flex; flex-direction: column; }
-.ws-plus__menu button { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
-.ws-plus__menu button:hover:not(:disabled), .ws-plus__menu button:focus-visible { background: var(--background-default); }
 .ws-tool { padding: 10px 16px 4px; border-bottom: 1px solid var(--text-muted); max-height: 45vh; overflow-y: auto; }
 .ws-tool__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .ws-tool .ws-picker { border-top: 0; padding: 0; }
