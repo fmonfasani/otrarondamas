@@ -20,7 +20,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ChatFileDto } from './dto/chat-file.dto';
 import { sendChatFile } from './send-chat-file';
-import { CHAT_FILE_MAX_BYTES } from './chat-files';
+import { CHAT_UPLOAD_MAX_BYTES } from './chat-files';
 import { toMessageWire } from './message-serializer';
 import { ApiTags } from '@nestjs/swagger';
 import { AllowCustomer } from '../auth/decorators/allow-customer.decorator';
@@ -204,6 +204,7 @@ export class CustomerChatController {
         }),
       );
     }
+    this.previewLink(user, message.id);
     return {
       conversationId: message.conversationId,
       message: {
@@ -242,7 +243,15 @@ export class CustomerChatController {
         editedAt: message.editedAt,
       }),
     );
+    this.previewLink(user, message.id);
     return { id: message.id, content: message.content, editado: true };
+  }
+
+  /** E5 — after answering: the link's preview, then the open screens reload the message. */
+  private previewLink(user: AuthenticatedUser, messageId: string) {
+    void this.messagingService.addLinkPreview(user, messageId).then((message) => {
+      if (message) this.publishQuietly(() => this.messagingGateway.publishMessageChanged(message));
+    });
   }
 
   /** E4 — «Eliminar para todos» (their own message, for 2 days). */
@@ -340,11 +349,11 @@ export class CustomerChatController {
     if (found) await this.messagingGateway.publishTyping(found.conversationId, found.context);
   }
 
-  /** OR-B4-037 — the customer sends a photo or PDF (opens the chat if needed). */
+  /** OR-B4-037 — the customer sends a photo or PDF (opens the chat if needed); E5: video, voice. */
   @CanonicalPermission(CUSTOMER_POLICY)
   @RateLimit(LIMITS.files)
   @Post('adjuntos')
-  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_FILE_MAX_BYTES } }))
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: CHAT_UPLOAD_MAX_BYTES } }))
   async sendFile(
     @CurrentUser() user: AuthenticatedUser,
     @Param('businessSlug') businessSlug: string,
@@ -358,6 +367,7 @@ export class CustomerChatController {
       dto.clientMessageId,
       file,
       dto.caption,
+      { voice: dto.voz === '1', durationSec: dto.duracion ? Number(dto.duracion) : undefined },
     );
     try {
       this.messagingGateway.publishMessageCreated(message);

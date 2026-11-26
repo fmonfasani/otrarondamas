@@ -13,10 +13,10 @@ import {
   canStillDelete,
   canStillEdit,
   canEditCustomerCart,
-  CHAT_FILE_ACCEPT,
-  CHAT_FILE_MAX_BYTES,
-  fileAttachments,
-  fileSize,
+  CHAT_PHOTO_OR_VIDEO_ACCEPT,
+  fileTooBig,
+  isFileName,
+  mediaOf,
   fillQuickReply,
   productCards,
   conversationSubtitle,
@@ -43,6 +43,16 @@ import { ensurePushSubscription } from '~/utils/push';
 import { presenceKey, presenceLabel, typingLabel, type PresenceMap, type TypingSignal } from '~/utils/live';
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import { orderCardOf } from '~/utils/order-card';
+import {
+  EmojiButton,
+  MessageMedia,
+  MicButton,
+  MicDenied,
+  RecorderBar,
+  insertAtCursor,
+  usePhotoViewer,
+  useVoiceRecorder,
+} from '~/components/chat/Media';
 import { keepSlidOut, newClientMessageId, useWhenBackOnline } from '~/hooks/useRetry';
 import { useStickToBottom } from '~/hooks/useStickToBottom';
 import {
@@ -540,6 +550,17 @@ function Thread({
     return [...older.filter((m) => !known.has(m.id)), ...messages];
   }, [older, messages]);
   const canLoadOlder = olderMore ?? messages.length === MESSAGES_PAGE;
+  // E5: the chat's photos, to go through them full screen.
+  const photos = useMemo(
+    () =>
+      allMessages.flatMap((m) =>
+        m.eliminado || m.deletedAt
+          ? []
+          : mediaOf(m).filter((a) => a.tipo === 'imagen').map((a) => ({ id: a.id, nombre: 'nombre' in a ? a.nombre : 'foto' })),
+      ),
+    [allMessages],
+  );
+  const { openPhoto, viewer } = usePhotoViewer(photos, panelFileUrl);
   const loadOlder = () => {
     const oldest = allMessages[0]?.sequence;
     if (oldest && olderPage.state === 'idle') {
@@ -722,6 +743,7 @@ function Thread({
                   onOpenMenu={() => setMenuFor(message)}
                   onReact={canSend ? (emoji) => react(message, emoji) : null}
                   onQuote={jumpTo}
+                  onOpenPhoto={openPhoto}
                 />
               );
             })}
@@ -764,6 +786,7 @@ function Thread({
           onClose={() => setMenuFor(null)}
         />
       ) : null}
+      {viewer}
       {forwarding ? (
         <ForwardDialog from={conversation.id} message={forwarding} conversations={conversations} onClose={() => setForwarding(null)} />
       ) : null}
@@ -821,6 +844,9 @@ function otherIsOnline(conversation: Conversation, presence: PresenceMap): boole
   return Boolean(other && (presence[presenceKey(other)] ?? other).online);
 }
 
+/** A chat file of the panel (photo, video, voice note, PDF, a link's photo), through the API's check. */
+const panelFileUrl = (id: string) => `/panel/mensajes/adjunto/${id}`;
+
 /**
  * One message in the panel: on the right our side (the viewer, and the team in a chat with a
  * customer); the author's name in groups and when a teammate answered the customer.
@@ -834,6 +860,7 @@ function PanelBubble({
   onOpenMenu,
   onReact,
   onQuote,
+  onOpenPhoto,
 }: Readonly<{
   conversation: Conversation;
   message: Message;
@@ -843,15 +870,16 @@ function PanelBubble({
   onOpenMenu: () => void;
   onReact: ((emoji: string | null) => void) | null;
   onQuote: (messageId: string) => void;
+  onOpenPhoto: (id: string) => void;
 }>) {
   const own = isOwnSide(conversation, message);
   const author = authorOf(conversation, message);
   const showAuthor = !author?.isViewer && (conversation.type === 'GROUP' || own);
   const deleted = Boolean(message.eliminado || message.deletedAt);
   const cards = deleted ? [] : productCards(message);
-  const files = deleted ? [] : fileAttachments(message);
+  const files = deleted ? [] : mediaOf(message);
   let text: string | null = message.content ?? '';
-  if (deleted || cards.length > 0 || files.some((f) => f.nombre === message.content)) text = null;
+  if (deleted || cards.length > 0 || isFileName(message.content, files)) text = null;
   else if (files.length > 0 && !message.content) text = null;
   const press = usePressToOpen(onOpenMenu);
   const meta = (
@@ -910,17 +938,7 @@ function PanelBubble({
           )}
         </span>
       ))}
-      {files.map((file) =>
-        file.tipo === 'imagen' ? (
-          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} target="_blank" rel="noreferrer" className="chat-photo">
-            <img src={`/panel/mensajes/adjunto/${file.id}`} alt={file.nombre} loading="lazy" />
-          </a>
-        ) : (
-          <a key={file.id} href={`/panel/mensajes/adjunto/${file.id}`} className="chat-file">
-            <FileText size={18} aria-hidden="true" /> {file.nombre} <small>{fileSize(file.tamano)}</small>
-          </a>
-        ),
-      )}
+      <MessageMedia items={files} fileUrl={panelFileUrl} mine={own} onOpenPhoto={onOpenPhoto} />
     </Bubble>
   );
 }
@@ -958,8 +976,9 @@ type ComposerPanel = 'productos' | 'carrito' | 'respuestas' | null;
 
 /**
  * The conversation's composer, kept simple: «+» on the left with every messaging tool
- * (products, the customer's cart and checkout, photo or PDF, quick replies — audio later),
- * the text in the middle and the arrow to send on the right. A tool opens in a small panel
+ * (products, the customer's cart and checkout, photo, video or PDF, quick replies), emojis,
+ * the text in the middle and the arrow to send on the right — the microphone while it is
+ * empty (E5). A tool opens in a small panel
  * just above it.
  */
 function Composer({
@@ -999,7 +1018,23 @@ function Composer({
   }, [sender.state, sender.data]);
   useWhenBackOnline(sender.state === 'idle' && sender.data?.ok === false, () => formRef.current?.requestSubmit());
   const upload = useFetcher<{ ok: boolean; message: string }>();
-  const [tooBig, setTooBig] = useState(false);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+  // E5: the voice note goes like a file, marked as coming from the microphone.
+  const voice = useVoiceRecorder(({ file, seconds }) => {
+    const form = new FormData();
+    form.append('conversationId', conversation.id);
+    form.append('archivo', file, file.name);
+    form.append('voz', '1');
+    form.append('duracion', String(seconds));
+    upload.submit(form, { method: 'post', encType: 'multipart/form-data', action: '/panel/mensajes/adjuntar' });
+  });
+  const addEmoji = (emoji: string) => {
+    const box = formRef.current?.querySelector('textarea');
+    if (!box) return;
+    insertAtCursor(box, emoji);
+    setHasText(Boolean(box.value.trim()));
+    growTextarea(box);
+  };
   const [hasText, setHasText] = useState(false);
   const touch = useTouchScreen();
   useEffect(() => {
@@ -1012,7 +1047,7 @@ function Composer({
     setMenuOpen(false);
     const input = fileRef.current;
     if (!input) return;
-    input.accept = kind === 'archivo' ? 'application/pdf' : CHAT_FILE_ACCEPT.split(',').filter((t) => t.startsWith('image/')).join(',');
+    input.accept = kind === 'archivo' ? 'application/pdf' : CHAT_PHOTO_OR_VIDEO_ACCEPT;
     if (kind === 'camara') input.setAttribute('capture', 'environment');
     else input.removeAttribute('capture');
     input.click();
@@ -1073,7 +1108,9 @@ function Composer({
         </div>
       ) : null}
 
-      {tooBig ? <output className="chat-error">El archivo puede pesar hasta 10 MB.</output> : null}
+      {tooBig ? <output className="chat-error">{tooBig}</output> : null}
+      {voice.state === 'denied' ? <MicDenied /> : null}
+      {upload.state !== 'idle' ? <output className="chat-sending">Enviando…</output> : null}
       {upload.state === 'idle' && upload.data && !upload.data.ok ? (
         <output className="chat-error">{upload.data.message}</output>
       ) : null}
@@ -1083,18 +1120,22 @@ function Composer({
           ref={fileRef}
           type="file"
           name="archivo"
-          accept={CHAT_FILE_ACCEPT}
-          aria-label="Foto o PDF"
+          accept={CHAT_PHOTO_OR_VIDEO_ACCEPT}
+          aria-label="Foto, video o PDF"
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
-            setTooBig(Boolean(file && file.size > CHAT_FILE_MAX_BYTES));
-            if (file && file.size <= CHAT_FILE_MAX_BYTES) upload.submit(event.currentTarget.form);
+            const problem = file ? fileTooBig(file) : null;
+            setTooBig(problem);
+            if (file && !problem) upload.submit(event.currentTarget.form);
             event.currentTarget.value = '';
           }}
         />
       </upload.Form>
 
-      <sender.Form method="post" className="chat-composer" ref={formRef}>
+      {voice.state === 'recording' ? (
+        <RecorderBar seconds={voice.seconds} onCancel={() => voice.stop(false)} onSend={() => voice.stop(true)} />
+      ) : null}
+      <sender.Form method="post" className="chat-composer" ref={formRef} hidden={voice.state === 'recording'}>
         <input type="hidden" name="intent" value={editingId ? 'edit' : 'send'} />
         <input type="hidden" name="conversationId" value={conversation.id} />
         <input type="hidden" name="clientMessageId" value={clientMessageId} />
@@ -1126,7 +1167,7 @@ function Composer({
               ) : null}
               <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('foto')}>
                 <span className="chat-menu__icon chat-menu__icon--photo"><ImageIcon size={16} aria-hidden="true" /></span>
-                {upload.state === 'idle' ? 'Foto' : 'Enviando…'}
+                {upload.state === 'idle' ? 'Foto o video' : 'Enviando…'}
               </button>
               {touch ? (
                 <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('camara')}>
@@ -1147,6 +1188,7 @@ function Composer({
             </div>
           ) : null}
         </div>
+        <EmojiButton onPick={addEmoji} />
         <textarea
           name="content"
           rows={1}
@@ -1169,9 +1211,13 @@ function Composer({
             }
           }}
         />
-        <button className="chat-round chat-send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle' || !hasText}>
-          <SendHorizontal size={20} aria-hidden="true" />
-        </button>
+        {!hasText && !editingId && voice.supported ? (
+          <MicButton onClick={() => void voice.start()} disabled={upload.state !== 'idle'} />
+        ) : (
+          <button className="chat-round chat-send" type="submit" aria-label="Enviar" disabled={sender.state !== 'idle' || !hasText}>
+            <SendHorizontal size={20} aria-hidden="true" />
+          </button>
+        )}
       </sender.Form>
     </div>
   );

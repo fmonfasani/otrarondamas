@@ -44,7 +44,41 @@ export interface Conversation {
 export type Attachment =
   | { tipo: 'producto'; id: string; productoId: string; nombre: string; precio: string; precioFinal?: string }
   | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; mimeType: string; tamano: number }
+  | { tipo: 'audio' | 'video'; id: string; nombre: string; mimeType: string; tamano: number; duracion: number | null }
+  | LinkPreview
   | OrderCardData;
+
+/** E5 — a link's preview (title, description, site; `imagen` says it has a photo). */
+export type LinkPreview = {
+  tipo: 'enlace';
+  id: string;
+  url: string;
+  titulo: string;
+  descripcion: string | null;
+  sitio: string;
+  imagen: boolean;
+};
+
+/** E5 — what the chat shows of a message besides its text: photos, videos, voice, files, links. */
+export type ChatMedia =
+  | { tipo: 'imagen' | 'archivo'; id: string; nombre: string; tamano?: number }
+  | { tipo: 'audio' | 'video'; id: string; nombre: string; tamano?: number; duracion: number | null }
+  | LinkPreview;
+
+const MEDIA_TYPES = new Set(['imagen', 'archivo', 'audio', 'video', 'enlace']);
+
+/**
+ * E5 — the media of a message, in the order the chat shows them (the link preview last). Works
+ * for the panel's attachments and for the store's looser shape.
+ */
+export function mediaOf(m: { adjuntos?: ReadonlyArray<{ tipo: string; id: string }> }): ChatMedia[] {
+  const items = (m.adjuntos ?? []).filter((a) => MEDIA_TYPES.has(a.tipo)) as unknown as ChatMedia[];
+  return [...items.filter((a) => a.tipo !== 'enlace'), ...items.filter((a) => a.tipo === 'enlace')];
+}
+
+/** E5 — whether a message's text only repeats its file's name (then it is not shown as text). */
+export const isFileName = (content: string | null, media: ChatMedia[]) =>
+  media.some((a) => a.tipo !== 'enlace' && a.nombre === content);
 
 export type ProductCard = Extract<Attachment, { tipo: 'producto' }>;
 
@@ -64,9 +98,77 @@ export function fileSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** Same limits the API applies (OR-B4-037): photos or PDF, up to 10 MB. */
+/** Same limits the API applies (OR-B4-037): photos or PDF, up to 10 MB; E5: videos up to 64 MB. */
 export const CHAT_FILE_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
 export const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const CHAT_VIDEO_ACCEPT = 'video/mp4,video/quicktime,video/webm,video/3gpp';
+export const CHAT_VIDEO_MAX_BYTES = 64 * 1024 * 1024;
+/** What the upload route reads at most (the largest kind, a video). */
+export const CHAT_UPLOAD_MAX_BYTES = CHAT_VIDEO_MAX_BYTES;
+export const CHAT_PHOTO_OR_VIDEO_ACCEPT = `image/jpeg,image/png,image/webp,${CHAT_VIDEO_ACCEPT}`;
+
+/** E5 — why a picked file cannot go, before uploading it (the API checks again). */
+export function fileTooBig(file: { size: number; type: string }): string | null {
+  if (file.type.startsWith('video/')) return file.size > CHAT_VIDEO_MAX_BYTES ? 'El video puede pesar hasta 64 MB.' : null;
+  return file.size > CHAT_FILE_MAX_BYTES ? 'El archivo puede pesar hasta 10 MB.' : null;
+}
+
+/** E5 — «0:07», «1:25», «12:03»: a voice note's length or how far it went. */
+export function voiceTime(seconds: number | null | undefined): string {
+  const total = typeof seconds === 'number' && Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** E5 — a message's text cut into plain parts and web links (to make them clickable). */
+export function splitLinks(text: string): Array<{ text: string; link: boolean }> {
+  const parts: Array<{ text: string; link: boolean }> = [];
+  const pattern = /\bhttps?:\/\/[^\s<>"']+/gi;
+  let last = 0;
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+    let link = match[0];
+    while (/[.,;:!?)\]}]$/.test(link)) link = link.slice(0, -1);
+    if (match.index > last) parts.push({ text: text.slice(last, match.index), link: false });
+    parts.push({ text: link, link: true });
+    last = match.index + link.length;
+    pattern.lastIndex = last;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), link: false });
+  return parts;
+}
+
+/** E5 — the emoji picker's groups (the common ones of a sales chat, not the whole list). */
+export const EMOJI_GROUPS: ReadonlyArray<{ nombre: string; icono: string; emojis: readonly string[] }> = [
+  {
+    nombre: 'Caritas',
+    icono: '😀',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '🤗', '🤭', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😬', '😴', '😷', '🤒', '🥵', '🥶', '😵', '🤯', '🥳', '😎', '🤓', '😕', '😟', '🙁', '😮', '😯', '😲', '😳', '🥺', '😢', '😭', '😱', '😤', '😡', '🤬', '😈'],
+  },
+  {
+    nombre: 'Gestos',
+    icono: '👍',
+    emojis: ['👍', '👎', '👌', '🤌', '✌️', '🤞', '🤝', '🙏', '👏', '🙌', '👐', '🤲', '👋', '🤙', '💪', '👉', '👈', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🫶', '✍️', '🙋', '🙆', '🙅', '🤷', '🤦'],
+  },
+  {
+    nombre: 'Corazones',
+    icono: '❤️',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✨', '⭐', '🌟', '🔥', '💯', '✅', '❌', '⚠️', '❓', '❗'],
+  },
+  {
+    nombre: 'Compras',
+    icono: '🛍️',
+    emojis: ['🛍️', '🛒', '🎁', '📦', '🚚', '🏪', '💳', '💵', '💰', '🧾', '🏷️', '📍', '🕐', '📅', '📞', '📱', '💬', '📸', '👕', '👖', '👗', '👟', '👜', '💄', '⌚', '🧴', '🧸', '📚'],
+  },
+  {
+    nombre: 'Comida',
+    icono: '🍕',
+    emojis: ['☕', '🧉', '🍺', '🍷', '🥤', '🍕', '🍔', '🌭', '🥪', '🌮', '🍟', '🥗', '🍝', '🍣', '🥩', '🍗', '🥐', '🍞', '🧀', '🥚', '🍰', '🎂', '🍩', '🍪', '🍫', '🍦', '🍎', '🍌', '🍓', '🍉'],
+  },
+  {
+    nombre: 'Fiesta',
+    icono: '🎉',
+    emojis: ['🎉', '🎊', '🥂', '🍾', '🎈', '🎶', '⚽', '🏆', '🇦🇷', '☀️', '🌙', '🌈', '☔', '❄️', '🌸', '🌻', '🍀', '🐶', '🐱', '🦋'],
+  },
+];
 
 export type QuickReply = { titulo: string; texto: string };
 
@@ -126,7 +228,7 @@ export interface Message extends MessagePreview {
 export interface QuotedMessage {
   id: string;
   mia: boolean;
-  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido';
+  tipo: 'texto' | 'imagen' | 'archivo' | 'producto' | 'pedido' | 'audio' | 'video';
   texto: string | null;
   eliminado?: boolean;
 }
@@ -150,11 +252,19 @@ export const canStillDelete = (createdAt: string, now = Date.now()) => now - Dat
 /** E4 — what the quote line says of the quoted message. */
 export function quotedText(quote: Pick<QuotedMessage, 'tipo' | 'texto' | 'eliminado'>): string {
   if (quote.eliminado) return 'Se eliminó este mensaje';
-  const kind = { imagen: '📷 Foto', archivo: '📄 Documento', producto: '🛍️ Producto', pedido: '🧾 Pedido', texto: '' }[quote.tipo];
+  const kind = {
+    imagen: '📷 Foto',
+    archivo: '📄 Documento',
+    producto: '🛍️ Producto',
+    pedido: '🧾 Pedido',
+    audio: '🎤 Nota de voz',
+    video: '🎥 Video',
+    texto: '',
+  }[quote.tipo];
   const text = (quote.texto ?? '').trim();
   if (!kind) return text || 'Mensaje';
   // A product says which; a photo says its caption (not a file name); a document, just that.
-  const caption = quote.tipo === 'imagen' && !/\.(jpe?g|png|webp)$/i.test(text);
+  const caption = (quote.tipo === 'imagen' || quote.tipo === 'video') && !/\.(jpe?g|png|webp|mp4|mov|webm|3gp)$/i.test(text);
   if (text && (quote.tipo === 'producto' || caption)) return `${kind} · ${text}`;
   return kind;
 }

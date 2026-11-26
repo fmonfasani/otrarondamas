@@ -111,6 +111,13 @@ export type ChatMessage = {
     precioFinal?: string;
     mimeType?: string;
     tamano?: number;
+    // E5: a voice note's length; a link's preview (tipo 'enlace').
+    duracion?: number | null;
+    url?: string;
+    titulo?: string;
+    descripcion?: string | null;
+    sitio?: string;
+    imagen?: boolean;
     // The order card (tipo 'pedido'): read with orderCardOf.
     pedidoId?: OrderCardData['pedidoId'];
     numero?: OrderCardData['numero'];

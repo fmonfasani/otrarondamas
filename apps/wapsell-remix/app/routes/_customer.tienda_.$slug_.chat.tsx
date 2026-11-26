@@ -2,6 +2,16 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type 
 import { Link, useFetcher, useLoaderData } from '@remix-run/react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowLeft, Bell, BellRing, Camera, Copy, FileText, ImageIcon, Package, Pencil, Plus, Reply, SendHorizontal, ShoppingBag } from 'lucide-react';
+import {
+  EmojiButton,
+  MessageMedia,
+  MicButton,
+  MicDenied,
+  RecorderBar,
+  insertAtCursor,
+  usePhotoViewer,
+  useVoiceRecorder,
+} from '~/components/chat/Media';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
@@ -17,7 +27,18 @@ import {
 } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
 import { storeMark } from '~/utils/store';
-import { bubbleRuns, canStillDelete, canStillEdit, groupByDay, messageTime, shortText } from '~/utils/messaging';
+import {
+  CHAT_PHOTO_OR_VIDEO_ACCEPT,
+  bubbleRuns,
+  canStillDelete,
+  canStillEdit,
+  fileTooBig,
+  groupByDay,
+  isFileName,
+  mediaOf,
+  messageTime,
+  shortText,
+} from '~/utils/messaging';
 import { NoticeLine, OrderCard } from '~/components/chat/OrderCard';
 import {
   Bubble,
@@ -143,10 +164,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 type FilePick = 'foto' | 'camara' | 'archivo';
 
-/** What each «+» option lets the customer pick (the API takes JPG, PNG, WebP and PDF). */
+/** What each «+» option lets the customer pick (the API takes JPG, PNG, WebP, PDF and, E5, video). */
 const FILE_PICKS: Record<FilePick, string> = {
-  foto: 'image/jpeg,image/png,image/webp',
-  camara: 'image/jpeg,image/png,image/webp',
+  foto: CHAT_PHOTO_OR_VIDEO_ACCEPT,
+  camara: CHAT_PHOTO_OR_VIDEO_ACCEPT,
   archivo: 'application/pdf',
 };
 
@@ -242,6 +263,33 @@ export default function CustomerChat() {
     boxRef.current?.focus();
   };
   const touch = useTouchScreen();
+  // E5: a file over its limit is said before uploading it.
+  const [fileProblem, setFileProblem] = useState<string | null>(null);
+  const uploadAction = `/tienda/${store.slug}/chat/adjuntar`;
+  // E5: the voice note goes like a file, marked as coming from the microphone.
+  const voice = useVoiceRecorder(({ file, seconds }) => {
+    const form = new FormData();
+    form.append('archivo', file, file.name);
+    form.append('voz', '1');
+    form.append('duracion', String(seconds));
+    upload.submit(form, { method: 'post', encType: 'multipart/form-data', action: uploadAction });
+  });
+  const fileUrl = (id: string) => `/tienda/${store.slug}/chat/adjunto/${id}`;
+  // E5: the chat's photos, to go through them full screen.
+  const photos = useMemo(
+    () =>
+      chat.messages.flatMap((m) =>
+        m.eliminado ? [] : mediaOf(m).filter((a) => a.tipo === 'imagen').map((a) => ({ id: a.id, nombre: 'nombre' in a ? a.nombre : 'foto' })),
+      ),
+    [chat.messages],
+  );
+  const { openPhoto, viewer } = usePhotoViewer(photos, fileUrl);
+  const addEmoji = (emoji: string) => {
+    const box = boxRef.current;
+    if (!box) return;
+    setDraft(insertAtCursor(box, emoji));
+    growTextarea(box);
+  };
 
   // E1: the store's answers and «escribiendo…» at once — also with the tab in the background
   // (E2), so the title can count them; reading happens only when the customer looks.
@@ -398,6 +446,7 @@ export default function CustomerChat() {
                         onOpenMenu={() => setMenuFor(message)}
                         onReact={(emoji) => react(message.id, emoji)}
                         onQuote={jumpTo}
+                        onOpenPhoto={openPhoto}
                       />
                     );
                   })}
@@ -441,6 +490,12 @@ export default function CustomerChat() {
         ) : null}
         {editing ? <ComposerContext kind="edit" who="" text={shortText(editing.content)} onClose={stopEdit} /> : null}
         {upload.state === 'idle' && upload.data && !upload.data.ok ? <output className="chat-error">{upload.data.message}</output> : null}
+        {fileProblem ? <output className="chat-error">{fileProblem}</output> : null}
+        {voice.state === 'denied' ? <MicDenied /> : null}
+        {upload.state !== 'idle' ? <output className="chat-sending">Enviando…</output> : null}
+        {voice.state === 'recording' ? (
+          <RecorderBar seconds={voice.seconds} onCancel={() => voice.stop(false)} onSend={() => voice.stop(true)} />
+        ) : (
         <send.Form
           method="post"
           className="chat-composer"
@@ -466,7 +521,7 @@ export default function CustomerChat() {
                   <span className="chat-menu__icon chat-menu__icon--photo">
                     <ImageIcon size={16} aria-hidden="true" />
                   </span>
-                  {upload.state === 'idle' ? 'Foto' : 'Enviando…'}
+                  {upload.state === 'idle' ? 'Foto o video' : 'Enviando…'}
                 </button>
                 {touch ? (
                   <button type="button" role="menuitem" disabled={upload.state !== 'idle'} onClick={() => pick('camara')}>
@@ -485,6 +540,7 @@ export default function CustomerChat() {
               </div>
             ) : null}
           </div>
+          <EmojiButton onPick={addEmoji} />
           <label className="sr-only" htmlFor="chat-content">Tu mensaje</label>
           <textarea
             ref={boxRef}
@@ -501,20 +557,28 @@ export default function CustomerChat() {
             }}
             onKeyDown={onKeyDown}
           />
-          <button type="submit" className="chat-round chat-send" aria-label="Enviar" disabled={sending || !draft.trim()}>
-            <SendHorizontal size={20} aria-hidden="true" />
-          </button>
+          {!draft.trim() && !editing && voice.supported ? (
+            <MicButton onClick={() => void voice.start()} disabled={upload.state !== 'idle'} />
+          ) : (
+            <button type="submit" className="chat-round chat-send" aria-label="Enviar" disabled={sending || !draft.trim()}>
+              <SendHorizontal size={20} aria-hidden="true" />
+            </button>
+          )}
         </send.Form>
+        )}
+        {viewer}
         <upload.Form method="post" encType="multipart/form-data" action={`/tienda/${store.slug}/chat/adjuntar`} hidden>
           <input
             ref={fileRef}
             type="file"
             name="archivo"
-            aria-label="Foto o PDF"
+            aria-label="Foto, video o PDF"
             accept={FILE_PICKS.foto}
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];
-              if (file) upload.submit(event.currentTarget.form);
+              const problem = file ? fileTooBig(file) : null;
+              setFileProblem(problem);
+              if (file && !problem) upload.submit(event.currentTarget.form);
               event.currentTarget.value = '';
             }}
           />
@@ -537,6 +601,7 @@ function CustomerBubble({
   onOpenMenu,
   onReact,
   onQuote,
+  onOpenPhoto,
 }: Readonly<{
   message: ChatMessage;
   run: { cont: boolean; tail: boolean };
@@ -546,14 +611,15 @@ function CustomerBubble({
   onOpenMenu: () => void;
   onReact: (emoji: string | null) => void;
   onQuote: (messageId: string) => void;
+  onOpenPhoto: (id: string) => void;
 }>) {
-  const files = (message.adjuntos ?? []).filter((a) => a.tipo === 'imagen' || a.tipo === 'archivo');
+  const files = mediaOf(message);
   const products = (message.adjuntos ?? []).filter((a) => a.tipo === 'producto' && a.productoId);
   // E4: «Se eliminó este mensaje» — what it said is gone.
   const deleted = Boolean(message.eliminado) || (message.content == null && files.length === 0 && products.length === 0);
   let text: string | null = message.content ?? null;
   if (products.length > 0 || deleted) text = null;
-  else if (files.some((a) => a.nombre === message.content)) text = null;
+  else if (isFileName(message.content, files)) text = null;
   const press = usePressToOpen(onOpenMenu);
   const meta = (
     <BubbleMeta
@@ -587,16 +653,13 @@ function CustomerBubble({
         message.reacciones?.length && !deleted ? <ReactionChips reactions={message.reacciones} onPick={onReact} /> : null
       }
     >
-      {files.map((a) =>
-        a.tipo === 'imagen' ? (
-          <a key={a.id} href={`/tienda/${slug}/chat/adjunto/${a.id}`} target="_blank" rel="noreferrer" className="chat-photo">
-            <img src={`/tienda/${slug}/chat/adjunto/${a.id}`} alt={a.nombre} loading="lazy" />
-          </a>
-        ) : (
-          <a key={a.id} href={`/tienda/${slug}/chat/adjunto/${a.id}`} className="chat-file">
-            <FileText size={18} aria-hidden="true" /> {a.nombre}
-          </a>
-        ),
+      {deleted ? null : (
+        <MessageMedia
+          items={files}
+          fileUrl={(id) => `/tienda/${slug}/chat/adjunto/${id}`}
+          mine={Boolean(message.mine)}
+          onOpenPhoto={onOpenPhoto}
+        />
       )}
       {products.map((a) => (
         <span key={a.id} className="chat-product">

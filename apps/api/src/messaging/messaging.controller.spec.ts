@@ -23,6 +23,8 @@ describe('MessagingController — HTTP JSON contract', () => {
     createTextMessage: jest.fn(),
     getMessages: jest.fn(),
     editMessage: jest.fn(),
+    // E5: the link preview runs after answering; nothing to preview in these messages.
+    addLinkPreview: jest.fn().mockResolvedValue(null),
     deleteMessage: jest.fn(),
     markMessageRead: jest.fn(),
     removeParticipant: jest.fn(),
