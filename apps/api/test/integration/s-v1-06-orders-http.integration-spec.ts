@@ -10,6 +10,8 @@ import {
   withRevokedUsuarioPermissions,
 } from './helpers/usuario-permissions.fixture';
 import { spawnApi } from './helpers/api-server.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
 
 // S-V1-06 — HTTP boundary of ORDERS against the REAL compiled stack
 // (dist/src/main.js, the same production binary). Same chain as
@@ -31,6 +33,8 @@ import { spawnApi } from './helpers/api-server.fixture';
 // they do not adopt it as TO-BE.
 describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
   const PORT = '3394';
+  // OR-B4-055: orders are paid at checkout; store A takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3419);
   const BASE = `http://127.0.0.1:${PORT}`;
   let server: ChildProcess;
   let prisma: PrismaService;
@@ -289,7 +293,9 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
       select: { id: true },
     });
 
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, companyA.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
@@ -300,6 +306,8 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await deleteMessagingOf(prisma, companies);
     await prisma.auditLog.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.pago.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.checkoutPedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.cliente.deleteMany({ where: { empresaId: { in: companies } } });
@@ -317,6 +325,7 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     await prisma.empresa.deleteMany({ where: { id: { in: companies } } });
     await prisma.$disconnect();
     if (server && !server.killed) server.kill();
+    await mp.close();
   });
 
   it('P1.3 E2E: public store → order inbox → confirm (reserves) → on its way → stock movement exactly once', async () => {
@@ -325,23 +334,21 @@ describe('S-V1-06 — Pedidos (HTTP, stack real)', () => {
     const startingQuantity = await batchQuantity(batch.id);
     const buyerEmail = `p1-3-e2e-${suffix}@example.test`;
 
-    // Buyer places an order through the same public endpoint consumed by the
-    // online storefront; no order rows are inserted directly by the test.
-    const placed = await request(BASE)
-      .post(`/s-v1-06-orders-http-a-${suffix}/tienda/pedidos`)
-      .send({
-        nombre: 'P1.3 E2E Buyer',
-        email: buyerEmail,
-        items: [{ productoId: product.id, cantidad: 2 }],
-      })
-      .expect(201);
-
-    expect(placed.body).toMatchObject({
-      estado: 'RECIBIDO',
-      canalOrigen: 'web',
-      total: '20',
+    // OR-B4-055: the buyer closes the cart and pays it in the store, as the storefront does; the
+    // order is born with the approved payment. No order rows are inserted directly by the test.
+    const buyer = await prisma.cliente.create({
+      data: { empresaId: companyA.id, nombre: 'P1.3 E2E Buyer', email: buyerEmail },
+      select: { id: true },
     });
-    const orderId = placed.body.id as string;
+    const { order: paid } = await placePaidOrder(BASE, mp, prisma, {
+      slug: `s-v1-06-orders-http-a-${suffix}`,
+      companyId: companyA.id,
+      auth: `Bearer ${signCustomerToken(buyer.id, companyA.id)}`,
+      items: [{ productoId: product.id, cantidad: 2 }],
+    });
+    expect(paid).toMatchObject({ estado: 'RECIBIDO', canalOrigen: 'web' });
+    expect(Number(paid.total)).toBe(20);
+    const orderId = paid.id;
     const storedBefore = await prisma.pedido.findUniqueOrThrow({
       where: { id: orderId },
       include: { PedidoItem: true },

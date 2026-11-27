@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MercadoPagoModule } from '../payments/mercadopago/mercadopago.module';
 import { AuthJwtModule } from '../auth/auth-jwt.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
 import { MembershipRevocationModule } from '../membership/membership-revocation.module';
@@ -42,6 +43,8 @@ import { MessagingInboxController } from './messaging-inbox.controller';
     EmailModule,
     // OR-B4-053: order and return notices reach the open screens at once.
     CustomerNoticesModule,
+    // OR-B4-055: the chat's order is paid with Mercado Pago before it exists.
+    MercadoPagoModule,
   ],
   controllers: [MessagingController, CustomerChatController, MessagingInboxController],
   providers: [MessagingService, MessagingGateway, MessagingAlertsService, MessagingInboxService],

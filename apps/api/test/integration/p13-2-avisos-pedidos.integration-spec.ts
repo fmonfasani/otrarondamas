@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signCustomerToken } from './helpers/customer-token.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
 import {
   createStoreProduct,
   deleteMessagingOf,
@@ -19,6 +20,8 @@ import { seedUsuarioPermissions } from './helpers/usuario-permissions.fixture';
 describe('P13-2 — avisos de pedidos en el chat', () => {
   const PORT = '3377';
   const BASE = `http://127.0.0.1:${PORT}`;
+  // OR-B4-055: every order is paid at checkout; the store takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3421);
   let prisma: PrismaService;
   let server: ChildProcess;
   let suffix: number;
@@ -29,14 +32,15 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
   let product: { id: string };
 
   const customerAuth = () => `Bearer ${signCustomerToken(customer.id, company.id)}`;
-  const order = async () =>
+  const order = async (auth = customerAuth()) =>
     (
-      await request(BASE)
-        .post(`/${company.slug}/tienda/mis-pedidos`)
-        .set('Authorization', customerAuth())
-        .send({ items: [{ productoId: product.id, cantidad: 1 }] })
-        .expect(201)
-    ).body.id as string;
+      await placePaidOrder(BASE, mp, prisma, {
+        slug: company.slug,
+        companyId: company.id,
+        auth,
+        items: [{ productoId: product.id, cantidad: 1 }],
+      })
+    ).order.id;
   const notices = () =>
     prisma.message.findMany({
       where: { businessId: company.id, clientMessageId: { startsWith: 'pedido-' } },
@@ -78,12 +82,15 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
       select: { id: true },
     });
     product = await createStoreProduct(prisma, company.id, 'P13-2', 'A', suffix);
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, company.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     await prisma.auditLog.deleteMany({ where: { empresaId: company.id } });
     await deleteMessagingOf(prisma, [company.id]);
     await prisma.membership.deleteMany({ where: { businessId: company.id } });
@@ -91,6 +98,8 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     await prisma.usuarioPermiso.deleteMany({ where: { usuarioId: owner.usuarioId } });
     // Orders and stock movements reference the user who took or made them, and those references
     // restrict deletes (ADR-DAT-020): they go first.
+    await prisma.pago.deleteMany({ where: { empresaId: company.id } });
+    await prisma.checkoutPedido.deleteMany({ where: { empresaId: company.id } });
     await prisma.pedidoItem.deleteMany({ where: { empresaId: company.id } });
     await prisma.pedido.deleteMany({ where: { empresaId: company.id } });
     await prisma.movimientoStock.deleteMany({ where: { empresaId: company.id } });
@@ -99,26 +108,25 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     await prisma.$disconnect();
   });
 
-  it('the order enters the chat as one card with its number; ordering again while open adds to it', async () => {
+  it('the paid order enters the chat as one card with its number, then its payment (OR-B4-055)', async () => {
     const first = await order();
-    // OR-B4-053: not confirmed yet, so this goes into the same order (one open order).
-    const again = await order();
-    expect(again).toBe(first);
     const placed = await prisma.pedido.findUniqueOrThrow({
       where: { id: first },
       include: { PedidoItem: true },
     });
     expect(placed.numero).toBe(1);
     expect(placed.PedidoItem).toHaveLength(1);
-    expect(Number(placed.PedidoItem[0].cantidad)).toBe(2);
+    expect(Number(placed.PedidoItem[0].cantidad)).toBe(1);
 
     const received = await notices();
     expect(received.map((m) => m.clientMessageId)).toEqual([
       `pedido-${first}-recibido`,
-      expect.stringMatching(new RegExp(`^pedido-${first}-suma-`)),
+      expect.stringMatching(new RegExp(`^pedido-${first}-pago-`)),
     ]);
     expect(received[0].content).toContain('Recibimos tu pedido N° 1');
-    expect(received[1].content).toMatch(/^Sumamos 1 producto a tu pedido N° 1\. Total: \$ /);
+    expect(received[1].content).toMatch(
+      /^Recibimos tu pago de \$ .+ por Mercado Pago para el pedido N° 1\. ¡Gracias!$/,
+    );
 
     const chat = await request(BASE)
       .get(`/${company.slug}/tienda/chat`)
@@ -138,12 +146,12 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
         numero: 1,
         estado: 'RECIBIDO',
         total: placed.total.toFixed(2),
-        items: [{ producto: expect.any(String), cantidad: 2 }],
+        items: [{ producto: expect.any(String), cantidad: 1 }],
       },
     ]);
   });
 
-  it('tells it when the order is confirmed (the card follows), and a later order is a new one — cancelled with the reason, once', async () => {
+  it('tells it when the paid order is confirmed (the card follows), and a later order is always a new one — cancelled with the reason, once', async () => {
     const [first] = (await notices()).map((m) =>
       m.clientMessageId.split('-').slice(1, -1).join('-'),
     );
@@ -152,7 +160,7 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
       .set('Authorization', owner.auth)
       .send({ estado: 'CONFIRMADO' })
       .expect(200);
-    // Confirmed: ordering again opens a new order, with the next number.
+    // OR-B4-055: each paid checkout is its own order, with the next number.
     const second = await order();
     expect(second).not.toBe(first);
     expect((await prisma.pedido.findUniqueOrThrow({ where: { id: second } })).numero).toBe(2);
@@ -170,8 +178,8 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     const all = await notices();
     const confirmed = all.find((m) => m.clientMessageId === `pedido-${first}-CONFIRMADO`);
     const cancelled = all.filter((m) => m.clientMessageId === `pedido-${second}-CANCELADO`);
-    expect(confirmed?.content).toMatch(/^Confirmamos tu pedido N° 1 por \$ /);
-    // No online payments in this store: no pay link.
+    expect(confirmed?.content).toMatch(/^Confirmamos tu pedido N° 1 por \$ .+ Ya está pagado\.$/);
+    // It was paid at checkout: never a link to pay it again.
     expect(confirmed?.content).not.toContain('pagarlo online');
     expect(all.some((m) => m.clientMessageId === `pedido-${second}-recibido`)).toBe(true);
     expect(cancelled).toHaveLength(1);
@@ -194,7 +202,7 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     ]);
   });
 
-  it('numbers orders placed at the same moment without repeating (one sequence per business)', async () => {
+  it('numbers orders paid at the same moment without repeating (one sequence per business)', async () => {
     const others = await Promise.all(
       [1, 2, 3].map((n) =>
         prisma.cliente.create({
@@ -208,16 +216,7 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
       ),
     );
     const ids = await Promise.all(
-      others.map(
-        async (other) =>
-          (
-            await request(BASE)
-              .post(`/${company.slug}/tienda/mis-pedidos`)
-              .set('Authorization', `Bearer ${signCustomerToken(other.id, company.id)}`)
-              .send({ items: [{ productoId: product.id, cantidad: 1 }] })
-              .expect(201)
-          ).body.id as string,
-      ),
+      others.map((other) => order(`Bearer ${signCustomerToken(other.id, company.id)}`)),
     );
     const numbers = (
       await prisma.pedido.findMany({ where: { id: { in: ids } }, select: { numero: true } })

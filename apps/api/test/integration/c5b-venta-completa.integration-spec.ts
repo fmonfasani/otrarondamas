@@ -5,6 +5,7 @@ import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { signCustomerToken } from './helpers/customer-token.fixture';
 import { createStoreProduct, deleteStoreCompanies } from './helpers/store-catalog.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
 
 /**
  * C5B — a complete sale in a Business's store, end to end over HTTP, on the store customers use
@@ -28,6 +29,12 @@ describe('C5B — venta completa en la tienda del negocio', () => {
   let customerId: string;
   const auth = () => `Bearer ${signCustomerToken(customerId, shop.id)}`;
   const http = () => request(app.getHttpServer());
+  // OR-B4-055: orders are paid at checkout. The app listens so the fake Mercado Pago's signed
+  // notification reaches it; its env is restored afterwards (suites share this process).
+  const PORT = 3417;
+  const BASE = `http://127.0.0.1:${PORT}`;
+  const mp = new FakeMercadoPago(3418);
+  const savedEnv: Record<string, string | undefined> = {};
 
   /** Stock left in the product's lots. */
   const stockOf = async (productoId: string) =>
@@ -37,11 +44,16 @@ describe('C5B — venta completa en la tienda del negocio', () => {
     );
 
   beforeAll(async () => {
+    await mp.start();
+    for (const [key, value] of Object.entries(mp.env(BASE))) {
+      savedEnv[key] = process.env[key];
+      process.env[key] = value;
+    }
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await app.listen(PORT, '127.0.0.1');
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
     suffix = Date.now();
@@ -59,6 +71,7 @@ describe('C5B — venta completa en la tienda del negocio', () => {
     // Price 10, stock 5, published in the Catálogo.
     product = await createStoreProduct(prisma, shop.id, 'C5B', 'A', suffix);
     otherProduct = await createStoreProduct(prisma, other.id, 'C5B', 'B', suffix);
+    await mp.connect(prisma, shop.id);
     customerId = (
       await prisma.cliente.create({
         data: {
@@ -77,6 +90,11 @@ describe('C5B — venta completa en la tienda del negocio', () => {
     await prisma.cart.deleteMany({ where: { businessId: { in: [shop.id, other.id] } } });
     await deleteStoreCompanies(prisma, [shop.id, other.id]);
     await app.close();
+    await mp.close();
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   describe('catalog (anonymous)', () => {
@@ -148,14 +166,15 @@ describe('C5B — venta completa en la tienda del negocio', () => {
   describe('order and tracking', () => {
     let orderId: string;
 
-    it('a signed-in customer orders: RECIBIDO, filed under their account, stock untouched', async () => {
-      const res = await http()
-        .post(`/${shop.slug}/tienda/mis-pedidos`)
-        .set('Authorization', auth())
-        .send({ items: [{ productoId: product.id, cantidad: 2 }] })
-        .expect(201);
-      expect(res.body.estado).toBe('RECIBIDO');
-      orderId = res.body.id;
+    it('a signed-in customer orders and pays: RECIBIDO, filed under their account, stock untouched', async () => {
+      const { order } = await placePaidOrder(BASE, mp, prisma, {
+        slug: shop.slug,
+        companyId: shop.id,
+        auth: auth(),
+        items: [{ productoId: product.id, cantidad: 2 }],
+      });
+      expect(order.estado).toBe('RECIBIDO');
+      orderId = order.id;
 
       const mine = await http()
         .get(`/${shop.slug}/tienda/mis-pedidos`)
@@ -179,8 +198,9 @@ describe('C5B — venta completa en la tienda del negocio', () => {
       expect(elsewhere.body.estado).toBeUndefined();
     });
 
-    it('an anonymous order also starts RECIBIDO', async () => {
-      const res = await http()
+    it('an order without an account nor payment is closed (OR-B4-055), writing nothing', async () => {
+      const before = await prisma.pedido.count({ where: { empresaId: shop.id } });
+      await http()
         .post(`/${shop.slug}/tienda/pedidos`)
         .send({
           nombre: 'C5B Anónimo',
@@ -188,8 +208,8 @@ describe('C5B — venta completa en la tienda del negocio', () => {
           telefono: '+5491100000001',
           items: [{ productoId: product.id, cantidad: 1 }],
         })
-        .expect(201);
-      expect(res.body.estado).toBe('RECIBIDO');
+        .expect(410);
+      expect(await prisma.pedido.count({ where: { empresaId: shop.id } })).toBe(before);
       expect(await stockOf(product.id)).toBe(5);
     });
 
@@ -209,6 +229,9 @@ describe('C5B — venta completa en la tienda del negocio', () => {
       expect(foreign.status).toBeLessThan(500);
 
       expect(await prisma.pedido.count({ where: { empresaId: shop.id } })).toBe(before);
+      expect(
+        await prisma.checkoutPedido.count({ where: { empresaId: shop.id, estado: 'PENDIENTE' } }),
+      ).toBe(0);
       expect(await stockOf(otherProduct.id)).toBe(5);
     });
   });

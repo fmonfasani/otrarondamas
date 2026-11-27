@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   ForbiddenException,
   Get,
+  GoneException,
   HttpCode,
   NotFoundException,
   Param,
@@ -26,7 +28,6 @@ import {
   CanonicalPermission,
   CUSTOMER_POLICY,
 } from '../authorization/canonical-permission.decorator';
-import { CreateOrderDto } from './dto/create-order.dto';
 import { CustomerOrderDto, DeliveryChoiceDto, SaveAddressDto } from './dto/customer-order.dto';
 import { BrowseCatalogDto } from './dto/browse-catalog.dto';
 import { StoreService, type OrderDelivery } from './store.service';
@@ -100,9 +101,7 @@ export class PublicStoreController {
     });
     if (!business) throw new NotFoundException('Business no encontrado');
     // OR-B4-032: whether customers can pay confirmed orders online in this store.
-    const mp = await this.mercadoPago.status(businessId);
-    const pagosOnline =
-      mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
+    const pagosOnline = await this.takesOnlinePayments(businessId);
     return {
       nombre: business.nombre,
       slug: business.slug,
@@ -237,10 +236,20 @@ export class PublicStoreController {
     };
   }
 
+  /**
+   * OR-B4-055 — the old order without an account nor payment is closed: every order is paid at
+   * checkout, before it exists, and only a signed-in customer pays.
+   */
   @Public()
   @Post('pedidos')
-  async createOrder(@Param('businessSlug') businessSlug: string, @Body() dto: CreateOrderDto) {
-    return this.storeService.createOrder(dto, await this.companyId(businessSlug));
+  createOrder() {
+    throw new GoneException('Para pedir, entrá con tu cuenta y pagá el pedido con Mercado Pago.');
+  }
+
+  /** Whether customers can pay online in this store (Mercado Pago connected and enabled). */
+  private async takesOnlinePayments(businessId: string) {
+    const mp = await this.mercadoPago.status(businessId);
+    return mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
   }
 
   @Public()
@@ -303,8 +312,47 @@ export class PublicStoreController {
     @Body() dto: CustomerOrderDto,
   ) {
     const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    // OR-B4-055: every order is paid at checkout, before it exists.
+    if (!(await this.takesOnlinePayments(businessId))) {
+      throw new ConflictException(
+        'Este negocio todavía no cobra online. Escribile por el chat para coordinar tu pedido.',
+      );
+    }
     const delivery = dto.entrega ? await this.deliveryFor(businessId, dto.entrega) : undefined;
-    return this.storeService.createCustomerOrder(customerId, dto.items, businessId, delivery);
+    const checkout = await this.storeService.openCheckout(customerId, dto.items, businessId, {
+      delivery,
+    });
+    const { url } = await this.checkout.checkoutPaymentUrl({
+      businessId,
+      customerId,
+      checkoutId: checkout.id,
+      storeSlug: businessSlug,
+    });
+    return {
+      checkoutId: checkout.id,
+      total: checkout.total,
+      costoEnvio: checkout.costoEnvio,
+      pagar: url,
+    };
+  }
+
+  /** POST /:slug/tienda/mis-checkouts/:id/pagar — OR-B4-055: back to the payment of a checkout. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('mis-checkouts/:id/pagar')
+  @HttpCode(200)
+  async payCheckout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('id', new ParseUUIDPipe()) checkoutId: string,
+  ) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.checkout.checkoutPaymentUrl({
+      businessId,
+      customerId,
+      checkoutId,
+      storeSlug: businessSlug,
+    });
   }
 
   /**

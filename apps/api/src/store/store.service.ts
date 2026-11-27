@@ -38,6 +38,20 @@ export type OrderDelivery = {
   costoEnvio: number;
 };
 
+/** OR-B4-055 — an unpaid checkout lapses after this many minutes (OR-B4-054). */
+export const CHECKOUT_MINUTES = 30;
+
+/** A line priced by the server and frozen in a checkout. */
+export type PricedLine = {
+  productoId: string;
+  cantidad: number;
+  precioUnitario: string;
+  ofertaId: string | null;
+  origenPrecio: Prisma.PedidoItemUncheckedCreateInput['origenPrecio'];
+  descuentoFidelizacionPorcentaje: Prisma.PedidoItemUncheckedCreateInput['descuentoFidelizacionPorcentaje'];
+  reglaFidelizacionId: string | null;
+};
+
 /** An order's total from its lines: unit price x quantity, less the line's loyalty %. */
 export function orderTotal(
   lines: Array<{
@@ -222,84 +236,13 @@ export class StoreService {
       return { productoId, cantidad: cantidad + (already ? Number(already.cantidad) : 0) };
     });
 
-    const productIds = toPrice.map((i) => i.productoId);
-    // OR-B4-046 rule 2: the store sells the Catálogo (published products). A signed-in customer
-    // may also order what the Business shared in the chat (createCustomerOrder passes
-    // catalogOnly: false), since the chat sells every active product.
-    const products = await db.producto.findMany({
-      where: { id: { in: productIds }, activo: true, ...(catalogOnly ? { publicado: true } : {}) },
-    });
-    const productById = new Map(products.map((p) => [p.id, p]));
-
-    for (const item of toPrice) {
-      if (!productById.has(item.productoId)) {
-        throw new BadRequestException(`Producto ${item.productoId} no disponible`);
-      }
-    }
-
-    // Validate stock availability (no deduction and no reservation: see above).
-    const productsWithStock = await this.inventoryService.consolidatedStock(resolvedCompanyId);
-    for (const item of toPrice) {
-      const product = productsWithStock.find((p) => p.productoId === item.productoId);
-      if (!product || product.disponible < item.cantidad) {
-        const available = product?.disponible ?? 0;
-        throw new BadRequestException(
-          `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
-        );
-      }
-    }
-
-    const customerLevel = existingCustomer
-      ? await this.customersService.calculateLevel(resolvedCompanyId, existingCustomer.id)
-      : 'NUEVO';
-    const activeRules = await this.loyaltyService.listActiveRules(resolvedCompanyId);
-    // OR-B4-046 §4.4, stage C3: the store (web) sees every offer in force; an order taken in the
-    // chat skips the «solo tienda» ones. The product's discount and the offer never add up.
-    const offers = await currentOffers(
-      db,
-      products,
-      channelOrigen === 'web' ? 'tienda' : 'mostrador',
+    const itemsWithPrice = await this.priceLines(
+      resolvedCompanyId,
+      toPrice,
+      existingCustomer,
+      channelOrigen,
+      catalogOnly,
     );
-
-    // Price frozen from the catalog at the time of the order — same criterion
-    // as SalesService (INV-12): a price sent by the client is never accepted.
-    // OR-B4-051 rule 2 replaces the earlier owner confirmation that the loyalty % stacked on top of
-    // the product's discount: now every discount competes and the lowest price wins (D5).
-    const itemsWithPrice = toPrice.map((item) => {
-      const product = productById.get(item.productoId)!;
-      const loyaltyDiscount = this.loyaltyService.calculateApplicableDiscount(
-        activeRules,
-        customerLevel,
-        {
-          familiaId: product.familiaId,
-          subfamiliaId: product.subfamiliaId,
-          tipoId: product.tipoId,
-          subtipoId: product.subtipoId,
-          marca: product.marca,
-          cantidad: item.cantidad,
-        },
-      );
-      // OR-B4-051 (D5, D6): the product's discount, the offer, a wholesale customer's price and the
-      // loyalty discount compete; the lowest wins and nothing adds up (no payment-method discount
-      // in orders: rule 1 keeps it at the counter).
-      const price = bestLinePrice({
-        list: product.precioMinorista,
-        productDiscount: product.descuentoPorcentaje,
-        offers: offers.get(product.id) ?? [],
-        wholesale: existingCustomer?.esMayorista ? product.precioMayorista : null,
-        loyalty: loyaltyDiscount
-          ? { reglaId: loyaltyDiscount.reglaId, porcentaje: loyaltyDiscount.descuentoPorcentaje }
-          : null,
-      });
-      return {
-        ...item,
-        precioUnitario: price.precioUnitario.toFixed(2),
-        ofertaId: price.ofertaId,
-        origenPrecio: price.origen,
-        descuentoFidelizacionPorcentaje: price.descuentoFidelizacionPorcentaje,
-        reglaFidelizacionId: price.reglaFidelizacionId,
-      };
-    });
 
     const lineData = (item: (typeof itemsWithPrice)[number]) => ({
       cantidad: item.cantidad,
@@ -416,6 +359,99 @@ export class StoreService {
   }
 
   /**
+   * The order's lines priced on the server, never from the request (INV-12): published products
+   * (or every active one from the chat), units available now, and the lowest price among the
+   * product's discount, the offer, a wholesale price and the loyalty discount (OR-B4-051).
+   */
+  private async priceLines(
+    companyId: string,
+    toPrice: Array<{ productoId: string; cantidad: number }>,
+    existingCustomer: { id: string; esMayorista: boolean } | null,
+    channelOrigen: string,
+    catalogOnly: boolean,
+  ) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const productIds = toPrice.map((i) => i.productoId);
+    // OR-B4-046 rule 2: the store sells the Catálogo (published products). A signed-in customer
+    // may also order what the Business shared in the chat (a chat checkout passes
+    // catalogOnly: false), since the chat sells every active product.
+    const products = await db.producto.findMany({
+      where: { id: { in: productIds }, activo: true, ...(catalogOnly ? { publicado: true } : {}) },
+    });
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    for (const item of toPrice) {
+      if (!productById.has(item.productoId)) {
+        throw new BadRequestException(`Producto ${item.productoId} no disponible`);
+      }
+    }
+
+    // Validate stock availability (no deduction and no reservation: see above).
+    const productsWithStock = await this.inventoryService.consolidatedStock(companyId);
+    for (const item of toPrice) {
+      const product = productsWithStock.find((p) => p.productoId === item.productoId);
+      if (!product || product.disponible < item.cantidad) {
+        const available = product?.disponible ?? 0;
+        throw new BadRequestException(
+          `Stock insuficiente para ${item.productoId}: disponible ${available}, solicitado ${item.cantidad}`,
+        );
+      }
+    }
+
+    const customerLevel = existingCustomer
+      ? await this.customersService.calculateLevel(companyId, existingCustomer.id)
+      : 'NUEVO';
+    const activeRules = await this.loyaltyService.listActiveRules(companyId);
+    // OR-B4-046 §4.4, stage C3: the store (web) sees every offer in force; an order taken in the
+    // chat skips the «solo tienda» ones. The product's discount and the offer never add up.
+    const offers = await currentOffers(
+      db,
+      products,
+      channelOrigen === 'web' ? 'tienda' : 'mostrador',
+    );
+
+    // Price frozen from the catalog at the time of the order — same criterion
+    // as SalesService (INV-12): a price sent by the client is never accepted.
+    // OR-B4-051 rule 2 replaces the earlier owner confirmation that the loyalty % stacked on top of
+    // the product's discount: now every discount competes and the lowest price wins (D5).
+    return toPrice.map((item) => {
+      const product = productById.get(item.productoId)!;
+      const loyaltyDiscount = this.loyaltyService.calculateApplicableDiscount(
+        activeRules,
+        customerLevel,
+        {
+          familiaId: product.familiaId,
+          subfamiliaId: product.subfamiliaId,
+          tipoId: product.tipoId,
+          subtipoId: product.subtipoId,
+          marca: product.marca,
+          cantidad: item.cantidad,
+        },
+      );
+      // OR-B4-051 (D5, D6): the product's discount, the offer, a wholesale customer's price and the
+      // loyalty discount compete; the lowest wins and nothing adds up (no payment-method discount
+      // in orders: rule 1 keeps it at the counter).
+      const price = bestLinePrice({
+        list: product.precioMinorista,
+        productDiscount: product.descuentoPorcentaje,
+        offers: offers.get(product.id) ?? [],
+        wholesale: existingCustomer?.esMayorista ? product.precioMayorista : null,
+        loyalty: loyaltyDiscount
+          ? { reglaId: loyaltyDiscount.reglaId, porcentaje: loyaltyDiscount.descuentoPorcentaje }
+          : null,
+      });
+      return {
+        ...item,
+        precioUnitario: price.precioUnitario.toFixed(2),
+        ofertaId: price.ofertaId,
+        origenPrecio: price.origen,
+        descuentoFidelizacionPorcentaje: price.descuentoFidelizacionPorcentaje,
+        reglaFidelizacionId: price.reglaFidelizacionId,
+      };
+    });
+  }
+
+  /**
    * OR-B4-053 — what one unit costs this customer today when they order it from the store
    * (the chat's product card shows it): the same competition of discounts as an order.
    */
@@ -464,38 +500,123 @@ export class StoreService {
    * usuarioId.
    */
   /**
-   * STORE-V1-03 — order placed by a signed-in store customer. Same rules as createOrder
-   * (catalog prices, stock check, loyalty); the contact data is the customer's own, so
-   * the order is filed under their account and nobody can order in their name.
+   * OR-B4-055 — the customer closes the open order (the cart, which grows freely) to pay it. The
+   * lines and prices are frozen here, with the delivery; nothing reaches the store until Mercado
+   * Pago approves the payment (closeCheckout). Unpaid, it lapses after 30 minutes.
    */
-  async createCustomerOrder(
+  async openCheckout(
     customerId: string,
     items: CreateOrderDto['items'],
     companyId: string,
-    delivery?: OrderDelivery,
+    {
+      delivery,
+      channel = 'web',
+      conversationId = null,
+    }: { delivery?: OrderDelivery; channel?: string; conversationId?: string | null } = {},
   ) {
     const db = this.prismaFactory.forCompany(companyId);
     const customer = await db.cliente.findFirst({
       where: { id: customerId },
-      select: { nombre: true, email: true, telefono: true },
+      select: { id: true, esMayorista: true },
     });
     if (!customer) throw new NotFoundException('Cliente no encontrado');
-    if (!customer.email) {
-      throw new BadRequestException('Tu cuenta no tiene email; pedile al comercio que lo cargue.');
+    const requested = new Map<string, number>();
+    for (const item of items) {
+      requested.set(item.productoId, (requested.get(item.productoId) ?? 0) + item.cantidad);
     }
-    return this.createOrder(
-      {
-        nombre: customer.nombre,
-        email: customer.email,
-        telefono: customer.telefono ?? undefined,
-        items,
-      },
-      companyId,
-      'web',
-      undefined,
-      // Products shared in the chat can be ordered even when they are not in the Catálogo.
-      { catalogOnly: false, delivery },
-    );
+    const toPrice = [...requested].map(([productoId, cantidad]) => ({ productoId, cantidad }));
+    // OR-B4-046 rule 2: a signed-in customer (every checkout has one) may also order what the
+    // business shared in the chat, published in the Catálogo or not; only active products.
+    const lines = await this.priceLines(companyId, toPrice, customer, channel, false);
+    return db.checkoutPedido.create({
+      data: {
+        empresaId: companyId,
+        clienteId: customer.id,
+        canalOrigen: channel,
+        lineas: lines as unknown as Prisma.InputJsonValue,
+        total: orderTotal(lines),
+        ...delivery,
+        conversationId,
+        venceAt: new Date(Date.now() + CHECKOUT_MINUTES * 60_000),
+      } satisfies Prisma.CheckoutPedidoUncheckedCreateInput,
+    });
+  }
+
+  /**
+   * OR-B4-055 — Mercado Pago approved the payment: the checkout becomes the store's order
+   * (RECIBIDO; the database gives it its N°), exactly once. A checkout that lapsed is still
+   * honoured: the customer paid. Returns the order, and whether this call created it.
+   */
+  async closeCheckout(companyId: string, checkoutId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const created = await db.$transaction(async (tx: CompanyScopedTx) => {
+      const claimed = await tx.checkoutPedido.updateMany({
+        where: { id: checkoutId, estado: { in: ['PENDIENTE', 'VENCIDO'] } },
+        data: { estado: 'PAGADO' },
+      });
+      if (claimed.count !== 1) return null;
+      const checkout = await tx.checkoutPedido.findUniqueOrThrow({ where: { id: checkoutId } });
+      const lines = checkout.lineas as unknown as Array<PricedLine>;
+      const order = await tx.pedido.create({
+        data: {
+          empresaId: companyId,
+          clienteId: checkout.clienteId,
+          usuarioId: null,
+          estado: 'RECIBIDO',
+          canalOrigen: checkout.canalOrigen,
+          total: checkout.total,
+          idempotencyKey: `checkout:${checkout.id}`,
+          tipoEntrega: checkout.tipoEntrega,
+          direccionEntrega: checkout.direccionEntrega,
+          indicacionesEntrega: checkout.indicacionesEntrega,
+          latEntrega: checkout.latEntrega,
+          lngEntrega: checkout.lngEntrega,
+          kmEntrega: checkout.kmEntrega,
+          costoEnvio: checkout.costoEnvio,
+          PedidoItem: {
+            create: lines.map((line) => ({
+              productoId: line.productoId,
+              cantidad: line.cantidad,
+              precioUnitario: line.precioUnitario,
+              ofertaId: line.ofertaId,
+              origenPrecio: line.origenPrecio,
+              descuentoFidelizacionPorcentaje: line.descuentoFidelizacionPorcentaje,
+              reglaFidelizacionId: line.reglaFidelizacionId,
+            })),
+          },
+        } satisfies Prisma.PedidoUncheckedCreateInput,
+        include: { PedidoItem: true },
+      });
+      await tx.checkoutPedido.update({ where: { id: checkoutId }, data: { pedidoId: order.id } });
+      if (checkout.conversationId) {
+        await tx.conversationAssociation.create({
+          data: {
+            conversationId: checkout.conversationId,
+            businessId: companyId,
+            entityType: 'ORDER',
+            entityId: order.id,
+            reason: 'Pedido pagado desde el chat (OR-B4-055)',
+          },
+        });
+      }
+      return order;
+    });
+    if (created) {
+      // OR-B4-037 / OR-B4-053: the paid order enters the customer's chat as its card.
+      await this.orderNotices?.received(companyId, created);
+      return { order: created, created: true };
+    }
+    const checkout = await db.checkoutPedido.findFirst({
+      where: { id: checkoutId },
+      select: { pedidoId: true },
+    });
+    const order = checkout?.pedidoId
+      ? await db.pedido.findFirst({
+          where: { id: checkout.pedidoId },
+          include: { PedidoItem: true },
+        })
+      : null;
+    return { order, created: false };
   }
 
   /** STORE-V1-03 — the customer's latest orders in this Business, newest first. */

@@ -8,11 +8,15 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
   Optional,
+  type OnModuleDestroy,
+  type OnModuleInit,
 } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { EstadoPago, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MercadoPagoAccountService } from './mercadopago-account.service';
+import { StoreService } from '../../store/store.service';
 
 /** Order states after the Business confirmed it (OR-B4-032: pay after confirmation). */
 export const PAYABLE_ORDER_STATES = [
@@ -84,6 +88,20 @@ type MercadoPagoPayment = {
 
 const MONEY_EPSILON = 0.005;
 
+/** Runs a serializable transaction again when Postgres refuses it for a conflict (P2034). */
+async function retryOnConflict<T>(run: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      const conflict =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+      if (!conflict || attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 20 * attempt + Math.random() * 30));
+    }
+  }
+}
+
 /**
  * OR-B4-032 — a customer pays a confirmed order with Mercado Pago, into the Business's own
  * account. The checkout charges what is still unpaid (R8-PAY-002 D1 partial payments; E1 no
@@ -91,14 +109,81 @@ const MONEY_EPSILON = 0.005;
  * Business's token after a signed webhook: never from the browser's return URL.
  */
 @Injectable()
-export class MercadoPagoCheckoutService {
+export class MercadoPagoCheckoutService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MercadoPagoCheckoutService.name);
+  private sweep?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: MercadoPagoAccountService,
+    private readonly moduleRef: ModuleRef,
     @Optional() private readonly orderNotices?: OrderNoticeService,
   ) {}
+
+  /** OR-B4-055: every minute, checkouts left unpaid past their 30 minutes lapse. */
+  onModuleInit() {
+    this.sweep = setInterval(() => {
+      void this.expireUnpaid().catch((error: unknown) =>
+        this.logger.warn(
+          JSON.stringify({ event: 'checkout.expire.failed', error: String(error).slice(0, 200) }),
+        ),
+      );
+    }, 60_000);
+    this.sweep.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.sweep) clearInterval(this.sweep);
+  }
+
+  /** Checkouts still waiting for their payment after `venceAt` lapse (every business). */
+  async expireUnpaid(now = new Date()) {
+    const lapsed = await this.prisma.checkoutPedido.updateMany({
+      where: { estado: 'PENDIENTE', venceAt: { lt: now } },
+      data: { estado: 'VENCIDO' },
+    });
+    return lapsed.count;
+  }
+
+  /**
+   * OR-B4-055 — the Mercado Pago checkout of a checkout (the cart closed to pay it): the whole
+   * order, products and delivery. Only for the customer who opened it, while it waits.
+   */
+  async checkoutPaymentUrl(params: {
+    businessId: string;
+    customerId: string;
+    checkoutId: string;
+    storeSlug: string;
+  }): Promise<{ url: string }> {
+    const { businessId, customerId, checkoutId, storeSlug } = params;
+    const checkout = await this.prisma.checkoutPedido.findFirst({
+      where: { id: checkoutId, empresaId: businessId, clienteId: customerId },
+      select: {
+        id: true,
+        estado: true,
+        venceAt: true,
+        total: true,
+        costoEnvio: true,
+        Cliente: { select: { email: true } },
+        Empresa: { select: { nombre: true } },
+      },
+    });
+    if (!checkout) throw new NotFoundException('Pedido no encontrado');
+    if (checkout.estado === 'PAGADO') throw new ConflictException('El pedido ya está pagado');
+    if (checkout.estado === 'VENCIDO' || checkout.venceAt < new Date()) {
+      throw new ConflictException('Pasaron 30 minutos sin pagar: armá el pedido de nuevo.');
+    }
+    const amount = Math.round((Number(checkout.total) + Number(checkout.costoEnvio)) * 100) / 100;
+    return this.preference(businessId, {
+      reference: `checkout:${checkout.id}`,
+      title: `Pedido en ${checkout.Empresa.nombre}`,
+      amount,
+      email: checkout.Cliente.email,
+      back: (result) =>
+        `/tienda/${encodeURIComponent(storeSlug)}/cuenta?pago=${result}&checkout=${checkout.id}`,
+      logId: checkout.id,
+    });
+  }
 
   private apiUrl() {
     return (process.env.MERCADOPAGO_API_URL || 'https://api.mercadopago.com').replace(/\/+$/, '');
@@ -121,8 +206,7 @@ export class MercadoPagoCheckoutService {
     storeSlug: string;
   }): Promise<{ url: string }> {
     const { businessId, customerId, orderId, storeSlug } = params;
-    const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL;
-    if (!notificationUrl) {
+    if (!process.env.MERCADOPAGO_NOTIFICATION_URL) {
       throw new ServiceUnavailableException('Los pagos online todavía no están habilitados');
     }
     const order = await this.prisma.pedido.findFirst({
@@ -146,12 +230,36 @@ export class MercadoPagoCheckoutService {
     const remaining = Number(order.total) - (await this.paidAmount(businessId, orderId));
     if (remaining <= MONEY_EPSILON) throw new ConflictException('El pedido ya está pagado');
 
-    const token = await this.accounts.accessTokenFor(businessId);
     const amount = Math.round(remaining * 100) / 100;
-    const web = (process.env.WEB_APP_URL || 'https://app.wapsell.com').replace(/\/+$/, '');
-    const back = (result: string) =>
-      `${web}/tienda/${encodeURIComponent(storeSlug)}/cuenta?pago=${result}&pedido=${order.id}`;
+    return this.preference(businessId, {
+      reference: order.id,
+      title: `Pedido en ${order.Empresa.nombre}`,
+      amount,
+      email: order.Cliente.email,
+      back: (result) =>
+        `/tienda/${encodeURIComponent(storeSlug)}/cuenta?pago=${result}&pedido=${order.id}`,
+      logId: orderId,
+    });
+  }
 
+  /** A Mercado Pago preference in the Business's own account; the URL to send the customer to. */
+  private async preference(
+    businessId: string,
+    p: {
+      reference: string;
+      title: string;
+      amount: number;
+      email: string | null;
+      back: (result: string) => string;
+      logId: string;
+    },
+  ): Promise<{ url: string }> {
+    const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL;
+    if (!notificationUrl) {
+      throw new ServiceUnavailableException('Los pagos online todavía no están habilitados');
+    }
+    const token = await this.accounts.accessTokenFor(businessId);
+    const web = (process.env.WEB_APP_URL || 'https://app.wapsell.com').replace(/\/+$/, '');
     let response: Response;
     try {
       response = await fetch(`${this.apiUrl()}/checkout/preferences`, {
@@ -160,28 +268,28 @@ export class MercadoPagoCheckoutService {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          // Same order and amount → same preference on a retry.
-          'X-Idempotency-Key': `${order.id}-${amount.toFixed(2)}`,
+          // Same reference and amount → same preference on a retry.
+          'X-Idempotency-Key': `${p.reference}-${p.amount.toFixed(2)}`,
         },
         body: JSON.stringify({
           items: [
             {
-              id: order.id,
-              title: `Pedido en ${order.Empresa.nombre}`,
+              id: p.reference,
+              title: p.title,
               quantity: 1,
-              unit_price: amount,
+              unit_price: p.amount,
               currency_id: 'ARS',
             },
           ],
-          external_reference: order.id,
+          external_reference: p.reference,
           notification_url: notificationUrl,
           back_urls: {
-            success: back('aprobado'),
-            pending: back('pendiente'),
-            failure: back('rechazado'),
+            success: `${web}${p.back('aprobado')}`,
+            pending: `${web}${p.back('pendiente')}`,
+            failure: `${web}${p.back('rechazado')}`,
           },
           auto_return: 'approved',
-          ...(order.Cliente.email ? { payer: { email: order.Cliente.email } } : {}),
+          ...(p.email ? { payer: { email: p.email } } : {}),
         }),
         signal: AbortSignal.timeout(15000),
       });
@@ -199,7 +307,7 @@ export class MercadoPagoCheckoutService {
         JSON.stringify({
           event: 'mercadopago.preference.failed',
           status: response.status,
-          orderId,
+          reference: p.logId,
         }),
       );
       throw new BadRequestException(
@@ -268,6 +376,9 @@ export class MercadoPagoCheckoutService {
       );
       return { handled: false };
     }
+    if (payment.external_reference.startsWith('checkout:')) {
+      return this.payCheckout(businessId, payment.external_reference.slice(9), payment);
+    }
     const order = await this.prisma.pedido.findFirst({
       where: { id: payment.external_reference, empresaId: businessId },
       select: { id: true },
@@ -287,6 +398,39 @@ export class MercadoPagoCheckoutService {
     return { handled: true };
   }
 
+  /**
+   * OR-B4-055 — a payment of a checkout. Approved for the whole amount, the checkout becomes the
+   * store's order (once) and the payment is recorded on it. Anything else leaves it waiting.
+   */
+  private async payCheckout(businessId: string, checkoutId: string, payment: MercadoPagoPayment) {
+    const checkout = await this.prisma.checkoutPedido.findFirst({
+      where: { id: checkoutId, empresaId: businessId },
+      select: { id: true, total: true, costoEnvio: true },
+    });
+    const log = (event: string) =>
+      this.logger.warn(
+        JSON.stringify({ event, businessId, checkoutId, paymentId: String(payment.id) }),
+      );
+    if (!checkout) {
+      log('mercadopago.webhook.unknown_checkout');
+      return { handled: false };
+    }
+    if (pagoStateFor(payment.status) !== EstadoPago.APROBADO) return { handled: true };
+    const owed = Number(checkout.total) + Number(checkout.costoEnvio);
+    if (Number(payment.transaction_amount) + MONEY_EPSILON < owed) {
+      log('mercadopago.checkout.short_payment');
+      return { handled: true };
+    }
+    const store = this.moduleRef.get(StoreService, { strict: false });
+    const { order } = await store.closeCheckout(businessId, checkout.id);
+    if (!order) {
+      log('mercadopago.checkout.without_order');
+      return { handled: false };
+    }
+    await this.recordPayment(businessId, order.id, payment);
+    return { handled: true };
+  }
+
   private async recordPayment(businessId: string, orderId: string, payment: MercadoPagoPayment) {
     const referencia = `mercadopago:${payment.id}`;
     const data = {
@@ -296,25 +440,29 @@ export class MercadoPagoCheckoutService {
     const wasApproved = await this.prisma.pago.count({
       where: { empresaId: businessId, referencia, estado: 'APROBADO' },
     });
-    await this.prisma.$transaction(
-      async (tx) => {
-        const existing = await tx.pago.findFirst({
-          where: { empresaId: businessId, referencia },
-          select: { id: true },
-        });
-        if (existing) await tx.pago.update({ where: { id: existing.id }, data });
-        else
-          await tx.pago.create({
-            data: {
-              ...data,
-              empresaId: businessId,
-              pedidoId: orderId,
-              medio: 'MERCADOPAGO',
-              referencia,
-            },
+    // Serializable: two notices of one payment never record it twice. Postgres may refuse one of
+    // two payments recorded at the same moment (P2034); that one is simply tried again.
+    await retryOnConflict(() =>
+      this.prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.pago.findFirst({
+            where: { empresaId: businessId, referencia },
+            select: { id: true },
           });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+          if (existing) await tx.pago.update({ where: { id: existing.id }, data });
+          else
+            await tx.pago.create({
+              data: {
+                ...data,
+                empresaId: businessId,
+                pedidoId: orderId,
+                medio: 'MERCADOPAGO',
+                referencia,
+              },
+            });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
     );
     this.logger.log(
       JSON.stringify({

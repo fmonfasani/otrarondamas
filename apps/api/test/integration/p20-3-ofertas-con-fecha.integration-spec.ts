@@ -153,6 +153,7 @@ describe('P20-3 — ofertas con fecha', () => {
     // The counter sale moved stock in the name of a person: its movements go before the people.
     await prisma.movimientoStock.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pago.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.checkoutPedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.ventaItem.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.venta.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { empresaId: { in: companies } } });
@@ -244,28 +245,37 @@ describe('P20-3 — ofertas con fecha', () => {
     expect(await counterPrice(ids.Yerba)).toBe(1200);
 
     // An order taken in the chat skips it; one placed in the store keeps it, with its offer.
-    const chat = await store.createOrder(
-      {
-        nombre: 'Chat',
-        email: `p20-3-chat-${suffix}@example.test`,
-        items: [{ productoId: ids.Arroz, cantidad: 1 }],
+    // OR-B4-055: the price is frozen when the customer closes the cart to pay it (the checkout).
+    const buyer = await prisma.cliente.create({
+      data: {
+        empresaId: shop.id,
+        nombre: 'Comprador',
+        email: `p20-3-buyer-${suffix}@example.test`,
       },
+      select: { id: true },
+    });
+    const lineOf = (checkout: { lineas: unknown }) =>
+      (checkout.lineas as Array<{ precioUnitario: string; ofertaId: string | null }>)[0];
+    const chat = await store.openCheckout(
+      buyer.id,
+      [{ productoId: ids.Arroz, cantidad: 1 }],
       shop.id,
-      'messaging',
+      {
+        channel: 'messaging',
+      },
     );
-    expect(chat.PedidoItem[0]).toMatchObject({ ofertaId: null });
-    expect(Number(chat.PedidoItem[0].precioUnitario)).toBe(800);
-    const web = await request(BASE)
-      .post(`/${shop.slug}/tienda/pedidos`)
-      .send({
-        nombre: 'Web',
-        email: `p20-3-web-${suffix}@example.test`,
-        items: [{ productoId: ids.Arroz, cantidad: 1 }],
-      })
-      .expect(201);
-    const line = await prisma.pedidoItem.findFirstOrThrow({ where: { pedidoId: web.body.id } });
-    expect(Number(line.precioUnitario)).toBe(720);
-    expect(line.ofertaId).toBe(arroz.body.id);
+    expect(lineOf(chat)).toMatchObject({ ofertaId: null });
+    expect(Number(lineOf(chat).precioUnitario)).toBe(800);
+    const web = await store.openCheckout(
+      buyer.id,
+      [{ productoId: ids.Arroz, cantidad: 1 }],
+      shop.id,
+      {
+        channel: 'web',
+      },
+    );
+    expect(Number(lineOf(web).precioUnitario)).toBe(720);
+    expect(lineOf(web).ofertaId).toBe(arroz.body.id);
   });
 
   it('the counter sale keeps the offer that set its price', async () => {

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signCustomerToken } from './helpers/customer-token.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
 import {
   createStoreProduct,
   deleteMessagingOf,
@@ -13,11 +14,13 @@ import {
 /**
  * OR-B4-054, fase 2b — the customer chooses delivery or pickup when ordering. The delivery fee is
  * computed by the server ($ 2.500 + $ 500 per km or fraction, inside the store's radius) and kept
- * apart from the products. A Wapsell account saves addresses; nobody reaches another's.
+ * apart from the products. A Wapsell account saves addresses; nobody reaches another's. Since
+ * OR-B4-055 the order is paid at checkout and born with the payment (fake Mercado Pago here).
  */
 describe('Checkout con envío o retiro', () => {
   const PORT = '3409';
   const BASE = `http://127.0.0.1:${PORT}`;
+  const mp = new FakeMercadoPago(3412);
   const DOOR = { lat: -32.946812, lng: -60.639347 };
   const north = (km: number) => ({ lat: DOOR.lat + km / 111.2, lng: DOOR.lng });
   let prisma: PrismaService;
@@ -40,6 +43,15 @@ describe('Checkout con envío o retiro', () => {
     });
     auth[key] = `Bearer ${signCustomerToken(cliente.id, shop.id)}`;
   }
+
+  const paidOrder = (key: string, entrega: Record<string, unknown>) =>
+    placePaidOrder(BASE, mp, prisma, {
+      slug: shop.slug,
+      companyId: shop.id,
+      auth: auth[key],
+      items: [{ productoId: productId, cantidad: 1 }],
+      entrega,
+    });
 
   const order = (key: string, entrega?: Record<string, unknown>) =>
     request(BASE)
@@ -71,15 +83,18 @@ describe('Checkout con envío o retiro', () => {
       select: { id: true, slug: true },
     });
     productId = (await createStoreProduct(prisma, shop.id, 'Chk', 'A', suffix)).id;
+    await mp.start();
+    await mp.connect(prisma, shop.id);
     await customer('ana', true);
     await customer('beto', true);
     await customer('solo', false);
-    server = spawnApi({ PORT });
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     await prisma.compradorDireccion.deleteMany({ where: { compradorId: { in: buyers } } });
     await deleteMessagingOf(prisma, [shop.id]);
     await deleteStoreCompanies(prisma, [shop.id]);
@@ -154,35 +169,45 @@ describe('Checkout con envío o retiro', () => {
   });
 
   it('charges the delivery the server computes, apart from the products', async () => {
-    const placed = await order('ana', {
+    const opened = await order('ana', {
       tipo: 'ENVIO',
       direccion: 'Av. Pellegrini 1234, 4° B',
       indicaciones: 'Timbre 4B',
       ...north(2.1),
       costoEnvio: 1,
     }).expect(201);
-    const saved = await prisma.pedido.findUnique({ where: { id: placed.body.id } });
+    expect(Number(opened.body.costoEnvio)).toBe(4000);
+    const { order: saved } = await paidOrder('ana', {
+      tipo: 'ENVIO',
+      direccion: 'Av. Pellegrini 1234, 4° B',
+      indicaciones: 'Timbre 4B',
+      ...north(2.1),
+    });
     expect(saved).toMatchObject({
       tipoEntrega: 'ENVIO',
       direccionEntrega: 'Av. Pellegrini 1234, 4° B',
       indicacionesEntrega: 'Timbre 4B',
       kmEntrega: 2.1,
     });
-    expect(Number(saved?.costoEnvio)).toBe(4000);
+    expect(Number(saved.costoEnvio)).toBe(4000);
     const mine = await request(BASE)
       .get(`/${shop.slug}/tienda/mis-pedidos`)
       .set('Authorization', auth.ana)
       .expect(200);
     expect(mine.body[0]).toMatchObject({ tipoEntrega: 'ENVIO', costoEnvio: '4000' });
-    expect(Number(mine.body[0].total)).toBe(Number(saved?.total));
+    expect(Number(mine.body[0].total)).toBe(Number(saved.total));
   });
 
-  it('keeps the latest choice when the open order grows: pickup costs nothing', async () => {
-    const grown = await order('ana', { tipo: 'RETIRO' }).expect(201);
-    expect(grown.body.sumado).toBe(true);
-    const saved = await prisma.pedido.findUnique({ where: { id: grown.body.id } });
-    expect(saved).toMatchObject({ tipoEntrega: 'RETIRO', direccionEntrega: null, kmEntrega: null });
-    expect(Number(saved?.costoEnvio)).toBe(0);
+  it('pickup costs nothing, and a paid order is never grown: the next one is new (OR-B4-055)', async () => {
+    const before = await prisma.pedido.count({ where: { empresaId: shop.id } });
+    const { order: pickup } = await paidOrder('ana', { tipo: 'RETIRO' });
+    expect(pickup).toMatchObject({
+      tipoEntrega: 'RETIRO',
+      direccionEntrega: null,
+      kmEntrega: null,
+    });
+    expect(Number(pickup.costoEnvio)).toBe(0);
+    expect(await prisma.pedido.count({ where: { empresaId: shop.id } })).toBe(before + 1);
   });
 
   it('says why it cannot deliver, and never places that order', async () => {
@@ -192,10 +217,13 @@ describe('Checkout con envío o retiro', () => {
     expect(far.body.message).toBe('Tu dirección está a 8 km y el negocio envía hasta 5 km.');
     await order('beto', { tipo: 'ENVIO', ...north(1) }).expect(400);
     await order('beto', { tipo: 'ENVIO', direccion: 'Madrid 1', lat: 40.4, lng: -3.7 }).expect(400);
+    const current = (await prisma.empresa.findUniqueOrThrow({ where: { id: shop.id } }))
+      .configuracion as Record<string, unknown>;
     await prisma.empresa.update({
       where: { id: shop.id },
       data: {
         configuracion: {
+          mercadoPago: current.mercadoPago as object,
           ubicacion: {
             ...DOOR,
             zona: false,
@@ -210,5 +238,6 @@ describe('Checkout con envío o retiro', () => {
     expect(noPickup.body.message).toContain('no ofrece retiro');
     const beto = await prisma.cliente.findFirst({ where: { empresaId: shop.id, nombre: 'beto' } });
     expect(await prisma.pedido.count({ where: { clienteId: beto?.id } })).toBe(0);
+    expect(await prisma.checkoutPedido.count({ where: { clienteId: beto?.id } })).toBe(0);
   });
 });

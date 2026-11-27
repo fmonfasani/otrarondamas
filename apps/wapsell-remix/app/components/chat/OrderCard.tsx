@@ -54,7 +54,33 @@ export function OrderCard({ card, time, href }: Readonly<{ card: OrderCardData; 
 }
 
 /** OR-B4-053 — a notice the system posted (the order moved, a return): a short centred line. */
+/**
+ * OR-B4-055 — a notice with the link to pay an order (`…/tienda/<slug>/pagar/<checkout>`): the
+ * link becomes a button to this site's pay page; the rest stays text. Only that exact shape.
+ */
+export function payLinkOf(text: string): { before: string; path: string; after: string } | null {
+  const match = /https?:\/\/[^\s]+?(\/tienda\/[a-z0-9-]+\/pagar\/[0-9a-f-]{36})/i.exec(text);
+  if (!match) return null;
+  return {
+    before: text.slice(0, match.index).trim().replace(/:$/, '.'),
+    path: match[1],
+    after: text.slice(match.index + match[0].length).replace(/^\s*—\s*/, '').trim(),
+  };
+}
+
 export function NoticeLine({ text, time }: Readonly<{ text: string; time: string }>) {
+  const pay = payLinkOf(text);
+  if (pay) {
+    return (
+      <p className="chat-notice chat-notice--pay">
+        <span>{pay.before}</span>
+        <a className="chat-notice__pay" href={pay.path}>
+          Pagar con Mercado Pago
+        </a>
+        {pay.after ? <span>{pay.after.charAt(0).toUpperCase() + pay.after.slice(1)}</span> : null} <time>{time}</time>
+      </p>
+    );
+  }
   return (
     <p className="chat-notice">
       <span>{text}</span> <time>{time}</time>

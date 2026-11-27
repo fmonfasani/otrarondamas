@@ -1,3 +1,5 @@
+import { OrderNoticeService } from '../customer-notices/order-notice.service';
+import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import {
   BadRequestException,
   ConflictException,
@@ -252,6 +254,9 @@ export class MessagingService {
     private readonly businessContext: BusinessContextService,
     @Optional() private readonly storeService?: StoreService,
     private readonly cartService?: CartService,
+    // OR-B4-055: the chat's order is paid at checkout (link in the chat, Mercado Pago required).
+    @Optional() private readonly orderNotices?: OrderNoticeService,
+    @Optional() private readonly mercadoPago?: MercadoPagoAccountService,
   ) {}
 
   async createConversation(auth: AuthenticatedUser, dto: CreateConversationDto) {
@@ -2427,53 +2432,27 @@ export class MessagingService {
       cantidad: Number(item.cantidad), // CartItem.cantidad is Decimal; convert to number
     }));
 
-    // Reuse the existing Commerce engine for server-side pricing, loyalty and
-    // PedidoItem persistence. A Messaging-created order remains RECIBIDO:
-    // stock/ERP confirmation stays in the existing authorized Orders workflow.
-    // Idempotency per cart, not per conversation: a retry of the same cart returns the
-    // same order, while a later cart in the same conversation is a new order. (Keying on
-    // the conversation alone made every later order return the first one and still empty
-    // the customer's new cart.)
-    const order = await this.storeService.createOrder(
-      {
-        nombre: customer.nombre,
-        email: customer.email,
-        telefono: customer.telefono ?? undefined,
-        items,
-      },
-      context.businessId,
-      'messaging',
-      conversationOrderKey(conversationId, cart.CartItem),
-      // OR-B4-046 rule 2: the store sells the Catálogo, the chat sells every active product. The
-      // Business could load an unpublished product into the cart; the order must take it too.
-      { catalogOnly: false },
-    );
-
-    // C3: Create the association linking this conversation to the created order
-    // (once: a retry that returns the same order must not add it again).
-    const linked = await this.prisma.conversationAssociation.findFirst({
-      where: {
-        conversationId,
-        businessId: context.businessId,
-        entityType: MessagingAssociationType.ORDER,
-        entityId: order.id,
-      },
-      select: { id: true },
-    });
-    if (!linked) {
-      await this.prisma.conversationAssociation.create({
-        data: {
-          conversationId,
-          businessId: context.businessId,
-          entityType: MessagingAssociationType.ORDER,
-          entityId: order.id,
-          changedBy: context.userId,
-          reason: 'Pedido creado desde el contexto comercial de Messaging',
-        },
-      });
+    // OR-B4-055 — the business builds the order in the chat (the cart grows freely) and the
+    // customer's checkout closes it: the customer gets the link to pay it here, and it becomes the
+    // store's order only when Mercado Pago approves the payment (it is then linked to this chat).
+    if (!(await this.takesOnlinePayments(context.businessId))) {
+      throw new ConflictException(
+        'Para cobrar los pedidos, conectá Mercado Pago en Ajustes: el cliente paga antes de que el pedido llegue.',
+      );
     }
+    const checkout = await this.storeService.openCheckout(customerId, items, context.businessId, {
+      channel: 'messaging',
+      conversationId,
+    });
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: context.businessId },
+      select: { slug: true },
+    });
+    const web = (process.env.WEB_APP_URL ?? 'https://app.wapsell.com').replace(/\/$/, '');
+    const pagar = `${web}/tienda/${business?.slug ?? ''}/pagar/${checkout.id}`;
+    await this.orderNotices?.toPay(context.businessId, checkout, pagar);
 
-    // C3: Remove only the items that were confirmed in this order from the cart.
+    // C3: Remove only the items that went into this checkout from the cart.
     // This prevents loss of items added concurrently after the snapshot was taken.
     // If an error occurs before this point, the cart is fully preserved (client can retry).
     // If removal fails, it's logged but does not fail the order (order is already committed).
@@ -2487,12 +2466,24 @@ export class MessagingService {
       // Worst case: customer sees items in their cart after ordering. The items
       // won't be ordered again if the customer retries (idempotencyKey prevents it).
       console.error(
-        `Failed to remove cart items after order ${order.id}:`,
+        `Failed to remove cart items after checkout ${checkout.id}:`,
         error instanceof Error ? error.message : String(error),
       );
     }
 
-    return order;
+    return {
+      checkoutId: checkout.id,
+      total: checkout.total,
+      costoEnvio: checkout.costoEnvio,
+      pagar,
+    };
+  }
+
+  /** OR-B4-055: the business takes online payments (Mercado Pago connected and enabled). */
+  private async takesOnlinePayments(businessId: string) {
+    if (!this.mercadoPago) return false;
+    const mp = await this.mercadoPago.status(businessId);
+    return mp.available && mp.connected && Boolean(process.env.MERCADOPAGO_NOTIFICATION_URL);
   }
 
   async deactivateConversationAssociation(

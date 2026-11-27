@@ -171,13 +171,36 @@ describe('P11-5 — paying a confirmed order with Mercado Pago', () => {
     });
     await waitPort(Number(PORT));
 
-    const order = await request(BASE)
-      .post(`/${company.slug}/tienda/mis-pedidos`)
-      .set('Authorization', customerAuth())
-      .send({ items: [{ productoId: product.id, cantidad: 2 }] })
-      .expect(201);
-    orderId = order.body.id;
-    total = Number(order.body.total);
+    // An order placed before OR-B4-055 (paid after the store confirms it): those orders can still
+    // be paid this way. New orders are paid at checkout (p21-pagar-antes).
+    const order = await prisma.pedido.create({
+      data: {
+        empresaId: company.id,
+        clienteId: customer.id,
+        estado: 'RECIBIDO',
+        canalOrigen: 'web',
+        total:
+          2 *
+          Number(
+            (await prisma.producto.findUniqueOrThrow({ where: { id: product.id } }))
+              .precioMinorista,
+          ),
+        PedidoItem: {
+          create: [
+            {
+              productoId: product.id,
+              cantidad: 2,
+              precioUnitario: (
+                await prisma.producto.findUniqueOrThrow({ where: { id: product.id } })
+              ).precioMinorista,
+            },
+          ],
+        },
+      },
+      select: { id: true, total: true },
+    });
+    orderId = order.id;
+    total = Number(order.total);
 
     // The Owner connects the account (fake Mercado Pago authorization).
     const connect = await request(BASE)

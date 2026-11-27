@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
 import {
   createStoreProduct,
@@ -21,6 +23,8 @@ import {
  */
 describe('P19-1 — mercadería y catálogo', () => {
   const PORT = '3383';
+  // OR-B4-055: orders are paid at checkout; the store takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3420);
   const BASE = `http://127.0.0.1:${PORT}`;
   let prisma: PrismaService;
   let server: ChildProcess;
@@ -156,12 +160,15 @@ describe('P19-1 — mercadería y catálogo', () => {
     ids.G = await sibling(ids.F, 'G');
     otherProduct = (await createStoreProduct(prisma, other.id, 'P19-1', 'Z', suffix)).id;
 
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, shop.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     const companies = [shop.id, other.id];
     const usuarioIds = (
       await prisma.usuario.findMany({
@@ -310,7 +317,7 @@ describe('P19-1 — mercadería y catálogo', () => {
     expect((await flags(ids.A)).publicado).toBe(false);
   });
 
-  it('the store without an account sells only the Catálogo; a signed-in customer can order what the chat shared', async () => {
+  it('nobody orders without an account (OR-B4-055); a signed-in customer can order what the chat shared', async () => {
     // D is inactive; reactivate it outside the store, like a product shared in the chat.
     await prisma.producto.update({ where: { id: ids.D }, data: { activo: true } });
     const anonymous = await request(BASE)
@@ -320,8 +327,7 @@ describe('P19-1 — mercadería y catálogo', () => {
         email: `p19-1-visitor-${suffix}@example.test`,
         items: [{ productoId: ids.D, cantidad: 1 }],
       });
-    expect(anonymous.status).toBe(400);
-    expect(anonymous.body.message).toBe(`Producto ${ids.D} no disponible`);
+    expect(anonymous.status).toBe(410);
 
     const account = await request(BASE)
       .post(`/auth/cliente/negocio/${shop.slug}/registro`)
@@ -331,11 +337,12 @@ describe('P19-1 — mercadería y catálogo', () => {
         password: randomUUID(),
       })
       .expect(201);
-    const order = await request(BASE)
-      .post(`/${shop.slug}/tienda/mis-pedidos`)
-      .set('Authorization', `Bearer ${account.body.accessToken}`)
-      .send({ items: [{ productoId: ids.D, cantidad: 1 }] })
-      .expect(201);
-    expect(order.body.empresaId).toBe(shop.id);
+    const { order } = await placePaidOrder(BASE, mp, prisma, {
+      slug: shop.slug,
+      companyId: shop.id,
+      auth: `Bearer ${account.body.accessToken}`,
+      items: [{ productoId: ids.D, cantidad: 1 }],
+    });
+    expect(order.empresaId).toBe(shop.id);
   });
 });

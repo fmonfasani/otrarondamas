@@ -238,6 +238,7 @@ model Cliente {
   passwordHash            String?
   razonSocial             String?
   Cart                    Cart[]
+  CheckoutPedido          CheckoutPedido[]
   CustomerLabelAssignment CustomerLabelAssignment[]
   Empresa                 Empresa                   @relation(fields: [empresaId], references: [id])
   ConversationParticipant ConversationParticipant[]
@@ -629,6 +630,7 @@ model Empresa {
   Autorizacion            Autorizacion[]
   Caja                    Caja?
   Cart                    Cart[]
+  CheckoutPedido          CheckoutPedido[]
   Cliente                 Cliente[]
   Compra                  Compra[]
   Conversation            Conversation[]
@@ -1049,16 +1051,16 @@ model PagoProveedor {
 }
 
 model Pedido {
-  id                  String         @id @default(uuid())
+  id                  String          @id @default(uuid())
   empresaId           String
   clienteId           String
   usuarioId           String?
-  estado              EstadoPedido   @default(RECIBIDO)
+  estado              EstadoPedido    @default(RECIBIDO)
   canalOrigen         String
-  total               Decimal        @db.Decimal(18, 2)
-  descuento           Decimal        @default(0) @db.Decimal(18, 2)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  total               Decimal         @db.Decimal(18, 2)
+  descuento           Decimal         @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
   idempotencyKey      String?
   /// OR-B4-053: N° per business (1, 2, 3…). The database assigns it on insert (trigger
   /// «Pedido_numerar»); never set it by hand.
@@ -1072,13 +1074,14 @@ model Pedido {
   lngEntrega          Float?
   /// Straight-line km from the store, and the fee: all the courier's, apart from `total`.
   kmEntrega           Float?
-  costoEnvio          Decimal        @default(0) @db.Decimal(18, 2)
+  costoEnvio          Decimal         @default(0) @db.Decimal(18, 2)
   Entrega             Entrega?
+  CheckoutPedido      CheckoutPedido?
   Notificacion        Notificacion[]
   Pago                Pago[]
-  Cliente             Cliente        @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
-  Empresa             Empresa        @relation(fields: [empresaId], references: [id])
-  Usuario             Usuario?       @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Cliente             Cliente         @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Empresa             Empresa         @relation(fields: [empresaId], references: [id])
+  Usuario             Usuario?        @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   PedidoItem          PedidoItem[]
 
   @@unique([empresaId, id])
@@ -1766,6 +1769,49 @@ enum EstadoPago {
   CANCELADO
   REEMBOLSADO_PARCIAL
   REEMBOLSADO_TOTAL
+}
+
+/// OR-B4-055 (Owner, 2026-11-27) — a checkout: the open order (the cart, which grows freely)
+/// closed by the customer to pay it. It is never the store's order: Mercado Pago approving the
+/// payment turns it into one (pedidoId). Unpaid, it lapses after 30 minutes. The lines and prices
+/// are frozen here: they are what the customer pays.
+model CheckoutPedido {
+  id                  String         @id @default(uuid())
+  empresaId           String
+  clienteId           String
+  /// 'web' (the store) or 'messaging' (built by the business in the chat).
+  canalOrigen         String
+  estado              EstadoCheckout @default(PENDIENTE)
+  /// The priced lines: productoId, cantidad, precioUnitario, ofertaId, origenPrecio, loyalty.
+  lineas              Json
+  total               Decimal        @db.Decimal(18, 2)
+  costoEnvio          Decimal        @default(0) @db.Decimal(18, 2)
+  tipoEntrega         TipoEntrega?
+  direccionEntrega    String?
+  indicacionesEntrega String?
+  latEntrega          Float?
+  lngEntrega          Float?
+  kmEntrega           Float?
+  /// The chat it was built in, to tell the customer there and empty that cart once paid.
+  conversationId      String?
+  pedidoId            String?
+  venceAt             DateTime
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  Empresa             Empresa        @relation(fields: [empresaId], references: [id])
+  Cliente             Cliente        @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Pedido              Pedido?        @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([empresaId, id])
+  @@unique([empresaId, pedidoId])
+  @@index([estado, venceAt])
+}
+
+/// OR-B4-055: a checkout waits for its payment, was paid (it is an order now) or lapsed.
+enum EstadoCheckout {
+  PENDIENTE
+  PAGADO
+  VENCIDO
 }
 
 /// OR-B4-054: delivered by the store's courier, or picked up at the store.

@@ -56,9 +56,41 @@ export class OrderNoticeService {
     );
   }
 
+  /**
+   * OR-B4-055: the customer closed the order to pay it (built in the chat, or the store's link).
+   * It is not the store's order yet: it becomes one when Mercado Pago approves the payment.
+   */
+  toPay(
+    companyId: string,
+    checkout: { id: string; clienteId: string; total: unknown; costoEnvio: unknown },
+    url: string,
+  ) {
+    const amount = Number(checkout.total) + Number(checkout.costoEnvio ?? 0);
+    return this.notices.notify(
+      companyId,
+      checkout.clienteId,
+      `checkout-${checkout.id}-pagar`,
+      `Tu pedido por ${money(amount)} está listo para pagar con Mercado Pago: ${url} — en cuanto se acredite el pago, lo recibimos.`,
+    );
+  }
+
   async confirmed(companyId: string, order: Order, pagosOnline: boolean) {
     let text = `Confirmamos ${orderName(order)} por ${money(String(order.total))}.`;
-    if (pagosOnline) {
+    // OR-B4-055: an order paid at checkout is already paid; never offer to pay it again.
+    const [paid, fee] = await Promise.all([
+      this.prisma.pago.aggregate({
+        where: { empresaId: companyId, pedidoId: order.id, estado: 'APROBADO' },
+        _sum: { monto: true },
+      }),
+      this.prisma.pedido.findFirst({
+        where: { id: order.id, empresaId: companyId },
+        select: { costoEnvio: true },
+      }),
+    ]);
+    const owed = Number(order.total) + Number(fee?.costoEnvio ?? 0);
+    if (Number(paid._sum.monto ?? 0) + 0.005 >= owed) {
+      text += ' Ya está pagado.';
+    } else if (pagosOnline) {
       const business = await this.prisma.empresa.findUnique({
         where: { id: companyId },
         select: { slug: true },
