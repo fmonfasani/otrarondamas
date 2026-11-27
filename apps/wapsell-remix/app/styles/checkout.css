@@ -22,3 +22,6 @@
 .delivery-use { min-height: 42px; border: 1px solid #1a1a19; border-radius: 12px; background: #fff; color: #1a1a19; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .delivery-use:disabled { opacity: 0.5; cursor: not-allowed; }
 .cart-total--part { padding-bottom: 0; font-size: 14px; }
+.delivery-toggle, .delivery-saved { margin: 0; border: 0; min-width: 0; }
+.delivery-saved { padding: 0; }
+.checkout-delivery .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -285,7 +285,7 @@ export class PublicStoreController {
     return {
       tipoEntrega: 'ENVIO',
       direccionEntrega: (choice.direccion ?? '').trim(),
-      indicacionesEntrega: indicaciones ? indicaciones : null,
+      indicacionesEntrega: indicaciones || null,
       latEntrega: point.lat,
       lngEntrega: point.lng,
       kmEntrega: quote.km,

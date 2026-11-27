@@ -57,7 +57,7 @@ export class AddressesService {
     return {
       etiqueta: input.etiqueta.trim(),
       direccion: input.direccion.trim(),
-      indicaciones: indicaciones ? indicaciones : null,
+      indicaciones: indicaciones || null,
       lat: input.lat,
       lng: input.lng,
     };
