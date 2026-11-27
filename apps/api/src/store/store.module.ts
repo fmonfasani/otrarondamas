@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PublicStoreController } from './public-store.controller';
 import { StoreService } from './store.service';
+import { AddressesService } from './addresses.service';
 import { StoreCatalogService } from './store-catalog.service';
 import { ProductPhotosService } from '../catalog/product-photos.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -28,7 +29,7 @@ import { CustomerNoticesModule } from '../customer-notices/customer-notices.modu
     CustomerNoticesModule,
   ],
   controllers: [PublicStoreController],
-  providers: [StoreService, StoreCatalogService, ProductPhotosService],
+  providers: [StoreService, StoreCatalogService, ProductPhotosService, AddressesService],
   exports: [StoreService, StoreCatalogService],
 })
 export class StoreModule {}

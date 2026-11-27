@@ -11,7 +11,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO wapsell_app, wapsell_sy
 REVOKE ALL ON "_prisma_migrations" FROM wapsell_app, wapsell_system;
 
 -- Identity and security (FASE-2-BASE-SEGURA §4.1): never inside one business.
-REVOKE ALL ON "Comprador", "CompradorToken", "CompradorFavorito", "PasswordResetToken", "MfaFactor" FROM wapsell_app;
+REVOKE ALL ON "Comprador", "CompradorToken", "CompradorFavorito", "CompradorDireccion", "PasswordResetToken", "MfaFactor" FROM wapsell_app;
 
 -- Audit trail: nobody edits it. Inside a business it is only appended and read; the system
 -- role may delete, only for the 5-year retention (OR-B4-041, AuditService.cleanupOldLogs).

@@ -2,12 +2,15 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -24,9 +27,10 @@ import {
   CUSTOMER_POLICY,
 } from '../authorization/canonical-permission.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { CustomerOrderDto } from './dto/customer-order.dto';
+import { CustomerOrderDto, DeliveryChoiceDto, SaveAddressDto } from './dto/customer-order.dto';
 import { BrowseCatalogDto } from './dto/browse-catalog.dto';
-import { StoreService } from './store.service';
+import { StoreService, type OrderDelivery } from './store.service';
+import { AddressesService } from './addresses.service';
 import { StoreCatalogService } from './store-catalog.service';
 import { ProductPhotosService, sendPhoto } from '../catalog/product-photos.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
@@ -34,7 +38,7 @@ import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
 import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
 import { deliveryOf, deliveryQuote } from '../negocio/envio';
-import { insideArgentina, locationOf } from '../negocio/ubicacion';
+import { insideArgentina, locationOf, publicLocation } from '../negocio/ubicacion';
 import { CustomerReturnDto } from '../devoluciones/dto';
 
 /**
@@ -59,6 +63,7 @@ export class PublicStoreController {
     private readonly mercadoPago: MercadoPagoAccountService,
     private readonly checkout: MercadoPagoCheckoutService,
     private readonly returns: DevolucionesService,
+    private readonly addresses: AddressesService,
   ) {}
 
   private async companyId(businessSlug: string): Promise<string> {
@@ -103,6 +108,14 @@ export class PublicStoreController {
       slug: business.slug,
       contacto: contactOf(business.configuracion),
       pagosOnline,
+      // OR-B4-054, fase 2b: how customers can receive orders (delivery needs the store's pin).
+      entrega: {
+        envio:
+          deliveryOf(business.configuracion).envio && locationOf(business.configuracion) !== null,
+        retiro: deliveryOf(business.configuracion).retiro,
+      },
+      // Where the map opens: the same point Wapsell's map shows (a zone stays rounded).
+      centro: publicLocation(locationOf(business.configuracion)),
     };
   }
 
@@ -236,6 +249,50 @@ export class PublicStoreController {
     return this.storeService.tracking(id, await this.companyId(businessSlug));
   }
 
+  /**
+   * OR-B4-054, fase 2b — the customer's choice checked against the store: pickup must be offered;
+   * a delivery must fall inside the radius, and its fee is computed here (never taken from the
+   * request).
+   */
+  private async deliveryFor(businessId: string, choice: DeliveryChoiceDto): Promise<OrderDelivery> {
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: businessId },
+      select: { configuracion: true },
+    });
+    const configuracion = business?.configuracion ?? null;
+    const settings = deliveryOf(configuracion);
+    if (choice.tipo === 'RETIRO') {
+      if (!settings.retiro) {
+        throw new BadRequestException('Este negocio no ofrece retiro en el local: elegí envío.');
+      }
+      return {
+        tipoEntrega: 'RETIRO',
+        direccionEntrega: null,
+        indicacionesEntrega: null,
+        latEntrega: null,
+        lngEntrega: null,
+        kmEntrega: null,
+        costoEnvio: 0,
+      };
+    }
+    const point = { lat: Number(choice.lat), lng: Number(choice.lng) };
+    if (!insideArgentina(point.lat, point.lng)) {
+      throw new BadRequestException('Ese punto no está en Argentina. Mové el pin a tu dirección.');
+    }
+    const quote = deliveryQuote(locationOf(configuracion), settings, point);
+    if ('motivo' in quote) throw new BadRequestException(quote.motivo);
+    const indicaciones = choice.indicaciones?.trim();
+    return {
+      tipoEntrega: 'ENVIO',
+      direccionEntrega: (choice.direccion ?? '').trim(),
+      indicacionesEntrega: indicaciones || null,
+      latEntrega: point.lat,
+      lngEntrega: point.lng,
+      kmEntrega: quote.km,
+      costoEnvio: quote.costo,
+    };
+  }
+
   /** POST /:slug/tienda/mis-pedidos — order as the signed-in customer (name/email from the account). */
   @AllowCustomer()
   @CanonicalPermission(CUSTOMER_POLICY)
@@ -246,7 +303,78 @@ export class PublicStoreController {
     @Body() dto: CustomerOrderDto,
   ) {
     const { businessId, customerId } = await this.customerOf(user, businessSlug);
-    return this.storeService.createCustomerOrder(customerId, dto.items, businessId);
+    const delivery = dto.entrega ? await this.deliveryFor(businessId, dto.entrega) : undefined;
+    return this.storeService.createCustomerOrder(customerId, dto.items, businessId, delivery);
+  }
+
+  /**
+   * GET /:slug/tienda/mis-direcciones — OR-B4-054, fase 2b: the addresses saved in the customer's
+   * Wapsell account. An account of this store alone has none, and cannot save them.
+   */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Get('mis-direcciones')
+  async savedAddresses(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+  ) {
+    const buyerId = await this.buyerOf(user, businessSlug);
+    return {
+      direcciones: buyerId ? await this.addresses.list(buyerId) : [],
+      puedeGuardar: buyerId !== null,
+    };
+  }
+
+  /** POST /:slug/tienda/mis-direcciones — save an address in the customer's Wapsell account. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Post('mis-direcciones')
+  async saveAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Body() dto: SaveAddressDto,
+  ) {
+    return this.addresses.create(await this.ownBuyer(user, businessSlug), dto);
+  }
+
+  /** PUT /:slug/tienda/mis-direcciones/:id — change one of the customer's saved addresses. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Put('mis-direcciones/:id')
+  async updateAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SaveAddressDto,
+  ) {
+    return this.addresses.update(await this.ownBuyer(user, businessSlug), id, dto);
+  }
+
+  /** DELETE /:slug/tienda/mis-direcciones/:id — forget one of the customer's saved addresses. */
+  @AllowCustomer()
+  @CanonicalPermission(CUSTOMER_POLICY)
+  @Delete('mis-direcciones/:id')
+  async removeAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessSlug') businessSlug: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.addresses.remove(await this.ownBuyer(user, businessSlug), id);
+  }
+
+  private async buyerOf(user: AuthenticatedUser, businessSlug: string) {
+    const { businessId, customerId } = await this.customerOf(user, businessSlug);
+    return this.addresses.buyerOf(businessId, customerId);
+  }
+
+  private async ownBuyer(user: AuthenticatedUser, businessSlug: string) {
+    const buyerId = await this.buyerOf(user, businessSlug);
+    if (!buyerId) {
+      throw new ForbiddenException(
+        'Para guardar direcciones, entrá con tu cuenta de Wapsell. Igual podés escribirla para este pedido.',
+      );
+    }
+    return buyerId;
   }
 
   /** GET /:slug/tienda/mis-pedidos — the signed-in customer's orders in this store. */

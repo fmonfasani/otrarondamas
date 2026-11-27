@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { CatalogControls } from '~/components/store/CatalogControls';
 import { StoreHeader } from '~/components/store/StoreHeader';
 import { StoreSearch } from '~/components/store/StoreSearch';
+import { CheckoutDelivery, type DeliveryState } from '~/components/store/CheckoutDelivery';
+import { mapTiles } from '~/services/map.server';
+import { deliveryChoiceFrom, pesos } from '~/utils/envios';
+import maplibreStyles from '../styles/maplibre-gl.css?url';
+import mapStyles from '../styles/map.css?url';
+import checkoutStyles from '../styles/checkout.css?url';
 import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signOutCookie } from '~/services/customer-session.server';
 import { fetchStore, fetchStoreCatalog, loadServerCart, placeCustomerOrder, replaceServerCart } from '~/services/store.server';
@@ -36,6 +42,12 @@ import { EMPTY_LISTING, appendPage, linkWith, listingQuery, productHref, storePh
  * OR-B4-047 — a practical store: search with suggestions, categories with counts, filters, order
  * and «Ver más», all kept in the address so a search can be shared.
  */
+
+export const links = () => [
+  { rel: 'stylesheet', href: maplibreStyles },
+  { rel: 'stylesheet', href: mapStyles },
+  { rel: 'stylesheet', href: checkoutStyles },
+];
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
   { title: data ? `${data.store.nombre} | Tienda online` : 'Tienda no encontrada' },
@@ -73,13 +85,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       // An expired or revoked customer session: continue as a visitor.
       if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
         return json(
-          { store, ...catalog, query: query.toString(), customer: null, savedCart },
+          { store, ...catalog, query: query.toString(), customer: null, savedCart, tiles: mapTiles() },
           { headers: { 'Set-Cookie': await signOutCookie(request) } },
         );
       }
     }
   }
-  return json({ store, ...catalog, query: query.toString(), customer: customer ? { nombre: customer.nombre } : null, savedCart });
+  return json({ store, ...catalog, query: query.toString(), customer: customer ? { nombre: customer.nombre } : null, savedCart, tiles: mapTiles() });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -99,7 +111,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
     if (intent === 'order') {
       if (!items.length) return json({ intent, ok: false, message: 'Agregá al menos un producto.' }, { status: 400 });
-      const placed = await placeCustomerOrder(customer.jwt, slug, items);
+      // OR-B4-054, fase 2b: delivery or pickup, checked again by the API (it computes the fee).
+      const entrega = deliveryChoiceFrom(form.get('entrega'));
+      if (entrega === 'invalid') return json({ intent, ok: false, message: 'Revisá la dirección de entrega.' }, { status: 400 });
+      const placed = await placeCustomerOrder(customer.jwt, slug, items, entrega ?? undefined);
       const name = placed.numero ? `tu pedido N° ${placed.numero}` : 'tu pedido';
       // OR-B4-053: while the store has not confirmed it, what the customer orders again joins it.
       const message = placed.sumado
@@ -115,7 +130,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function Store() {
-  const { store, listing, error, query: queryString, customer, savedCart } = useLoaderData<typeof loader>();
+  const { store, listing, error, query: queryString, customer, savedCart, tiles } = useLoaderData<typeof loader>();
   const query = new URLSearchParams(queryString);
   const base = `/tienda/${store.slug}`;
   const { products, nextPage, loadMore, loadingMore, moreError } = useListing(base, listing, query);
@@ -124,6 +139,9 @@ export default function Store() {
   const { cart, setCart, emptiedOnServer } = usePersistentCart(store.slug, signedIn, savedCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmation, setConfirmation] = useState('');
+  // OR-B4-054: the store says how orders can be received; a store set up before keeps pickup.
+  const offers = store.entrega ?? { envio: false, retiro: true };
+  const [delivery, setDelivery] = useState<DeliveryState>({ choice: null, fee: 0, ready: false });
 
   useEffect(() => {
     if (new URL(window.location.href).searchParams.get('carrito') === '1') setCartOpen(true);
@@ -240,16 +258,34 @@ export default function Store() {
                     </div>
                   ))}
                 </div>
-                <div className="cart-total"><span>Total estimado</span><strong>{formatMoney(total)}</strong></div>
+                {signedIn ? (
+                  <CheckoutDelivery
+                    slug={store.slug}
+                    offers={offers}
+                    center={store.centro ?? null}
+                    tiles={tiles}
+                    storeAddress={store.contacto?.direccion}
+                    onChange={setDelivery}
+                  />
+                ) : null}
+                {delivery.fee > 0 ? (
+                  <div className="cart-total cart-total--part"><span>Productos</span><strong>{formatMoney(total)}</strong></div>
+                ) : null}
+                <div className="cart-total">
+                  <span>{delivery.fee > 0 ? 'Total con envío' : 'Total estimado'}</span>
+                  <strong>{formatMoney(total + delivery.fee)}</strong>
+                </div>
                 {signedIn ? (
                   <order.Form method="post" className="checkout-form">
                     <input type="hidden" name="intent" value="order" />
                     <input type="hidden" name="items" value={items} />
+                    <input type="hidden" name="entrega" value={delivery.choice ? JSON.stringify(delivery.choice) : ''} />
                     <p className="checkout-as">Pedís como <strong>{customer?.nombre}</strong>. El comercio te contacta con los datos de tu cuenta.</p>
                     {order.data && !order.data.ok ? <output className="form-error">{order.data.message}</output> : null}
-                    <button className="submit-order" type="submit" disabled={order.state !== 'idle'}>
-                      {order.state === 'idle' ? `Confirmar pedido · ${formatMoney(total)}` : 'Enviando pedido…'}
+                    <button className="submit-order" type="submit" disabled={order.state !== 'idle' || !delivery.ready}>
+                      {order.state === 'idle' ? `Confirmar pedido · ${formatMoney(total + delivery.fee)}` : 'Enviando pedido…'}
                     </button>
+                    {delivery.fee > 0 ? <small>El envío ({pesos(delivery.fee)}) es todo para el repartidor.</small> : null}
                     <small>El pedido queda sujeto a confirmación del comercio.</small>
                   </order.Form>
                 ) : (
