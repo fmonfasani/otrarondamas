@@ -7,8 +7,7 @@ import {
 } from '@remix-run/node';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { LoginForm } from '~/components/auth/LoginForm';
-import { guardConnection } from '~/utils/connection';
-import type { ClientActionFunctionArgs } from '@remix-run/react';
+import { guardedClientAction } from '~/utils/connection';
 import {
   commitApiSession,
   commitSession,
@@ -97,7 +96,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 /** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
-export const clientAction = ({ serverAction }: ClientActionFunctionArgs) => guardConnection(() => serverAction<typeof action>());
+export const clientAction = guardedClientAction<typeof action>();
 
 export default function LoginPage() {
   return (

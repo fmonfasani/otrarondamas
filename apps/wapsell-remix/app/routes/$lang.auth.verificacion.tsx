@@ -6,8 +6,9 @@ import {
   type LoaderFunctionArgs,
   type MetaFunction,
 } from '@remix-run/node';
-import { Form, Link, useActionData, useNavigation, useParams, type ClientActionFunctionArgs } from '@remix-run/react';
-import { CUT_MESSAGE, guardConnection, useRetryOnCut } from '~/utils/connection';
+import { Form, Link, useActionData, useNavigation, useParams } from '@remix-run/react';
+import { guardedClientAction, useRetryOnCut } from '~/utils/connection';
+import { CutNotice } from '~/components/auth/CutNotice';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { commitApiSession, getSession, sessionFrom } from '~/services/auth.server';
 import { ApiError } from '~/services/api.server';
@@ -63,7 +64,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 /** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
-export const clientAction = ({ serverAction }: ClientActionFunctionArgs) => guardConnection(() => serverAction<typeof action>());
+export const clientAction = guardedClientAction<typeof action>();
 
 export default function Verification() {
   const result = useActionData<typeof clientAction>();
@@ -121,11 +122,7 @@ export default function Verification() {
             Recordar este dispositivo 30 días
           </label>
         </div>
-        {retry.cut && !busy && (
-          <p className="ws-alert" role="alert">
-            {CUT_MESSAGE}
-          </p>
-        )}
+        <CutNotice show={retry.cut && !busy} />
         {result && 'error' in result && (
           <p className="ws-alert" role="alert">
             {result.error}

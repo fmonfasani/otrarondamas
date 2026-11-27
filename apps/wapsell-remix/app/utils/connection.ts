@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useSubmit } from '@remix-run/react';
+import { useSubmit, type ClientActionFunctionArgs } from '@remix-run/react';
 
 /**
  * When the connection drops while a form is being sent (seen on 2026-11-27: the sign-in and the
@@ -28,6 +28,15 @@ export async function guardConnection<T>(serverAction: () => Promise<T>): Promis
     throw error;
   }
 }
+
+/**
+ * The route's clientAction: `export const clientAction = guardedClientAction<typeof action>();`.
+ * The server answer passes as is; a dropped connection becomes `{ connectionCut: true }`.
+ */
+export const guardedClientAction =
+  <Action>() =>
+  ({ serverAction }: ClientActionFunctionArgs) =>
+    guardConnection(() => serverAction<Action>());
 
 /** Resend the form once on a dropped connection; `cut` is true only after the retry dropped too. */
 export function useRetryOnCut(result: unknown) {

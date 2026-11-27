@@ -8,7 +8,8 @@ import {
   useParams,
   useSearchParams,
 } from '@remix-run/react';
-import { CUT_MESSAGE, isCut, useRetryOnCut, type ConnectionCut } from '~/utils/connection';
+import { isCut, useRetryOnCut, type ConnectionCut } from '~/utils/connection';
+import { CutNotice } from './CutNotice';
 
 interface ActionData {
   error?: string;
@@ -109,11 +110,7 @@ export function LoginForm() {
           </Link>
         </div>
 
-        {retry.cut && !isSubmitting && (
-          <p className="ws-alert" role="alert">
-            {CUT_MESSAGE}
-          </p>
-        )}
+        <CutNotice show={retry.cut && !isSubmitting} />
         {actionData?.error && (
           <p className="ws-alert" role="alert">
             {actionData.error}

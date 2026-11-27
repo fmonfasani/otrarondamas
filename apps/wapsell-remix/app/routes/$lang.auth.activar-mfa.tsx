@@ -17,8 +17,8 @@ import {
 } from '@remix-run/react';
 import QRCode from 'qrcode';
 import { AuthShell } from '~/components/auth/AuthShell';
-import { CUT_MESSAGE, guardConnection, useRetryOnCut } from '~/utils/connection';
-import type { ClientActionFunctionArgs } from '@remix-run/react';
+import { guardedClientAction, useRetryOnCut } from '~/utils/connection';
+import { CutNotice } from '~/components/auth/CutNotice';
 import { RecoveryCodes } from '~/components/auth/RecoveryCodes';
 import { commitApiSession, commitSession, getSession, sessionFrom } from '~/services/auth.server';
 import { ApiError } from '~/services/api.server';
@@ -108,7 +108,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 /** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
-export const clientAction = ({ serverAction }: ClientActionFunctionArgs) => guardConnection(() => serverAction<typeof action>());
+export const clientAction = guardedClientAction<typeof action>();
 
 export default function EnrolMfa() {
   const { qr, clave } = useLoaderData<typeof loader>();
@@ -191,11 +191,7 @@ export default function EnrolMfa() {
             Recordar este dispositivo 30 días
           </label>
         </div>
-        {retry.cut && !busy && (
-          <p className="ws-alert" role="alert">
-            {CUT_MESSAGE}
-          </p>
-        )}
+        <CutNotice show={retry.cut && !busy} />
         {result && 'error' in result && (
           <p className="ws-alert" role="alert">
             {result.error}
