@@ -23,6 +23,8 @@ import {
 } from '~/utils/messaging';
 import { CopyLink } from '~/components/panel/CopyLink';
 import { LocationEditor } from '~/components/panel/LocationEditor';
+import { DeliveryEditor } from '~/components/panel/DeliveryEditor';
+import { deliveryFrom, deliveryMessage, type DeliveryPanel } from '~/utils/envios';
 import { parsePoint, type GeorefCandidate, type LocationPanel } from '~/utils/map';
 import { mapTiles } from '~/services/map.server';
 import maplibreStyles from '../styles/maplibre-gl.css?url';
@@ -53,7 +55,7 @@ export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [business, returns, user, quick, labels, auto, location] = await Promise.all([
+  const [business, returns, user, quick, labels, auto, location, delivery] = await Promise.all([
     apiRequest<Business>(token, '/negocio'),
     settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
     getCurrentUser(token),
@@ -62,6 +64,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     settle(apiRequest<AutoReplies & { puedeEditar: boolean }>(token, '/messaging/automaticos')),
     // Marketplace step 4: the store on Wapsell's map.
     settle(apiRequest<LocationPanel>(token, '/negocio/ubicacion')),
+    // OR-B4-054: delivery and pickup.
+    settle(apiRequest<DeliveryPanel>(token, '/negocio/envios')),
   ]);
   // E6b: the link that opens the store's chat, and its QR (made here, nothing goes out).
   const chatLink = `${new URL(request.url).origin}/tienda/${business.slug}/chat`;
@@ -81,6 +85,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     chatLink,
     chatQr,
     location,
+    delivery,
     mapTiles: mapTiles(),
     origin: new URL(request.url).origin,
   });
@@ -128,6 +133,13 @@ export async function action({ request }: ActionFunctionArgs) {
       await apiRequest(token, '/negocio/ubicacion', { method: 'DELETE' });
       return json({ intent, ok: true, message: 'Quitamos tu negocio del mapa de Wapsell.' });
     }
+    // OR-B4-054: delivery and pickup.
+    if (intent === 'delivery-save') {
+      const parsed = deliveryFrom(form);
+      if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
+      await apiRequest(token, '/negocio/envios', { method: 'PUT', body: JSON.stringify(parsed.body) });
+      return json({ intent, ok: true, message: deliveryMessage(parsed.body) });
+    }
     if (intent === 'returns') {
       const days = windowDaysFrom(form.get('plazoDias'));
       if (days === null) return json({ intent, ok: false, message: 'El plazo tiene que ser de 1 a 365 días.' }, { status: 400 });
@@ -166,7 +178,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr, location, mapTiles } =
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr, location, delivery, mapTiles } =
     useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
@@ -235,6 +247,12 @@ export default function Ajustes() {
         <h2 id="map-title" className="ws-card__title">Tu negocio en el mapa</h2>
         <p className="ws-meta">Los clientes de Wapsell encuentran los negocios cerca suyo en el mapa.</p>
         {location ? <LocationEditor data={location} tiles={mapTiles} /> : <p className="ws-alert">No pudimos cargar la ubicación. Probá en un ratito.</p>}
+      </section>
+
+      <section className="ws-card" id="envios" aria-labelledby="delivery-title">
+        <h2 id="delivery-title" className="ws-card__title">Envíos y retiro</h2>
+        <p className="ws-meta">Cómo reciben tus clientes los pedidos de la tienda.</p>
+        {delivery ? <DeliveryEditor data={delivery} /> : <p className="ws-alert">No pudimos cargar los envíos. Probá en un ratito.</p>}
       </section>
 
       <section className="ws-card" aria-labelledby="payment-title">
