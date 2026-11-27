@@ -166,6 +166,21 @@ export class StoreCatalogService {
     };
   }
 
+  /**
+   * Marketplace, step 3 — what Wapsell's search across stores reads of one store: the products a
+   * customer can buy now (with stock), with the store's own price and the units sold in 30 days.
+   */
+  async available(companyId: string) {
+    const rows = await this.rows(companyId, { hideOutOfStock: true, withSales: true });
+    return rows.map((r) => ({
+      ...publicItem(r),
+      precioCentavos: r.precioCentavos,
+      vendidos: r.vendidos,
+      createdAt: r.createdAt,
+      enOferta: r.enOferta,
+    }));
+  }
+
   /** The store listing: one page plus the facets the customer can still pick from. */
   async browse(companyId: string, params: BrowseParams, settings: { hideOutOfStock: boolean }) {
     const [rows, hierarchy] = await Promise.all([

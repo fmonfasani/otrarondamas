@@ -35,6 +35,8 @@ export type Explorer = {
     masPedidos: ExplorerStore[];
     nuevos: ExplorerStore[];
   };
+  /** Step 3b — «Lo que más se busca»: words and products, never how many times. */
+  tendencias?: { terminos: string[]; productos: ExplorerProduct[] };
 };
 
 export const EMPTY_EXPLORER: Explorer = {
@@ -61,18 +63,91 @@ export function filterStores(stores: ExplorerStore[], options: { rubro?: string 
   });
 }
 
-/** Products of the carousels that match the words (name, brand or store). */
-export function filterProducts(products: ExplorerProduct[], q: string): ExplorerProduct[] {
-  const words = fold(q).split(/\s+/).filter(Boolean);
-  if (words.length === 0) return products;
-  return products.filter((p) => {
-    const text = fold([p.nombre, p.marca, p.tienda.nombre].filter(Boolean).join(' '));
-    return words.every((w) => text.includes(w));
-  });
-}
-
 export const storeCover = (s: ExplorerStore) =>
   s.portada ? `/tienda/${s.slug}/foto/${encodeURIComponent(s.portada.productoId)}/${encodeURIComponent(s.portada.fotoId)}` : null;
 
 export const productPhoto = (p: ExplorerProduct) =>
   p.foto ? `/tienda/${p.tienda.slug}/foto/${encodeURIComponent(p.productoId)}/${encodeURIComponent(p.foto)}` : null;
+
+/** Marketplace, step 3 — what GET /explorar/buscar answers. */
+export type ExplorerFound = ExplorerProduct & { abiertoAhora: boolean | null };
+
+export type ExplorerSearchResult = {
+  q: string;
+  productos: ExplorerFound[];
+  total: number;
+  pagina: number;
+  paginas: number;
+  negocios: ExplorerStore[];
+  facetas: {
+    marcas: Array<{ nombre: string; cantidad: number }>;
+    precio: { min: number; max: number } | null;
+    rubros: string[];
+  };
+  /** «¿Quisiste decir…?» when a word was only found by sound or with a slip. */
+  sugerencia: string | null;
+};
+
+export const EMPTY_SEARCH: ExplorerSearchResult = {
+  q: '',
+  productos: [],
+  total: 0,
+  pagina: 1,
+  paginas: 1,
+  negocios: [],
+  facetas: { marcas: [], precio: null, rubros: [] },
+  sugerencia: null,
+};
+
+/** While the customer types (GET /explorar/sugerencias). */
+export type ExplorerSuggestions = {
+  q: string;
+  productos: Array<{ productoId: string; nombre: string; precio: string; tienda: { nombre: string; slug: string } }>;
+  negocios: Array<{ nombre: string; slug: string; rubro: string | null }>;
+  marcas: string[];
+};
+
+export const SEARCH_ORDERS = [
+  ['relevancia', 'Más relevantes'],
+  ['vendidos', 'Más vendidos'],
+  ['buscados', 'Más buscados'],
+  ['precio-asc', 'Menor precio'],
+  ['precio-desc', 'Mayor precio'],
+  ['nuevos', 'Más nuevos'],
+] as const;
+
+/** The filters the search page passes on to the API, and nothing else. */
+export const SEARCH_KEYS = ['q', 'rubro', 'marca', 'min', 'max', 'oferta', 'abierto', 'orden', 'pagina'] as const;
+
+export function searchParamsOf(url: URL): URLSearchParams {
+  const out = new URLSearchParams();
+  for (const key of SEARCH_KEYS) {
+    for (const value of url.searchParams.getAll(key)) {
+      const v = value.trim().slice(0, 100);
+      if (v) out.append(key, v);
+    }
+  }
+  return out;
+}
+
+/**
+ * The link of the search with one thing changed: `null` removes it, an array sets every value.
+ * Changing a filter goes back to page 1.
+ */
+export function searchHref(current: URLSearchParams, change: Record<string, string | string[] | null>): string {
+  const next = new URLSearchParams(current);
+  for (const [key, value] of Object.entries(change)) {
+    next.delete(key);
+    if (Array.isArray(value)) value.forEach((v) => next.append(key, v));
+    else if (value !== null && value !== '') next.set(key, value);
+  }
+  if (!('pagina' in change)) next.delete('pagina');
+  const text = next.toString();
+  return text ? `/buscar?${text}` : '/buscar';
+}
+
+/** Step 3b — a buyer's ♥ product (GET /auth/comprador/favoritos). */
+export type FavoriteProduct = Omit<ExplorerProduct, 'precio'> & { precio: string | null; disponible: boolean };
+
+/** Where a visitor goes to sign in and come back to the same page. */
+export const loginTo = (path: string) => `/es/auth/login?redirectTo=${encodeURIComponent(path)}`;

@@ -21,6 +21,13 @@ async function publicGet<T>(path: string): Promise<T | null> {
 /** Marketplace — Wapsell's explorer (public, cached a minute by the API). */
 export const fetchExplorer = () => publicGet<import('~/utils/explorer').Explorer>('/explorar');
 
+/** Marketplace, step 3 — Wapsell's search across every store (params already filtered). */
+export const fetchExplorerSearch = (params: URLSearchParams) =>
+  publicGet<import('~/utils/explorer').ExplorerSearchResult>(`/explorar/buscar?${params.toString()}`);
+
+export const fetchExplorerSuggestions = (q: string) =>
+  publicGet<import('~/utils/explorer').ExplorerSuggestions>(`/explorar/sugerencias?q=${encodeURIComponent(q)}`);
+
 /** The store's public name; null when no Business has that slug. */
 export const fetchStore = (slug: string) =>
   publicGet<{

@@ -1174,6 +1174,8 @@ model Producto {
   ProductoFoto            ProductoFoto[]
   OfertaProducto          OfertaProducto[]
 
+  Favoritos CompradorFavorito[]
+
   @@unique([empresaId, codigoInterno])
   @@unique([empresaId, id])
 }
@@ -2235,23 +2237,48 @@ model MfaFactor {
 /// ADR-IDN-001/011 — universal buyer: one Wapsell account to buy in any business. Global
 /// identity (no tenant field, like User). Each business keeps its own Cliente linked to it.
 model Comprador {
-  id                String           @id @default(uuid())
-  email             String           @unique
+  id                String              @id @default(uuid())
+  email             String              @unique
   nombre            String
   passwordHash      String?
-  googleId          String?          @unique
+  googleId          String?             @unique
   fotoUrl           String?
   emailVerificadoAt DateTime?
-  activo            Boolean          @default(true)
+  activo            Boolean             @default(true)
   /// Login por rol (Owner, 2026-11-26): the same person's work account, joined once by email
   /// (confirmed with this account's password or an email link). With it, one login offers
   /// «comprar» or «trabajar». The buyer session never opens the panel.
-  userId            String?          @unique
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  User              User?            @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userId            String?             @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  User              User?               @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   Clientes          Cliente[]
   Tokens            CompradorToken[]
+  Favoritos         CompradorFavorito[]
+}
+
+/// Marketplace, step 3b (Owner, 2026-11-26) — the products a buyer marked with ♥, across every
+/// store. The buyer's own list: no business column (the product says the store), read and
+/// written only through the system client, never by a Business.
+model CompradorFavorito {
+  compradorId String
+  productoId  String
+  createdAt   DateTime  @default(now())
+  Comprador   Comprador @relation(fields: [compradorId], references: [id], onDelete: Cascade)
+  Producto    Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@id([compradorId, productoId])
+  @@index([productoId])
+}
+
+/// Marketplace, step 3b — what people search in Wapsell, per day: the words and how many times
+/// (only searches that found products). No personal data. Feeds «más buscados». Kept 90 days.
+model BusquedaDiaria {
+  dia     DateTime @db.Date
+  termino String
+  veces   Int
+
+  @@id([dia, termino])
 }
 
 /// Single-use links for a Comprador (email verification). Only the SHA-256 of the token is kept.

@@ -32,5 +32,9 @@ describe('a customer home', () => {
     expect(buyerHome('/explorar?rubro=Almac%C3%A9n')).toBe('/explorar?rubro=Almac%C3%A9n');
     expect(buyerHome('/panel')).toBe('/explorar');
     expect(buyerHome(null)).toBe('/explorar');
+    // Step 3b: back to the search or the favorites after signing in to tap a heart.
+    expect(buyerHome('/buscar?q=yerba')).toBe('/buscar?q=yerba');
+    expect(buyerHome('/favoritos')).toBe('/favoritos');
+    expect(buyerHome('/buscarX')).toBe('/explorar');
   });
 });
