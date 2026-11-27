@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { namedFlavor } from '@protomaps/basemaps';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { circleRing, distanceKm, OSM_TILES, OWN_TILES_PATH } from '~/utils/map';
-import { OWN_SOURCE, WAPSELL_DARK, WAPSELL_LIGHT, osmStyle, ownStyle, tilesAddress } from '~/utils/map-style';
+import { MAP_ROLES, OWN_SOURCE, WAPSELL_DARK, WAPSELL_LIGHT, osmStyle, ownStyle, tilesAddress } from '~/utils/map-style';
 import { mapTiles } from '~/services/map.server';
 
 // OR-B4-054 — Wapsell's own map: the rules that do not need a browser.
@@ -37,6 +38,12 @@ describe('Mapa propio', () => {
   });
 
   it('paints the light map and the dark one in Wapsell colours', () => {
+    // Every colour slot of the style is ours, in both themes: none keeps Protomaps' grey.
+    const painted = new Set<string>(MAP_ROLES.flatMap(([slots]) => slots));
+    const slots = Object.entries(namedFlavor('light'))
+      .filter(([, value]) => typeof value === 'string')
+      .map(([slot]) => slot);
+    expect(slots.filter((slot) => !painted.has(slot))).toEqual([]);
     const background = (theme: 'claro' | 'oscuro') =>
       (ownStyle(OWN, ORIGIN, theme).layers.find((l) => l.type === 'background') as { paint?: Record<string, unknown> } | undefined)?.paint?.['background-color'];
     expect(background('claro')).toBe(WAPSELL_LIGHT.background);
