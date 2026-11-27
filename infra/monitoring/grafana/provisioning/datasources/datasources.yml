@@ -1,0 +1,29 @@
+# Grafana's data sources, created at start (nobody needs to click them in):
+# - Prometheus: the server, second by second.
+# - Wapsell: the PerformanceMinute table (the API, the chat), read with a user that can only
+#   SELECT that table (sql/metrics-role.sql). Its password comes from a file, never written here.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Wapsell
+    uid: wapsell-postgres
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: wapsell-postgres:5432
+    user: wapsell_metrics
+    editable: false
+    jsonData:
+      database: wapsell_prod
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    secureJsonData:
+      password: $__file{/run/secrets/metrics_db_password}

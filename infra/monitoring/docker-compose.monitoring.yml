@@ -1,0 +1,89 @@
+# Monitoring of the Hetzner VPS (Owner, 2026-11-26): Grafana (the dashboards, at
+# https://grafana.wapsell.com behind nginx, with user and password), Prometheus (keeps the
+# server's numbers 30 days) and node-exporter (reads the machine: processors, memory, disk).
+#
+# Nothing here listens on a public port: Prometheus and node-exporter only on the internal
+# «monitoring» network; Grafana only on 127.0.0.1:3060, which nginx publishes with HTTPS.
+# Grafana also joins Wapsell's network to read the PerformanceMinute table with a read-only
+# database user (sql/metrics-role.sql). Installation and rollback: README.md.
+#
+#   docker compose -p wapsell-monitoring -f docker-compose.monitoring.yml up -d
+
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: wapsell-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    networks: [monitoring]
+    mem_limit: 128m
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: wapsell-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [monitoring]
+    mem_limit: 512m
+
+  grafana:
+    image: grafana/grafana-oss:11.2.2
+    container_name: wapsell-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3060:3000"
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.wapsell.com/
+      GF_SERVER_DOMAIN: grafana.wapsell.com
+      GF_SECURITY_ADMIN_USER: wapsell
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_DATE_FORMATS_DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
+      GF_USERS_DEFAULT_LANGUAGE: es-ES
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Secrets live in /opt/wapsell/secrets (mode 600), never in this repository.
+      - /opt/wapsell/secrets/grafana_admin_password:/run/secrets/grafana_admin_password:ro
+      - /opt/wapsell/secrets/metrics_db_password:/run/secrets/metrics_db_password:ro
+    networks: [monitoring, wapsell]
+    mem_limit: 384m
+    depends_on: [prometheus]
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    name: wapsell-monitoring
+  # Wapsell's own network (Postgres lives there): Grafana reads one table, read-only.
+  wapsell:
+    name: wapsell_wapsell-network
+    external: true
