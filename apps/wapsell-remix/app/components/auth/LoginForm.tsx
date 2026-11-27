@@ -8,6 +8,7 @@ import {
   useParams,
   useSearchParams,
 } from '@remix-run/react';
+import { CUT_MESSAGE, isCut, useRetryOnCut, type ConnectionCut } from '~/utils/connection';
 
 interface ActionData {
   error?: string;
@@ -19,7 +20,9 @@ interface ActionData {
  * «¿Querés vender en Wapsell?» to /vender. Wired to POST /auth/login.
  */
 export function LoginForm() {
-  const actionData = useActionData<ActionData>();
+  const answer = useActionData<ActionData | ConnectionCut>();
+  const actionData = isCut(answer) ? undefined : answer;
+  const retry = useRetryOnCut(answer);
   const navigation = useNavigation();
   const { lang = 'es' } = useParams();
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +59,7 @@ export function LoginForm() {
         </>
       )}
 
-      <Form method="post" className="ws-form" noValidate={false}>
+      <Form method="post" className="ws-form" noValidate={false} ref={retry.form} onSubmit={retry.onSubmit}>
         <label className="ws-field">
           <span className="ws-field__label">Correo electrónico</span>
           <span className="ws-field__control">
@@ -106,6 +109,11 @@ export function LoginForm() {
           </Link>
         </div>
 
+        {retry.cut && !isSubmitting && (
+          <p className="ws-alert" role="alert">
+            {CUT_MESSAGE}
+          </p>
+        )}
         {actionData?.error && (
           <p className="ws-alert" role="alert">
             {actionData.error}

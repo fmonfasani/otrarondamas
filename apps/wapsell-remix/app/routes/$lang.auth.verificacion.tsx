@@ -6,7 +6,8 @@ import {
   type LoaderFunctionArgs,
   type MetaFunction,
 } from '@remix-run/node';
-import { Form, Link, useActionData, useNavigation, useParams } from '@remix-run/react';
+import { Form, Link, useActionData, useNavigation, useParams, type ClientActionFunctionArgs } from '@remix-run/react';
+import { CUT_MESSAGE, guardConnection, useRetryOnCut } from '~/utils/connection';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { commitApiSession, getSession, sessionFrom } from '~/services/auth.server';
 import { ApiError } from '~/services/api.server';
@@ -61,8 +62,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 }
 
+/** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
+export const clientAction = ({ serverAction }: ClientActionFunctionArgs) => guardConnection(() => serverAction<typeof action>());
+
 export default function Verification() {
-  const result = useActionData<typeof action>();
+  const result = useActionData<typeof clientAction>();
+  const retry = useRetryOnCut(result);
   const busy = useNavigation().state !== 'idle';
   const { lang = 'es' } = useParams();
   const [useRecovery, setUseRecovery] = useState(false);
@@ -77,7 +82,7 @@ export default function Verification() {
             : 'Abrí tu app de autenticación y escribí el código de 6 números de Wapsell.'}
         </p>
       </div>
-      <Form method="post" className="ws-form">
+      <Form method="post" className="ws-form" ref={retry.form} onSubmit={retry.onSubmit}>
         {useRecovery ? (
           <label className="ws-field">
             <span className="ws-field__label">Código de recuperación</span>
@@ -116,6 +121,11 @@ export default function Verification() {
             Recordar este dispositivo 30 días
           </label>
         </div>
+        {retry.cut && !busy && (
+          <p className="ws-alert" role="alert">
+            {CUT_MESSAGE}
+          </p>
+        )}
         {result && 'error' in result && (
           <p className="ws-alert" role="alert">
             {result.error}
