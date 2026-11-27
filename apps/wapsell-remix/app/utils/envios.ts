@@ -31,7 +31,7 @@ export function feeExample(s: { base: number; porKm: number }, km = 2.1) {
 }
 
 const whole = (value: FormDataEntryValue | null) => {
-  const text = String(value ?? '').replace(/[$.\s]/g, '');
+  const text = (typeof value === 'string' ? value : '').replace(/[$.\s]/g, '');
   return /^\d+$/.test(text) ? Number(text) : Number.NaN;
 };
 

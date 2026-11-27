@@ -238,7 +238,7 @@ export class NegocioService {
         'El envío no puede costar menos que el de Wapsell: $ 2.500 más $ 500 por km.',
       );
     }
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       const business = await tx.empresa.findUnique({
         where: { id: companyId },
         select: { configuracion: true },

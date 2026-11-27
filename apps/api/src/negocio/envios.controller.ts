@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsInt, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -10,6 +10,7 @@ import {
 } from '../authorization/canonical-permission.decorator';
 import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 import { NegocioService } from './negocio.service';
+import { ownerContext, teamContext } from './team-context';
 import { MAX_FEE_PESOS, MAX_RADIUS_KM, WAPSELL_DELIVERY } from './envio';
 
 /* eslint-disable indent */
@@ -51,20 +52,11 @@ export class EnviosController {
     private readonly businessContext: BusinessContextService,
   ) {}
 
-  private async context(user: AuthenticatedUser) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(user);
-    if (!context.role) throw new ForbiddenException('Solo el equipo del negocio');
-    return {
-      role: context.role,
-      companyId: await this.businessContext.resolveCompanyId(context.businessId),
-    };
-  }
-
   @CanonicalPermission(AUTHENTICATED)
   @Get()
   @ApiOperation({ summary: 'Delivery and pickup of the store' })
   async get(@CurrentUser() user: AuthenticatedUser) {
-    const { companyId, role } = await this.context(user);
+    const { companyId, role } = await teamContext(this.businessContext, user);
     return {
       ...(await this.negocio.delivery(companyId)),
       puedeEditar: hasCanonicalPermission(role, 'BRAND_MANAGE'),
@@ -75,10 +67,11 @@ export class EnviosController {
   @Put()
   @ApiOperation({ summary: 'Set delivery and pickup (Owner)' })
   async set(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetDeliveryDto) {
-    const { companyId, role } = await this.context(user);
-    if (!hasCanonicalPermission(role, 'BRAND_MANAGE')) {
-      throw new ForbiddenException('Solo el Owner cambia los envíos del negocio');
-    }
+    const { companyId } = await ownerContext(
+      this.businessContext,
+      user,
+      'Solo el Owner cambia los envíos del negocio',
+    );
     return this.negocio.setDelivery(companyId, user.id, dto);
   }
 }

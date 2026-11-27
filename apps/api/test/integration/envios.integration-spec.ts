@@ -65,17 +65,19 @@ describe('Envíos y retiro del negocio', () => {
     prisma = new PrismaService();
     await prisma.$connect();
     suffix = Date.now();
-    for (const key of ['main', 'other']) {
-      companies[key] = await prisma.empresa.create({
-        data: {
-          nombre: `Envios ${key} ${suffix}`,
-          slug: `envios-${key}-${suffix}`,
-          configuracion: { perfil: { ciudad: 'Rosario', provincia: 'Santa Fe' } },
-        },
-        select: { id: true, slug: true },
-      });
-      await createStoreProduct(prisma, companies[key].id, 'Env', key.slice(0, 1), suffix);
-    }
+    await Promise.all(
+      ['main', 'other'].map(async (key) => {
+        companies[key] = await prisma.empresa.create({
+          data: {
+            nombre: `Envios ${key} ${suffix}`,
+            slug: `envios-${key}-${suffix}`,
+            configuracion: { perfil: { ciudad: 'Rosario', provincia: 'Santa Fe' } },
+          },
+          select: { id: true, slug: true },
+        });
+        await createStoreProduct(prisma, companies[key].id, 'Env', key.slice(0, 1), suffix);
+      }),
+    );
     await person('main', 'OWNER', 'owner');
     await person('main', 'VENDEDOR', 'vendedor');
     await person('other', 'OWNER', 'otherOwner');
@@ -185,7 +187,7 @@ describe('Envíos y retiro del negocio', () => {
     // The public zone is the point rounded to 0,01° (-32.95, -60.64), not the door.
     const fromZone = Math.hypot((point.lat + 32.95) * 111.2, (point.lng + 60.64) * 93.3);
     expect(home.body.envio.km).toBeCloseTo(fromZone, 0);
-    expect(home.body.envio.km).not.toBe(0.3);
+    expect(Math.abs(home.body.envio.km - 0.3)).toBeGreaterThan(0.05);
   });
 
   it('keeps each store’s settings to itself', async () => {

@@ -24,14 +24,14 @@ export function DeliveryEditor({ data }: Readonly<{ data: DeliveryPanel }>) {
       <input type="hidden" name="intent" value="delivery-save" />
       <fieldset disabled={!data.puedeEditar} className="ws-envios__options">
         <legend className="ws-visually-hidden">Cómo reciben los pedidos tus clientes</legend>
-        <label className="ws-check">
+        <label className="ws-check" aria-label="Retiro en el local">
           <input type="checkbox" name="retiro" value="true" checked={retiro} onChange={(e) => setRetiro(e.target.checked)} />
           <span>
             <b>Retiro en el local</b>
             <small>El cliente pasa a buscar el pedido. Sin costo de envío.</small>
           </span>
         </label>
-        <label className="ws-check">
+        <label className="ws-check" aria-label="Envío a domicilio">
           <input
             type="checkbox"
             name="envio"
@@ -78,7 +78,7 @@ export function DeliveryEditor({ data }: Readonly<{ data: DeliveryPanel }>) {
       </fieldset>
 
       {answer ? (
-        <p className={answer.ok ? 'ws-notice' : 'ws-alert'} role={answer.ok ? 'status' : 'alert'}>
+        <p className={answer.ok ? 'ws-notice' : 'ws-alert'} role={answer.ok ? undefined : 'alert'} aria-live={answer.ok ? 'polite' : undefined}>
           {answer.message}
         </p>
       ) : null}
