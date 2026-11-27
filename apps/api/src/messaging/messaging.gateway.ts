@@ -286,15 +286,17 @@ export class MessagingGateway
     entry.leaving = setTimeout(() => {
       this.presence.delete(key);
       const at = new Date();
-      // A timer has no caller to report to: every failure stays here, logged.
-      Promise.resolve()
+      // Save first, then tell: whoever gets «left» and opens the chat already reads this last
+      // seen, not the previous one. A timer has no caller to report to: a failed save stays
+      // here, logged, and the team is told anyway (publishPresence catches its own failures).
+      void Promise.resolve()
         .then(() => this.messagingService.recordLastSeen(context, at))
         .catch((error: unknown) => {
           this.logger.warn(
             `last seen not saved: ${error instanceof Error ? error.message : String(error)}`,
           );
-        });
-      void this.publishPresence(context, false, at);
+        })
+        .then(() => this.publishPresence(context, false, at));
     }, presenceGraceMs());
     entry.leaving.unref?.();
   }
