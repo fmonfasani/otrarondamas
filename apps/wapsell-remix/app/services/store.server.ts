@@ -1,5 +1,6 @@
 import { ApiError, apiRequest, getApiBaseUrl } from './api.server';
 import type { ServerCart } from '~/utils/store';
+import type { DeliveryChoice, DeliveryQuoteAnswer, SavedAddress } from '~/utils/envios';
 import { EMPTY_LISTING, type StoreListing, type StoreProductDetail, type Suggestions } from '~/utils/store-browse';
 import type { OrderCardData } from '~/utils/order-card';
 import type { QuotedMessage, ReactionChip } from '~/utils/messaging';
@@ -36,7 +37,25 @@ export const fetchStore = (slug: string) =>
     pagosOnline?: boolean;
     /** Ajustes del negocio: what customers can see; empty strings when not set. */
     contacto?: { telefono: string; direccion: string; horario: string; descripcion: string };
+    /** OR-B4-054: how customers can receive orders here. */
+    entrega?: { envio: boolean; retiro: boolean };
+    /** Where the store's map opens (rounded for a store that shows only its zone). */
+    centro?: { lat: number; lng: number } | null;
   }>(storePath(slug));
+
+/** OR-B4-054 — what a delivery to that point costs in this store, or why there is none. */
+export const fetchDeliveryQuote = (slug: string, lat: number, lng: number) =>
+  publicGet<DeliveryQuoteAnswer>(storePath(slug, `/envio?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`));
+
+/** The customer's saved addresses (in their Wapsell account). */
+export const customerAddresses = (jwt: string, slug: string) =>
+  apiRequest<{ direcciones: SavedAddress[]; puedeGuardar: boolean }>(jwt, storePath(slug, '/mis-direcciones'));
+
+export const saveCustomerAddress = (jwt: string, slug: string, address: Omit<SavedAddress, 'id'>) =>
+  apiRequest<SavedAddress>(jwt, storePath(slug, '/mis-direcciones'), { method: 'POST', body: JSON.stringify(address) });
+
+export const removeCustomerAddress = (jwt: string, slug: string, id: string) =>
+  apiRequest(jwt, storePath(slug, `/mis-direcciones/${encodeURIComponent(id)}`), { method: 'DELETE' });
 
 /**
  * OR-B4-047 — one page of the store listing, with the categories, brands and price range the
@@ -73,11 +92,16 @@ export async function replaceServerCart(jwt: string, items: Array<{ productoId: 
   );
 }
 
-export async function placeCustomerOrder(jwt: string, slug: string, items: Array<{ productoId: string; cantidad: number }>) {
+export async function placeCustomerOrder(
+  jwt: string,
+  slug: string,
+  items: Array<{ productoId: string; cantidad: number }>,
+  entrega?: DeliveryChoice,
+) {
   // OR-B4-053: `sumado` — it went into the order still waiting for confirmation.
   const order = await apiRequest<{ id: string; numero: number | null; sumado?: boolean }>(jwt, storePath(slug, '/mis-pedidos'), {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, ...(entrega ? { entrega } : {}) }),
   });
   // The order is placed; failing to empty the saved cart must not report it as failed.
   await replaceServerCart(jwt, []).catch(() => undefined);

@@ -39,3 +39,21 @@ describe('Envíos', () => {
     );
   });
 });
+
+describe('Entrega en el carrito', () => {
+  it('reads what the cart sends, and refuses a broken one', async () => {
+    const { deliveryChoiceFrom, kmLabel } = await import('~/utils/envios');
+    expect(deliveryChoiceFrom(null)).toBeNull();
+    expect(deliveryChoiceFrom('{"tipo":"RETIRO","lat":1}')).toEqual({ tipo: 'RETIRO' });
+    expect(deliveryChoiceFrom(JSON.stringify({ tipo: 'ENVIO', direccion: ' Av. Pellegrini 1234 ', indicaciones: ' Timbre 4B ', lat: -32.9, lng: -60.6 }))).toEqual({
+      tipo: 'ENVIO',
+      direccion: 'Av. Pellegrini 1234',
+      indicaciones: 'Timbre 4B',
+      lat: -32.9,
+      lng: -60.6,
+    });
+    expect(deliveryChoiceFrom(JSON.stringify({ tipo: 'ENVIO', direccion: 'x', lat: -32.9, lng: -60.6 }))).toBe('invalid');
+    expect(deliveryChoiceFrom('{not json')).toBe('invalid');
+    expect(kmLabel(2.14)).toBe('2,1 km');
+  });
+});
