@@ -13,6 +13,8 @@ export type ExplorerStore = {
   abiertoAhora: boolean | null;
   portada: { productoId: string; fotoId: string } | null;
   ofertas: number;
+  /** Step 4: the confirmed place (rounded to the zone when the Owner chose so); null = not on the map. */
+  ubicacion?: { lat: number; lng: number; zona: boolean } | null;
 };
 
 export type ExplorerProduct = {

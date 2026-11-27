@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
-import { Flame, Heart, Store, Tag } from 'lucide-react';
+import { Flame, Heart, Map as MapIcon, Store, Tag } from 'lucide-react';
 import { favoriteIds, getBuyer } from '~/services/buyer-session.server';
 import { fetchExplorer } from '~/services/store.server';
 import { EMPTY_EXPLORER, filterStores } from '~/utils/explorer';
@@ -53,6 +53,9 @@ export default function Explorar() {
           wapsell<span>.</span>
         </Link>
         <span className="wx-top__actions">
+          <Link to="/mapa" className="wx-account wx-account--icon" aria-label="Ver los negocios en el mapa">
+            <MapIcon size={17} aria-hidden="true" />
+          </Link>
           {buyer ? (
             <Link to="/favoritos" className="wx-account wx-account--icon" aria-label="Mis favoritos">
               <Heart size={17} aria-hidden="true" />

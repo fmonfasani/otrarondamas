@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EstadoPedido } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
+import { locationOf, publicLocation, type PublicLocation } from '../negocio/ubicacion';
 import { autoRepliesOf, isOpenAt } from '../messaging/auto-replies';
 import { StoreCatalogService } from '../store/store-catalog.service';
 import { SearchLogService } from './search-log.service';
@@ -51,6 +52,8 @@ export type ExplorerStore = {
   /** The cover: a photo of one of its published products (`productoId`/`fotoId`), if any. */
   portada: { productoId: string; fotoId: string } | null;
   ofertas: number;
+  /** Step 4: where it is on the map (only the zone when the Owner chose so); null = not set. */
+  ubicacion: PublicLocation | null;
 };
 
 /** A product in the search index: what the customer sees plus what the search needs. */
@@ -204,6 +207,7 @@ export class ExplorerService {
         abiertoAhora: isOpenAt(autoRepliesOf(r.configuracion).horario, now),
         portada: cover ? { productoId: cover.productoId, fotoId: cover.fotoId } : null,
         ofertas: total,
+        ubicacion: publicLocation(locationOf(r.configuracion)),
       };
     });
     const bySlug = new Map(negocios.map((n) => [n.slug, n]));
