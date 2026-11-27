@@ -17,6 +17,7 @@ import {
 } from '~/services/auth.server';
 import { deviceFrom } from '~/services/mfa.server';
 import { buyerApi, buyerSignInCookie, type BuyerLogin } from '~/services/buyer-session.server';
+import { workDestination } from '~/utils/entrada';
 
 /** Where a buyer may be sent after signing in: their home or a store, nothing else. */
 function buyerDestination(redirectTo: string | null) {
@@ -57,10 +58,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     const result = await loginWithNestJS(email, password, await deviceFrom(request));
     const lang = params.lang ?? 'es';
-    const redirectTo = safeRedirectPath(
-      new URL(request.url).searchParams.get('redirectTo'),
-      `/panel`,
-    );
+    const redirectTo = workDestination(new URL(request.url).searchParams.get('redirectTo'), request.headers.get('Cookie'));
     if (isMfaStep(result)) {
       // OR-B4-044: the password is right; the second factor comes next. The ticket stays on
       // the web server (session cookie), never in the page.

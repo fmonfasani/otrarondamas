@@ -36,7 +36,8 @@ describe('Login route action', () => {
     apiLogin();
     const response = (await submit({ email: 'lucia@ejemplo.com', password: 'x', remember: '1' })) as Response;
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/panel');
+    // Login por rol (Owner, 2026-11-26): the first time, «¿Cómo querés entrar?» (cliente o negocio).
+    expect(response.headers.get('Location')).toBe('/entrar');
     expect(response.headers.get('Set-Cookie')).toContain(`Max-Age=${REMEMBER_ME_MAX_AGE}`);
   });
 

@@ -1,5 +1,5 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
-import { Form, useLoaderData } from '@remix-run/react';
+import { Form, Link, useLoaderData } from '@remix-run/react';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { buyerApi, buyerSignOutCookie, getBuyer } from '~/services/buyer-session.server';
 
@@ -52,6 +52,10 @@ export default function BuyerHome() {
           ))}
         </ul>
       )}
+      {/* Login por rol: whoever also works in a store enters the panel with the work key. */}
+      <p className="ws-switch-account">
+        ¿Trabajás en un negocio? <Link to="/panel">Entrar al panel</Link>
+      </p>
       <Form method="post" className="ws-switch-account">
         {buyer.email} · <button type="submit" className="ws-link-button">Cerrar sesión</button>
       </Form>

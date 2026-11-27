@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -31,6 +32,10 @@ import type { GoogleProfile } from '../google.strategy';
 export const BUYER_SESSION_TTL = '30d';
 const VERIFY_TTL_MS = 3 * 24 * 3600 * 1000;
 const MAX_SIGNUPS_PER_HOUR = 60;
+/** Login por rol: the email link that joins the accounts lasts 30 minutes. */
+const LINK_TTL_MS = 30 * 60 * 1000;
+/** Login por rol: wrong buyer passwords allowed per work account in 15 minutes. */
+const LINK_TRIES = 5;
 /** A plausible email without a backtracking-prone regular expression. */
 export function isEmail(value: string): boolean {
   const at = value.indexOf('@');
@@ -50,6 +55,16 @@ const escapeHtml = (value: string) =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
+
+/** Login por rol — the email that confirms joining the customer account to the work account. */
+export function linkEmailHtml(nombre: string, link: string): string {
+  return `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;color:#1a1a19">
+  <h2 style="margin:0 0 12px">Uní tus cuentas de Wapsell</h2>
+  <p>Hola ${escapeHtml(nombre)}, pediste usar tu cuenta de trabajo también para comprar.</p>
+  <p><a href="${escapeHtml(link)}" style="display:inline-block;background:#d97757;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Unir mis cuentas</a></p>
+  <p style="font-size:12px;color:#6b6a65">El enlace vale 30 minutos. Si no lo pediste, ignorá este mail: nada cambia.</p>
+</div>`;
+}
 
 export function verifyEmailHtml(nombre: string, link: string): string {
   return `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;color:#141413">
@@ -73,6 +88,186 @@ export class CompradorService {
     private readonly businessContext: BusinessContextService,
     private readonly customers: AuthCustomerService,
   ) {}
+
+  private linkTries = new Map<string, number[]>();
+
+  /** Login por rol: at most 5 wrong buyer passwords per work account every 15 minutes. */
+  private linkThrottle(userId: string, now = Date.now()) {
+    const recent = (this.linkTries.get(userId) ?? []).filter((t) => now - t < 15 * 60_000);
+    if (recent.length >= LINK_TRIES) {
+      throw new HttpException(
+        'Probaste muchas veces. Esperá unos minutos o pedí el enlace por mail.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    recent.push(now);
+    this.linkTries.set(userId, recent);
+  }
+
+  /** The person behind a work (staff) session: their global User. Never a store customer. */
+  private async workPerson(auth: { id: string; type?: string }) {
+    if (auth.type && auth.type !== 'usuario') {
+      throw new ForbiddenException('Solo con tu cuenta de trabajo.');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { usuarioId: auth.id },
+      select: { id: true, email: true, nombre: true },
+    });
+    if (!user) throw new ForbiddenException('Solo con tu cuenta de trabajo.');
+    return { ...user, email: user.email.trim().toLowerCase() };
+  }
+
+  /**
+   * Login por rol (Owner, 2026-11-26) — how the work account stands with a customer account:
+   * joined, one with the same email to confirm (with its password, or by email when it has
+   * none), or none yet (one click creates it).
+   */
+  async linkStatus(auth: { id: string; type?: string }) {
+    const person = await this.workPerson(auth);
+    const joined = await this.prisma.comprador.findUnique({ where: { userId: person.id } });
+    if (joined?.activo) return { estado: 'unida' as const, email: joined.email };
+    const same = await this.prisma.comprador.findUnique({ where: { email: person.email } });
+    if (same?.activo && same.emailVerificadoAt && !same.userId) {
+      return {
+        estado: 'por-confirmar' as const,
+        email: same.email,
+        tieneClave: Boolean(same.passwordHash),
+      };
+    }
+    if (same?.userId && same.userId !== person.id) {
+      return { estado: 'ocupada' as const, email: same.email };
+    }
+    return { estado: 'sin-cuenta' as const, email: person.email };
+  }
+
+  /** Joined already: a buyer session for the same person («Comprar en Wapsell»). */
+  async enterAsBuyer(auth: { id: string; type?: string }) {
+    const person = await this.workPerson(auth);
+    const joined = await this.prisma.comprador.findUnique({ where: { userId: person.id } });
+    if (!joined?.activo || !joined.emailVerificadoAt) {
+      throw new ConflictException('Primero uní tu cuenta de cliente.');
+    }
+    return this.session(joined);
+  }
+
+  /** Joins with the customer account's password (same email), once. */
+  async linkWithPassword(auth: { id: string; type?: string }, password: string) {
+    const person = await this.workPerson(auth);
+    this.linkThrottle(person.id);
+    const buyer = await this.prisma.comprador.findUnique({ where: { email: person.email } });
+    const ok =
+      buyer?.activo &&
+      buyer.emailVerificadoAt &&
+      buyer.passwordHash &&
+      !buyer.userId &&
+      (await bcrypt.compare(password, buyer.passwordHash));
+    if (!buyer || !ok)
+      throw new UnauthorizedException('La contraseña de tu cuenta de cliente no es correcta.');
+    const joined = await this.prisma.comprador.update({
+      where: { id: buyer.id },
+      data: { userId: person.id },
+    });
+    this.linkTries.delete(person.id);
+    return this.session(joined);
+  }
+
+  /**
+   * No customer account with this email: one is created and joined. The email is already proven
+   * by the work account (its password was set from an emailed link, or Google verified it).
+   */
+  async linkCreate(auth: { id: string; type?: string }, now = new Date()) {
+    const person = await this.workPerson(auth);
+    const same = await this.prisma.comprador.findUnique({ where: { email: person.email } });
+    if (same?.emailVerificadoAt) {
+      throw new ConflictException(
+        'Ya tenés una cuenta de cliente con ese mail: confirmala para unirlas.',
+      );
+    }
+    const joined = same
+      ? // An unverified sign-up with this email: the proven owner of the email keeps it.
+        await this.prisma.comprador.update({
+          where: { id: same.id },
+          data: {
+            userId: person.id,
+            emailVerificadoAt: now,
+            passwordHash: null,
+            nombre: person.nombre,
+          },
+        })
+      : await this.prisma.comprador.create({
+          data: {
+            email: person.email,
+            nombre: person.nombre,
+            emailVerificadoAt: now,
+            userId: person.id,
+          },
+        });
+    return this.session(joined);
+  }
+
+  /** The customer account has no password (Google): the confirmation goes by email. */
+  async linkByEmail(auth: { id: string; type?: string }, now = new Date()) {
+    const person = await this.workPerson(auth);
+    const buyer = await this.prisma.comprador.findUnique({ where: { email: person.email } });
+    if (!buyer?.activo || !buyer.emailVerificadoAt || buyer.userId) {
+      throw new ConflictException('No hay una cuenta de cliente para unir.');
+    }
+    this.linkThrottle(person.id);
+    const token = randomBytes(32).toString('base64url');
+    await this.prisma.$transaction([
+      this.prisma.compradorToken.updateMany({
+        where: { compradorId: buyer.id, tipo: 'UNIR_CUENTA', usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.compradorToken.create({
+        data: {
+          compradorId: buyer.id,
+          tipo: 'UNIR_CUENTA',
+          tokenHash: hashToken(token),
+          expiresAt: new Date(now.getTime() + LINK_TTL_MS),
+        },
+      }),
+    ]);
+    const base = (process.env.WEB_APP_URL || DEFAULT_WEB_APP_URL).replace(/\/+$/, '');
+    const sent = await this.email.send(
+      buyer.email,
+      'Uní tus cuentas de Wapsell',
+      linkEmailHtml(buyer.nombre, `${base}/entrar/unir?token=${encodeURIComponent(token)}`),
+    );
+    return { email: buyer.email, mailEnviado: sent };
+  }
+
+  /**
+   * The emailed link, opened with the work session: both proofs (the work account and the
+   * email inbox) belong to the same person, so the accounts join.
+   */
+  async linkWithToken(auth: { id: string; type?: string }, token: string, now = new Date()) {
+    const person = await this.workPerson(auth);
+    const record = await this.prisma.compradorToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+      select: { id: true, tipo: true, usedAt: true, expiresAt: true, Comprador: true },
+    });
+    if (
+      record?.tipo !== 'UNIR_CUENTA' ||
+      record.usedAt ||
+      record.expiresAt < now ||
+      !record.Comprador.activo ||
+      record.Comprador.userId ||
+      record.Comprador.email.toLowerCase() !== person.email
+    ) {
+      throw new UnauthorizedException(
+        'El enlace venció, ya se usó o es de otra cuenta. Pedí uno nuevo.',
+      );
+    }
+    const joined = await this.prisma.$transaction(async (tx) => {
+      await tx.compradorToken.update({ where: { id: record.id }, data: { usedAt: now } });
+      return tx.comprador.update({
+        where: { id: record.Comprador.id },
+        data: { userId: person.id },
+      });
+    });
+    return this.session(joined);
+  }
 
   private throttle(now = Date.now()) {
     this.recent = this.recent.filter((t) => now - t < 3_600_000);
