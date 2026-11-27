@@ -33,6 +33,7 @@
     "email/email.service.ts",
     "email/preferences/email-preference.service.ts",
     "email/templates/email-template.service.ts",
+    "explorer/explorer.service.ts",
     "health/health.controller.ts",
     "invitations/invitations.controller.ts",
     "invitations/invitations.service.ts",

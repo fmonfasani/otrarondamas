@@ -18,6 +18,9 @@ async function publicGet<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
+/** Marketplace — Wapsell's explorer (public, cached a minute by the API). */
+export const fetchExplorer = () => publicGet<import('~/utils/explorer').Explorer>('/explorar');
+
 /** The store's public name; null when no Business has that slug. */
 export const fetchStore = (slug: string) =>
   publicGet<{

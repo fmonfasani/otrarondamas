@@ -19,6 +19,10 @@ export function StoreHeader({
         <span className="store-name">{store.nombre}</span>
       </a>
       <nav className="header-actions" aria-label="Navegación principal">
+        {/* Marketplace: «wapsell.» goes back to every store. */}
+        <a href="/explorar" className="wapsell-link" aria-label="Wapsell: todos los negocios">
+          wapsell<span>.</span>
+        </a>
         <a href={`${home}#catalogo`} className="hide-mobile">Catálogo</a>
         <a href={`${home}/chat`} className="hide-mobile">Mensajes</a>
         <a href={`${home}/cuenta`} className="account-link">

@@ -411,3 +411,8 @@ a.cart-trigger, .header-actions > a.cart-trigger { color: #fff; text-decoration:
 .chat-older { align-self: center; padding: 6px 14px; border: 1px solid #d6e3ee; border-radius: 999px; background: #fff; color: #0a6fd6; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .chat-older:disabled { color: #8b8882; cursor: default; }
 .chat-retry { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* Marketplace: «wapsell.» in a store's header goes back to the explorer. */
+.wapsell-link { color: #1a1a19; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
+.wapsell-link span { color: #d97757; }
+@media (max-width: 720px) { .header-actions > a.wapsell-link { display: inline; } }

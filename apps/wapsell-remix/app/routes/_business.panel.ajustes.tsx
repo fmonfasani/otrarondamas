@@ -178,6 +178,13 @@ export default function Ajustes() {
                 <small>Si no lo marcás, se ven con «Sin stock» y no se pueden pedir.</small>
               </span>
             </label>
+            <label className="ws-check">
+              <input type="checkbox" name="enExplorador" value="true" defaultChecked={business.enExplorador} />
+              <span>
+                <b>Aparecer en el explorador de Wapsell</b>
+                <small>Tu tienda se muestra a todos los clientes de Wapsell, con tus ofertas. Nunca se muestra cuánto vendés.</small>
+              </span>
+            </label>
           </fieldset>
           {notice('business')}
           {business.puedeEditar && (

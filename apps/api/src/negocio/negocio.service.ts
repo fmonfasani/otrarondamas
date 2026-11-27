@@ -23,11 +23,16 @@ const CONTACT_KEYS: Array<keyof BusinessContact> = [
 export type StoreSettings = {
   /** Hide published products without stock; otherwise they show «Sin stock». */
   ocultarSinStock: boolean;
+  /** Marketplace (Owner, 2026-11-26): shows in Wapsell's explorer; on unless the Owner turns it off. */
+  enExplorador: boolean;
 };
 
 export function storeSettingsOf(configuracion: Prisma.JsonValue | null): StoreSettings {
   const raw = ((configuracion ?? {}) as { tienda?: Record<string, unknown> }).tienda ?? {};
-  return { ocultarSinStock: raw.ocultarSinStock === true };
+  return {
+    ocultarSinStock: raw.ocultarSinStock === true,
+    enExplorador: raw.enExplorador !== false,
+  };
 }
 
 export function contactOf(configuracion: Prisma.JsonValue | null): BusinessContact {
@@ -98,6 +103,7 @@ export class NegocioService {
     ) as BusinessContact;
     const store: StoreSettings = {
       ocultarSinStock: data.ocultarSinStock ?? before.ocultarSinStock,
+      enExplorador: data.enExplorador ?? before.enExplorador,
     };
     try {
       await this.prisma.$transaction(async (tx) => {

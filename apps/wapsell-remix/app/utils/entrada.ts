@@ -5,7 +5,7 @@
 
 /** Where a customer goes after choosing «Comprar» (only their home or a store, nothing else). */
 export const buyerHome = (value: string | null | undefined) =>
-  value && /^\/(cuenta|tienda)(\/|\?|$)/.test(value) ? value : '/cuenta';
+  value && /^\/(cuenta|tienda|explorar)(\/|\?|$)/.test(value) ? value : '/explorar';
 
 /**
  * After the work key: to a store or the customer home as a customer when that is where the person
@@ -13,7 +13,7 @@ export const buyerHome = (value: string | null | undefined) =>
  * choice; otherwise «¿Cómo querés entrar?».
  */
 export function workDestination(redirectTo: string | null, cookieHeader: string | null): string {
-  if (redirectTo && /^\/(cuenta|tienda)(\/|\?|$)/.test(redirectTo)) {
+  if (redirectTo && /^\/(cuenta|tienda|explorar)(\/|\?|$)/.test(redirectTo)) {
     return `/entrar?como=cliente&volver=${encodeURIComponent(redirectTo)}`;
   }
   if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')) return redirectTo;

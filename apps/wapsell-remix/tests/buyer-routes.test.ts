@@ -108,7 +108,8 @@ describe('universal buyer (ADR-IDN-001/008)', () => {
       body: formBody([['email', 'ana@test'], ['password', 'x']]),
     }, { lang: 'es' });
     // A buyer never lands in the panel: /panel is not a buyer destination.
-    expect(response.headers.get('Location')).toBe('/cuenta');
+    // Marketplace (Owner, 2026-11-26): a customer lands in «Explorar».
+    expect(response.headers.get('Location')).toBe('/explorar');
     expect(response.headers.get('Set-Cookie')).toContain('__wapsell_buyer=');
   });
 });

@@ -29,6 +29,6 @@ import { CustomerNoticesModule } from '../customer-notices/customer-notices.modu
   ],
   controllers: [PublicStoreController],
   providers: [StoreService, StoreCatalogService, ProductPhotosService],
-  exports: [StoreService],
+  exports: [StoreService, StoreCatalogService],
 })
 export class StoreModule {}
