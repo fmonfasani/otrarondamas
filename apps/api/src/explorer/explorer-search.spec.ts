@@ -5,6 +5,7 @@ import {
   search,
   searchable,
   sound,
+  strictlyFound,
   type SearchRow,
 } from './explorer-search';
 
@@ -19,6 +20,7 @@ function row(nombre: string, extra: Partial<SearchRow> = {}): SearchRow {
     marca: null,
     precioCentavos: 100_000,
     vendidos: 0,
+    buscados: 0,
     destacado: false,
     createdAt: new Date(2026, 0, next),
     enOferta: false,
@@ -137,5 +139,25 @@ describe('Wapsell search — «¿Quisiste decir…?»', () => {
   it('says nothing when every word was found as typed', () => {
     expect(didYouMean('yerba', texts)).toBeNull();
     expect(didYouMean('cocacola', texts)).toBeNull();
+  });
+});
+
+describe('Wapsell search — «más buscados» (step 3b)', () => {
+  it('orders by how many searches find each product, never showing the number', () => {
+    const rows = [
+      row('Yerba Playadito', { buscados: 2, vendidos: 50 }),
+      row('Yerba Taragüi', { buscados: 9 }),
+    ];
+    const result = search(rows, { q: 'yerba', orden: 'buscados' });
+    expect(result.productos.map((p) => p.nombre)).toEqual(['Yerba Taragüi', 'Yerba Playadito']);
+  });
+
+  it('a counted word finds the text only as typed (whole, start, inside or written together)', () => {
+    const text = searchable('Coca-Cola 2,25 l');
+    expect(strictlyFound('coca', text)).toBe(true);
+    expect(strictlyFound('cocacola', text)).toBe(true);
+    expect(strictlyFound('coca cola', text)).toBe(true);
+    expect(strictlyFound('koka', text)).toBe(false);
+    expect(strictlyFound('', text)).toBe(false);
   });
 });

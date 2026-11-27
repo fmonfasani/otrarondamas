@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
-import { Store, Tag } from 'lucide-react';
-import { getBuyer } from '~/services/buyer-session.server';
+import { Flame, Heart, Store, Tag } from 'lucide-react';
+import { favoriteIds, getBuyer } from '~/services/buyer-session.server';
 import { fetchExplorer } from '~/services/store.server';
 import { EMPTY_EXPLORER, filterStores } from '~/utils/explorer';
 import { ExplorerSearch } from '~/components/explorer/ExplorerSearch';
@@ -23,15 +23,18 @@ export const meta: MetaFunction = () => [
  * Step 3: the search box searches every store (/buscar) and suggests while typing.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const [buyer, explorer] = await Promise.all([getBuyer(request), fetchExplorer().catch(() => null)]);
+  const buyer = await getBuyer(request);
+  const [explorer, favs] = await Promise.all([fetchExplorer().catch(() => null), favoriteIds(buyer)]);
   return json(
-    { explorer: explorer ?? EMPTY_EXPLORER, failed: !explorer, buyer: buyer ? { nombre: buyer.nombre } : null },
+    { explorer: explorer ?? EMPTY_EXPLORER, failed: !explorer, buyer: buyer ? { nombre: buyer.nombre } : null, favs },
     { headers: { 'Cache-Control': 'private, max-age=30' } },
   );
 }
 
 export default function Explorar() {
-  const { explorer, failed, buyer } = useLoaderData<typeof loader>();
+  const { explorer, failed, buyer, favs } = useLoaderData<typeof loader>();
+  const fav = (productoId: string) => ({ on: favs.includes(productoId), signedIn: Boolean(buyer) });
+  const trends = explorer.tendencias ?? { terminos: [], productos: [] };
   const [params, setParams] = useSearchParams();
   const rubro = params.get('rubro');
   const searching = Boolean(rubro);
@@ -49,13 +52,31 @@ export default function Explorar() {
         <Link to="/explorar" className="wx-brand" aria-label="Wapsell, explorar">
           wapsell<span>.</span>
         </Link>
-        <Link to={buyer ? '/cuenta' : '/es/auth/login?redirectTo=%2Fexplorar'} className="wx-account">
-          {buyer ? `Hola, ${buyer.nombre.split(' ')[0]}` : 'Ingresar'}
-        </Link>
+        <span className="wx-top__actions">
+          {buyer ? (
+            <Link to="/favoritos" className="wx-account wx-account--icon" aria-label="Mis favoritos">
+              <Heart size={17} aria-hidden="true" />
+            </Link>
+          ) : null}
+          <Link to={buyer ? '/cuenta' : '/es/auth/login?redirectTo=%2Fexplorar'} className="wx-account">
+            {buyer ? `Hola, ${buyer.nombre.split(' ')[0]}` : 'Ingresar'}
+          </Link>
+        </span>
       </header>
 
       {/* Step 3: Enter searches every store; the suggestions come while typing. */}
       <ExplorerSearch />
+
+      {trends.terminos.length > 0 ? (
+        <nav className="wx-trends" aria-label="Lo que más se busca">
+          <span>Lo que más se busca</span>
+          {trends.terminos.map((t) => (
+            <Link key={t} to={`/buscar?q=${encodeURIComponent(t)}`}>
+              {t}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
 
       {explorer.rubros.length > 0 ? (
         <nav className="wx-chips" aria-label="Rubros">
@@ -89,7 +110,7 @@ export default function Explorar() {
           {explorer.carruseles.ofertas.length > 0 ? (
             <Carousel title="Ofertas del día" icon={<Tag size={18} aria-hidden="true" />}>
               {explorer.carruseles.ofertas.map((p) => (
-                <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} />
+                <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} fav={fav(p.productoId)} />
               ))}
             </Carousel>
           ) : null}
@@ -103,7 +124,14 @@ export default function Explorar() {
           {explorer.carruseles.masVendidos.length > 0 ? (
             <Carousel title="Lo que más se lleva">
               {explorer.carruseles.masVendidos.map((p) => (
-                <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} />
+                <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} fav={fav(p.productoId)} />
+              ))}
+            </Carousel>
+          ) : null}
+          {trends.productos.length > 0 ? (
+            <Carousel title="Lo más buscado" icon={<Flame size={18} aria-hidden="true" />}>
+              {trends.productos.map((p) => (
+                <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} fav={fav(p.productoId)} />
               ))}
             </Carousel>
           ) : null}

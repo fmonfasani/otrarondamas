@@ -1,4 +1,5 @@
 import { Link } from '@remix-run/react';
+import { FavoriteButton } from './FavoriteButton';
 import { formatMoney } from '~/utils/format';
 import { productPhoto, storeCover, storeLine, type ExplorerProduct, type ExplorerStore } from '~/utils/explorer';
 import { storeMark } from '~/utils/store';
@@ -49,10 +50,16 @@ export function StoreGrid({ stores }: Readonly<{ stores: ExplorerStore[] }>) {
   );
 }
 
-export function ProductCard({ product }: Readonly<{ product: ExplorerProduct }>) {
+/**
+ * A product of any store. `fav` adds the ♥ (step 3b): `on` when the buyer has it, `signedIn`
+ * false sends the visitor to sign in first. The ♥ sits beside the link, never inside it.
+ */
+export function ProductCard({ product, fav }: Readonly<{ product: ExplorerProduct; fav?: { on: boolean; signedIn: boolean } }>) {
   const photo = productPhoto(product);
   return (
-    <Link to={`/tienda/${product.tienda.slug}/producto/${product.productoId}`} className="wx-product">
+    <div className="wx-pcard">
+      {fav ? <FavoriteButton productoId={product.productoId} nombre={product.nombre} on={fav.on} signedIn={fav.signedIn} /> : null}
+      <Link to={`/tienda/${product.tienda.slug}/producto/${product.productoId}`} className="wx-product">
       <span className="wx-product__photo">
         {photo ? <img src={photo} alt="" loading="lazy" /> : <span className="wx-store__mark">{product.nombre.charAt(0).toUpperCase()}</span>}
         {product.descuentoPorcentaje ? <span className="wx-badge wx-badge--off">-{Math.round(product.descuentoPorcentaje)}%</span> : null}
@@ -65,6 +72,7 @@ export function ProductCard({ product }: Readonly<{ product: ExplorerProduct }>)
         </span>
         <small>{product.tienda.nombre}</small>
       </span>
-    </Link>
+      </Link>
+    </div>
   );
 }

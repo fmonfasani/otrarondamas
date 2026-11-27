@@ -46,7 +46,7 @@ type Result<T> = { ok: true; data: T } | { ok: false; status: number; message: s
 /** A call to /auth/comprador…; messages are fit to show the buyer. */
 export async function buyerApi<T>(
   path: string,
-  init: { method?: 'GET' | 'POST'; body?: unknown; jwt?: string } = {},
+  init: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown; jwt?: string } = {},
 ): Promise<Result<T>> {
   let response: Response;
   try {
@@ -66,4 +66,11 @@ export async function buyerApi<T>(
   if (response.ok) return { ok: true, data: payload };
   const message = Array.isArray(payload.message) ? payload.message.join(' ') : payload.message;
   return { ok: false, status: response.status, message: message || 'No pudimos completar la operación.' };
+}
+
+/** Step 3b — the ♥ products of the signed-in buyer (empty when nobody is signed in or it fails). */
+export async function favoriteIds(buyer: Buyer | null): Promise<string[]> {
+  if (!buyer) return [];
+  const result = await buyerApi<{ ids: string[] }>('/favoritos/ids', { jwt: buyer.jwt });
+  return result.ok ? result.data.ids : [];
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { Form, Link, useLoaderData, useSubmit } from '@remix-run/react';
-import { SlidersHorizontal, Store, X } from 'lucide-react';
-import { getBuyer } from '~/services/buyer-session.server';
+import { Heart, SlidersHorizontal, Store, X } from 'lucide-react';
+import { favoriteIds, getBuyer } from '~/services/buyer-session.server';
 import { fetchExplorerSearch } from '~/services/store.server';
 import { formatMoney } from '~/utils/format';
 import { EMPTY_SEARCH, SEARCH_ORDERS, searchHref, searchParamsOf } from '~/utils/explorer';
@@ -25,15 +25,16 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => [
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const params = searchParamsOf(new URL(request.url));
-  const [buyer, result] = await Promise.all([getBuyer(request), fetchExplorerSearch(params).catch(() => null)]);
+  const buyer = await getBuyer(request);
+  const [result, favs] = await Promise.all([fetchExplorerSearch(params).catch(() => null), favoriteIds(buyer)]);
   return json(
-    { result: result ?? { ...EMPTY_SEARCH, q: params.get('q') ?? '' }, failed: !result, params: params.toString(), buyer: buyer ? { nombre: buyer.nombre } : null },
+    { result: result ?? { ...EMPTY_SEARCH, q: params.get('q') ?? '' }, failed: !result, params: params.toString(), buyer: buyer ? { nombre: buyer.nombre } : null, favs },
     { headers: { 'Cache-Control': 'private, max-age=30' } },
   );
 }
 
 export default function Buscar() {
-  const { result, failed, params: raw, buyer } = useLoaderData<typeof loader>();
+  const { result, failed, params: raw, buyer, favs } = useLoaderData<typeof loader>();
   const params = new URLSearchParams(raw);
   const submit = useSubmit();
   const filters = useRef<HTMLDetailsElement>(null);
@@ -62,9 +63,16 @@ export default function Buscar() {
         <Link to="/explorar" className="wx-brand" aria-label="Wapsell, explorar">
           wapsell<span>.</span>
         </Link>
-        <Link to={buyer ? '/cuenta' : `/es/auth/login?redirectTo=${encodeURIComponent(`/buscar?${raw}`)}`} className="wx-account">
-          {buyer ? `Hola, ${buyer.nombre.split(' ')[0]}` : 'Ingresar'}
-        </Link>
+        <span className="wx-top__actions">
+          {buyer ? (
+            <Link to="/favoritos" className="wx-account wx-account--icon" aria-label="Mis favoritos">
+              <Heart size={17} aria-hidden="true" />
+            </Link>
+          ) : null}
+          <Link to={buyer ? '/cuenta' : `/es/auth/login?redirectTo=${encodeURIComponent(`/buscar?${raw}`)}`} className="wx-account">
+            {buyer ? `Hola, ${buyer.nombre.split(' ')[0]}` : 'Ingresar'}
+          </Link>
+        </span>
       </header>
 
       <ExplorerSearch defaultValue={result.q} keep={keep} />
@@ -204,7 +212,7 @@ export default function Buscar() {
         ) : (
           <div className="wx-results">
             {result.productos.map((p) => (
-              <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} />
+              <ProductCard key={`${p.tienda.slug}-${p.productoId}`} product={p} fav={{ on: favs.includes(p.productoId), signedIn: Boolean(buyer) }} />
             ))}
           </div>
         )}

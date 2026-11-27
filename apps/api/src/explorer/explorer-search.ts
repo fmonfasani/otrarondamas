@@ -11,6 +11,7 @@ export const SEARCH_PAGE = 24;
 export const SEARCH_ORDERS = [
   'relevancia',
   'vendidos',
+  'buscados',
   'precio-asc',
   'precio-desc',
   'nuevos',
@@ -132,6 +133,8 @@ export type SearchRow = {
   marca: string | null;
   precioCentavos: number;
   vendidos: number;
+  /** Step 3b: how many searches of the last 30 days find it (never shown, only orders). */
+  buscados: number;
   destacado: boolean;
   createdAt: Date;
   enOferta: boolean;
@@ -182,6 +185,7 @@ export function search<T extends SearchRow>(rows: T[], params: SearchParams) {
       Number(b.r.destacado) - Number(a.r.destacado) ||
       byName(a.r, b.r),
     vendidos: (a, b) => b.r.vendidos - a.r.vendidos || b.score - a.score || byName(a.r, b.r),
+    buscados: (a, b) => b.r.buscados - a.r.buscados || b.score - a.score || byName(a.r, b.r),
     'precio-asc': (a, b) => a.r.precioCentavos - b.r.precioCentavos || byName(a.r, b.r),
     'precio-desc': (a, b) => b.r.precioCentavos - a.r.precioCentavos || byName(a.r, b.r),
     nuevos: (a, b) => b.r.createdAt.getTime() - a.r.createdAt.getTime() || byName(a.r, b.r),
@@ -241,4 +245,14 @@ export function didYouMean(query: string, texts: Searchable[]): string | null {
     return best.w;
   });
   return changed ? fixed.join(' ') : null;
+}
+
+/**
+ * Step 3b — a counted search word finds the text as typed (whole, start or inside, words together
+ * or apart), without the sound and slip allowances: cheap enough to try every popular word
+ * against every product each minute.
+ */
+export function strictlyFound(term: string, text: Searchable): boolean {
+  const words = term.split(' ').filter(Boolean);
+  return words.length > 0 && words.every((w) => text.joined.includes(w));
 }

@@ -34,6 +34,8 @@
     "email/preferences/email-preference.service.ts",
     "email/templates/email-template.service.ts",
     "explorer/explorer.service.ts",
+    "explorer/favorites.service.ts",
+    "explorer/search-log.service.ts",
     "health/health.controller.ts",
     "invitations/invitations.controller.ts",
     "invitations/invitations.service.ts",

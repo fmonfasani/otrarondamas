@@ -71,6 +71,8 @@ import { CompradorController } from './comprador/comprador.controller';
     AuthCustomerService,
     PasswordResetService,
     MfaService,
+    // Marketplace step 3b: the buyer's favorites check the buyer session the same way.
+    CompradorService,
   ],
 })
 export class AuthModule {}

@@ -35,6 +35,8 @@ export type Explorer = {
     masPedidos: ExplorerStore[];
     nuevos: ExplorerStore[];
   };
+  /** Step 3b — «Lo que más se busca»: words and products, never how many times. */
+  tendencias?: { terminos: string[]; productos: ExplorerProduct[] };
 };
 
 export const EMPTY_EXPLORER: Explorer = {
@@ -108,6 +110,7 @@ export type ExplorerSuggestions = {
 export const SEARCH_ORDERS = [
   ['relevancia', 'Más relevantes'],
   ['vendidos', 'Más vendidos'],
+  ['buscados', 'Más buscados'],
   ['precio-asc', 'Menor precio'],
   ['precio-desc', 'Mayor precio'],
   ['nuevos', 'Más nuevos'],
@@ -142,3 +145,9 @@ export function searchHref(current: URLSearchParams, change: Record<string, stri
   const text = next.toString();
   return text ? `/buscar?${text}` : '/buscar';
 }
+
+/** Step 3b — a buyer's ♥ product (GET /auth/comprador/favoritos). */
+export type FavoriteProduct = Omit<ExplorerProduct, 'precio'> & { precio: string | null; disponible: boolean };
+
+/** Where a visitor goes to sign in and come back to the same page. */
+export const loginTo = (path: string) => `/es/auth/login?redirectTo=${encodeURIComponent(path)}`;

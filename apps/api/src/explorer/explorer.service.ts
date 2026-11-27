@@ -4,11 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
 import { autoRepliesOf, isOpenAt } from '../messaging/auto-replies';
 import { StoreCatalogService } from '../store/store-catalog.service';
+import { SearchLogService } from './search-log.service';
 import {
   didYouMean,
   queryScore,
   search,
   searchable,
+  strictlyFound,
   wordScore,
   plain,
   type SearchParams,
@@ -34,6 +36,9 @@ const BEST_PER_STORE = 4;
 const CAROUSEL = 20;
 const STORES_FOUND = 12;
 const SUGGESTED = 6;
+/** A word shows in «Lo que más se busca» from this many searches in 30 days. */
+const TREND_MIN = 3;
+const TREND_WORDS = 8;
 
 export type ExplorerStore = {
   nombre: string;
@@ -77,11 +82,17 @@ export class ExplorerService {
   private cache: { at: number; value: Awaited<ReturnType<ExplorerService['build']>> } | null = null;
   /** The Business of each store shown (never sent out: the explorer speaks in slugs). */
   private idBySlug = new Map<string, string>();
-  private index: { at: number; products: IndexedProduct[]; stores: IndexedStore[] } | null = null;
+  private index: {
+    at: number;
+    products: IndexedProduct[];
+    stores: IndexedStore[];
+    trending: string[];
+  } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: StoreCatalogService,
+    private readonly searchLog: SearchLogService,
   ) {}
 
   async explore(now = Date.now()) {
@@ -247,7 +258,8 @@ export class ExplorerService {
     const perStore = await Promise.all(
       explorer.negocios.map(async (store) => {
         const id = this.idBySlug.get(store.slug);
-        const items = id ? await this.catalog.available(id).catch(() => []) : [];
+        type Item = Awaited<ReturnType<StoreCatalogService['available']>>[number];
+        const items: Item[] = id ? await this.catalog.available(id).catch(() => []) : [];
         return items.map((p): IndexedProduct => ({
           productoId: p.productoId,
           nombre: p.nombre,
@@ -258,6 +270,7 @@ export class ExplorerService {
           foto: p.foto,
           precioCentavos: p.precioCentavos,
           vendidos: p.vendidos,
+          buscados: 0,
           destacado: p.destacado,
           createdAt: p.createdAt,
           enOferta: Boolean(p.enOferta),
@@ -279,7 +292,21 @@ export class ExplorerService {
           .join(' '),
       ),
     }));
-    this.index = { at: now, products: perStore.flat(), stores };
+    const products = perStore.flat();
+    // Step 3b: each product adds the searches of the last 30 days that find it.
+    const popular = await this.searchLog.popular().catch(() => []);
+    const trending: string[] = [];
+    for (const { termino, veces } of popular) {
+      let found = false;
+      for (const p of products) {
+        if (strictlyFound(termino, p.text)) {
+          p.buscados += veces;
+          found = true;
+        }
+      }
+      if (found && veces >= TREND_MIN && trending.length < TREND_WORDS) trending.push(termino);
+    }
+    this.index = { at: now, products, stores, trending };
     return this.index;
   }
 
@@ -318,6 +345,8 @@ export class ExplorerService {
     const index = await this.searchIndex(now);
     const found = search(index.products, params);
     const q = params.q?.trim() ?? '';
+    // Step 3b: a search that found something counts for «más buscados» (once, on its first page).
+    if (q && (params.pagina ?? 1) === 1 && found.total > 0) this.searchLog.record(q);
     return {
       q,
       productos: found.productos.map((p) => this.shown(p)),
@@ -330,6 +359,20 @@ export class ExplorerService {
         ? didYouMean(q, [...index.products.map((p) => p.text), ...index.stores.map((s) => s.text)])
         : null,
     };
+  }
+
+  /**
+   * Step 3b — «Lo que más se busca»: the words people search most (only those that find
+   * products) and the products those searches find. Never how many times.
+   */
+  async trends(now = Date.now()) {
+    const index = await this.searchIndex(now);
+    const productos = index.products
+      .filter((p) => p.buscados > 0)
+      .sort((a, b) => b.buscados - a.buscados || b.vendidos - a.vendidos)
+      .slice(0, CAROUSEL)
+      .map((p) => this.shown(p));
+    return { terminos: index.trending, productos };
   }
 
   /** GET /explorar/sugerencias — while the customer types: products, stores and brands. */

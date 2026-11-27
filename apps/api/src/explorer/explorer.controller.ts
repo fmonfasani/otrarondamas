@@ -15,8 +15,12 @@ export class ExplorerController {
   @Public()
   @Get()
   @Header('Cache-Control', 'public, max-age=60')
-  explore() {
-    return this.explorer.explore();
+  async explore() {
+    const [explorer, tendencias] = await Promise.all([
+      this.explorer.explore(),
+      this.explorer.trends().catch(() => ({ terminos: [], productos: [] })),
+    ]);
+    return { ...explorer, tendencias };
   }
 
   /** GET /explorar/buscar — products of every store and the stores found, with filters (step 3). */
