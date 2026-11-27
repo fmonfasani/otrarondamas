@@ -121,6 +121,10 @@ export type CustomerOrder = {
   pagado?: string;
   createdAt: string;
   items: Array<{ producto: string; cantidad: number }>;
+  /** OR-B4-055: until then the store may accept it; the customer may cancel it while RECIBIDO. */
+  aceptarAntes?: string | null;
+  /** Money going back by Mercado Pago (rejected or cancelled). */
+  reembolsos?: Array<{ estado: 'PENDIENTE' | 'REALIZADO' | 'FALLIDO'; monto: string }>;
 };
 
 /** OR-B4-055 — back to the Mercado Pago payment of a checkout still waiting for it. */
@@ -130,6 +134,10 @@ export const payCheckout = (jwt: string, slug: string, checkoutId: string) =>
 /** Mercado Pago checkout for a confirmed order: the URL to send the customer to. */
 export const payOrder = (jwt: string, slug: string, orderId: string) =>
   apiRequest<{ url: string }>(jwt, storePath(slug, `/mis-pedidos/${encodeURIComponent(orderId)}/pagar`), { method: 'POST' });
+
+/** OR-B4-055 — the customer cancels their paid order before the store accepts it. */
+export const cancelCustomerOrder = (jwt: string, slug: string, orderId: string) =>
+  apiRequest<{ id: string; estado: string }>(jwt, storePath(slug, `/mis-pedidos/${encodeURIComponent(orderId)}/cancelar`), { method: 'POST' });
 
 export const fetchCustomerOrders = (jwt: string, slug: string) =>
   apiRequest<CustomerOrder[]>(jwt, storePath(slug, '/mis-pedidos'));

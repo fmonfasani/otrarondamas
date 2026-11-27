@@ -631,6 +631,7 @@ model Empresa {
   Caja                    Caja?
   Cart                    Cart[]
   CheckoutPedido          CheckoutPedido[]
+  ReembolsoPedido         ReembolsoPedido[]
   Cliente                 Cliente[]
   Compra                  Compra[]
   Conversation            Conversation[]
@@ -1005,27 +1006,28 @@ model Notificacion {
 }
 
 model Pago {
-  id              String           @id @default(uuid())
+  id              String            @id @default(uuid())
   empresaId       String
   usuarioId       String?
   ventaId         String?
   deudaId         String?
-  monto           Decimal          @db.Decimal(18, 2)
+  monto           Decimal           @db.Decimal(18, 2)
   medio           String
-  estado          EstadoPago       @default(PENDIENTE)
-  comision        Decimal          @default(0) @db.Decimal(18, 2)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  estado          EstadoPago        @default(PENDIENTE)
+  comision        Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   pedidoId        String?
-  montoRecibido   Decimal?         @db.Decimal(18, 2)
-  vuelto          Decimal?         @db.Decimal(18, 2)
+  montoRecibido   Decimal?          @db.Decimal(18, 2)
+  vuelto          Decimal?          @db.Decimal(18, 2)
   referencia      String?
   AplicacionPago  AplicacionPago[]
-  CuentaCorriente CuentaCorriente? @relation(fields: [empresaId, deudaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  Empresa         Empresa          @relation(fields: [empresaId], references: [id])
-  Pedido          Pedido?          @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  Usuario         Usuario?         @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  Venta           Venta?           @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  ReembolsoPedido ReembolsoPedido[]
+  CuentaCorriente CuentaCorriente?  @relation(fields: [empresaId, deudaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Empresa         Empresa           @relation(fields: [empresaId], references: [id])
+  Pedido          Pedido?           @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Usuario         Usuario?          @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Venta           Venta?            @relation(fields: [empresaId, ventaId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
 
   /// ADR-DAT-020 (Fase 2 PR 4, module 4a): lets references carry the business.
   @@unique([empresaId, id])
@@ -1051,16 +1053,16 @@ model PagoProveedor {
 }
 
 model Pedido {
-  id                  String          @id @default(uuid())
+  id                  String            @id @default(uuid())
   empresaId           String
   clienteId           String
   usuarioId           String?
-  estado              EstadoPedido    @default(RECIBIDO)
+  estado              EstadoPedido      @default(RECIBIDO)
   canalOrigen         String
-  total               Decimal         @db.Decimal(18, 2)
-  descuento           Decimal         @default(0) @db.Decimal(18, 2)
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  total               Decimal           @db.Decimal(18, 2)
+  descuento           Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   idempotencyKey      String?
   /// OR-B4-053: N° per business (1, 2, 3…). The database assigns it on insert (trigger
   /// «Pedido_numerar»); never set it by hand.
@@ -1074,18 +1076,22 @@ model Pedido {
   lngEntrega          Float?
   /// Straight-line km from the store, and the fee: all the courier's, apart from `total`.
   kmEntrega           Float?
-  costoEnvio          Decimal         @default(0) @db.Decimal(18, 2)
+  costoEnvio          Decimal           @default(0) @db.Decimal(18, 2)
+  /// OR-B4-055: a paid order not accepted by then is rejected and refunded (3 minutes).
+  aceptarAntes        DateTime?
   Entrega             Entrega?
   CheckoutPedido      CheckoutPedido?
+  ReembolsoPedido     ReembolsoPedido[]
   Notificacion        Notificacion[]
   Pago                Pago[]
-  Cliente             Cliente         @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
-  Empresa             Empresa         @relation(fields: [empresaId], references: [id])
-  Usuario             Usuario?        @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Cliente             Cliente           @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Empresa             Empresa           @relation(fields: [empresaId], references: [id])
+  Usuario             Usuario?          @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
   PedidoItem          PedidoItem[]
 
   @@unique([empresaId, id])
   @@unique([empresaId, numero])
+  @@index([estado, aceptarAntes])
 }
 
 model PedidoItem {
@@ -1805,6 +1811,43 @@ model CheckoutPedido {
   @@unique([empresaId, id])
   @@unique([empresaId, pedidoId])
   @@index([estado, venceAt])
+}
+
+/// OR-B4-055 (Owner, 2026-11-27) — the refund of a paid order the store did not take: rejected
+/// automatically after 3 minutes without being accepted, cancelled by the store, or cancelled by
+/// the customer before it was accepted. Kept in the database, with its attempts, so a restart
+/// loses nothing; Mercado Pago is asked again with a growing wait until it answers.
+model ReembolsoPedido {
+  id             String                @id @default(uuid())
+  empresaId      String
+  pedidoId       String
+  pagoId         String
+  monto          Decimal               @db.Decimal(18, 2)
+  /// Why the order was not taken, as the customer reads it.
+  motivo         String
+  estado         EstadoReembolsoPedido @default(PENDIENTE)
+  intentos       Int                   @default(0)
+  proximoIntento DateTime              @default(now())
+  ultimoError    String?
+  /// Mercado Pago's id of the refund, once done.
+  referenciaMp   String?
+  realizadoAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  Empresa        Empresa               @relation(fields: [empresaId], references: [id])
+  Pedido         Pedido                @relation(fields: [empresaId, pedidoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  Pago           Pago                  @relation(fields: [empresaId, pagoId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([empresaId, id])
+  @@unique([empresaId, pagoId])
+  @@index([estado, proximoIntento])
+}
+
+/// OR-B4-055: a refund waits for Mercado Pago, was done, or failed after every attempt.
+enum EstadoReembolsoPedido {
+  PENDIENTE
+  REALIZADO
+  FALLIDO
 }
 
 /// OR-B4-055: a checkout waits for its payment, was paid (it is an order now) or lapsed.

@@ -34,6 +34,18 @@ interface OrderDetail {
   indicacionesEntrega?: string | null;
   kmEntrega?: number | null;
   costoEnvio?: string;
+  /** OR-B4-055: a paid order not accepted by then is rejected and refunded by itself. */
+  aceptarAntes?: string | null;
+  ReembolsoPedido?: OrderRefund[];
+}
+
+type OrderRefund = { id: string; monto: string; motivo: string; estado: 'PENDIENTE' | 'REALIZADO' | 'FALLIDO'; intentos: number; ultimoError: string | null };
+
+/** OR-B4-055 — where the money of a rejected or cancelled order is. */
+function refundState(refund: OrderRefund) {
+  if (refund.estado === 'REALIZADO') return 'hecha por Mercado Pago.';
+  if (refund.estado === 'FALLIDO') return `no se pudo hacer: ${refund.ultimoError ?? 'Mercado Pago no respondió'}. Devolvelo desde Mercado Pago.`;
+  return refund.intentos > 0 ? 'en curso (Mercado Pago no respondió: lo intentamos de nuevo solo).' : 'en curso.';
 }
 
 /** AS-IS Pago states, as the team reads them. */
@@ -134,6 +146,12 @@ export default function OrderPage() {
         </div>
         <span className={`ws-chip ws-chip--${state.tone}`}>{state.label}</span>
       </div>
+
+      {order.estado === 'RECIBIDO' && order.aceptarAntes ? (
+        <p className="ws-alert">
+          Aceptalo antes de las {new Date(order.aceptarAntes).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}: si no, se rechaza solo y Wapsell le devuelve el dinero al cliente.
+        </p>
+      ) : null}
 
       {result && (
         <p className={result.ok ? 'ws-success-note' : 'ws-alert'} role={result.ok ? 'status' : 'alert'}>
@@ -238,9 +256,15 @@ export default function OrderPage() {
             {paid > 0 && (
               <p className="ws-meta">
                 {paid >= Number(order.total) ? 'Pagado completo.' : `Pagado ${formatMoney(paid)} de ${formatMoney(order.total)}.`}
-                {CANCELLABLE_ORDER_STATES.has(order.estado) && ' Si lo cancelás, devolvé el dinero desde Mercado Pago: Wapsell no lo reembolsa solo.'}
+                {CANCELLABLE_ORDER_STATES.has(order.estado) && ' Si lo cancelás, Wapsell le devuelve el dinero al cliente por Mercado Pago.'}
               </p>
             )}
+            {(order.ReembolsoPedido ?? []).map((refund) => (
+              <p key={refund.id} className={refund.estado === 'FALLIDO' ? 'ws-alert' : 'ws-meta'}>
+                <b>Devolución de {formatMoney(refund.monto)}</b> · {refund.motivo} ·{' '}
+                {refundState(refund)}
+              </p>
+            ))}
           </section>
 
           {(note || confirmable || moves.length > 0 || cancellable) && (

@@ -121,6 +121,16 @@ export class OrderNoticeService {
     return this.notices.notify(companyId, order.clienteId, `pedido-${order.id}-${estado}`, text);
   }
 
+  /** OR-B4-055: the money of an order the store did not take went back to the customer. */
+  refunded(companyId: string, order: Order, refundId: string, amount: number | string) {
+    return this.notices.notify(
+      companyId,
+      order.clienteId,
+      `pedido-${order.id}-reembolso-${refundId}`,
+      `Te devolvimos ${money(amount)} por Mercado Pago${order.numero ? ` del pedido N° ${order.numero}` : ''}. Puede tardar unos días en verse en tu cuenta.`,
+    );
+  }
+
   paid(
     companyId: string,
     order: Order,

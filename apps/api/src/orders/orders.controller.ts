@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { OrderNoticeService } from '../customer-notices/order-notice.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
+import { OrderRefundsService } from '../payments/mercadopago/order-refunds.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -47,6 +48,8 @@ export class OrdersController {
     private readonly businessContext: BusinessContextService,
     @Optional() private readonly orderNotices?: OrderNoticeService,
     @Optional() private readonly mercadoPago?: MercadoPagoAccountService,
+    // OR-B4-055: a paid order the store cancels is refunded by itself.
+    @Optional() private readonly refunds?: OrderRefundsService,
   ) {}
 
   /** OR-B4-037 — the store takes online payments (same rule as the store's own header). */
@@ -93,6 +96,7 @@ export class OrdersController {
         await this.takesOnlinePayments(companyId),
       );
     } else if (order.estado === 'CANCELADO') {
+      await this.refunds?.enqueueForOrder(companyId, order.id, 'El negocio canceló el pedido');
       await this.orderNotices?.cancelled(companyId, order);
     } else {
       // #168: preparation, ready, on the way, delivered, failed delivery.
@@ -122,6 +126,11 @@ export class OrdersController {
   ) {
     const companyId = await this.resolveCompanyIdFromContext(user);
     const order = await this.ordersService.cancelOrder(id, companyId, user.id, dto.motivo);
+    await this.refunds?.enqueueForOrder(
+      companyId,
+      order.id,
+      dto.motivo?.trim() || 'El negocio canceló el pedido',
+    );
     await this.orderNotices?.cancelled(companyId, order, dto.motivo);
     return order;
   }
