@@ -24,11 +24,12 @@ import {
 import { CopyLink } from '~/components/panel/CopyLink';
 import { LocationEditor } from '~/components/panel/LocationEditor';
 import { parsePoint, type GeorefCandidate, type LocationPanel } from '~/utils/map';
-import leafletStyles from '../styles/leaflet.css?url';
+import { mapTiles } from '~/services/map.server';
+import maplibreStyles from '../styles/maplibre-gl.css?url';
 import mapStyles from '../styles/map.css?url';
 
 export const links = () => [
-  { rel: 'stylesheet', href: leafletStyles },
+  { rel: 'stylesheet', href: maplibreStyles },
   { rel: 'stylesheet', href: mapStyles },
 ];
 
@@ -80,6 +81,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     chatLink,
     chatQr,
     location,
+    mapTiles: mapTiles(),
     origin: new URL(request.url).origin,
   });
 }
@@ -164,7 +166,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr, location } =
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr, location, mapTiles } =
     useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
@@ -232,7 +234,7 @@ export default function Ajustes() {
       <section className="ws-card" id="mapa" aria-labelledby="map-title">
         <h2 id="map-title" className="ws-card__title">Tu negocio en el mapa</h2>
         <p className="ws-meta">Los clientes de Wapsell encuentran los negocios cerca suyo en el mapa.</p>
-        {location ? <LocationEditor data={location} /> : <p className="ws-alert">No pudimos cargar la ubicación. Probá en un ratito.</p>}
+        {location ? <LocationEditor data={location} tiles={mapTiles} /> : <p className="ws-alert">No pudimos cargar la ubicación. Probá en un ratito.</p>}
       </section>
 
       <section className="ws-card" aria-labelledby="payment-title">

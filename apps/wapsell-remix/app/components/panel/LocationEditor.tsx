@@ -1,6 +1,6 @@
 import { useFetcher } from '@remix-run/react';
 import { useEffect, useState } from 'react';
-import { LeafletMap } from '~/components/map/LeafletMap';
+import { WapsellMap } from '~/components/map/WapsellMap';
 import { ARGENTINA_CENTER, type GeorefCandidate, type LatLng, type LocationPanel } from '~/utils/map';
 
 type Answer = { intent: string; ok: boolean; message?: string; candidatos?: GeorefCandidate[] };
@@ -13,7 +13,7 @@ const dateOf = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day:
  * chooses the exact point or only the zone, and confirms. Until confirmed, the store is not on
  * Wapsell's map. The rest of the team sees it, without changing it.
  */
-export function LocationEditor({ data }: Readonly<{ data: LocationPanel }>) {
+export function LocationEditor({ data, tiles }: Readonly<{ data: LocationPanel; tiles: string | null }>) {
   const finder = useFetcher<Answer>();
   const saver = useFetcher<Answer>();
   const saved = data.ubicacion;
@@ -121,9 +121,10 @@ export function LocationEditor({ data }: Readonly<{ data: LocationPanel }>) {
       ) : null}
 
       {point || saved ? (
-        <LeafletMap
+        <WapsellMap
           label="Tu negocio en el mapa"
           className="ws-location__map"
+          tiles={tiles}
           center={center}
           zoom={zoom}
           editable={point && data.puedeEditar ? { ...point, zona } : null}

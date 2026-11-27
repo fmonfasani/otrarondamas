@@ -1,10 +1,22 @@
-/* Marketplace, step 4 — Wapsell's map (Leaflet over OpenStreetMap). */
-.wmap { width: 100%; height: 320px; border-radius: 14px; overflow: hidden; background: #e9e5dc; z-index: 0; }
-.wmap-pin { background: none; border: 0; }
+/* Marketplace, step 4 + OR-B4-054 — Wapsell's own map (MapLibre; OpenStreetMap as the fallback). */
+.wmap { position: relative; width: 100%; height: 320px; border-radius: 14px; overflow: hidden; background: #ece8e1; z-index: 0; }
+.wmap--oscuro { background: #0e1014; }
+.wmap__fail { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; margin: 0; padding: 16px; background: inherit; color: #6f6b64; font-size: 14px; text-align: center; }
+.wmap-pin { width: 32px; height: 32px; cursor: pointer; }
 .wmap-pin span { display: block; width: 26px; height: 26px; border: 3px solid #fff; border-radius: 50% 50% 50% 0; background: #d97757; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); transform: rotate(-45deg); }
 .wmap-pin.is-edit span { background: #1a1a19; cursor: grab; }
-.wmap-pin.is-me span { width: 18px; height: 18px; margin: 4px; border-radius: 50%; background: #2563eb; transform: none; }
-.leaflet-popup-content a { color: #d97757; font-weight: 700; }
+.wmap-pin.is-me { width: 24px; height: 24px; cursor: default; }
+.wmap-pin.is-me span { width: 18px; height: 18px; border-radius: 50%; background: #2563eb; transform: none; }
+.wmap-pin:focus-visible { outline: 3px solid #1a1a19; outline-offset: 3px; border-radius: 50%; }
+.wmap .maplibregl-popup-content { padding: 10px 30px 10px 12px; border-radius: 12px; color: #1a1a19; font: 14px/1.4 Inter, system-ui, sans-serif; }
+.wmap .maplibregl-popup-content a { color: #a4462a; font-weight: 700; }
+.wmap .maplibregl-popup-close-button { width: 28px; height: 28px; font-size: 18px; }
+/* The dark style's controls (the tracking screens), so nothing white sits on the night map. */
+.wmap--oscuro .maplibregl-ctrl-group { background: #16181d; box-shadow: 0 0 0 1px #2f333d; }
+.wmap--oscuro .maplibregl-ctrl-group button + button { border-top-color: #2f333d; }
+.wmap--oscuro .maplibregl-ctrl-icon, .wmap--oscuro .maplibregl-ctrl-attrib-button { filter: invert(1); }
+.wmap--oscuro .maplibregl-ctrl-attrib { background: rgba(22, 24, 29, 0.85); color: #c9c5bd; }
+.wmap--oscuro .maplibregl-ctrl-attrib a { color: #f5f3ee; }
 /* In Ajustes. */
 .ws-location { display: grid; gap: 14px; }
 .ws-location__find { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); align-items: end; }
