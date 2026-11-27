@@ -1,11 +1,11 @@
-/* Marketplace, step 2 — «Explorar», the customer app's home (phone first). */
+/* Marketplace, step 2 — «Explorar», the customer app's home (phone first). Header: black with the orange dot (Owner, 2026-11-27). */
 .wx { --wx-ink: #1a1a19; --wx-muted: #6f6b64; --wx-line: #ece8e1; --wx-orange: #d97757; --wx-bg: #f7f5f1;
   min-height: 100vh; min-height: 100dvh; max-width: 1180px; margin: 0 auto; padding: 0 0 40px; background: var(--wx-bg); color: var(--wx-ink); font-family: Inter, system-ui, sans-serif; }
-.wx-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--wx-orange); color: #fff; }
+.wx-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--wx-ink); color: #fff; }
 .wx-brand { color: #fff; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
-.wx-brand span { color: #1a1a19; }
-.wx-account { padding: 7px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
-.wx-search { position: sticky; top: calc(54px + env(safe-area-inset-top)); z-index: 4; display: flex; align-items: center; margin: 0; padding: 4px 16px 14px; background: var(--wx-orange); color: var(--wx-muted); }
+.wx-brand span { color: var(--wx-orange); }
+.wx-account { padding: 7px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+.wx-search { position: sticky; top: calc(54px + env(safe-area-inset-top)); z-index: 4; display: flex; align-items: center; margin: 0; padding: 4px 16px 14px; background: var(--wx-ink); color: var(--wx-muted); }
 .wx-search svg { position: absolute; left: 30px; z-index: 1; }
 .wx-search input { flex: 1; min-width: 0; padding: 12px 14px 12px 40px; border: 0; border-radius: 12px; outline: none; background: #fff; color: var(--wx-ink); font: inherit; font-size: 15px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .wx-chips { display: flex; gap: 8px; padding: 14px 16px 2px; overflow-x: auto; scrollbar-width: none; }
