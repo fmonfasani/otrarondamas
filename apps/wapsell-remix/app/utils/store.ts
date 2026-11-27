@@ -158,3 +158,12 @@ export const PAYMENT_RETURN: Record<string, { ok: boolean; text: string }> = {
   pendiente: { ok: true, text: 'Tu pago quedó pendiente en Mercado Pago. Te avisamos acá cuando se acredite.' },
   rechazado: { ok: false, text: 'Mercado Pago no aprobó el pago. Podés intentar de nuevo con otro medio.' },
 };
+
+/**
+ * OR-B4-055 — `volver=pagar:<checkout>`: after signing in, back to pay that checkout. Only an id
+ * (a UUID), never a URL taken from the request.
+ */
+export function checkoutToPay(volver: string | null): string | null {
+  const match = /^pagar:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(volver ?? '');
+  return match ? match[1] : null;
+}

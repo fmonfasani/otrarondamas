@@ -4,6 +4,7 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signCustomerToken } from './helpers/customer-token.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
 import {
   createStoreProduct,
   deleteStoreCompanies,
@@ -18,6 +19,8 @@ import {
 describe('STORE-V1-03 — customer account in a Business store', () => {
   const PORT = '3389';
   const BASE = `http://127.0.0.1:${PORT}`;
+  // OR-B4-055: orders are paid at checkout; store A takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3414);
   let prisma: PrismaService;
   let server: ChildProcess;
   let suffix: number;
@@ -52,12 +55,15 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
     companyB = await createCompany('B');
     productA = await createStoreProduct(prisma, companyA.id, 'STORE-V1-03', 'A', suffix);
     productB = await createStoreProduct(prisma, companyB.id, 'STORE-V1-03', 'B', suffix);
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, companyA.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     await deleteStoreCompanies(prisma, [companyA.id, companyB.id]);
     await prisma.$disconnect();
   });
@@ -67,7 +73,8 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
     expect(res.body).toEqual({
       nombre: companyA.nombre,
       slug: companyA.slug,
-      pagosOnline: false,
+      // OR-B4-055: store A takes online payments (fake Mercado Pago connected).
+      pagosOnline: true,
       // Ajustes del negocio: empty until the Owner fills them in.
       contacto: { telefono: '', direccion: '', horario: '', descripcion: '' },
       // OR-B4-054: a store set up before offers pickup only, and has no pin yet.
@@ -122,12 +129,13 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
   });
 
   it('orders as the signed-in customer, filed under their account', async () => {
-    const res = await request(BASE)
-      .post(`/${companyA.slug}/tienda/mis-pedidos`)
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ items: [{ productoId: productA.id, cantidad: 2 }] })
-      .expect(201);
-    expect(res.body).toMatchObject({ empresaId: companyA.id, clienteId: customerAId });
+    const { order } = await placePaidOrder(BASE, mp, prisma, {
+      slug: companyA.slug,
+      companyId: companyA.id,
+      auth: `Bearer ${tokenA}`,
+      items: [{ productoId: productA.id, cantidad: 2 }],
+    });
+    expect(order).toMatchObject({ empresaId: companyA.id, clienteId: customerAId });
     const customer = await prisma.cliente.findUnique({ where: { id: customerAId } });
     expect(customer?.nombre).toBe('Ana Compradora');
   });

@@ -57,3 +57,19 @@ describe('Entrega en el carrito', () => {
     expect(kmLabel(2.14)).toBe('2,1 km');
   });
 });
+
+describe('El link de pago en el chat (OR-B4-055)', () => {
+  it('turns only the store’s pay link into a button', async () => {
+    const { payLinkOf } = await import('~/components/chat/OrderCard');
+    const id = '0b5c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d';
+    expect(
+      payLinkOf(`Tu pedido por $ 8.400,00 está listo para pagar con Mercado Pago: https://app.wapsell.com/tienda/almacen-lucia/pagar/${id} — en cuanto se acredite el pago, lo recibimos.`),
+    ).toEqual({
+      before: 'Tu pedido por $ 8.400,00 está listo para pagar con Mercado Pago.',
+      path: `/tienda/almacen-lucia/pagar/${id}`,
+      after: 'en cuanto se acredite el pago, lo recibimos.',
+    });
+    expect(payLinkOf('Recibimos tu pago de $ 4.200,00. ¡Gracias!')).toBeNull();
+    expect(payLinkOf('Mirá https://evil.test/otra/cosa')).toBeNull();
+  });
+});

@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { signCustomerToken } from './helpers/customer-token.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
+import { FakeMercadoPago } from './helpers/mercadopago.fixture';
 import { createStoreProduct, waitPort } from './helpers/store-catalog.fixture';
 
 /**
@@ -15,6 +16,9 @@ import { createStoreProduct, waitPort } from './helpers/store-catalog.fixture';
 describe('STORE-V1-05 — order from a conversation', () => {
   const PORT = '3387';
   const BASE = `http://127.0.0.1:${PORT}`;
+  // OR-B4-055: the chat's order is paid at checkout; the store has a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3422);
+  let firstCheckout: { checkoutId: string; total: string };
   let prisma: PrismaService;
   let server: ChildProcess;
   let suffix: number;
@@ -95,7 +99,9 @@ describe('STORE-V1-05 — order from a conversation', () => {
     });
     productA = await createStoreProduct(prisma, company.id, 'STORE-V1-05', 'A', suffix);
     productB = await createStoreProduct(prisma, company.id, 'STORE-V1-05', 'B', suffix);
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, company.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
 
     const chat = await request(BASE)
@@ -108,6 +114,7 @@ describe('STORE-V1-05 — order from a conversation', () => {
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     const businessIds = [company.id];
     const scope = { where: { businessId: { in: businessIds } } };
     const empresaScope = { where: { empresaId: { in: businessIds } } };
@@ -120,6 +127,8 @@ describe('STORE-V1-05 — order from a conversation', () => {
     await prisma.conversation.deleteMany(scope);
     await prisma.cartItem.deleteMany({ where: { Cart: { businessId: company.id } } });
     await prisma.cart.deleteMany(scope);
+    await prisma.pago.deleteMany(empresaScope);
+    await prisma.checkoutPedido.deleteMany(empresaScope);
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: company.id } } });
     await prisma.pedido.deleteMany(empresaScope);
     await prisma.membership.deleteMany(scope);
@@ -159,62 +168,95 @@ describe('STORE-V1-05 — order from a conversation', () => {
     expect(res.body.total).toBe('30.00');
   });
 
-  it('creates the order from the cart and empties it', async () => {
+  it('without Mercado Pago the chat cannot close an order, and the cart stays as it was', async () => {
+    const config = (await prisma.empresa.findUniqueOrThrow({ where: { id: company.id } }))
+      .configuracion as Record<string, unknown>;
+    const { mercadoPago, ...withoutMp } = config;
+    await prisma.empresa.update({
+      where: { id: company.id },
+      data: { configuracion: withoutMp as object },
+    });
+    try {
+      const res = await createOrder();
+      expect(res.status).toBe(409);
+      expect(res.body.message).toContain('conectá Mercado Pago');
+      const cart = await request(BASE)
+        .get(`/messaging/conversations/${conversationId}/cart`)
+        .set('Authorization', ownerAuth())
+        .expect(200);
+      expect(cart.body.items).toHaveLength(2);
+    } finally {
+      await prisma.empresa.update({
+        where: { id: company.id },
+        data: { configuracion: { ...withoutMp, mercadoPago } as object },
+      });
+    }
+  });
+
+  it('closing the chat’s order sends the customer the link to pay it; the store has no order yet (OR-B4-055)', async () => {
     const res = await createOrder();
     expect(res.status).toBe(201);
-    firstOrderId = res.body.id;
-    const order = await prisma.pedido.findUnique({
-      where: { id: firstOrderId },
+    firstCheckout = res.body;
+    expect(res.body.pagar).toBe(
+      `https://panel.test/tienda/${company.slug}/pagar/${res.body.checkoutId}`,
+    );
+    expect(Number(res.body.total)).toBe(30);
+    const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+      where: { id: res.body.checkoutId },
+    });
+    expect(checkout).toMatchObject({
+      clienteId: customer.id,
+      canalOrigen: 'messaging',
+      conversationId,
+      estado: 'PENDIENTE',
+    });
+    expect(await prisma.pedido.count({ where: { empresaId: company.id } })).toBe(0);
+    const notice = await prisma.message.findFirst({
+      where: { businessId: company.id, clientMessageId: `checkout-${res.body.checkoutId}-pagar` },
+    });
+    expect(notice?.content).toContain(res.body.pagar);
+    expect(notice?.content).toContain('listo para pagar con Mercado Pago');
+    const cart = await request(BASE)
+      .get(`/messaging/conversations/${conversationId}/cart`)
+      .set('Authorization', ownerAuth())
+      .expect(200);
+    expect(cart.body.items).toEqual([]);
+  });
+
+  it('when the customer pays, the order is born and linked to this chat', async () => {
+    await mp.pay(BASE, company.id, firstCheckout.checkoutId, Number(firstCheckout.total));
+    const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+      where: { id: firstCheckout.checkoutId },
+    });
+    expect(checkout.estado).toBe('PAGADO');
+    const order = await prisma.pedido.findUniqueOrThrow({
+      where: { id: checkout.pedidoId as string },
       include: { PedidoItem: true },
     });
     expect(order).toMatchObject({
       clienteId: customer.id,
       empresaId: company.id,
       estado: 'RECIBIDO',
+      canalOrigen: 'messaging',
     });
-    expect(order?.PedidoItem).toHaveLength(2);
-    const cart = await request(BASE)
-      .get(`/messaging/conversations/${conversationId}/cart`)
-      .set('Authorization', ownerAuth())
-      .expect(200);
-    expect(cart.body.items).toEqual([]);
+    expect(order.PedidoItem).toHaveLength(2);
+    firstOrderId = order.id;
   });
 
-  it('a second cart while the order is still open goes into that same order (OR-B4-053)', async () => {
+  it('a later cart is always a new order: the open order closed when it was paid (OR-B4-055)', async () => {
     await fillCart([{ productoId: productB.id, cantidad: 3 }]);
     const res = await createOrder();
     expect(res.status).toBe(201);
-    // Not confirmed yet: one open order per customer, like an ERP's open sales order.
-    expect(res.body.id).toBe(firstOrderId);
-    expect(res.body.sumado).toBe(true);
-    const order = await prisma.pedido.findUnique({
-      where: { id: firstOrderId },
+    await mp.pay(BASE, company.id, res.body.checkoutId, Number(res.body.total));
+    const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+      where: { id: res.body.checkoutId },
+    });
+    expect(checkout.pedidoId).not.toBe(firstOrderId);
+    const order = await prisma.pedido.findUniqueOrThrow({
+      where: { id: checkout.pedidoId as string },
       include: { PedidoItem: true },
     });
-    const quantities = Object.fromEntries(
-      (order?.PedidoItem ?? []).map((line) => [line.productoId, Number(line.cantidad)]),
-    );
-    expect(quantities).toEqual({ [productA.id]: 2, [productB.id]: 4 });
-    expect(await prisma.pedido.count({ where: { empresaId: company.id } })).toBe(1);
-    // The new cart was still taken (the C3 bug this guards: a later cart swallowed by the first).
-    const cart = await request(BASE)
-      .get(`/messaging/conversations/${conversationId}/cart`)
-      .set('Authorization', ownerAuth())
-      .expect(200);
-    expect(cart.body.items).toEqual([]);
-  });
-
-  it('once the order is confirmed, the next cart is a new order', async () => {
-    await prisma.pedido.update({ where: { id: firstOrderId }, data: { estado: 'CONFIRMADO' } });
-    await fillCart([{ productoId: productB.id, cantidad: 1 }]);
-    const res = await createOrder();
-    expect(res.status).toBe(201);
-    expect(res.body.id).not.toBe(firstOrderId);
-    const order = await prisma.pedido.findUnique({
-      where: { id: res.body.id },
-      include: { PedidoItem: true },
-    });
-    expect(order?.PedidoItem).toEqual([expect.objectContaining({ productoId: productB.id })]);
+    expect(order.PedidoItem).toEqual([expect.objectContaining({ productoId: productB.id })]);
     expect(await prisma.pedido.count({ where: { empresaId: company.id } })).toBe(2);
   });
 
@@ -256,13 +298,14 @@ describe('STORE-V1-05 — order from a conversation', () => {
 
     const res = await createOrder();
     expect(res.status).toBe(201);
-    const order = await prisma.pedido.findUnique({
-      where: { id: res.body.id },
+    await mp.pay(BASE, company.id, res.body.checkoutId, Number(res.body.total));
+    const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+      where: { id: res.body.checkoutId },
+    });
+    const order = await prisma.pedido.findUniqueOrThrow({
+      where: { id: checkout.pedidoId as string },
       include: { PedidoItem: true },
     });
-    // It went into the open order (OR-B4-053), next to what it already had.
-    expect(order?.PedidoItem).toEqual(
-      expect.arrayContaining([expect.objectContaining({ productoId: productA.id })]),
-    );
+    expect(order.PedidoItem).toEqual([expect.objectContaining({ productoId: productA.id })]);
   });
 });

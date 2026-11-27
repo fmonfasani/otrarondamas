@@ -92,14 +92,17 @@ export async function replaceServerCart(jwt: string, items: Array<{ productoId: 
   );
 }
 
+/**
+ * OR-B4-055 — the customer closes the cart to pay it: a checkout, and the Mercado Pago link. The
+ * store's order is born when the payment is approved.
+ */
 export async function placeCustomerOrder(
   jwt: string,
   slug: string,
   items: Array<{ productoId: string; cantidad: number }>,
   entrega?: DeliveryChoice,
 ) {
-  // OR-B4-053: `sumado` — it went into the order still waiting for confirmation.
-  const order = await apiRequest<{ id: string; numero: number | null; sumado?: boolean }>(jwt, storePath(slug, '/mis-pedidos'), {
+  const order = await apiRequest<{ checkoutId: string; total: string; costoEnvio: string; pagar: string }>(jwt, storePath(slug, '/mis-pedidos'), {
     method: 'POST',
     body: JSON.stringify({ items, ...(entrega ? { entrega } : {}) }),
   });
@@ -119,6 +122,10 @@ export type CustomerOrder = {
   createdAt: string;
   items: Array<{ producto: string; cantidad: number }>;
 };
+
+/** OR-B4-055 — back to the Mercado Pago payment of a checkout still waiting for it. */
+export const payCheckout = (jwt: string, slug: string, checkoutId: string) =>
+  apiRequest<{ url: string }>(jwt, storePath(slug, `/mis-checkouts/${encodeURIComponent(checkoutId)}/pagar`), { method: 'POST' });
 
 /** Mercado Pago checkout for a confirmed order: the URL to send the customer to. */
 export const payOrder = (jwt: string, slug: string, orderId: string) =>

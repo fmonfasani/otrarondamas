@@ -4,6 +4,8 @@ import * as net from 'net';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
+import { FakeMercadoPago } from './helpers/mercadopago.fixture';
 
 // S-V1-STORE-01 — AS-IS CHARACTERIZATION of the public Store + Customer Auth.
 //
@@ -23,6 +25,9 @@ import { spawnApi } from './helpers/api-server.fixture';
 describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP, stack real)', () => {
   const PORT = '3390';
   const BASE = `http://127.0.0.1:${PORT}`;
+  // OR-B4-055: orders are paid at checkout; store A takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3415);
+  let trackedOrder: string;
   let server: ChildProcess;
   let prisma: PrismaService;
   let suffix: number;
@@ -144,6 +149,18 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     }),
   });
 
+  /** A signed-in customer of A (their own session: the account decides, never the request). */
+  const customerOfA = async (tag: string) => {
+    const cliente = await prisma.cliente.create({
+      data: { empresaId: companyA.id, nombre: `Cliente ${tag}`, email: email(tag) },
+      select: { id: true },
+    });
+    return `Bearer ${signCustomerToken(cliente.id, companyA.id)}`;
+  };
+
+  const checkouts = () =>
+    prisma.checkoutPedido.count({ where: { empresaId: { in: [companyA.id, companyB.id] } } });
+
   /** Business A's store, as customers reach it. */
   const storeA = () => `/${companyA.slug}/tienda`;
 
@@ -230,14 +247,19 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       select: { id: true },
     });
 
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, companyA.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
     if (server && !server.killed) server.kill();
+    await mp.close();
     if (!prisma || !companyA || !companyB) return;
     const companies = [companyA.id, companyB.id];
+    await prisma.pago.deleteMany({ where: { empresaId: { in: companies } } });
+    await prisma.checkoutPedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });
     await prisma.pedido.deleteMany({ where: { empresaId: { in: companies } } });
     await prisma.reglaFidelizacion.deleteMany({ where: { empresaId: { in: companies } } });
@@ -366,143 +388,90 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
 
   // ------------------------------------------------------------------ STORE-03
 
-  it('STORE-03a: POST /tienda/pedidos (Cliente nuevo) → 201, Pedido de A, canal web, RECIBIDO, precio congelado del catálogo, sin descuento de stock', async () => {
-    const guestEmail = email('guest-new');
+  it('STORE-03a (OR-B4-055): cerrar el carrito congela los precios del catálogo en el servidor; pagado, nace el Pedido de A, canal web, RECIBIDO, sin descuento de stock', async () => {
+    const auth = await customerOfA('checkout-new');
     const before = await counts();
-
-    const res = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(
-        orderBody(
-          guestEmail,
-          [
-            { productoId: productA1.id, cantidad: 2 },
-            { productoId: productA2.id, cantidad: 3 },
-          ],
-          // Client-sent prices/tenant are not part of the DTO: whitelist strips them.
-          { empresaId: companyB.id, total: 1, precioUnitario: 1 },
-        ),
-      )
+    const opened = await request(BASE)
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({
+        items: [
+          { productoId: productA1.id, cantidad: 2 },
+          { productoId: productA2.id, cantidad: 3 },
+        ],
+        // Client-sent prices/tenant are not part of the DTO: whitelist strips them.
+        empresaId: companyB.id,
+        total: 1,
+        precioUnitario: 1,
+      })
       .expect(201);
+    expect(Number(opened.body.total)).toBe(330); // 2×90.00 + 3×50.00
+    // Nothing reaches the store until the payment is approved.
+    expect((await counts()).pedidos).toBe(before.pedidos);
 
-    expect(res.body).toMatchObject({
+    await mp.pay(BASE, companyA.id, opened.body.checkoutId, 330);
+    const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+      where: { id: opened.body.checkoutId },
+    });
+    const order = await prisma.pedido.findUniqueOrThrow({
+      where: { id: checkout.pedidoId as string },
+      include: { PedidoItem: true },
+    });
+    expect(order).toMatchObject({
       empresaId: companyA.id,
       estado: 'RECIBIDO',
       canalOrigen: 'web',
       usuarioId: null,
     });
-    expect(Number(res.body.total)).toBe(330); // 2×90.00 + 3×50.00
-    expect(res.body.PedidoItem).toHaveLength(2);
-    const itemA1 = res.body.PedidoItem.find(
-      (i: { productoId: string }) => i.productoId === productA1.id,
-    );
+    expect(Number(order.total)).toBe(330);
+    expect(order.PedidoItem).toHaveLength(2);
+    const itemA1 = order.PedidoItem.find((i) => i.productoId === productA1.id)!;
     expect(Number(itemA1.precioUnitario)).toBe(90);
     expect(Number(itemA1.cantidad)).toBe(2);
     expect(itemA1.descuentoFidelizacionPorcentaje).toBeNull();
     expect(itemA1.reglaFidelizacionId).toBeNull();
-
-    const customer = await prisma.cliente.findFirst({
-      where: { empresaId: companyA.id, email: guestEmail },
-    });
-    expect(customer).not.toBeNull();
-    expect(customer!.id).toBe(res.body.clienteId);
-    expect(customer!.passwordHash).toBeNull();
-    expect(customer!.googleId).toBeNull();
-    expect(customer!.esMayorista).toBe(false);
-
-    const persisted = await prisma.pedido.findUnique({ where: { id: res.body.id } });
-    expect(persisted!.empresaId).toBe(companyA.id);
-
-    const after = await counts();
-    expect(after.pedidos).toBe(before.pedidos + 1);
-    expect(after.clientes).toBe(before.clientes + 1);
-
+    expect((await counts()).pedidos).toBe(before.pedidos + 1);
     const batch = await prisma.lote.findFirst({ where: { productoId: productA1.id } });
     expect(Number(batch!.cantidad)).toBe(5); // no stock deduction/reservation
+    trackedOrder = order.id;
   });
 
-  it('STORE-03b: POST /tienda/pedidos con email de un Cliente existente de A → reutiliza el Cliente y SOBRESCRIBE nombre/telefono (AS-IS, deuda técnica, no aprobado)', async () => {
-    const existingEmail = email('guest-existing');
-    const existing = await prisma.cliente.create({
-      data: {
-        empresaId: companyA.id,
-        nombre: 'Nombre Original',
-        email: existingEmail,
-        telefono: '111',
-      },
-      select: { id: true },
-    });
-
-    const first = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(
-        orderBody(existingEmail, [{ productoId: productA2.id, cantidad: 1 }], {
-          nombre: 'Nombre Pisado',
-          telefono: '222',
-        }),
-      )
-      .expect(201);
-    expect(first.body.clienteId).toBe(existing.id);
-    let row = await prisma.cliente.findUnique({ where: { id: existing.id } });
-    expect(row).toMatchObject({ nombre: 'Nombre Pisado', telefono: '222' });
-
-    // telefono omitted → Prisma ignores undefined, so the stored telefono is kept.
-    const second = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(
-        orderBody(existingEmail, [{ productoId: productA2.id, cantidad: 1 }], {
-          nombre: 'Otro Nombre',
-        }),
-      )
-      .expect(201);
-    expect(second.body.clienteId).toBe(existing.id);
-    row = await prisma.cliente.findUnique({ where: { id: existing.id } });
-    expect(row).toMatchObject({ nombre: 'Otro Nombre', telefono: '222' });
-    expect(
-      await prisma.cliente.count({ where: { empresaId: companyA.id, email: existingEmail } }),
-    ).toBe(1);
-  });
-
-  it('STORE-03c: el mismo email en el Business B no se reutiliza ni se modifica — se crea un Cliente propio en A', async () => {
-    const sharedEmail = email('shared');
-    const clientB = await prisma.cliente.create({
-      data: { empresaId: companyB.id, nombre: 'Cliente de B', email: sharedEmail, telefono: '999' },
-      select: { id: true },
-    });
-
-    const res = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(sharedEmail, [{ productoId: productA2.id, cantidad: 1 }]))
-      .expect(201);
-
-    expect(res.body.clienteId).not.toBe(clientB.id);
-    const createdInA = await prisma.cliente.findUnique({ where: { id: res.body.clienteId } });
-    expect(createdInA!.empresaId).toBe(companyA.id);
-    const untouchedB = await prisma.cliente.findUnique({ where: { id: clientB.id } });
-    expect(untouchedB).toMatchObject({
-      empresaId: companyB.id,
-      nombre: 'Cliente de B',
-      telefono: '999',
-    });
+  it('STORE-03b (OR-B4-055): el pedido sin cuenta ni pago está cerrado — 410 para cualquier cuerpo, sin crear Pedido ni Cliente (reemplaza 03b, 03c y 03e de invitado)', async () => {
+    const before = await counts();
+    for (const body of [
+      orderBody(email('guest'), [{ productoId: productA2.id, cantidad: 1 }]),
+      orderBody('no-es-email', []),
+      {},
+    ]) {
+      const res = await request(BASE).post(`${storeA()}/pedidos`).send(body); // NOSONAR: in order
+      expect(res.status).toBe(410);
+      expect(res.body.message).toContain('pagá el pedido con Mercado Pago');
+    }
+    expect(await counts()).toEqual(before);
+    expect(await prisma.cliente.count({ where: { email: email('guest') } })).toBe(0);
   });
 
   it('STORE-03d: fidelización — la regla activa de A (NUEVO 10%) compite con el descuento del producto y gana el precio más bajo (OR-B4-051); la regla de B (40%) no', async () => {
+    const auth = await customerOfA('loyalty');
     await prisma.reglaFidelizacion.update({ where: { id: ruleA.id }, data: { activo: true } });
     await prisma.reglaFidelizacion.update({ where: { id: ruleB.id }, data: { activo: true } });
     try {
-      const res = await request(BASE)
-        .post(`${storeA()}/pedidos`)
-        .send(
-          orderBody(email('loyalty'), [
+      const opened = await request(BASE)
+        .post(`${storeA()}/mis-pedidos`)
+        .set('Authorization', auth)
+        .send({
+          items: [
             { productoId: productA1.id, cantidad: 2 },
             { productoId: productA2.id, cantidad: 3 },
-          ]),
-        )
+          ],
+        })
         .expect(201);
-
-      expect(res.body.PedidoItem).toHaveLength(2);
-      const line = (id: string) =>
-        res.body.PedidoItem.find((i: { productoId: string }) => i.productoId === id);
+      const checkout = await prisma.checkoutPedido.findUniqueOrThrow({
+        where: { id: opened.body.checkoutId },
+      });
+      const lines = checkout.lineas as Array<Record<string, unknown>>;
+      expect(lines).toHaveLength(2);
+      const line = (id: string) => lines.find((l) => l.productoId === id)!;
       // OR-B4-051 rule 2 replaces the earlier rule (loyalty on top of the discounted price): they
       // compete. A1: its own 10 % (90) ties with loyalty (90): the product's discount stays.
       expect(line(productA1.id)).toMatchObject({
@@ -518,97 +487,93 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
       });
       expect(Number(line(productA2.id).precioUnitario)).toBe(50);
       expect(Number(line(productA2.id).descuentoFidelizacionPorcentaje)).toBe(10);
-      expect(Number(res.body.total)).toBeCloseTo(315, 5); // 2×90 + 3×50×0.9 (was 297 when they stacked)
+      expect(Number(checkout.total)).toBeCloseTo(315, 5); // 2×90 + 3×50×0.9 (was 297 when they stacked)
     } finally {
       await prisma.reglaFidelizacion.update({ where: { id: ruleA.id }, data: { activo: false } });
       await prisma.reglaFidelizacion.update({ where: { id: ruleB.id }, data: { activo: false } });
     }
   });
 
-  it('STORE-03e: DTO — email inválido, items vacío o cantidad no positiva → 400 sin crear Pedido ni Cliente', async () => {
-    const before = await counts();
+  it('STORE-03e: DTO — items vacío o cantidad no positiva → 400 sin abrir checkout', async () => {
+    const auth = await customerOfA('dto');
+    const before = await checkouts();
     await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody('no-es-email', [{ productoId: productA2.id, cantidad: 1 }]))
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [] })
       .expect(400);
     await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('dto'), []))
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [{ productoId: productA2.id, cantidad: 0 }] })
       .expect(400);
-    await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('dto'), [{ productoId: productA2.id, cantidad: 0 }]))
-      .expect(400);
-    expect(await counts()).toEqual(before);
+    expect(await checkouts()).toBe(before);
   });
 
-  it('STORE-03f: stock insuficiente → 400 sin crear Pedido ni Cliente (validación de stock sin descuento)', async () => {
-    // Create a product with zero stock locally to test insufficient stock validation
-    // without contaminating the shared catalog fixtures (STORE-01a/b/c expect productA1 + productA2)
+  it('STORE-03f: stock insuficiente → 400 sin abrir checkout (validación de stock sin descuento)', async () => {
+    // A product with zero stock (no lote), so the shared fixtures stay as STORE-01 expects.
     const productNoStock = await mkProduct(companyA.id, hierA, 'A3-nostock', {
       precioMinorista: '25',
     });
-    // productNoStock has no lote, so stock = 0
-
-    const before = await counts();
-
+    const auth = await customerOfA('insufficient-stock');
+    const before = await checkouts();
     const res = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(
-        orderBody(email('insufficient-stock'), [{ productoId: productNoStock.id, cantidad: 1 }]),
-      );
-
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [{ productoId: productNoStock.id, cantidad: 1 }] });
     expect(res.status).toBe(400);
     expect(res.body.message).toContain('Stock insuficiente');
-    expect(await counts()).toEqual(before);
-    expect(await prisma.cliente.count({ where: { email: email('insufficient-stock') } })).toBe(0);
+    expect(await checkouts()).toBe(before);
   });
 
   // ------------------------------------------------------------------ STORE-04
 
-  it('STORE-04a: producto de B en el pedido → 400 "Producto <id> no disponible"; no se crea Pedido ni Cliente', async () => {
-    const before = await counts();
+  it('STORE-04a: producto de B en el pedido → 400 "Producto <id> no disponible"; no se abre checkout', async () => {
+    const auth = await customerOfA('xt-b');
+    const before = await checkouts();
     const res = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('xt-b'), [{ productoId: productB1.id, cantidad: 1 }]));
-
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [{ productoId: productB1.id, cantidad: 1 }] });
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
       statusCode: 400,
       message: `Producto ${productB1.id} no disponible`,
       error: 'Bad Request',
     });
-    expect(await counts()).toEqual(before);
-    expect(await prisma.cliente.count({ where: { email: email('xt-b') } })).toBe(0);
+    expect(await checkouts()).toBe(before);
   });
 
-  it('STORE-04b: pedido mixto (producto de A + producto de B) → 400 completo, sin pedido parcial', async () => {
-    const before = await counts();
+  it('STORE-04b: pedido mixto (producto de A + producto de B) → 400 completo, sin checkout parcial', async () => {
+    const auth = await customerOfA('xt-mixed');
+    const before = await checkouts();
     const res = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(
-        orderBody(email('xt-mixed'), [
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({
+        items: [
           { productoId: productA1.id, cantidad: 1 },
           { productoId: productB1.id, cantidad: 1 },
-        ]),
-      );
-
+        ],
+      });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe(`Producto ${productB1.id} no disponible`);
-    expect(await counts()).toEqual(before);
+    expect(await checkouts()).toBe(before);
   });
 
   it('STORE-04c: producto inactivo de A y producto inexistente → mismo 400 (indistinguibles del producto de B)', async () => {
+    const auth = await customerOfA('xt-inactive');
     const inactive = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('xt-inactive'), [{ productoId: productAInactive.id, cantidad: 1 }]));
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [{ productoId: productAInactive.id, cantidad: 1 }] });
     expect(inactive.status).toBe(400);
     expect(inactive.body.message).toBe(`Producto ${productAInactive.id} no disponible`);
-
     const missingId = randomUUID();
     const missing = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('xt-missing'), [{ productoId: missingId, cantidad: 1 }]));
+      .post(`${storeA()}/mis-pedidos`)
+      .set('Authorization', auth)
+      .send({ items: [{ productoId: missingId, cantidad: 1 }] });
     expect(missing.status).toBe(400);
     expect(missing.body.message).toBe(`Producto ${missingId} no disponible`);
   });
@@ -648,19 +613,14 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
   });
 
   it('STORE-05b: tracking de un pedido propio de A sin token → 200 con la forma mínima AS-IS', async () => {
-    const created = await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(email('tracking-a'), [{ productoId: productA1.id, cantidad: 1 }]))
-      .expect(201);
-
-    const res = await request(BASE).get(`${storeA()}/pedidos/${created.body.id}`).expect(200);
-
+    const res = await request(BASE).get(`${storeA()}/pedidos/${trackedOrder}`).expect(200);
     expect(Object.keys(res.body).sort()).toEqual(['createdAt', 'estado', 'id', 'items', 'total']);
-    expect(res.body).toMatchObject({ id: created.body.id, estado: 'RECIBIDO' });
-    expect(res.body.items).toEqual([
-      expect.objectContaining({ producto: productA1.nombre, cantidad: '1' }),
-    ]);
-    expect(Number(res.body.items[0].precioUnitario)).toBe(90);
+    expect(res.body).toMatchObject({ id: trackedOrder, estado: 'RECIBIDO' });
+    expect(res.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ producto: productA1.nombre, cantidad: '2' }),
+      ]),
+    );
     expect(res.body).not.toHaveProperty('empresaId');
     expect(res.body).not.toHaveProperty('usuarioId');
   });
@@ -755,12 +715,12 @@ describe('S-V1-STORE-01 — Store + Customer Auth (AS-IS characterization, HTTP,
     expect(untouchedB!.passwordHash).toBeNull();
   });
 
-  it('STORE-07c: un Cliente creado como invitado por un pedido de Store (sin contraseña) bloquea el registro de ese email — AS-IS, no aprobado', async () => {
+  it('STORE-07c: un Cliente invitado (sin contraseña) de la tienda vieja bloquea el registro de ese email — AS-IS, no aprobado', async () => {
+    // Guest customers came from the old order without an account, closed by OR-B4-055.
     const guestEmail = email('guest-blocks-reg');
-    await request(BASE)
-      .post(`${storeA()}/pedidos`)
-      .send(orderBody(guestEmail, [{ productoId: productA2.id, cantidad: 1 }]))
-      .expect(201);
+    await prisma.cliente.create({
+      data: { empresaId: companyA.id, nombre: 'Invitado', email: guestEmail },
+    });
 
     const res = await request(BASE)
       .post(`/auth/cliente/negocio/${companyA.slug}/registro`)

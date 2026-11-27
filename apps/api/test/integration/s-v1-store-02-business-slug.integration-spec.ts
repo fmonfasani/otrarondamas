@@ -2,6 +2,8 @@ import type { ChildProcess } from 'child_process';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
+import { signCustomerToken } from './helpers/customer-token.fixture';
+import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
 import {
   createStoreProduct,
   deleteStoreCompanies,
@@ -10,6 +12,8 @@ import {
 
 describe('STORE-V1-02 — public Business slug resolution', () => {
   const PORT = '3392';
+  // OR-B4-055: orders are paid at checkout; store A takes payments with a fake Mercado Pago.
+  const mp = new FakeMercadoPago(3416);
   const BASE = `http://127.0.0.1:${PORT}`;
   let prisma: PrismaService;
   let server: ChildProcess;
@@ -41,11 +45,14 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     });
     productA = await createStoreProduct(prisma, companyA.id, 'STORE-V1-02', 'A', suffix);
     productB = await createStoreProduct(prisma, companyB.id, 'STORE-V1-02', 'B', suffix);
-    server = spawnApi({ PORT });
+    await mp.start();
+    await mp.connect(prisma, companyA.id);
+    server = spawnApi({ PORT, ...mp.env(BASE) });
     await waitPort(Number(PORT));
   }, 120000);
 
   afterAll(async () => {
+    await mp.close();
     if (server && !server.killed) server.kill();
     await deleteStoreCompanies(prisma, [companyA.id, companyB.id]);
     await prisma.$disconnect();
@@ -70,31 +77,34 @@ describe('STORE-V1-02 — public Business slug resolution', () => {
     expect(res.body.subfamilias[0].empresaId).toBe(companyA.id);
   });
 
+  /** A signed-in customer of A (OR-B4-055: only a signed-in customer pays an order). */
+  const customerOfA = async (tag: string) => {
+    const cliente = await prisma.cliente.create({
+      data: { empresaId: companyA.id, nombre: tag, email: `${tag}-${suffix}@example.test` },
+      select: { id: true },
+    });
+    return `Bearer ${signCustomerToken(cliente.id, companyA.id)}`;
+  };
+
   it('uses the slug-scoped Business for order creation and tracking', async () => {
-    const email = `store-v1-02-${suffix}@example.test`;
-    const order = await request(BASE)
-      .post(`/${companyA.slug}/tienda/pedidos`)
-      .send({
-        nombre: 'Slug Buyer',
-        email,
-        items: [{ productoId: productA.id, cantidad: 1 }],
-      })
-      .expect(201);
-    expect(order.body.empresaId).toBe(companyA.id);
+    const { order } = await placePaidOrder(BASE, mp, prisma, {
+      slug: companyA.slug,
+      companyId: companyA.id,
+      auth: await customerOfA('store-v1-02'),
+      items: [{ productoId: productA.id, cantidad: 1 }],
+    });
+    expect(order.empresaId).toBe(companyA.id);
     const tracking = await request(BASE)
-      .get(`/${companyA.slug}/tienda/pedidos/${order.body.id}`)
+      .get(`/${companyA.slug}/tienda/pedidos/${order.id}`)
       .expect(200);
-    expect(tracking.body.id).toBe(order.body.id);
+    expect(tracking.body.id).toBe(order.id);
   });
 
   it('does not allow a product from another Business through a slug-scoped order', async () => {
     const res = await request(BASE)
-      .post(`/${companyA.slug}/tienda/pedidos`)
-      .send({
-        nombre: 'Cross Tenant',
-        email: `cross-${suffix}@example.test`,
-        items: [{ productoId: productB.id, cantidad: 1 }],
-      });
+      .post(`/${companyA.slug}/tienda/mis-pedidos`)
+      .set('Authorization', await customerOfA('cross'))
+      .send({ items: [{ productoId: productB.id, cantidad: 1 }] });
     expect(res.status).toBe(400);
     expect(res.body.message).toBe(`Producto ${productB.id} no disponible`);
   });

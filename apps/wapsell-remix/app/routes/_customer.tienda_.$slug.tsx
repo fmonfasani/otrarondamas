@@ -114,13 +114,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // OR-B4-054, fase 2b: delivery or pickup, checked again by the API (it computes the fee).
       const entrega = deliveryChoiceFrom(form.get('entrega'));
       if (entrega === 'invalid') return json({ intent, ok: false, message: 'Revisá la dirección de entrega.' }, { status: 400 });
+      // OR-B4-055: the cart closes into a checkout; the customer pays it in Mercado Pago and the
+      // store's order is born with the approved payment.
       const placed = await placeCustomerOrder(customer.jwt, slug, items, entrega ?? undefined);
-      const name = placed.numero ? `tu pedido N° ${placed.numero}` : 'tu pedido';
-      // OR-B4-053: while the store has not confirmed it, what the customer orders again joins it.
-      const message = placed.sumado
-        ? `¡Listo! Lo sumamos a ${name}, que el comercio todavía no confirmó.`
-        : `¡Recibimos ${name}! El comercio se va a comunicar para confirmar los detalles.`;
-      return json({ intent, ok: true, message });
+      return json({ intent, ok: true, message: 'Te llevamos a Mercado Pago para pagar…', pagar: placed.pagar });
     }
   } catch (error) {
     if (error instanceof ApiError) return json({ intent, ok: false, message: error.message }, { status: error.status });
@@ -151,7 +148,8 @@ export default function Store() {
     if (order.data?.intent === 'order' && order.data.ok) {
       setConfirmation(order.data.message);
       emptiedOnServer();
-      setCartOpen(false);
+      // OR-B4-055: off to pay; the order reaches the store when Mercado Pago approves it.
+      if ('pagar' in order.data && typeof order.data.pagar === 'string') window.location.assign(order.data.pagar);
     }
     // Only a new order answer matters here.
   }, [order.data]);
@@ -282,11 +280,14 @@ export default function Store() {
                     <input type="hidden" name="entrega" value={delivery.choice ? JSON.stringify(delivery.choice) : ''} />
                     <p className="checkout-as">Pedís como <strong>{customer?.nombre}</strong>. El comercio te contacta con los datos de tu cuenta.</p>
                     {order.data && !order.data.ok ? <output className="form-error">{order.data.message}</output> : null}
-                    <button className="submit-order" type="submit" disabled={order.state !== 'idle' || !delivery.ready}>
-                      {order.state === 'idle' ? `Confirmar pedido · ${formatMoney(total + delivery.fee)}` : 'Enviando pedido…'}
+                    {store.pagosOnline ? null : (
+                      <output className="form-error">Este negocio todavía no cobra online. Escribile por el chat para coordinar tu pedido.</output>
+                    )}
+                    <button className="submit-order" type="submit" disabled={order.state !== 'idle' || !delivery.ready || !store.pagosOnline}>
+                      {order.state === 'idle' ? `Pagar ${formatMoney(total + delivery.fee)} con Mercado Pago` : 'Abriendo Mercado Pago…'}
                     </button>
                     {delivery.fee > 0 ? <small>El envío ({pesos(delivery.fee)}) es todo para el repartidor.</small> : null}
-                    <small>El pedido queda sujeto a confirmación del comercio.</small>
+                    <small>El negocio recibe tu pedido cuando Mercado Pago aprueba el pago.</small>
                   </order.Form>
                 ) : (
                   <div className="checkout-form">

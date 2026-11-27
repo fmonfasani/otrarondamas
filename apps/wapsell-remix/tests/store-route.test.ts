@@ -140,3 +140,15 @@ describe('store routes', () => {
     await expect(result).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe('OR-B4-055 — back to pay a checkout after signing in', () => {
+  it('goes back only to a checkout id, never to a URL from the request', async () => {
+    const { checkoutToPay } = await import('../app/utils/store');
+    const id = '0b5c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d';
+    expect(afterSignIn('demo', `pagar:${id}`)).toBe(`/tienda/demo/pagar/${id}`);
+    expect(afterSignIn('demo', 'pagar:https://evil.test')).toBe('/tienda/demo/cuenta');
+    expect(checkoutToPay(`pagar:${id}`)).toBe(id);
+    expect(checkoutToPay('pagar:../../x')).toBeNull();
+    expect(checkoutToPay(null)).toBeNull();
+  });
+});

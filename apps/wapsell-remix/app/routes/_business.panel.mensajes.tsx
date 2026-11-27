@@ -213,7 +213,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 /** E6a — who a chat can be given to. */
 type TeamMember = { userId: string; nombre: string; rol: string };
 
-type ActionData = { ok: boolean; message?: string; orderId?: string };
+type ActionData = { ok: boolean; message?: string };
 
 export async function action({ request }: ActionFunctionArgs) {
   const token = await requireAuth(request);
@@ -304,11 +304,16 @@ export async function action({ request }: ActionFunctionArgs) {
     if (intent === 'order') {
       const conversationId = String(form.get('conversationId') ?? '');
       if (!conversationId) return json<ActionData>({ ok: false, message: 'Elegí una conversación.' }, { status: 400 });
-      const order = await apiRequest<{ id: string }>(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
+      // OR-B4-055: the customer gets the link to pay it in the chat; the order is born when paid.
+      const sent = await apiRequest<{ total: string; costoEnvio: string }>(token, `/messaging/conversations/${encodeURIComponent(conversationId)}/orders`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
-      return json<ActionData>({ ok: true, message: 'Pedido creado.', orderId: order.id });
+      const amount = Number(sent.total) + Number(sent.costoEnvio ?? 0);
+      return json<ActionData>({
+        ok: true,
+        message: `Le mandamos al cliente el link para pagar ${formatMoney(amount)}. El pedido te llega cuando paga.`,
+      });
     }
     if (intent === 'create') {
       const participantUserIds = form.getAll('userId').map(String).filter(Boolean);
@@ -1362,7 +1367,7 @@ function OrderBar({
   const order = useFetcher<ActionData>();
   const edit = useFetcher<ActionData>();
   const busy = order.state !== 'idle';
-  const created = order.state === 'idle' && order.data?.ok ? order.data.orderId : undefined;
+  const sent = order.state === 'idle' && order.data?.ok ? order.data.message : undefined;
   const units = cart.items.reduce((sum, item) => sum + item.cantidad, 0);
   return (
     <div className="ws-orderbar">
@@ -1407,15 +1412,13 @@ function OrderBar({
           </div>
         )}
       </div>
-      {created ? (
-        <Link className="ws-link" to={`/panel/pedidos/${created}`}>Pedido creado · Ver pedido</Link>
-      ) : null}
+      {sent ? <output className="ws-notice">{sent}</output> : null}
       {canCreateOrder(conversation) && cart.items.length > 0 ? (
         <order.Form method="post">
           <input type="hidden" name="intent" value="order" />
           <input type="hidden" name="conversationId" value={conversation.id} />
           <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>
-            {busy ? 'Creando…' : 'Crear pedido'}
+            {busy ? 'Enviando…' : 'Mandar para pagar'}
           </button>
         </order.Form>
       ) : null}

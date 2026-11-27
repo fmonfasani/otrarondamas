@@ -211,10 +211,13 @@ describe('messages route', () => {
     await expect(response.json()).resolves.toEqual({ ok: false, message: 'Uno o más Users no pertenecen al Business' });
   });
 
-  it('creates the order from the customer cart and returns its id', async () => {
-    api.mockResolvedValueOnce(ok({ id: 'pedido-9' }));
+  it('sends the customer the link to pay the order built in the chat (OR-B4-055)', async () => {
+    api.mockResolvedValueOnce(ok({ checkoutId: 'chk-9', total: '12400', costoEnvio: '4000', pagar: 'https://app.test/tienda/x/pagar/chk-9' }));
     const response = await post([['intent', 'order'], ['conversationId', 'conv-1']]);
-    await expect(response.json()).resolves.toEqual({ ok: true, message: 'Pedido creado.', orderId: 'pedido-9' });
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      message: expect.stringMatching(/^Le mandamos al cliente el link para pagar \$\s16\.400,00\. El pedido te llega cuando paga\.$/),
+    });
     const [url, init] = api.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('http://api.test/messaging/conversations/conv-1/orders');
     expect(init.method).toBe('POST');

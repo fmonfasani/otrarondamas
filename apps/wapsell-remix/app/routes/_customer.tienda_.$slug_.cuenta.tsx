@@ -13,7 +13,7 @@ import {
   type CustomerPurchase,
 } from '~/services/store.server';
 import { returnState } from '~/utils/returns';
-import { PAYMENT_RETURN, paymentOf } from '~/utils/store';
+import { PAYMENT_RETURN, checkoutToPay, paymentOf } from '~/utils/store';
 import { formatDateTime, formatMoney, orderState } from '~/utils/format';
 
 /**
@@ -67,6 +67,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export function afterSignIn(slug: string, volver: string | null) {
   if (volver === 'carrito') return `/tienda/${slug}?carrito=1`;
   if (volver === 'chat') return `/tienda/${slug}/chat`;
+  // OR-B4-055: the link to pay a checkout (sent in the chat) asked to sign in first.
+  const checkout = checkoutToPay(volver);
+  if (checkout) return `/tienda/${slug}/pagar/${checkout}`;
   return `/tienda/${slug}/cuenta`;
 }
 
@@ -148,7 +151,7 @@ function SignIn({
   const [params] = useSearchParams();
   const busy = navigation.state !== 'idle';
   const volver = params.get('volver') ?? '';
-  const back = volver === 'carrito' || volver === 'chat' ? `?volver=${volver}` : '';
+  const back = volver === 'carrito' || volver === 'chat' || checkoutToPay(volver) ? `?volver=${volver}` : '';
 
   return (
     <>
@@ -243,6 +246,8 @@ function Orders({
   const navigation = useNavigation();
   const [params] = useSearchParams();
   const returned = PAYMENT_RETURN[params.get('pago') ?? ''];
+  // OR-B4-055: a checkout not paid yet can be paid again from here.
+  const retry = returned && params.get('pago') !== 'aprobado' ? checkoutToPay(`pagar:${params.get('checkout') ?? ''}`) : null;
   return (
     <>
       <div className="account-intro account-intro--row">
@@ -258,6 +263,11 @@ function Orders({
       </div>
       <h2 className="account-subtitle">Mis pedidos</h2>
       {returned ? <output className={returned.ok ? 'form-success' : 'form-error'}>{returned.text}</output> : null}
+      {retry ? (
+        <a className="submit-order submit-order--link" href={`/tienda/${slug}/pagar/${retry}`}>
+          Intentar de nuevo con Mercado Pago
+        </a>
+      ) : null}
       {result?.intent === 'pay' ? <output className="form-error">{result.message}</output> : null}
       {error ? <output className="form-error">{error}</output> : null}
       {!error && orders.length === 0 ? (

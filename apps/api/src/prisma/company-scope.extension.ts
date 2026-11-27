@@ -28,6 +28,7 @@ export const MODELS_WITH_COMPANY_ID = [
   'Deuda',
   'Venta',
   'Pedido',
+  'CheckoutPedido',
   'Pago',
   'Caja',
   'Proveedor',
