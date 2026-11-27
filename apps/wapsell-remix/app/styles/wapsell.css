@@ -595,3 +595,22 @@
 .ws-business:hover { border-color: var(--text-primary); }
 .ws-business span { font-size: 12px; color: var(--text-secondary, #77736d); }
 .ws-link-button { border: 0; padding: 0; background: none; color: var(--text-primary); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+/* ------------------------------------------------------------ Login por rol: «¿Cómo querés entrar?» */
+.ws-entrar { display: grid; gap: 16px; width: 100%; max-width: 460px; }
+.ws-entrar h1 { margin: 0 0 4px; font-size: 26px; line-height: 1.2; letter-spacing: -0.01em; }
+.ws-entrar__card { display: grid; grid-template-columns: auto 1fr; gap: 14px; padding: 18px; border: 1px solid #e8e4dc; border-radius: 16px; background: #fff; }
+.ws-entrar__card h2 { margin: 0; font-size: 17px; }
+.ws-entrar__card p { margin: 4px 0 12px; color: #615c55; font-size: 14px; line-height: 1.45; }
+.ws-entrar__card form { display: grid; gap: 8px; justify-items: start; }
+.ws-entrar__icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; background: #f1eee8; color: #211f1b; }
+.ws-entrar__icon--cliente { background: #d97757; color: #fff; }
+.ws-entrar__confirm { display: grid; gap: 10px; }
+.ws-entrar__confirm .ws-meta, .ws-entrar small.ws-meta { color: #77736d; font-size: 13px; }
+.ws-entrar__row { display: flex !important; flex-wrap: wrap; gap: 8px; width: 100%; }
+.ws-entrar__row input { flex: 1; min-width: 180px; padding: 10px 12px; border: 1px solid #e2ded6; border-radius: 10px; font: inherit; }
+.ws-entrar .ws-button { width: auto; }
+.ws-entrar .ws-link { padding: 0; border: 0; background: none; color: #615c55; font: inherit; font-size: 13px; cursor: pointer; }
+.ws-entrar .ws-notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: #e6f4ea; color: #1b5e30; font-size: 13px; }
+.ws-entrar__foot { justify-self: center; }
+.ws-entrar .ws-button--outline { border: 1px solid #211f1b; background: transparent; color: #211f1b; }

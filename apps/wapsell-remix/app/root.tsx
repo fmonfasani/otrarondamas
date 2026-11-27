@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
 } from "@remix-run/react";
 import { useEffect } from "react";
 import styles from "./app.css?url";
@@ -22,11 +23,19 @@ export const links: LinksFunction = () => [
   { rel: "stylesheet", href: wapsellStyles },
   // Paquete 2: the chat's one look, for the store and the panel.
   { rel: "stylesheet", href: chatStyles },
-  // Installable app (PWA): manifest and icons.
-  { rel: "manifest", href: "/manifest.webmanifest" },
-  { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },
-  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
 ];
+
+/**
+ * Login por rol (Owner, 2026-11-26): two installable apps from the same site. «Wapsell Negocios»
+ * (the panel; keeps the original manifest, so installs already made stay the same) and «Wapsell»
+ * (the customer: stores and their purchases, orange icon).
+ */
+function appOf(pathname: string) {
+  const business = pathname.startsWith("/panel");
+  return business
+    ? { manifest: "/manifest.webmanifest", icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png", title: "Wapsell Negocios" }
+    : { manifest: "/manifest-cliente.webmanifest", icon: "/icons/cliente-192.png", apple: "/icons/cliente-apple-touch-icon.png", title: "Wapsell" };
+}
 
 /** Registers the service worker that makes Wapsell installable (production only; see public/sw.js). */
 function useServiceWorker() {
@@ -40,6 +49,7 @@ function useServiceWorker() {
 
 export default function App() {
   useServiceWorker();
+  const app = appOf(useLocation().pathname);
   return (
     <html lang="es">
       <head>
@@ -47,7 +57,10 @@ export default function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#faf9f5" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Wapsell" />
+        <meta name="apple-mobile-web-app-title" content={app.title} />
+        <link rel="manifest" href={app.manifest} />
+        <link rel="icon" type="image/png" sizes="192x192" href={app.icon} />
+        <link rel="apple-touch-icon" href={app.apple} />
         <Meta />
         <Links />
       </head>

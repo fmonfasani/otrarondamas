@@ -118,6 +118,10 @@ export function AppShell({
               <Link to={`/panel/mi-legajo`} className="ws-panel__menu-link">
                 Mi legajo
               </Link>
+              {/* Login por rol: the same person, as a customer of every store. */}
+              <Link to="/entrar?como=cliente" className="ws-panel__menu-link">
+                Comprar en Wapsell
+              </Link>
               <Form method="post" action="/logout">
                 <button type="submit">
                   <LogOut size={16} aria-hidden="true" /> Cerrar sesión

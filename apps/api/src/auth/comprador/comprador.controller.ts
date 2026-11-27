@@ -15,6 +15,12 @@ import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 import { Public } from '../decorators/public.decorator';
 import { BuyerGoogleStartGuard } from '../guards/store-google-start.guard';
 import { CompradorService } from './comprador.service';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth.types';
+import {
+  AUTHENTICATED,
+  CanonicalPermission,
+} from '../../authorization/canonical-permission.decorator';
 
 /* eslint-disable indent */
 export class BuyerSignupDto {
@@ -30,6 +36,11 @@ export class BuyerLoginDto {
 
 export class BuyerVerifyDto {
   @IsString() @MinLength(10) @MaxLength(200) token: string;
+}
+
+/** Login por rol: the customer account's password, to join it to the work account. */
+export class LinkPasswordDto {
+  @IsString() @MinLength(1) @MaxLength(200) password: string;
 }
 /* eslint-enable indent */
 
@@ -89,6 +100,52 @@ export class CompradorController {
   @Get('me')
   me(@Headers('authorization') authorization?: string) {
     return this.buyers.fromSession(bearer(authorization));
+  }
+
+  /**
+   * Login por rol (Owner, 2026-11-26) — the work account and the customer account of the same
+   * person: how they stand, and joining them once (password, one click, or an emailed link).
+   * Work sessions only (the global guard checks the staff token; the service refuses others).
+   */
+  @CanonicalPermission(AUTHENTICATED)
+  @Get('vinculo')
+  linkStatus(@CurrentUser() user: AuthenticatedUser) {
+    return this.buyers.linkStatus(user);
+  }
+
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('vinculo/entrar')
+  @HttpCode(HttpStatus.OK)
+  enterAsBuyer(@CurrentUser() user: AuthenticatedUser) {
+    return this.buyers.enterAsBuyer(user);
+  }
+
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('vinculo/clave')
+  @HttpCode(HttpStatus.OK)
+  linkWithPassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: LinkPasswordDto) {
+    return this.buyers.linkWithPassword(user, dto.password);
+  }
+
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('vinculo/crear')
+  @HttpCode(HttpStatus.OK)
+  linkCreate(@CurrentUser() user: AuthenticatedUser) {
+    return this.buyers.linkCreate(user);
+  }
+
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('vinculo/mail')
+  @HttpCode(HttpStatus.OK)
+  linkByEmail(@CurrentUser() user: AuthenticatedUser) {
+    return this.buyers.linkByEmail(user);
+  }
+
+  @CanonicalPermission(AUTHENTICATED)
+  @Post('vinculo/confirmar')
+  @HttpCode(HttpStatus.OK)
+  linkWithToken(@CurrentUser() user: AuthenticatedUser, @Body() dto: BuyerVerifyDto) {
+    return this.buyers.linkWithToken(user, dto.token);
   }
 
   @Public()

@@ -1,10 +1,10 @@
 {
   "id": "/es/dashboard",
-  "name": "Wapsell",
-  "short_name": "Wapsell",
+  "name": "Wapsell Negocios",
+  "short_name": "Negocios",
   "description": "El panel de tu negocio: pedidos, ventas, caja y mensajes.",
   "lang": "es",
-  "start_url": "/es/auth/login?source=pwa",
+  "start_url": "/panel?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

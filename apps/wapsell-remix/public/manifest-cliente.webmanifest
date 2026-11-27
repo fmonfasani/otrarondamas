@@ -1,0 +1,50 @@
+{
+  "id": "/cliente",
+  "name": "Wapsell",
+  "short_name": "Wapsell",
+  "description": "Comprá en los negocios de tu barrio: tiendas, ofertas y chat con cada negocio.",
+  "lang": "es",
+  "start_url": "/cuenta?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf9f5",
+  "theme_color": "#d97757",
+  "categories": [
+    "shopping",
+    "food",
+    "lifestyle"
+  ],
+  "icons": [
+    {
+      "src": "/icons/cliente-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/cliente-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/cliente-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis tiendas",
+      "url": "/cuenta",
+      "icons": [
+        {
+          "src": "/icons/cliente-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
