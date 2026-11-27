@@ -10,6 +10,8 @@ export type Business = {
   descripcion: string;
   /** OR-B4-046 rule 3: hide published products without stock instead of showing «Sin stock». */
   ocultarSinStock: boolean;
+  /** Marketplace: the store shows in Wapsell's explorer. */
+  enExplorador: boolean;
   puedeEditar: boolean;
   /** OR-B4-051 rule 1: the counter's discount for paying the whole sale in cash / by transfer. */
   descuentoEfectivo?: number;
@@ -76,6 +78,7 @@ export function businessFrom(
   const data: Record<string, string | boolean> = { nombre };
   for (const f of CONTACT_FIELDS) data[f.name] = String(form.get(f.name) ?? '').trim().slice(0, f.max);
   data.ocultarSinStock = form.get('ocultarSinStock') === 'true';
+  data.enExplorador = form.get('enExplorador') === 'true';
   return { ok: true, data };
 }
 

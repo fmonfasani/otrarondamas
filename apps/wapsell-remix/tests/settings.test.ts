@@ -23,7 +23,8 @@ describe('Mi perfil and Ajustes helpers', () => {
   it('reads the Business form', () => {
     expect(businessFrom(formOf([['nombre', ' Almacén Ronda '], ['telefono', ' 11 5555 '], ['direccion', '']]))).toEqual({
       ok: true,
-      data: { nombre: 'Almacén Ronda', telefono: '11 5555', direccion: '', horario: '', descripcion: '', ocultarSinStock: false },
+      // Marketplace: an unchecked «Aparecer en el explorador» reads as off.
+      data: { nombre: 'Almacén Ronda', telefono: '11 5555', direccion: '', horario: '', descripcion: '', ocultarSinStock: false, enExplorador: false },
     });
     expect(businessFrom(formOf([['nombre', 'A']]))).toMatchObject({ ok: false });
   });

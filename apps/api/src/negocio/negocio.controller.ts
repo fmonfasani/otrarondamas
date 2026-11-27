@@ -51,6 +51,11 @@ export class UpdateNegocioDto {
   @IsOptional()
   @IsBoolean()
   ocultarSinStock?: boolean;
+
+  // Marketplace: show the store in Wapsell's explorer (on by default).
+  @IsOptional()
+  @IsBoolean()
+  enExplorador?: boolean;
 }
 /* eslint-enable indent */
 

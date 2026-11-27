@@ -29,7 +29,8 @@ describe('after the work key', () => {
 describe('a customer home', () => {
   it('only the stores or the account', () => {
     expect(buyerHome('/tienda/x')).toBe('/tienda/x');
-    expect(buyerHome('/panel')).toBe('/cuenta');
-    expect(buyerHome(null)).toBe('/cuenta');
+    expect(buyerHome('/explorar?rubro=Almac%C3%A9n')).toBe('/explorar?rubro=Almac%C3%A9n');
+    expect(buyerHome('/panel')).toBe('/explorar');
+    expect(buyerHome(null)).toBe('/explorar');
   });
 });

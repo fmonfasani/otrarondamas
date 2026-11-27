@@ -4,7 +4,7 @@
   "short_name": "Wapsell",
   "description": "Comprá en los negocios de tu barrio: tiendas, ofertas y chat con cada negocio.",
   "lang": "es",
-  "start_url": "/cuenta?source=pwa",
+  "start_url": "/explorar?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -36,6 +36,16 @@
     }
   ],
   "shortcuts": [
+    {
+      "name": "Explorar",
+      "url": "/explorar",
+      "icons": [
+        {
+          "src": "/icons/cliente-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
     {
       "name": "Mis tiendas",
       "url": "/cuenta",

@@ -17,12 +17,12 @@ import {
 } from '~/services/auth.server';
 import { deviceFrom } from '~/services/mfa.server';
 import { buyerApi, buyerSignInCookie, type BuyerLogin } from '~/services/buyer-session.server';
-import { workDestination } from '~/utils/entrada';
+import { buyerHome, workDestination } from '~/utils/entrada';
 
 /** Where a buyer may be sent after signing in: their home or a store, nothing else. */
 function buyerDestination(redirectTo: string | null) {
-  const path = safeRedirectPath(redirectTo, '/cuenta');
-  return path === '/cuenta' || path.startsWith('/cuenta?') || path.startsWith('/tienda/') ? path : '/cuenta';
+  // Marketplace: a customer lands in «Explorar» unless they were going to a store or their account.
+  return buyerHome(safeRedirectPath(redirectTo, '/explorar'));
 }
 
 export const meta: MetaFunction = () => [{ title: 'Ingresar · Wapsell' }];
