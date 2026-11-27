@@ -55,3 +55,37 @@ export function deliveryMessage(s: DeliverySettings) {
   if (!s.envio) return 'Listo: tus clientes retiran los pedidos en el local.';
   return `Listo: enviás hasta ${s.radioKm} km (${feeExample(s)})${s.retiro ? ', y también se puede retirar en el local' : ''}.`;
 }
+
+/** OR-B4-054, fase 2b — the store's answer for a point: the fee, or why there is no delivery. */
+export type DeliveryQuote =
+  | { disponible: true; km: number; kmCobrados: number; base: number; porKm: number; costo: number }
+  | { disponible: false; motivo: string; km?: number };
+export type DeliveryQuoteAnswer = { retiro: boolean; envio: DeliveryQuote };
+
+/** An address saved in the customer's Wapsell account. */
+export type SavedAddress = { id: string; etiqueta: string; direccion: string; indicaciones: string | null; lat: number; lng: number };
+
+/** How the customer receives the order, as the store page sends it. */
+export type DeliveryChoice =
+  | { tipo: 'RETIRO' }
+  | { tipo: 'ENVIO'; direccion: string; indicaciones?: string; lat: number; lng: number };
+
+/** «2,1 km». */
+export const kmLabel = (km: number) => `${String(Math.round(km * 10) / 10).replace('.', ',')} km`;
+
+/** The choice the cart sent (hidden field `entrega`), checked before it goes to the API. */
+export function deliveryChoiceFrom(raw: FormDataEntryValue | null): DeliveryChoice | null | 'invalid' {
+  if (typeof raw !== 'string' || raw === '') return null;
+  try {
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    if (value.tipo === 'RETIRO') return { tipo: 'RETIRO' };
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    const direccion = typeof value.direccion === 'string' ? value.direccion.trim() : '';
+    if (value.tipo !== 'ENVIO' || !Number.isFinite(lat) || !Number.isFinite(lng) || direccion.length < 3) return 'invalid';
+    const indicaciones = typeof value.indicaciones === 'string' ? value.indicaciones.trim().slice(0, 200) : '';
+    return { tipo: 'ENVIO', direccion: direccion.slice(0, 200), lat, lng, ...(indicaciones ? { indicaciones } : {}) };
+  } catch {
+    return 'invalid';
+  }
+}

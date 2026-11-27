@@ -1049,27 +1049,37 @@ model PagoProveedor {
 }
 
 model Pedido {
-  id             String         @id @default(uuid())
-  empresaId      String
-  clienteId      String
-  usuarioId      String?
-  estado         EstadoPedido   @default(RECIBIDO)
-  canalOrigen    String
-  total          Decimal        @db.Decimal(18, 2)
-  descuento      Decimal        @default(0) @db.Decimal(18, 2)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  idempotencyKey String?
+  id                  String         @id @default(uuid())
+  empresaId           String
+  clienteId           String
+  usuarioId           String?
+  estado              EstadoPedido   @default(RECIBIDO)
+  canalOrigen         String
+  total               Decimal        @db.Decimal(18, 2)
+  descuento           Decimal        @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  idempotencyKey      String?
   /// OR-B4-053: N° per business (1, 2, 3…). The database assigns it on insert (trigger
   /// «Pedido_numerar»); never set it by hand.
-  numero         Int?
-  Entrega        Entrega?
-  Notificacion   Notificacion[]
-  Pago           Pago[]
-  Cliente        Cliente        @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
-  Empresa        Empresa        @relation(fields: [empresaId], references: [id])
-  Usuario        Usuario?       @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
-  PedidoItem     PedidoItem[]
+  numero              Int?
+  /// OR-B4-054, fase 2b: how the customer receives it (null on orders placed before).
+  tipoEntrega         TipoEntrega?
+  /// Where to deliver: the address, the courier's notes and the pin, as the customer confirmed them.
+  direccionEntrega    String?
+  indicacionesEntrega String?
+  latEntrega          Float?
+  lngEntrega          Float?
+  /// Straight-line km from the store, and the fee: all the courier's, apart from `total`.
+  kmEntrega           Float?
+  costoEnvio          Decimal        @default(0) @db.Decimal(18, 2)
+  Entrega             Entrega?
+  Notificacion        Notificacion[]
+  Pago                Pago[]
+  Cliente             Cliente        @relation(fields: [clienteId, empresaId], references: [id, empresaId], onDelete: Restrict, onUpdate: Restrict)
+  Empresa             Empresa        @relation(fields: [empresaId], references: [id])
+  Usuario             Usuario?       @relation(fields: [empresaId, usuarioId], references: [empresaId, id], onDelete: Restrict, onUpdate: Restrict)
+  PedidoItem          PedidoItem[]
 
   @@unique([empresaId, id])
   @@unique([empresaId, numero])
@@ -1758,6 +1768,12 @@ enum EstadoPago {
   REEMBOLSADO_TOTAL
 }
 
+/// OR-B4-054: delivered by the store's courier, or picked up at the store.
+enum TipoEntrega {
+  RETIRO
+  ENVIO
+}
+
 enum EstadoPedido {
   RECIBIDO
   CONFIRMADO
@@ -2237,24 +2253,43 @@ model MfaFactor {
 /// ADR-IDN-001/011 — universal buyer: one Wapsell account to buy in any business. Global
 /// identity (no tenant field, like User). Each business keeps its own Cliente linked to it.
 model Comprador {
-  id                String              @id @default(uuid())
-  email             String              @unique
+  id                String               @id @default(uuid())
+  email             String               @unique
   nombre            String
   passwordHash      String?
-  googleId          String?             @unique
+  googleId          String?              @unique
   fotoUrl           String?
   emailVerificadoAt DateTime?
-  activo            Boolean             @default(true)
+  activo            Boolean              @default(true)
   /// Login por rol (Owner, 2026-11-26): the same person's work account, joined once by email
   /// (confirmed with this account's password or an email link). With it, one login offers
   /// «comprar» or «trabajar». The buyer session never opens the panel.
-  userId            String?             @unique
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  User              User?               @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  userId            String?              @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  User              User?                @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   Clientes          Cliente[]
   Tokens            CompradorToken[]
   Favoritos         CompradorFavorito[]
+  Direcciones       CompradorDireccion[]
+}
+
+/// OR-B4-054, fase 2b — the addresses a buyer saved («Casa», «Trabajo») to receive orders, in
+/// any store. The buyer's own list: no business column (read and written only for the buyer,
+/// through the system client, like the favorites). The point is the pin the buyer confirmed.
+model CompradorDireccion {
+  id           String    @id @default(uuid())
+  compradorId  String
+  etiqueta     String
+  direccion    String
+  indicaciones String?
+  lat          Float
+  lng          Float
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Comprador    Comprador @relation(fields: [compradorId], references: [id], onDelete: Cascade)
+
+  @@index([compradorId])
 }
 
 /// Marketplace, step 3b (Owner, 2026-11-26) — the products a buyer marked with ♥, across every

@@ -23,6 +23,21 @@ import { bestLinePrice } from '../offers/best-price';
 type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
 type CompanyScopedTx = Parameters<Parameters<CompanyScopedClient['$transaction']>[0]>[0];
 
+/**
+ * OR-B4-054, fase 2b — how the customer receives the order, already checked against the store
+ * (pickup offered; delivery inside the radius, fee computed by the server). The fee is all the
+ * courier's and stays apart from `total`, which is still what the products cost.
+ */
+export type OrderDelivery = {
+  tipoEntrega: 'RETIRO' | 'ENVIO';
+  direccionEntrega: string | null;
+  indicacionesEntrega: string | null;
+  latEntrega: number | null;
+  lngEntrega: number | null;
+  kmEntrega: number | null;
+  costoEnvio: number;
+};
+
 /** An order's total from its lines: unit price x quantity, less the line's loyalty %. */
 export function orderTotal(
   lines: Array<{
@@ -163,7 +178,7 @@ export class StoreService {
     companyId?: string,
     channelOrigen = 'web',
     idempotencyKey?: string,
-    { catalogOnly = true }: { catalogOnly?: boolean } = {},
+    { catalogOnly = true, delivery }: { catalogOnly?: boolean; delivery?: OrderDelivery } = {},
   ) {
     const resolvedCompanyId = this.companyId(companyId);
     const db = this.prismaFactory.forCompany(resolvedCompanyId);
@@ -359,9 +374,10 @@ export class StoreService {
           }
         }
         const lines = await tx.pedidoItem.findMany({ where: { pedidoId: openOrder.id } });
+        // The customer's latest choice of delivery or pickup is the order's (one fee per order).
         return tx.pedido.update({
           where: { id: openOrder.id },
-          data: { total: orderTotal(lines) },
+          data: { total: orderTotal(lines), ...delivery },
           include: { PedidoItem: true },
         });
       }
@@ -378,6 +394,7 @@ export class StoreService {
           canalOrigen: channelOrigen,
           total: orderTotal(itemsWithPrice),
           idempotencyKey: idempotencyKey ?? null,
+          ...delivery,
           PedidoItem: {
             create: itemsWithPrice.map((item) => ({
               productoId: item.productoId,
@@ -451,7 +468,12 @@ export class StoreService {
    * (catalog prices, stock check, loyalty); the contact data is the customer's own, so
    * the order is filed under their account and nobody can order in their name.
    */
-  async createCustomerOrder(customerId: string, items: CreateOrderDto['items'], companyId: string) {
+  async createCustomerOrder(
+    customerId: string,
+    items: CreateOrderDto['items'],
+    companyId: string,
+    delivery?: OrderDelivery,
+  ) {
     const db = this.prismaFactory.forCompany(companyId);
     const customer = await db.cliente.findFirst({
       where: { id: customerId },
@@ -472,7 +494,7 @@ export class StoreService {
       'web',
       undefined,
       // Products shared in the chat can be ordered even when they are not in the Catálogo.
-      { catalogOnly: false },
+      { catalogOnly: false, delivery },
     );
   }
 
@@ -495,6 +517,10 @@ export class StoreService {
       total: order.total,
       // OR-B4-032: approved payments so far; the store offers to pay the rest once confirmed.
       pagado: order.Pago.reduce((sum, pago) => sum + Number(pago.monto), 0).toFixed(2),
+      // OR-B4-054: delivery or pickup, and the courier's fee (apart from the products).
+      tipoEntrega: order.tipoEntrega,
+      direccionEntrega: order.direccionEntrega,
+      costoEnvio: order.costoEnvio,
       createdAt: order.createdAt,
       items: order.PedidoItem.map((i) => ({
         producto: i.Producto.nombre,
