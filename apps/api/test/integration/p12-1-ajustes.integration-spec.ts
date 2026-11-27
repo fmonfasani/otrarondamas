@@ -187,6 +187,8 @@ describe('P12-1 — mi perfil y ajustes del negocio', () => {
       // OR-B4-051 (stage C4): the payment-method discounts ride along too, unchanged unless set.
       descuentoEfectivo: 0,
       descuentoTransferencia: 0,
+      // Marketplace step 2 (#282): stores appear in Wapsell's explorer unless the Owner turns it off.
+      enExplorador: true,
       puedeEditar: true,
       puedeEditarPrecios: true,
     });
