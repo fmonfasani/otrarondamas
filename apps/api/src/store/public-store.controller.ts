@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -32,6 +33,8 @@ import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-a
 import { MercadoPagoCheckoutService } from '../payments/mercadopago/mercadopago-checkout.service';
 import { DevolucionesService } from '../devoluciones/devoluciones.service';
 import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
+import { deliveryOf, deliveryQuote } from '../negocio/envio';
+import { insideArgentina, locationOf } from '../negocio/ubicacion';
 import { CustomerReturnDto } from '../devoluciones/dto';
 
 /**
@@ -191,6 +194,34 @@ export class PublicStoreController {
   @Get('jerarquia')
   async hierarchy(@Param('businessSlug') businessSlug: string) {
     return this.storeService.hierarchy(await this.companyId(businessSlug));
+  }
+
+  /**
+   * GET /:slug/tienda/envio?lat=&lng= — OR-B4-054: what a delivery to that point costs (or why
+   * there is none), and whether the store offers pickup. Only the fee and the kilometres leave:
+   * never the store's point (a store that shows only its zone is measured from that zone).
+   */
+  @Public()
+  @Get('envio')
+  async deliveryQuote(
+    @Param('businessSlug') businessSlug: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+  ) {
+    const point = { lat: Number(lat), lng: Number(lng) };
+    if (!insideArgentina(point.lat, point.lng)) {
+      throw new BadRequestException('Ese punto no está en Argentina.');
+    }
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: await this.companyId(businessSlug) },
+      select: { configuracion: true },
+    });
+    const configuracion = business?.configuracion ?? null;
+    const settings = deliveryOf(configuracion);
+    return {
+      retiro: settings.retiro,
+      envio: deliveryQuote(locationOf(configuracion), settings, point),
+    };
   }
 
   @Public()

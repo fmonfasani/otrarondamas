@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -22,6 +21,7 @@ import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 import { NegocioService } from './negocio.service';
 import { GeorefService } from './georef.service';
 import { insideArgentina } from './ubicacion';
+import { ownerContext, teamContext } from './team-context';
 
 /* eslint-disable indent */
 export class FindLocationDto {
@@ -73,28 +73,19 @@ export class UbicacionController {
     private readonly businessContext: BusinessContextService,
   ) {}
 
-  private async context(user: AuthenticatedUser) {
-    const context = await this.businessContext.resolveForAuthenticatedUser(user);
-    if (!context.role) throw new ForbiddenException('Solo el equipo del negocio');
-    return {
-      role: context.role,
-      companyId: await this.businessContext.resolveCompanyId(context.businessId),
-    };
-  }
-
-  private async owner(user: AuthenticatedUser) {
-    const context = await this.context(user);
-    if (!hasCanonicalPermission(context.role, 'BRAND_MANAGE')) {
-      throw new ForbiddenException('Solo el Owner cambia la ubicación del negocio');
-    }
-    return context;
+  private owner(user: AuthenticatedUser) {
+    return ownerContext(
+      this.businessContext,
+      user,
+      'Solo el Owner cambia la ubicación del negocio',
+    );
   }
 
   @CanonicalPermission(AUTHENTICATED)
   @Get()
   @ApiOperation({ summary: 'The store on the map, and the address to search it from' })
   async get(@CurrentUser() user: AuthenticatedUser) {
-    const { companyId, role } = await this.context(user);
+    const { companyId, role } = await teamContext(this.businessContext, user);
     return {
       ...(await this.negocio.location(companyId)),
       puedeEditar: hasCanonicalPermission(role, 'BRAND_MANAGE'),

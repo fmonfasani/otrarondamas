@@ -26,3 +26,8 @@
 .ws-location__confirm { display: grid; gap: 12px; }
 .ws-location__privacy { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .ws-location__privacy legend { margin-bottom: 6px; font-weight: 700; }
+/* OR-B4-054 — Envíos y retiro, in Ajustes. */
+.ws-envios { display: grid; gap: 14px; }
+.ws-envios__options { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.ws-envios__fields { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); align-items: end; }
+.ws-envios__fields[hidden] { display: none; }

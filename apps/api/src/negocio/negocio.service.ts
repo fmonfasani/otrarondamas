@@ -1,9 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { recordAudit } from '../auditoria/audit-catalog';
 import { pricingSettingsOf, type PricingSettings } from './pricing-settings';
 import { locationOf, type StoreLocation } from './ubicacion';
+import { deliveryOf, WAPSELL_DELIVERY, type DeliverySettings } from './envio';
 
 /** What a customer can see of the Business: kept in Empresa.configuracion.negocio. */
 export type BusinessContact = {
@@ -202,6 +208,62 @@ export class NegocioService {
         despues: after,
       });
       return { ubicacion: after };
+    });
+  }
+
+  /** OR-B4-054 — the store's delivery and pickup, and whether its pin is on the map. */
+  async delivery(companyId: string) {
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: companyId },
+      select: { configuracion: true },
+    });
+    if (!business) throw new NotFoundException('Negocio no encontrado');
+    return {
+      envios: deliveryOf(business.configuracion),
+      ubicacionConfirmada: locationOf(business.configuracion) !== null,
+      minimos: WAPSELL_DELIVERY,
+    };
+  }
+
+  /**
+   * The Owner sets delivery and pickup. Delivery needs the store's pin (the fee is measured from
+   * it) and never costs less than Wapsell's fee. Audited.
+   */
+  async setDelivery(companyId: string, userId: string, data: DeliverySettings) {
+    if (!data.envio && !data.retiro) {
+      throw new BadRequestException('Ofrecé envío, retiro en el local o los dos.');
+    }
+    if (data.base < WAPSELL_DELIVERY.base || data.porKm < WAPSELL_DELIVERY.porKm) {
+      throw new BadRequestException(
+        'El envío no puede costar menos que el de Wapsell: $ 2.500 más $ 500 por km.',
+      );
+    }
+    return await this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUnique({
+        where: { id: companyId },
+        select: { configuracion: true },
+      });
+      if (!business) throw new NotFoundException('Negocio no encontrado');
+      if (data.envio && !locationOf(business.configuracion)) {
+        throw new BadRequestException(
+          'Para hacer envíos, primero marcá tu negocio en el mapa: el envío se mide desde ahí.',
+        );
+      }
+      const before = deliveryOf(business.configuracion);
+      const after = deliveryOf({ envios: data });
+      const config = (business.configuracion ?? {}) as Record<string, unknown>;
+      await tx.empresa.update({
+        where: { id: companyId },
+        data: { configuracion: { ...config, envios: after } as Prisma.InputJsonValue },
+      });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'NEGOCIO_ENVIOS',
+        entidad: 'Empresa',
+        entidadId: companyId,
+        antes: before,
+        despues: after,
+      });
+      return { envios: after };
     });
   }
 }

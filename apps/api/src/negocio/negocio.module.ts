@@ -5,13 +5,14 @@ import { BusinessContextModule } from '../business-context/business-context.modu
 import { NegocioController } from './negocio.controller';
 import { NegocioService } from './negocio.service';
 import { UbicacionController } from './ubicacion.controller';
+import { EnviosController } from './envios.controller';
 import { GeorefService } from './georef.service';
 
 /* eslint-disable indent */
 
 @Module({
   imports: [PrismaModule, AuthModule, BusinessContextModule],
-  controllers: [NegocioController, UbicacionController],
+  controllers: [NegocioController, UbicacionController, EnviosController],
   providers: [NegocioService, GeorefService],
 })
 export class NegocioModule {}
