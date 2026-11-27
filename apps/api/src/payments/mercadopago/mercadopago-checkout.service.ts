@@ -12,7 +12,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { EstadoPago, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MercadoPagoAccountService } from './mercadopago-account.service';
@@ -97,7 +97,7 @@ async function retryOnConflict<T>(run: () => Promise<T>, attempts = 4): Promise<
       const conflict =
         error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
       if (!conflict || attempt >= attempts) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 20 * attempt + Math.random() * 30));
+      await new Promise((resolve) => setTimeout(resolve, 20 * attempt + randomInt(30)));
     }
   }
 }
