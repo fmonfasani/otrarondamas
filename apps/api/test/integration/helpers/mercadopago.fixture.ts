@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import request from 'supertest';
 import { encryptSecret } from '../../../src/payments/mercadopago/mercadopago-crypto';
@@ -73,7 +73,7 @@ export class FakeMercadoPago {
 
   /** The store's Mercado Pago account, as the OAuth callback stores it. */
   async connect(prisma: PrismaService, companyId: string) {
-    const userId = 990000 + Math.floor(Math.random() * 9000) + this.accounts.size;
+    const userId = 990000 + randomInt(9000) + this.accounts.size;
     this.accounts.set(companyId, userId);
     const business = await prisma.empresa.findUniqueOrThrow({
       where: { id: companyId },
