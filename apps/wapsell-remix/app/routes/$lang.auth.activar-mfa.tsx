@@ -17,6 +17,8 @@ import {
 } from '@remix-run/react';
 import QRCode from 'qrcode';
 import { AuthShell } from '~/components/auth/AuthShell';
+import { guardedClientAction, useRetryOnCut } from '~/utils/connection';
+import { CutNotice } from '~/components/auth/CutNotice';
 import { RecoveryCodes } from '~/components/auth/RecoveryCodes';
 import { commitApiSession, commitSession, getSession, sessionFrom } from '~/services/auth.server';
 import { ApiError } from '~/services/api.server';
@@ -105,12 +107,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 }
 
+/** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
+export const clientAction = guardedClientAction<typeof action>();
+
 export default function EnrolMfa() {
   const { qr, clave } = useLoaderData<typeof loader>();
-  const result = useActionData<typeof action>();
+  const result = useActionData<typeof clientAction>();
   const busy = useNavigation().state !== 'idle';
   const { lang = 'es' } = useParams();
   const [showKey, setShowKey] = useState(false);
+  const retry = useRetryOnCut(result);
 
   if (result && 'codes' in result) {
     return (
@@ -161,7 +167,7 @@ export default function EnrolMfa() {
         </li>
         <li>Escribí el código de 6 números que aparece en la app.</li>
       </ol>
-      <Form method="post" className="ws-form">
+      <Form method="post" className="ws-form" ref={retry.form} onSubmit={retry.onSubmit}>
         <label className="ws-field">
           <span className="ws-field__label">Código de la app</span>
           <span className="ws-field__control">
@@ -185,6 +191,7 @@ export default function EnrolMfa() {
             Recordar este dispositivo 30 días
           </label>
         </div>
+        <CutNotice show={retry.cut && !busy} />
         {result && 'error' in result && (
           <p className="ws-alert" role="alert">
             {result.error}

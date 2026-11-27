@@ -7,6 +7,7 @@ import {
 } from '@remix-run/node';
 import { AuthShell } from '~/components/auth/AuthShell';
 import { LoginForm } from '~/components/auth/LoginForm';
+import { guardedClientAction } from '~/utils/connection';
 import {
   commitApiSession,
   commitSession,
@@ -93,6 +94,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ error: 'El correo o la contraseña no son correctos.', email }, { status: 400 });
   }
 }
+
+/** A dropped connection while sending becomes a message and one automatic retry, never an error page. */
+export const clientAction = guardedClientAction<typeof action>();
 
 export default function LoginPage() {
   return (
