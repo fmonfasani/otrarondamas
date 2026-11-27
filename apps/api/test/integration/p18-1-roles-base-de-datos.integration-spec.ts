@@ -76,7 +76,14 @@ type RoleRow = {
 
   it('identity and security tables are out of reach inside one business', async () => {
     await Promise.all(
-      ['Comprador', 'CompradorToken', 'PasswordResetToken', 'MfaFactor'].map(async (table) => {
+      [
+        'Comprador',
+        'CompradorToken',
+        'CompradorFavorito',
+        'CompradorDireccion',
+        'PasswordResetToken',
+        'MfaFactor',
+      ].map(async (table) => {
         await expect(
           app.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "${table}"`),
         ).rejects.toThrow(/permission denied/);

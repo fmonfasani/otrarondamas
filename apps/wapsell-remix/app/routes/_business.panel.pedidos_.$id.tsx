@@ -28,6 +28,12 @@ interface OrderDetail {
   Cliente: { nombre: string; email?: string | null; telefono?: string | null };
   PedidoItem: { id: string; cantidad: string; precioUnitario: string; Producto?: { nombre: string } | null }[];
   Pago?: { id: string; monto: string; estado: string; medio: string; createdAt: string }[];
+  /** OR-B4-054, fase 2b: how the customer receives it (null on older orders). */
+  tipoEntrega?: 'RETIRO' | 'ENVIO' | null;
+  direccionEntrega?: string | null;
+  indicacionesEntrega?: string | null;
+  kmEntrega?: number | null;
+  costoEnvio?: string;
 }
 
 /** AS-IS Pago states, as the team reads them. */
@@ -168,6 +174,12 @@ export default function OrderPage() {
                 <th colSpan={3}>Total</th>
                 <th className="is-num">{formatMoney(order.total)}</th>
               </tr>
+              {Number(order.costoEnvio ?? 0) > 0 && (
+                <tr>
+                  <td colSpan={3}>Envío · 100 % para el repartidor (aparte de los productos)</td>
+                  <td className="is-num">{formatMoney(order.costoEnvio ?? '0')}</td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </section>
@@ -181,6 +193,25 @@ export default function OrderPage() {
               {order.Cliente.telefono && <span>{order.Cliente.telefono}</span>}
             </p>
           </section>
+
+          {order.tipoEntrega ? (
+            <section className="ws-card" aria-labelledby="delivery-title">
+              <h2 id="delivery-title" className="ws-card__title">Entrega</h2>
+              {order.tipoEntrega === 'RETIRO' ? (
+                <p className="ws-meta">Retira en el local.</p>
+              ) : (
+                <p className="ws-meta">
+                  <b>Envío a {order.direccionEntrega}</b>
+                  {order.indicacionesEntrega && <span>«{order.indicacionesEntrega}»</span>}
+                  {order.kmEntrega != null && (
+                    <span>
+                      A {String(order.kmEntrega).replace('.', ',')} km del local · {formatMoney(order.costoEnvio ?? '0')} para el repartidor
+                    </span>
+                  )}
+                </p>
+              )}
+            </section>
+          ) : null}
 
           <section className="ws-card" aria-labelledby="payments-title">
             <h2 id="payments-title" className="ws-card__title">Pagos</h2>

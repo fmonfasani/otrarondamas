@@ -1,0 +1,24 @@
+/* OR-B4-054, fase 2b — «¿Cómo lo recibís?» in the store's cart. */
+.checkout-delivery { display: grid; gap: 10px; margin: 12px 0; }
+.delivery-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: #ece8e1; }
+.delivery-toggle button { min-height: 40px; border: 0; border-radius: 11px; background: transparent; color: #4a4741; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.delivery-toggle button[aria-pressed='true'] { background: #fff; color: #1a1a19; font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.delivery-saved { display: flex; flex-wrap: wrap; gap: 8px; }
+.delivery-saved button { min-height: 34px; padding: 0 14px; border: 1px solid #ece8e1; border-radius: 999px; background: #fff; color: #1a1a19; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.delivery-saved button[aria-pressed='true'] { border-color: #1a1a19; background: #1a1a19; color: #fff; }
+.delivery-saved .delivery-new { border-style: dashed; border-color: #b9b3a8; background: transparent; color: #1a1a19; }
+.delivery-saved .delivery-new[aria-pressed='true'] { border-style: solid; }
+.delivery-place, .delivery-fee { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #ece8e1; border-radius: 14px; background: #fff; }
+.delivery-place span, .delivery-fee span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.delivery-place small, .delivery-fee small { color: #6f6b64; font-size: 12px; }
+.delivery-change { justify-self: start; padding: 4px 0; border: 0; background: none; color: #1a1a19; font: inherit; font-size: 13px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.delivery-note, .delivery-hint { margin: 0; color: #4a4741; font-size: 13px; }
+.delivery-form { display: grid; gap: 8px; }
+.delivery-field { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.delivery-field input, .delivery-save input:not([type='checkbox']) { min-height: 40px; padding: 0 12px; border: 1px solid #ece8e1; border-radius: 10px; background: #faf9f5; color: #1a1a19; font: inherit; font-size: 14px; font-weight: 400; }
+.delivery-map { height: 220px; }
+.delivery-save { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.delivery-save input:not([type='checkbox']) { flex: 1 1 120px; min-width: 0; }
+.delivery-use { min-height: 42px; border: 1px solid #1a1a19; border-radius: 12px; background: #fff; color: #1a1a19; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.delivery-use:disabled { opacity: 0.5; cursor: not-allowed; }
+.cart-total--part { padding-bottom: 0; font-size: 14px; }

@@ -58,6 +58,7 @@
     "refunds/refund-queue.service.ts",
     "reports/reports.service.ts",
     "sms-notifications/sms-notifications.service.ts",
+    "store/addresses.service.ts",
     "store/public-store.controller.ts",
     "tenants/tenants.service.ts"
   ]

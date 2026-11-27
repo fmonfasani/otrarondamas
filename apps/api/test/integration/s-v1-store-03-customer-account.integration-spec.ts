@@ -70,6 +70,9 @@ describe('STORE-V1-03 — customer account in a Business store', () => {
       pagosOnline: false,
       // Ajustes del negocio: empty until the Owner fills them in.
       contacto: { telefono: '', direccion: '', horario: '', descripcion: '' },
+      // OR-B4-054: a store set up before offers pickup only, and has no pin yet.
+      entrega: { envio: false, retiro: true },
+      centro: null,
     });
     await request(BASE).get('/no-such-store/tienda').expect(404);
   });
