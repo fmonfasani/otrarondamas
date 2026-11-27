@@ -1,0 +1,16 @@
+# Prometheus for the Hetzner VPS: reads the machine every 15 seconds (node-exporter) and keeps
+# 30 days (see the compose file). Only on the internal «monitoring» network.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: servidor
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          host: hetzner-wapsell
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
