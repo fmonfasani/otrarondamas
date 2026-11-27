@@ -22,6 +22,15 @@ import {
   type QuickReply,
 } from '~/utils/messaging';
 import { CopyLink } from '~/components/panel/CopyLink';
+import { LocationEditor } from '~/components/panel/LocationEditor';
+import { parsePoint, type GeorefCandidate, type LocationPanel } from '~/utils/map';
+import leafletStyles from '../styles/leaflet.css?url';
+import mapStyles from '../styles/map.css?url';
+
+export const links = () => [
+  { rel: 'stylesheet', href: leafletStyles },
+  { rel: 'stylesheet', href: mapStyles },
+];
 
 /** E6a — how each label colour is called in Ajustes. */
 const COLOR_NAMES: Record<(typeof LABEL_COLORS)[number], string> = {
@@ -43,13 +52,15 @@ export const meta: MetaFunction = () => [{ title: 'Ajustes · Wapsell' }];
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const token = await requireAuth(request);
-  const [business, returns, user, quick, labels, auto] = await Promise.all([
+  const [business, returns, user, quick, labels, auto, location] = await Promise.all([
     apiRequest<Business>(token, '/negocio'),
     settle(apiRequest<{ plazoDias: number }>(token, '/devoluciones/ajustes')),
     getCurrentUser(token),
     settle(apiRequest<{ items: QuickReply[]; puedeEditar: boolean }>(token, '/messaging/conversations/quick-replies')),
     settle(apiRequest<CustomerLabel[]>(token, '/messaging/etiquetas')),
     settle(apiRequest<AutoReplies & { puedeEditar: boolean }>(token, '/messaging/automaticos')),
+    // Marketplace step 4: the store on Wapsell's map.
+    settle(apiRequest<LocationPanel>(token, '/negocio/ubicacion')),
   ]);
   // E6b: the link that opens the store's chat, and its QR (made here, nothing goes out).
   const chatLink = `${new URL(request.url).origin}/tienda/${business.slug}/chat`;
@@ -68,6 +79,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     auto,
     chatLink,
     chatQr,
+    location,
     origin: new URL(request.url).origin,
   });
 }
@@ -89,6 +101,30 @@ export async function action({ request }: ActionFunctionArgs) {
       if (!parsed.ok) return json({ intent, ok: false, message: parsed.message }, { status: 400 });
       await apiRequest(token, '/negocio/precios', { method: 'PATCH', body: JSON.stringify(parsed.body) });
       return json({ intent, ok: true, message: paymentDiscountsMessage(parsed.body) });
+    }
+    // Marketplace step 4: find the address (Georef), confirm the pin, take it off the map.
+    if (intent === 'location-find') {
+      const direccion = String(form.get('direccion') ?? '').trim();
+      if (direccion.length < 3) return json({ intent, ok: false, message: 'Escribí la dirección del negocio.' }, { status: 400 });
+      const found = await apiRequest<{ candidatos: GeorefCandidate[] }>(token, '/negocio/ubicacion/buscar', {
+        method: 'POST',
+        body: JSON.stringify({ direccion, ciudad: String(form.get('ciudad') ?? '').trim() || undefined, provincia: String(form.get('provincia') ?? '').trim() || undefined }),
+      });
+      return json({ intent, ok: true, candidatos: found.candidatos, message: '' });
+    }
+    if (intent === 'location-save') {
+      const point = parsePoint(form.get('lat'), form.get('lng'));
+      if (!point) return json({ intent, ok: false, message: 'Ese punto no está en Argentina. Mové el pin a tu local.' }, { status: 400 });
+      const zona = form.get('zona') === 'true';
+      await apiRequest(token, '/negocio/ubicacion', {
+        method: 'PUT',
+        body: JSON.stringify({ ...point, zona, direccion: String(form.get('direccion') ?? '').slice(0, 200) }),
+      });
+      return json({ intent, ok: true, message: zona ? 'Listo: en el mapa de Wapsell se ve la zona de tu negocio, no tu dirección.' : 'Listo: tu negocio ya está en el mapa de Wapsell.' });
+    }
+    if (intent === 'location-remove') {
+      await apiRequest(token, '/negocio/ubicacion', { method: 'DELETE' });
+      return json({ intent, ok: true, message: 'Quitamos tu negocio del mapa de Wapsell.' });
     }
     if (intent === 'returns') {
       const days = windowDaysFrom(form.get('plazoDias'));
@@ -128,7 +164,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Ajustes() {
-  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr } =
+  const { business, plazoDias, manageReturns, owner, origin, quickReplies, editQuickReplies, labels, editLabels, auto, chatLink, chatQr, location } =
     useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== 'idle';
@@ -191,6 +227,12 @@ export default function Ajustes() {
             <button className="ws-button ws-button--primary ws-button--auto" type="submit" disabled={busy}>Guardar datos</button>
           )}
         </Form>
+      </section>
+
+      <section className="ws-card" id="mapa" aria-labelledby="map-title">
+        <h2 id="map-title" className="ws-card__title">Tu negocio en el mapa</h2>
+        <p className="ws-meta">Los clientes de Wapsell encuentran los negocios cerca suyo en el mapa.</p>
+        {location ? <LocationEditor data={location} /> : <p className="ws-alert">No pudimos cargar la ubicación. Probá en un ratito.</p>}
       </section>
 
       <section className="ws-card" aria-labelledby="payment-title">

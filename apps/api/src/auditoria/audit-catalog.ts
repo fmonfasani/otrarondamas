@@ -30,6 +30,7 @@ export type AuditAction =
   | 'OFERTA_CREADA'
   | 'OFERTA_TERMINADA'
   | 'NEGOCIO_DESCUENTOS_MEDIO_PAGO'
+  | 'NEGOCIO_UBICACION'
   | 'CLIENTE_MAYORISTA'
   | 'PRODUCTO_EDITADO'
   | 'PRODUCTO_ACTIVADO'
@@ -96,6 +97,7 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   MFA_CODIGO_RECUPERACION: { tema: 'accesos', nombre: 'Entró con un código de recuperación' },
   MFA_CODIGOS_NUEVOS: { tema: 'accesos', nombre: 'Generó códigos de recuperación nuevos' },
   NEGOCIO_REGISTRADO: { tema: 'negocio', nombre: 'Registró el negocio' },
+  NEGOCIO_UBICACION: { tema: 'negocio', nombre: 'Cambió la ubicación en el mapa' },
   MFA_BLOQUEADO: { tema: 'accesos', nombre: 'Verificación bloqueada por intentos fallidos' },
   // Older names, still in the data.
   CREAR_VENTA: { tema: 'ventas', nombre: 'Registró una venta' },

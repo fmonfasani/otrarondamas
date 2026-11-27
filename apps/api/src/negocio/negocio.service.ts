@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { recordAudit } from '../auditoria/audit-catalog';
 import { pricingSettingsOf, type PricingSettings } from './pricing-settings';
+import { locationOf, type StoreLocation } from './ubicacion';
 
 /** What a customer can see of the Business: kept in Empresa.configuracion.negocio. */
 export type BusinessContact = {
@@ -140,5 +141,67 @@ export class NegocioService {
       throw error;
     }
     return this.get(companyId);
+  }
+
+  /**
+   * Marketplace, step 4 — the store's place on the map, and what to search it from (the address
+   * of Ajustes and the city and province of the profile).
+   */
+  async location(companyId: string) {
+    const business = await this.prisma.empresa.findUnique({
+      where: { id: companyId },
+      select: { configuracion: true },
+    });
+    if (!business) throw new NotFoundException('Negocio no encontrado');
+    const perfil =
+      ((business.configuracion ?? {}) as { perfil?: Record<string, unknown> }).perfil ?? {};
+    const text = (k: string) => (typeof perfil[k] === 'string' ? (perfil[k] as string) : '');
+    return {
+      ubicacion: locationOf(business.configuracion),
+      sugerida: {
+        direccion: contactOf(business.configuracion).direccion,
+        ciudad: text('ciudad'),
+        provincia: text('provincia'),
+      },
+    };
+  }
+
+  /** The Owner confirms the pin (or removes it with null). Audited. */
+  async setLocation(
+    companyId: string,
+    userId: string,
+    data: Omit<StoreLocation, 'confirmadaAt'> | null,
+    now = new Date(),
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const business = await tx.empresa.findUnique({
+        where: { id: companyId },
+        select: { configuracion: true },
+      });
+      if (!business) throw new NotFoundException('Negocio no encontrado');
+      const before = locationOf(business.configuracion);
+      const after: StoreLocation | null = data
+        ? { ...data, direccion: data.direccion.trim(), confirmadaAt: now.toISOString() }
+        : null;
+      const { ubicacion: _old, ...rest } = (business.configuracion ?? {}) as Record<
+        string,
+        unknown
+      >;
+      void _old;
+      await tx.empresa.update({
+        where: { id: companyId },
+        data: {
+          configuracion: (after ? { ...rest, ubicacion: after } : rest) as Prisma.InputJsonValue,
+        },
+      });
+      await recordAudit(tx, companyId, userId, {
+        accion: 'NEGOCIO_UBICACION',
+        entidad: 'Empresa',
+        entidadId: companyId,
+        antes: before,
+        despues: after,
+      });
+      return { ubicacion: after };
+    });
   }
 }
