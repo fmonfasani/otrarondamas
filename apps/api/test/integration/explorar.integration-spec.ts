@@ -12,6 +12,7 @@ import {
  * Marketplace, step 2 (Owner, 2026-11-26) — Wapsell's explorer: only stores that chose to appear
  * (on by default) and have something published; never the internal business; today's offers with
  * the price the store charges; the most ordered stores without their figures. Public.
+ * Step 3: the search across stores forgives typos and sees only those same stores.
  */
 describe('Explorar — los negocios de Wapsell', () => {
   const PORT = '3403';
@@ -45,7 +46,17 @@ describe('Explorar — los negocios de Wapsell', () => {
     await shop('oculto', { tienda: { enExplorador: false } });
     await shop('vacio', {});
     offered = await createStoreProduct(prisma, shops.almacen.id, 'Explorar', 'A', suffix);
-    await createStoreProduct(prisma, shops.oculto.id, 'Explorar', 'B', suffix);
+    const hidden = await createStoreProduct(prisma, shops.oculto.id, 'Explorar', 'B', suffix);
+    // Step 3: products named as people search them.
+    await prisma.producto.update({
+      where: { id: offered.id },
+      data: { nombre: `Yerba Explorar ${suffix}`, marca: 'Playadito' },
+    });
+    offered.nombre = `Yerba Explorar ${suffix}`;
+    await prisma.producto.update({
+      where: { id: hidden.id },
+      data: { nombre: `Yerba Oculta ${suffix}` },
+    });
     // The platform's internal business (only one can exist) never shows.
     internal = await prisma.empresa.findFirst({ where: { interno: true }, select: { slug: true } });
     const oferta = await prisma.oferta.create({
@@ -110,5 +121,52 @@ describe('Explorar — los negocios de Wapsell', () => {
     expect(JSON.stringify(res.body)).not.toMatch(
       /"(cantidad|pedidos|vendidos|unidades|stockTotal)"/,
     );
+  });
+
+  it('searches every store forgiving typos, and never a hidden store', async () => {
+    const res = await request(BASE)
+      .get('/explorar/buscar')
+      .query({ q: `yerva ${suffix}` })
+      .expect(200);
+    expect(res.headers['cache-control']).toContain('max-age=60');
+    expect(res.body.productos.map((p: { productoId: string }) => p.productoId)).toEqual([
+      offered.id,
+    ]);
+    expect(res.body.productos[0]).toMatchObject({
+      nombre: offered.nombre,
+      marca: 'Playadito',
+      precio: '8.00',
+      tienda: { slug: shops.almacen.slug },
+    });
+    expect(res.body.sugerencia).toBe(`yerba ${suffix}`);
+    expect(res.body.facetas.marcas).toEqual([{ nombre: 'Playadito', cantidad: 1 }]);
+    expect(JSON.stringify(res.body)).not.toMatch(/"(vendidos|stockTotal|precioCentavos)"/);
+    expect(JSON.stringify(res.body)).not.toContain(shops.oculto.slug);
+  });
+
+  it('filters by offer and brand, finds stores by place, and suggests while typing', async () => {
+    const onOffer = await request(BASE)
+      .get('/explorar/buscar')
+      .query({ q: String(suffix), oferta: '1', marca: 'playadito' })
+      .expect(200);
+    expect(onOffer.body.total).toBe(1);
+    const stores = await request(BASE)
+      .get('/explorar/buscar')
+      .query({ q: `rosario ${suffix}` })
+      .expect(200);
+    expect(stores.body.negocios.map((n: { slug: string }) => n.slug)).toEqual([shops.almacen.slug]);
+    const typing = await request(BASE)
+      .get('/explorar/sugerencias')
+      .query({ q: `Explorar ${suffix}` })
+      .expect(200);
+    expect(typing.body.productos.map((p: { productoId: string }) => p.productoId)).toEqual([
+      offered.id,
+    ]);
+    expect(typing.body.negocios.map((n: { slug: string }) => n.slug)).toContain(shops.almacen.slug);
+  });
+
+  it('rejects a search it does not understand', async () => {
+    await request(BASE).get('/explorar/buscar').query({ orden: 'barato' }).expect(400);
+    await request(BASE).get('/explorar/buscar').query({ min: '-1' }).expect(400);
   });
 });

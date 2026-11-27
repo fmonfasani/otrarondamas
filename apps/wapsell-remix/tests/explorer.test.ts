@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterProducts, filterStores, fold, storeLine, type ExplorerProduct, type ExplorerStore } from '~/utils/explorer';
+import { filterStores, fold, searchHref, searchParamsOf, storeLine, type ExplorerStore } from '~/utils/explorer';
 
 // Marketplace, step 2 — the explorer's filters.
 const store = (nombre: string, rubro: string | null, ciudad: string | null): ExplorerStore => ({
@@ -19,13 +19,18 @@ describe('Explorar', () => {
     expect(filterStores(stores, { q: 'farmacia' })).toEqual([]);
   });
 
-  it('finds products by name, brand or store', () => {
-    const p = (nombre: string, marca: string | null, tienda: string): ExplorerProduct => ({
-      productoId: nombre, nombre, marca, precio: '1', precioSinDescuento: null, descuentoPorcentaje: null, foto: null, tienda: { nombre: tienda, slug: 's' },
-    });
-    const list = [p('Yerba 1 kg', 'Playadito', 'Almacén Lucía'), p('Coca Cola 2,25 l', 'Coca-Cola', 'Kiosco 24')];
-    expect(filterProducts(list, 'playadito').map((x) => x.nombre)).toEqual(['Yerba 1 kg']);
-    expect(filterProducts(list, 'kiosco').map((x) => x.nombre)).toEqual(['Coca Cola 2,25 l']);
+  it('builds the search link with one thing changed, back to page 1', () => {
+    const current = new URLSearchParams('q=yerba&marca=Playadito&pagina=3');
+    expect(searchHref(current, { oferta: '1' })).toBe('/buscar?q=yerba&marca=Playadito&oferta=1');
+    expect(searchHref(current, { marca: ['Playadito', 'Taragüi'] })).toBe('/buscar?q=yerba&marca=Playadito&marca=Tarag%C3%BCi');
+    expect(searchHref(current, { marca: [] })).toBe('/buscar?q=yerba');
+    expect(searchHref(current, { pagina: '4' })).toBe('/buscar?q=yerba&marca=Playadito&pagina=4');
+    expect(searchHref(new URLSearchParams('q=x'), { q: null })).toBe('/buscar');
+  });
+
+  it('passes on only the search filters, trimmed', () => {
+    const url = new URL('https://app.wapsell.com/buscar?q=%20yerba%20&marca=A&marca=B&token=secreto&orden=vendidos&q2=x');
+    expect(searchParamsOf(url).toString()).toBe('q=yerba&marca=A&marca=B&orden=vendidos');
   });
 
   it('describes a store in one line', () => {

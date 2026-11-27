@@ -4,6 +4,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { contactOf, storeSettingsOf } from '../negocio/negocio.service';
 import { autoRepliesOf, isOpenAt } from '../messaging/auto-replies';
 import { StoreCatalogService } from '../store/store-catalog.service';
+import {
+  didYouMean,
+  queryScore,
+  search,
+  searchable,
+  wordScore,
+  plain,
+  type SearchParams,
+  type SearchRow,
+  type Searchable,
+} from './explorer-search';
 
 /** Orders that count for «Más pedidos» (as in the store's best sellers: confirmed on). */
 const COUNTED: EstadoPedido[] = [
@@ -21,6 +32,8 @@ const MAX_BUSINESSES = 200;
 const OFFERS_PER_STORE = 6;
 const BEST_PER_STORE = 4;
 const CAROUSEL = 20;
+const STORES_FOUND = 12;
+const SUGGESTED = 6;
 
 export type ExplorerStore = {
   nombre: string;
@@ -34,6 +47,10 @@ export type ExplorerStore = {
   portada: { productoId: string; fotoId: string } | null;
   ofertas: number;
 };
+
+/** A product in the search index: what the customer sees plus what the search needs. */
+type IndexedProduct = SearchRow & ExplorerProduct;
+type IndexedStore = { store: ExplorerStore; text: Searchable };
 
 export type ExplorerProduct = {
   productoId: string;
@@ -58,6 +75,9 @@ export type ExplorerProduct = {
 @Injectable()
 export class ExplorerService {
   private cache: { at: number; value: Awaited<ReturnType<ExplorerService['build']>> } | null = null;
+  /** The Business of each store shown (never sent out: the explorer speaks in slugs). */
+  private idBySlug = new Map<string, string>();
+  private index: { at: number; products: IndexedProduct[]; stores: IndexedStore[] } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -124,6 +144,7 @@ export class ExplorerService {
 
     // Only stores with something to show.
     const stores = visible.filter((r) => withProducts.has(r.id));
+    this.idBySlug = new Map(stores.map((r) => [r.slug, r.id]));
     const perStore = await Promise.all(
       stores.map(async (r) => {
         const settings = { hideOutOfStock: true };
@@ -212,6 +233,132 @@ export class ExplorerService {
         nuevos: nuevos.map((s) => bySlug.get(s)).filter((x): x is ExplorerStore => Boolean(x)),
       },
       actualizado: now.toISOString(),
+    };
+  }
+
+  /**
+   * Marketplace, step 3 — the search index: every product a customer can buy now in the stores
+   * the explorer shows, at the store's own price, plus the stores themselves. Cached a minute,
+   * like the explorer.
+   */
+  private async searchIndex(now: number) {
+    if (this.index && now - this.index.at < CACHE_MS) return this.index;
+    const explorer = await this.explore(now);
+    const perStore = await Promise.all(
+      explorer.negocios.map(async (store) => {
+        const id = this.idBySlug.get(store.slug);
+        const items = id ? await this.catalog.available(id).catch(() => []) : [];
+        return items.map((p): IndexedProduct => ({
+          productoId: p.productoId,
+          nombre: p.nombre,
+          marca: p.marca ?? null,
+          precio: p.precio,
+          precioSinDescuento: p.precioSinDescuento,
+          descuentoPorcentaje: p.descuentoPorcentaje,
+          foto: p.foto,
+          precioCentavos: p.precioCentavos,
+          vendidos: p.vendidos,
+          destacado: p.destacado,
+          createdAt: p.createdAt,
+          enOferta: Boolean(p.enOferta),
+          tienda: {
+            nombre: store.nombre,
+            slug: store.slug,
+            rubro: store.rubro,
+            abiertoAhora: store.abiertoAhora,
+          },
+          text: searchable(`${p.nombre} ${p.marca ?? ''}`),
+        }));
+      }),
+    );
+    const stores = explorer.negocios.map((store) => ({
+      store,
+      text: searchable(
+        [store.nombre, store.rubro, store.ciudad, store.provincia, store.descripcion]
+          .filter(Boolean)
+          .join(' '),
+      ),
+    }));
+    this.index = { at: now, products: perStore.flat(), stores };
+    return this.index;
+  }
+
+  /** What the customer sees of a product found (never the units sold). */
+  private shown(p: IndexedProduct): ExplorerProduct & { abiertoAhora: boolean | null } {
+    return {
+      productoId: p.productoId,
+      nombre: p.nombre,
+      marca: p.marca,
+      precio: p.precio,
+      precioSinDescuento: p.precioSinDescuento,
+      descuentoPorcentaje: p.descuentoPorcentaje,
+      foto: p.foto,
+      tienda: { nombre: p.tienda.nombre, slug: p.tienda.slug },
+      abiertoAhora: p.tienda.abiertoAhora,
+    };
+  }
+
+  /** Stores whose name, rubro, place or description has the words, closest first. */
+  private storesFound(stores: IndexedStore[], params: SearchParams, limit: number) {
+    return stores
+      .filter(
+        ({ store }) =>
+          (!params.rubro || store.rubro === params.rubro) &&
+          (!params.abierto || store.abiertoAhora === true),
+      )
+      .map((s) => ({ s, score: params.q ? queryScore(params.q, s.text) : 1 }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score || a.s.store.nombre.localeCompare(b.s.store.nombre, 'es'))
+      .slice(0, limit)
+      .map((x) => x.s.store);
+  }
+
+  /** GET /explorar/buscar — products of every store, the stores found, filters and «¿Quisiste decir…?». */
+  async search(params: SearchParams, now = Date.now()) {
+    const index = await this.searchIndex(now);
+    const found = search(index.products, params);
+    const q = params.q?.trim() ?? '';
+    return {
+      q,
+      productos: found.productos.map((p) => this.shown(p)),
+      total: found.total,
+      pagina: found.pagina,
+      paginas: found.paginas,
+      negocios: q || params.rubro ? this.storesFound(index.stores, params, STORES_FOUND) : [],
+      facetas: { ...found.facetas, rubros: (await this.explore(now)).rubros },
+      sugerencia: q
+        ? didYouMean(q, [...index.products.map((p) => p.text), ...index.stores.map((s) => s.text)])
+        : null,
+    };
+  }
+
+  /** GET /explorar/sugerencias — while the customer types: products, stores and brands. */
+  async suggestions(q: string, now = Date.now()) {
+    const query = q.trim();
+    if (plain(query).length < 2) return { q: query, productos: [], negocios: [], marcas: [] };
+    const index = await this.searchIndex(now);
+    const found = search(index.products, { q: query });
+    const brands = new Map<string, string>();
+    for (const p of index.products) {
+      const key = p.marca ? plain(p.marca) : '';
+      if (key && !brands.has(key) && wordScore(plain(query), searchable(key)) >= 3) {
+        brands.set(key, p.marca as string);
+      }
+    }
+    return {
+      q: query,
+      productos: found.productos.slice(0, SUGGESTED).map((p) => ({
+        productoId: p.productoId,
+        nombre: p.nombre,
+        precio: p.precio,
+        tienda: { nombre: p.tienda.nombre, slug: p.tienda.slug },
+      })),
+      negocios: this.storesFound(index.stores, { q: query }, 3).map((s) => ({
+        nombre: s.nombre,
+        slug: s.slug,
+        rubro: s.rubro,
+      })),
+      marcas: [...brands.values()].slice(0, 3),
     };
   }
 }
