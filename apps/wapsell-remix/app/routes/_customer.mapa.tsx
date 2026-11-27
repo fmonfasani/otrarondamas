@@ -3,18 +3,19 @@ import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/nod
 import { Link, useLoaderData, useSearchParams } from '@remix-run/react';
 import { LocateFixed, MapPin } from 'lucide-react';
 import { getBuyer } from '~/services/buyer-session.server';
+import { mapTiles } from '~/services/map.server';
 import { fetchExplorer } from '~/services/store.server';
 import { EMPTY_EXPLORER, storeLine } from '~/utils/explorer';
 import { ARGENTINA_CENTER, ARGENTINA_ZOOM, byDistance, distanceLabel, type LatLng } from '~/utils/map';
-import { LeafletMap } from '~/components/map/LeafletMap';
+import { WapsellMap } from '~/components/map/WapsellMap';
 import { OpenNow } from '~/components/explorer/ExplorerCards';
 import explorerStyles from '../styles/explorer.css?url';
-import leafletStyles from '../styles/leaflet.css?url';
+import maplibreStyles from '../styles/maplibre-gl.css?url';
 import mapStyles from '../styles/map.css?url';
 
 export const links = () => [
   { rel: 'stylesheet', href: explorerStyles },
-  { rel: 'stylesheet', href: leafletStyles },
+  { rel: 'stylesheet', href: maplibreStyles },
   { rel: 'stylesheet', href: mapStyles },
 ];
 
@@ -32,15 +33,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const [buyer, explorer] = await Promise.all([getBuyer(request), fetchExplorer().catch(() => null)]);
   const e = explorer ?? EMPTY_EXPLORER;
   return json(
-    { negocios: e.negocios.filter((n) => n.ubicacion), rubros: e.rubros, failed: !explorer, buyer: buyer ? { nombre: buyer.nombre } : null },
+    { negocios: e.negocios.filter((n) => n.ubicacion), rubros: e.rubros, failed: !explorer, buyer: buyer ? { nombre: buyer.nombre } : null, tiles: mapTiles() },
     { headers: { 'Cache-Control': 'private, max-age=30' } },
   );
 }
 
 export default function Mapa() {
-  const { negocios, rubros, failed, buyer } = useLoaderData<typeof loader>();
+  const { negocios, rubros, failed, buyer, tiles } = useLoaderData<typeof loader>();
   const [params, setParams] = useSearchParams();
   const rubro = params.get('rubro');
+  // OR-B4-054: «?tema=oscuro» previews the dark style the tracking screens will use.
+  const theme = params.get('tema') === 'oscuro' ? 'oscuro' : 'claro';
   const [me, setMe] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -114,9 +117,11 @@ export default function Mapa() {
       {failed ? <p className="wx-empty">No pudimos cargar los negocios. Probá en un ratito.</p> : null}
 
       <div className="wx-map">
-        <LeafletMap
+        <WapsellMap
           label="Negocios de Wapsell en el mapa"
           className="wx-map__box"
+          tiles={tiles}
+          theme={theme}
           center={center}
           zoom={zoom}
           me={me}
