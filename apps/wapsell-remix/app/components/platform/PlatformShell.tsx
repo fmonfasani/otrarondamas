@@ -4,6 +4,7 @@ import { Form, NavLink, useParams } from '@remix-run/react';
 const SECTIONS: Array<[string, string]> = [
   ['', 'Resumen'],
   ['/salud', 'Salud'],
+  ['/rendimiento', 'Rendimiento'],
   ['/actividad', 'Actividad'],
   ['/uso', 'Uso de funciones'],
   ['/negocios', 'Negocios'],

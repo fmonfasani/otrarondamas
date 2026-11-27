@@ -27,6 +27,7 @@ import { canReadAllConversations, MessagingService } from './messaging.service';
 import { toMessageWire, type SerializableMessage } from './message-serializer';
 import { MessagingAlertsService } from './messaging-alerts.service';
 import { CustomerNoticeService } from '../customer-notices/customer-notice.service';
+import { PerformanceCollector } from '../performance/performance.collector';
 
 interface MessagingSocketData {
   authenticatedUser: AuthenticatedUser;
@@ -152,11 +153,14 @@ export class MessagingGateway
     @Optional() private readonly alerts?: MessagingAlertsService,
     // OR-B4-053: a notice posted by the system (an order changed) updates the open screens.
     @Optional() private readonly notices?: CustomerNoticeService,
+    // Rendimiento: how many people have a Wapsell screen open.
+    @Optional() private readonly performance?: PerformanceCollector,
   ) {}
 
   afterInit(namespace: Namespace): void {
     // E3: alerts skip whoever has a screen open; only this gateway knows that.
     this.alerts?.usePresence((businessId, actor) => this.isOnline(businessId, actor));
+    this.performance?.useOnline(() => this.presence.size);
     this.notices?.onPosted(({ conversationId, messageId }) => {
       this.publishInboxChanged(conversationId);
       // Paquete 1 F1: «Confirmamos tu pedido» reaches the customer with the store closed.

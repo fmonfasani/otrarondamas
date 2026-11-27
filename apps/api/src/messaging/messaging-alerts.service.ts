@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Optional,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
@@ -10,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import type { BusinessContext } from '../business-context/business-context.types';
 import { notificationPreview } from './messaging.service';
+import { PerformanceCollector } from '../performance/performance.collector';
 
 /**
  * E3 (messaging like WhatsApp) — alerts that reach a team member with Wapsell closed.
@@ -160,6 +162,8 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    // Rendimiento: how many pushes went out or failed.
+    @Optional() private readonly performance?: PerformanceCollector,
   ) {
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
@@ -359,11 +363,13 @@ export class MessagingAlertsService implements OnModuleInit, OnModuleDestroy {
           { TTL: 60 * 60 },
         );
         delivered += 1;
+        this.performance?.push(true);
         await this.prisma.pushSubscription.update({
           where: { id: subscription.id },
           data: { lastUsedAt: new Date() },
         });
       } catch (error) {
+        this.performance?.push(false);
         const status = (error as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) {
           await this.prisma.pushSubscription
