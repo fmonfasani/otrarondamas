@@ -10,6 +10,10 @@
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
+import { randomInt, randomUUID } from 'node:crypto';
+
+/** A random whole number in [0, max) from Node's crypto generator (no Math.random). */
+const random = (max) => randomInt(0, Math.max(1, Math.floor(max)));
 
 const require = createRequire('/repo/apps/api/package.json');
 const { io } = require('socket.io-client');
@@ -46,7 +50,7 @@ const owners = seed.businesses.flatMap((b) =>
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const jitter = (ms) => ms * (0.5 + Math.random());
+const jitter = (ms) => Math.round(ms / 2) + random(ms);
 
 // ------------------------------------------------------------------ measuring
 let samples = []; // { op, ms, ok }
@@ -130,7 +134,7 @@ async function customer(c, firstDelay) {
     n += 1;
     await call('enviar mensaje', c.token, `/${c.slug}/tienda/chat/mensajes`, {
       method: 'POST',
-      body: JSON.stringify({ clientMessageId: `lt-${Math.random().toString(36).slice(2)}-${n}`, content: `Hola, ¿tienen stock? (${n})` }),
+      body: JSON.stringify({ clientMessageId: `lt-${randomUUID()}-${n}`, content: `Hola, ¿tienen stock? (${n})` }),
     });
     await call('abrir chat (cliente)', c.token, `/${c.slug}/tienda/chat`);
     await sleep(jitter(MESSAGE_EVERY_MS));
@@ -145,13 +149,13 @@ async function owner(o, firstDelay) {
     const inbox = await call('bandeja (equipo)', o.token, '/messaging/conversations');
     const pending = Array.isArray(inbox) ? inbox.filter((c) => c.unreadCount > 0) : [];
     if (pending.length) {
-      const chat = pending[Math.floor(Math.random() * pending.length)];
+      const chat = pending[random(pending.length)];
       const messages = await call('abrir chat (equipo)', o.token, `/messaging/conversations/${chat.id}/messages`);
       const last = Array.isArray(messages) ? messages.at(-1) : null;
       if (last) await call('marcar leído', o.token, `/messaging/conversations/${chat.id}/messages/${last.id}/read`, { method: 'POST' });
       await call('responder', o.token, `/messaging/conversations/${chat.id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ clientMessageId: `lt-o-${Math.random().toString(36).slice(2)}`, content: 'Sí, tenemos. ¿Te lo reservo?' }),
+        body: JSON.stringify({ clientMessageId: `lt-o-${randomUUID()}`, content: 'Sí, tenemos. ¿Te lo reservo?' }),
       });
     }
     await sleep(jitter(10000));
@@ -162,7 +166,7 @@ async function owner(o, firstDelay) {
 // ------------------------------------------------------------------ the steps
 const results = { inicio: new Date().toISOString(), procesadores: cores, escalones: [], capacidad: null, frenado: null };
 const workers = [];
-for (const o of owners) workers.push(owner(o, Math.random() * 10000));
+for (const o of owners) workers.push(owner(o, random(10000)));
 let started = 0;
 await guard();
 if (prod.stop) {
@@ -172,7 +176,7 @@ if (prod.stop) {
     if (level > customers.length) break;
     // Spread the newcomers over 30 s so they do not all knock at once.
     while (started < level) {
-      workers.push(customer(customers[started], Math.random() * Math.min(30000, MESSAGE_EVERY_MS)));
+      workers.push(customer(customers[started], random(Math.min(30000, MESSAGE_EVERY_MS))));
       started += 1;
     }
     log(`escalón: ${level} clientes`);
