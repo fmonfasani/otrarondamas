@@ -144,7 +144,14 @@ describe('Rendimiento — panel de la plataforma', () => {
     expect(mine).toHaveLength(1);
     expect(hour.serie.some((p: { p95Ms: number }) => p.p95Ms === 900)).toBe(false);
     expect(hour.totales.requests).toBeGreaterThanOrEqual(600);
-    expect(hour.rutas[0]).toMatchObject({ ruta: 'POST /messaging/conversations/:id/messages' });
+    // The table is platform-wide: every API the other suites start writes its own minutes too
+    // (in CI an attachment upload may be slower than this seeded route). So: the seeded route is
+    // among the routes, and the routes go slowest first, whatever else is there.
+    const routes = hour.rutas as Array<{ ruta: string; p95Ms: number }>;
+    expect(routes.map((r) => r.ruta)).toContain('POST /messaging/conversations/:id/messages');
+    expect(routes.map((r) => r.p95Ms)).toEqual(
+      [...routes.map((r) => r.p95Ms)].sort((a, b) => b - a),
+    );
     const day = (
       await request(BASE)
         .get('/platform-admin/performance?rango=24h')
