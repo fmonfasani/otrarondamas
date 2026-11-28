@@ -19,7 +19,7 @@ import {
  * business panel opens it in its layout and shares it (LiveContext) with the menu badge and
  * the Mensajes screen; the store chat opens its own.
  */
-export type LiveEvent = 'estado' | 'cambio' | 'escribiendo' | 'presencia';
+export type LiveEvent = 'estado' | 'cambio' | 'escribiendo' | 'presencia' | 'pedido';
 type Listener = (data: Record<string, unknown> | null) => void;
 
 export interface LiveSource {
@@ -41,7 +41,7 @@ export function useLiveSource(url: string | null): LiveSource {
   useEffect(() => {
     if (!url || typeof EventSource === 'undefined') return;
     const source = new EventSource(url);
-    const events: LiveEvent[] = ['estado', 'cambio', 'escribiendo', 'presencia'];
+    const events: LiveEvent[] = ['estado', 'cambio', 'escribiendo', 'presencia', 'pedido'];
     for (const name of events) {
       source.addEventListener(name, (event) => {
         const data = parseSignal((event as MessageEvent).data);

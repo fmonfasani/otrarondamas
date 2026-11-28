@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopedPrismaService } from '../prisma/company-scoped-prisma.service';
@@ -11,6 +12,18 @@ import { reservedByProduct } from '../inventory/reservations';
 import { recordAudit } from '../auditoria/audit-catalog';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CANCELLABLE_STATES, NEXT_STATES, stockLeaves, stockReturns } from './order-states';
+import { OrderEventsService } from './order-events.service';
+
+/** Fase 3: the orders on the live board — every one still to be accepted, made or delivered. */
+export const BOARD_STATES = [
+  'RECIBIDO',
+  'CONFIRMADO',
+  'EN_PREPARACION',
+  'LISTO',
+  'ASIGNADO',
+  'EN_CAMINO',
+  'ENTREGA_FALLIDA',
+] as const;
 
 // Same pattern as inventory.service.ts: the real types of the company-scoped client.
 type CompanyScopedClient = ReturnType<CompanyScopedPrismaService['forCompany']>;
@@ -47,7 +60,71 @@ export class OrdersService {
   constructor(
     private readonly prismaFactory: CompanyScopedPrismaService,
     private readonly inventoryService: InventoryService,
+    // Fase 3: the team's open screens hear each change at once.
+    @Optional() private readonly events?: OrderEventsService,
   ) {}
+
+  /**
+   * Fase 3 — Pedidos en vivo: what is still to be accepted, made or delivered, oldest first, with
+   * what the board shows of each, and whether the store paused taking new orders.
+   */
+  async board(companyId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const [business, orders] = await Promise.all([
+      db.empresa.findUnique({ where: { id: companyId }, select: { pedidosPausadosHasta: true } }),
+      db.pedido.findMany({
+        where: { estado: { in: [...BOARD_STATES] } },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+        include: {
+          Cliente: { select: { nombre: true } },
+          PedidoItem: { include: { Producto: { select: { nombre: true } } } },
+          Pago: { where: { estado: 'APROBADO' }, select: { monto: true } },
+        },
+      }),
+    ]);
+    const pausedUntil = business?.pedidosPausadosHasta ?? null;
+    return {
+      pausadoHasta: pausedUntil && pausedUntil.getTime() > Date.now() ? pausedUntil : null,
+      pedidos: orders.map((order) => ({
+        id: order.id,
+        numero: order.numero,
+        estado: order.estado,
+        createdAt: order.createdAt,
+        total: order.total,
+        costoEnvio: order.costoEnvio,
+        pagado: order.Pago.reduce((sum, pago) => sum + Number(pago.monto), 0).toFixed(2),
+        tipoEntrega: order.tipoEntrega,
+        kmEntrega: order.kmEntrega,
+        aceptarAntes: order.aceptarAntes,
+        listoEstimado: order.listoEstimado,
+        cliente: order.Cliente?.nombre ?? null,
+        items: order.PedidoItem.map((item) => ({
+          producto: item.Producto.nombre,
+          cantidad: Number(item.cantidad),
+        })),
+      })),
+    };
+  }
+
+  /** Fase 3 — the store stops taking new orders for 30 minutes, or takes them again (0). */
+  async pauseOrders(companyId: string, minutes: 0 | 30, userId: string) {
+    const db = this.prismaFactory.forCompany(companyId);
+    const until = minutes > 0 ? new Date(Date.now() + minutes * 60_000) : null;
+    await db.$transaction(async (tx) => {
+      await tx.empresa.update({
+        where: { id: companyId },
+        data: { pedidosPausadosHasta: until },
+      });
+      await recordAudit(tx, companyId, userId, {
+        accion: until ? 'PEDIDOS_PAUSADOS' : 'PEDIDOS_REANUDADOS',
+        entidad: 'Empresa',
+        entidadId: companyId,
+        despues: { pedidosPausadosHasta: until?.toISOString() ?? null },
+      });
+    });
+    return { pausadoHasta: until };
+  }
 
   async list(companyId: string, status?: string) {
     const db = this.prismaFactory.forCompany(companyId);
@@ -143,9 +220,12 @@ export class OrdersService {
     if (dto.estado === 'CANCELADO') {
       return this.cancelOrder(id, companyId, userId);
     }
+    if (dto.minutosPreparacion && dto.estado !== 'CONFIRMADO') {
+      throw new BadRequestException('El tiempo de preparación se elige al aceptar el pedido.');
+    }
     const db = this.prismaFactory.forCompany(companyId);
     try {
-      return await db.$transaction(
+      const moved = await db.$transaction(
         async (tx) => {
           const order = await tx.pedido.findUnique({
             where: { id },
@@ -161,7 +241,13 @@ export class OrdersService {
           }
           const claimed = await tx.pedido.updateMany({
             where: { id, estado: order.estado },
-            data: { estado: dto.estado, usuarioId: userId },
+            data: {
+              estado: dto.estado,
+              usuarioId: userId,
+              ...(dto.minutosPreparacion
+                ? { listoEstimado: new Date(Date.now() + dto.minutosPreparacion * 60_000) }
+                : {}),
+            },
           });
           if (claimed.count !== 1) {
             throw new BadRequestException('El pedido ya fue gestionado por otro usuario.');
@@ -180,12 +266,17 @@ export class OrdersService {
             entidad: 'Pedido',
             entidadId: id,
             antes: { estado: order.estado },
-            despues: { estado: dto.estado },
+            despues: {
+              estado: dto.estado,
+              ...(dto.minutosPreparacion ? { minutosPreparacion: dto.minutosPreparacion } : {}),
+            },
           });
           return tx.pedido.findUniqueOrThrow({ where: { id }, include: { PedidoItem: true } });
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
+      this.events?.changed(companyId, moved.id);
+      return moved;
     } catch (error) {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent move with SQLSTATE 40001
       // (Prisma P2034): the same order moved twice, or two orders taking the same last units.
@@ -225,7 +316,7 @@ export class OrdersService {
     const db = this.prismaFactory.forCompany(companyId);
 
     try {
-      return await db.$transaction(
+      const cancelled = await db.$transaction(
         async (tx) => {
           const order = await tx.pedido.findUnique({
             where: { id },
@@ -304,6 +395,9 @@ export class OrdersService {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         },
       );
+      // Fase 3: off the live board, at once.
+      this.events?.changed(companyId, id);
+      return cancelled;
     } catch (error) {
       // PostgreSQL SERIALIZABLE can abort the losing concurrent cancellation
       // with SQLSTATE 40001 (Prisma P2034) before updateMany returns count=0.

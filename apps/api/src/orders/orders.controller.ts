@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   Optional,
@@ -16,7 +17,7 @@ import { OrdersService } from './orders.service';
 import { OrderNoticeService } from '../customer-notices/order-notice.service';
 import { MercadoPagoAccountService } from '../payments/mercadopago/mercadopago-account.service';
 import { OrderRefundsService } from '../payments/mercadopago/order-refunds.service';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { PauseOrdersDto, UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
@@ -69,6 +70,23 @@ export class OrdersController {
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser, @Query('estado') status?: string) {
     return this.ordersService.list(await this.resolveCompanyIdFromContext(user), status);
+  }
+
+  /** Fase 3 — Pedidos en vivo: what is still to be accepted, made or delivered. */
+  @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission('ORDERS_VIEW')
+  @Get('tablero')
+  async board(@CurrentUser() user: AuthenticatedUser) {
+    return this.ordersService.board(await this.resolveCompanyIdFromContext(user));
+  }
+
+  /** Fase 3 — stop taking new orders for 30 minutes ({ minutos: 30 }), or take them again (0). */
+  @RequirePermission('pedidos.gestionar')
+  @CanonicalPermission(ORDER_STATUS_CHANGE)
+  @Put('pausa')
+  async pause(@Body() dto: PauseOrdersDto, @CurrentUser() user: AuthenticatedUser) {
+    const companyId = await this.resolveCompanyIdFromContext(user);
+    return this.ordersService.pauseOrders(companyId, dto.minutos, user.id);
   }
 
   @RequirePermission('pedidos.gestionar')
