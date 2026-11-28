@@ -56,6 +56,9 @@ export default function OrdersPage() {
           <p className="ws-page__eyebrow">VENTAS POR CANALES</p>
           <h1 className="ws-page__title">Pedidos</h1>
         </div>
+        <Link className="ws-button ws-button--primary" to="/panel/pedidos/vivo">
+          Pedidos en vivo
+        </Link>
       </div>
 
       <nav className="ws-tabs" aria-label="Filtrar por estado">

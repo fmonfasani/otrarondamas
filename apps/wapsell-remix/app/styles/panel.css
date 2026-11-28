@@ -971,3 +971,31 @@ a.ws-list__row:hover, a.ws-list__row.is-selected { background: var(--background-
 .ws-auto__toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .ws-auto__toggle input { width: 18px; height: 18px; accent-color: var(--action-primary, #0a6fd6); }
 .ws-auto .ws-field__control, .ws-auto textarea { width: 100%; }
+
+/* Fase 3 (OR-B4-054) — Pedidos en vivo: four columns that wrap to one on a phone. */
+.ws-board__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.ws-board__tools .ws-button { width: auto; }
+.ws-board__status { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: #e4f3e8; color: #17552a; font-size: 13px; font-weight: 700; }
+.ws-board__status--paused { background: #fbeee8; color: #8a3a22; }
+.ws-board__dot { width: 8px; height: 8px; border-radius: 999px; background: currentColor; }
+.ws-board { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.ws-board__column { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ws-board__title { font-size: 15px; font-weight: 700; }
+.ws-board__empty { font-size: 13px; color: #6f6b64; }
+.ws-board__card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-card); border: 1px solid #ece8e1; }
+.ws-board__card--new { gap: 10px; border: 2px solid var(--action-primary); }
+.ws-board__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ws-board__number { font-size: 16px; font-weight: 700; text-decoration: none; }
+.ws-board__since, .ws-board__muted { font-size: 12px; color: #6f6b64; }
+.ws-board__tag { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: #f1eee8; font-weight: 700; }
+.ws-board__line { font-size: 13px; color: #4a4741; }
+.ws-board__paid { color: #17552a; }
+.ws-board__items { margin: 0; padding-left: 18px; font-size: 13px; color: #4a4741; display: flex; flex-direction: column; gap: 2px; }
+.ws-board__deadline { font-size: 14px; font-weight: 800; color: #a4462a; }
+.ws-board__accept { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ws-board__accept-label { grid-column: 1 / -1; font-size: 13px; font-weight: 700; }
+.ws-board__accept .ws-button { min-height: 44px; padding: 0 6px; justify-content: center; }
+.ws-board__moves { display: flex; flex-wrap: wrap; gap: 6px; }
+.ws-board__moves .ws-button { flex: 1 1 auto; min-height: 40px; justify-content: center; }
+.ws-board__reject summary { cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 0; }
+.ws-board__reject-form { display: flex; flex-direction: column; gap: 8px; }

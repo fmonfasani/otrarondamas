@@ -42,6 +42,8 @@ export type AuditAction =
   | 'STOCK_CARGA_INICIAL'
   | 'STOCK_CONTEO'
   | 'PEDIDO_ESTADO'
+  | 'PEDIDOS_PAUSADOS'
+  | 'PEDIDOS_REANUDADOS'
   | 'CAJA_ABIERTA'
   | 'CAJA_MOVIMIENTO'
   | 'CAJA_ARQUEO'
@@ -108,6 +110,8 @@ const ACTIONS: Record<string, { tema: Topic; nombre: string }> = {
   CANCELAR_ORDEN: { tema: 'pedidos', nombre: 'Canceló un pedido' },
   PEDIDO_CANCELADO: { tema: 'pedidos', nombre: 'Canceló un pedido' },
   PEDIDO_ESTADO: { tema: 'pedidos', nombre: 'Cambió el estado de un pedido' },
+  PEDIDOS_PAUSADOS: { tema: 'pedidos', nombre: 'Pausó los pedidos nuevos' },
+  PEDIDOS_REANUDADOS: { tema: 'pedidos', nombre: 'Volvió a tomar pedidos' },
   PAGO: { tema: 'ventas', nombre: 'Registró un pago' },
   REEMBOLSO: { tema: 'devoluciones', nombre: 'Hizo un reembolso' },
   REEMBOLSO_ENQUEUED: { tema: 'devoluciones', nombre: 'Pidió un reembolso online' },

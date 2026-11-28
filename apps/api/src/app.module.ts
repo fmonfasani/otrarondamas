@@ -36,6 +36,7 @@ import { EmailModule } from './email/email.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { PerformanceModule } from './performance/performance.module';
+import { OrderEventsModule } from './orders/order-events.service';
 import { ExplorerModule } from './explorer/explorer.module';
 // import { RefundQueueModule } from './refunds/refund-queue.module'; // DEFERRED
 // import { SMSNotificationsModule } from './sms-notifications/sms-notifications.module'; // DEFERRED
@@ -95,6 +96,7 @@ import { StaffIdentityGuard } from './auth/guards/staff-identity.guard';
     PlatformAdminModule,
     // Rendimiento (Owner, 2026-11-26): how the platform answers, minute by minute.
     PerformanceModule,
+    OrderEventsModule,
     // Marketplace (Owner, 2026-11-26): Wapsell's explorer of stores and offers.
     ExplorerModule,
     // P8-3: SMS Notifications (OTP, alerts, transactional)

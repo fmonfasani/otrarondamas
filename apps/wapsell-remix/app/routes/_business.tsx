@@ -8,6 +8,7 @@ import { LiveContext, useLiveSource } from '~/hooks/useLiveUpdates';
 import { useUnreadAlerts } from '~/hooks/useUnreadAlerts';
 import { useEffect } from 'react';
 import { ensurePushSubscription } from '~/utils/push';
+import { playChime, unlockSound } from '~/utils/chime';
 
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: panelStyles }];
 
@@ -43,6 +44,17 @@ export default function BusinessLayout() {
   useEffect(() => {
     void ensurePushSubscription();
   }, []);
+  // Fase 3: a new paid order rings on any panel page. Browsers allow sound only after a click.
+  useEffect(() => {
+    document.addEventListener('pointerdown', unlockSound, { once: true });
+    const off = live.subscribe('pedido', (data) => {
+      if (data?.nuevo === true) playChime();
+    });
+    return () => {
+      document.removeEventListener('pointerdown', unlockSound);
+      off();
+    };
+  }, [live]);
   return (
     <LiveContext.Provider value={live}>
       <AppShell user={user} lang={lang} unread={unread.total}>
