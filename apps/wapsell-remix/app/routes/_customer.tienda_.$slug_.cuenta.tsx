@@ -5,6 +5,7 @@ import { ApiError } from '~/services/api.server';
 import { getStoreCustomer, signInCookie, signOutCookie, storeAuth } from '~/services/customer-session.server';
 import { getBuyer } from '~/services/buyer-session.server';
 import {
+  cancelCustomerOrder,
   fetchCustomerOrders,
   fetchCustomerPurchases,
   fetchStore,
@@ -81,6 +82,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (intent === 'logout') {
     return redirect(`/tienda/${slug}`, { headers: { 'Set-Cookie': await signOutCookie(request) } });
+  }
+
+  if (intent === 'cancel') {
+    const customer = await getStoreCustomer(request, slug);
+    if (!customer) return redirect(`/tienda/${slug}/cuenta`);
+    try {
+      await cancelCustomerOrder(customer.jwt, slug, text('orderId'));
+      return redirect(`/tienda/${slug}/cuenta?cancelado=1`);
+    } catch (error) {
+      if (error instanceof ApiError) return json({ intent, message: error.message }, { status: error.status });
+      throw error;
+    }
   }
 
   if (intent === 'pay') {
@@ -268,7 +281,10 @@ function Orders({
           Intentar de nuevo con Mercado Pago
         </a>
       ) : null}
-      {result?.intent === 'pay' ? <output className="form-error">{result.message}</output> : null}
+      {params.get('cancelado') ? (
+        <output className="form-success">Cancelaste el pedido. Te devolvemos el dinero por Mercado Pago.</output>
+      ) : null}
+      {result?.intent === 'pay' || result?.intent === 'cancel' ? <output className="form-error">{result.message}</output> : null}
       {error ? <output className="form-error">{error}</output> : null}
       {!error && orders.length === 0 ? (
         <div className="catalog-state"><span>○</span><p>Todavía no hiciste pedidos. <a href={`/tienda/${slug}#catalogo`}>Ver el catálogo</a></p></div>
@@ -288,6 +304,7 @@ function Orders({
               <p>{order.items.map((item) => `${item.cantidad} × ${item.producto}`).join(' · ')}</p>
               <strong className="account-order__total">{formatMoney(order.total)}</strong>
               <OrderPayment order={order} pagosOnline={pagosOnline} busy={navigation.state !== 'idle'} />
+              <OrderRefund order={order} busy={navigation.state !== 'idle'} />
             </li>
           );
         })}
@@ -308,6 +325,35 @@ function OrderPayment({ order, pagosOnline, busy }: Readonly<{ order: CustomerOr
       <button className="submit-order" type="submit" disabled={busy}>
         Pagar con Mercado Pago · {formatMoney(payment.remaining)}
       </button>
+    </Form>
+  );
+}
+
+function refundText(refunds: NonNullable<CustomerOrder['reembolsos']>) {
+  const total = formatMoney(refunds.reduce((sum, r) => sum + Number(r.monto), 0));
+  if (refunds.every((r) => r.estado === 'REALIZADO')) return `Te devolvimos ${total} por Mercado Pago.`;
+  if (refunds.some((r) => r.estado === 'FALLIDO')) return `No pudimos devolverte ${total} solos: el negocio te lo devuelve. Escribile por el chat.`;
+  return `Te estamos devolviendo ${total} por Mercado Pago.`;
+}
+
+/**
+ * OR-B4-055 — while the store has not accepted it the customer may cancel; the money of a
+ * rejected or cancelled order goes back by itself, and here they see where it is.
+ */
+function OrderRefund({ order, busy }: Readonly<{ order: CustomerOrder; busy: boolean }>) {
+  const refunds = order.reembolsos ?? [];
+  if (refunds.length > 0) {
+    return <small className="account-order__hint">{refundText(refunds)}</small>;
+  }
+  if (order.estado !== 'RECIBIDO') return null;
+  return (
+    <Form method="post" className="account-order__pay">
+      <input type="hidden" name="intent" value="cancel" />
+      <input type="hidden" name="orderId" value={order.id} />
+      <button className="account-logout" type="submit" disabled={busy}>
+        Cancelar pedido
+      </button>
+      <small className="account-order__hint">Podés cancelarlo hasta que el negocio lo acepte. Te devolvemos el dinero.</small>
     </Form>
   );
 }

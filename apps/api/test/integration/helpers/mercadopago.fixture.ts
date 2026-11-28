@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import request from 'supertest';
 import { encryptSecret } from '../../../src/payments/mercadopago/mercadopago-crypto';
@@ -13,6 +13,10 @@ import type { PrismaService } from '../../../src/prisma/prisma.service';
  */
 export class FakeMercadoPago {
   readonly preferences: Array<Record<string, unknown>> = [];
+  /** OR-B4-055: refunds asked, with their idempotency key. */
+  readonly refunds: Array<{ paymentId: string; key: string | undefined }> = [];
+  /** How many of the next refund requests answer with an error (to test the retries). */
+  failNextRefunds = 0;
   private readonly payments = new Map<string, Record<string, unknown>>();
   private readonly accounts = new Map<string, number>();
   private readonly token = `APP_USR-${randomUUID()}`;
@@ -39,6 +43,16 @@ export class FakeMercadoPago {
             init_point: 'https://www.mercadopago.test/checkout',
             sandbox_init_point: `https://sandbox.mercadopago.test/checkout?pref=${this.preferences.length}`,
           });
+        }
+        const refund = /^\/v1\/payments\/(\w+)\/refunds$/.exec(req.url ?? '');
+        if (req.method === 'POST' && refund) {
+          if (this.failNextRefunds > 0) {
+            this.failNextRefunds -= 1;
+            return reply(500, { message: 'internal_error' });
+          }
+          const key = req.headers['x-idempotency-key'];
+          this.refunds.push({ paymentId: refund[1], key: Array.isArray(key) ? key[0] : key });
+          return reply(201, { id: 5_000_000 + this.refunds.length, status: 'approved' });
         }
         const match = /^\/v1\/payments\/(\w+)$/.exec(req.url ?? '');
         if (req.method === 'GET' && match) {
@@ -73,7 +87,7 @@ export class FakeMercadoPago {
 
   /** The store's Mercado Pago account, as the OAuth callback stores it. */
   async connect(prisma: PrismaService, companyId: string) {
-    const userId = 990000 + Math.floor(Math.random() * 9000) + this.accounts.size;
+    const userId = 990000 + randomInt(9000) + this.accounts.size;
     this.accounts.set(companyId, userId);
     const business = await prisma.empresa.findUniqueOrThrow({
       where: { id: companyId },

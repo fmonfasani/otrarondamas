@@ -5,12 +5,13 @@ import { CustomerNoticesModule } from '../../customer-notices/customer-notices.m
 import { MercadoPagoAccountController } from './mercadopago-account.controller';
 import { MercadoPagoAccountService } from './mercadopago-account.service';
 import { MercadoPagoCheckoutService } from './mercadopago-checkout.service';
+import { OrderRefundsService } from './order-refunds.service';
 
 /** OR-B4-032 — real Mercado Pago: each Business's own account. */
 @Module({
   imports: [PrismaModule, BusinessContextModule, CustomerNoticesModule],
   controllers: [MercadoPagoAccountController],
-  providers: [MercadoPagoAccountService, MercadoPagoCheckoutService],
-  exports: [MercadoPagoAccountService, MercadoPagoCheckoutService],
+  providers: [MercadoPagoAccountService, MercadoPagoCheckoutService, OrderRefundsService],
+  exports: [MercadoPagoAccountService, MercadoPagoCheckoutService, OrderRefundsService],
 })
 export class MercadoPagoModule {}

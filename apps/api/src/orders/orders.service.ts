@@ -79,6 +79,19 @@ export class OrdersService {
         },
         PedidoItem: { include: { Producto: { select: { nombre: true } } } },
         // OR-B4-032: online payments of the order (Mercado Pago), newest first.
+        // OR-B4-055: refunds of a paid order the store did not take (kept, with their attempts).
+        ReembolsoPedido: {
+          select: {
+            id: true,
+            monto: true,
+            motivo: true,
+            estado: true,
+            intentos: true,
+            ultimoError: true,
+            realizadoAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
         Pago: {
           select: { id: true, monto: true, estado: true, medio: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
@@ -202,7 +215,13 @@ export class OrdersService {
    * - Concurrency: SERIALIZABLE; exactly one concurrent cancellation wins, the loser re-reads the
    *   order and answers the idempotent result.
    */
-  async cancelOrder(id: string, companyId: string, userId: string, motivo?: string): Promise<any> {
+  /** `userId` null: cancelled by Wapsell itself (OR-B4-055: not accepted in time, or by the customer). */
+  async cancelOrder(
+    id: string,
+    companyId: string,
+    userId: string | null,
+    motivo?: string,
+  ): Promise<any> {
     const db = this.prismaFactory.forCompany(companyId);
 
     try {
@@ -234,7 +253,11 @@ export class OrdersService {
           // Atomic state transition: exactly one concurrent cancellation succeeds.
           const transition = await tx.pedido.updateMany({
             where: { id, estado: { not: 'CANCELADO' } },
-            data: { estado: 'CANCELADO', usuarioId: userId, updatedAt: new Date() },
+            data: {
+              estado: 'CANCELADO',
+              ...(userId ? { usuarioId: userId } : {}),
+              updatedAt: new Date(),
+            },
           });
 
           if (transition.count === 0) {
@@ -379,7 +402,7 @@ export class OrdersService {
     tx: CompanyScopedTx,
     companyId: string,
     orderId: string,
-    userId: string,
+    userId: string | null,
     reason: string,
   ) {
     const movements = await tx.movimientoStock.findMany({

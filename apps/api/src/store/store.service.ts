@@ -41,6 +41,9 @@ export type OrderDelivery = {
 /** OR-B4-055 — an unpaid checkout lapses after this many minutes (OR-B4-054). */
 export const CHECKOUT_MINUTES = 30;
 
+/** OR-B4-055 (Owner, 2026-11-27): the store has 3 minutes to accept a paid order. */
+export const ACCEPT_MINUTES = 3;
+
 /** A line priced by the server and frozen in a checkout. */
 export type PricedLine = {
   productoId: string;
@@ -573,6 +576,8 @@ export class StoreService {
           lngEntrega: checkout.lngEntrega,
           kmEntrega: checkout.kmEntrega,
           costoEnvio: checkout.costoEnvio,
+          // OR-B4-055: not accepted by then, it is rejected and refunded.
+          aceptarAntes: new Date(Date.now() + ACCEPT_MINUTES * 60_000),
           PedidoItem: {
             create: lines.map((line) => ({
               productoId: line.productoId,
@@ -629,6 +634,7 @@ export class StoreService {
       include: {
         PedidoItem: { include: { Producto: { select: { nombre: true } } } },
         Pago: { where: { estado: 'APROBADO' }, select: { monto: true } },
+        ReembolsoPedido: { select: { estado: true, monto: true } },
       },
     });
     return orders.map((order) => ({
@@ -639,6 +645,9 @@ export class StoreService {
       // OR-B4-032: approved payments so far; the store offers to pay the rest once confirmed.
       pagado: order.Pago.reduce((sum, pago) => sum + Number(pago.monto), 0).toFixed(2),
       // OR-B4-054: delivery or pickup, and the courier's fee (apart from the products).
+      // OR-B4-055: until the store accepts it the customer may cancel it; and its refunds.
+      aceptarAntes: order.aceptarAntes,
+      reembolsos: order.ReembolsoPedido.map((r) => ({ estado: r.estado, monto: r.monto })),
       tipoEntrega: order.tipoEntrega,
       direccionEntrega: order.direccionEntrega,
       costoEnvio: order.costoEnvio,

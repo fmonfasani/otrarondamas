@@ -98,6 +98,7 @@ describe('P13-2 — avisos de pedidos en el chat', () => {
     await prisma.usuarioPermiso.deleteMany({ where: { usuarioId: owner.usuarioId } });
     // Orders and stock movements reference the user who took or made them, and those references
     // restrict deletes (ADR-DAT-020): they go first.
+    await prisma.reembolsoPedido.deleteMany({ where: { empresaId: company.id } });
     await prisma.pago.deleteMany({ where: { empresaId: company.id } });
     await prisma.checkoutPedido.deleteMany({ where: { empresaId: company.id } });
     await prisma.pedidoItem.deleteMany({ where: { empresaId: company.id } });

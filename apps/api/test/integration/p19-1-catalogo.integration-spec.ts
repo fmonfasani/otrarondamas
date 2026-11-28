@@ -4,7 +4,6 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { spawnApi } from './helpers/api-server.fixture';
 import { FakeMercadoPago, placePaidOrder } from './helpers/mercadopago.fixture';
-import { signCustomerToken } from './helpers/customer-token.fixture';
 import { signStaffToken } from './helpers/staff-token.fixture';
 import {
   createStoreProduct,

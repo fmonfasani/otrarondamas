@@ -116,6 +116,7 @@ export async function deleteStoreCompanies(prisma: PrismaService, companies: str
   const scope = { where: { empresaId: { in: companies } } };
   await deleteMessagingOf(prisma, companies);
   // OR-B4-055: payments and checkouts point at the orders they paid.
+  await prisma.reembolsoPedido.deleteMany(scope);
   await prisma.pago.deleteMany(scope);
   await prisma.checkoutPedido.deleteMany(scope);
   await prisma.pedidoItem.deleteMany({ where: { Pedido: { empresaId: { in: companies } } } });

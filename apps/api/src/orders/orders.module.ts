@@ -3,6 +3,8 @@ import { MercadoPagoModule } from '../payments/mercadopago/mercadopago.module';
 import { Module } from '@nestjs/common';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { OrderDeadlineService } from './order-deadline.service';
+import { CustomerCancelController } from './customer-cancel.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { BusinessContextModule } from '../business-context/business-context.module';
@@ -15,7 +17,7 @@ import { BusinessContextModule } from '../business-context/business-context.modu
     CustomerNoticesModule,
     MercadoPagoModule,
   ],
-  controllers: [OrdersController],
-  providers: [OrdersService],
+  controllers: [OrdersController, CustomerCancelController],
+  providers: [OrdersService, OrderDeadlineService],
 })
 export class OrdersModule {}
