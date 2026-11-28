@@ -28,6 +28,8 @@ import { toMessageWire, type SerializableMessage } from './message-serializer';
 import { MessagingAlertsService } from './messaging-alerts.service';
 import { CustomerNoticeService } from '../customer-notices/customer-notice.service';
 import { PerformanceCollector } from '../performance/performance.collector';
+import { OrderEventsService } from '../orders/order-events.service';
+import { hasCanonicalPermission } from '../authorization/canonical-permissions';
 
 interface MessagingSocketData {
   authenticatedUser: AuthenticatedUser;
@@ -62,6 +64,16 @@ export function actorRoom(
 
 export function readersRoom(businessId: string): string {
   return `readers:${businessId}`;
+}
+
+/** Fase 3 — the team members who see the Business's orders hear `orders.changed` here. */
+export function ordersRoom(businessId: string): string {
+  return `orders:${businessId}`;
+}
+
+/** Fase 3 — staff who may see orders (ORDERS_VIEW); never a customer. */
+export function canSeeOrders(context: { role: string | null; userId: string | null }): boolean {
+  return context.userId !== null && hasCanonicalPermission(context.role, 'ORDERS_VIEW');
 }
 
 /**
@@ -142,6 +154,7 @@ export class MessagingGateway
   >();
 
   private unsubscribeRevocation?: () => void;
+  private unsubscribeOrders?: () => void;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -155,12 +168,18 @@ export class MessagingGateway
     @Optional() private readonly notices?: CustomerNoticeService,
     // Rendimiento: how many people have a Wapsell screen open.
     @Optional() private readonly performance?: PerformanceCollector,
+    // Fase 3: a new or moved order reaches the team's open screens.
+    @Optional() private readonly orderEvents?: OrderEventsService,
   ) {}
 
   afterInit(namespace: Namespace): void {
     // E3: alerts skip whoever has a screen open; only this gateway knows that.
     this.alerts?.usePresence((businessId, actor) => this.isOnline(businessId, actor));
     this.performance?.useOnline(() => this.presence.size);
+    this.unsubscribeOrders = this.orderEvents?.onChanged(({ businessId, orderId, nuevo }) => {
+      // Ids only, to the team of that Business: the board reloads through HTTP.
+      this.namespace?.to(ordersRoom(businessId)).emit('orders.changed', { orderId, nuevo });
+    });
     this.notices?.onPosted(({ conversationId, messageId }) => {
       this.publishInboxChanged(conversationId);
       // Paquete 1 F1: «Confirmamos tu pedido» reaches the customer with the store closed.
@@ -239,6 +258,7 @@ export class MessagingGateway
       const rooms = [
         own,
         canReadAllConversations(context) ? readersRoom(context.businessId) : null,
+        canSeeOrders(context) ? ordersRoom(context.businessId) : null,
       ];
       for (const room of rooms) {
         if (room) void client.join(room);
@@ -352,6 +372,8 @@ export class MessagingGateway
     this.presence.clear();
     this.unsubscribeRevocation?.();
     this.unsubscribeRevocation = undefined;
+    this.unsubscribeOrders?.();
+    this.unsubscribeOrders = undefined;
     this.connectedSockets.clear();
   }
 

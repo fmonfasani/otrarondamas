@@ -1,4 +1,5 @@
 import { OrderNoticeService } from '../customer-notices/order-notice.service';
+import { OrderEventsService } from '../orders/order-events.service';
 import {
   BadRequestException,
   ConflictException,
@@ -86,6 +87,7 @@ export class StoreService {
     private readonly loyaltyService: LoyaltyService,
     private readonly customersService: CustomersService,
     @Optional() private readonly orderNotices?: OrderNoticeService,
+    @Optional() private readonly orderEvents?: OrderEventsService,
   ) {}
 
   private companyId(explicitCompanyId?: string): string {
@@ -523,6 +525,22 @@ export class StoreService {
       select: { id: true, esMayorista: true },
     });
     if (!customer) throw new NotFoundException('Cliente no encontrado');
+    // Fase 3: a store that paused its orders takes none until then.
+    const business = await db.empresa.findUnique({
+      where: { id: companyId },
+      select: { pedidosPausadosHasta: true },
+    });
+    const pausedUntil = business?.pedidosPausadosHasta;
+    if (pausedUntil && pausedUntil.getTime() > Date.now()) {
+      const time = pausedUntil.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Argentina/Buenos_Aires',
+      });
+      throw new ConflictException(
+        `El negocio no está tomando pedidos ahora. Probá de nuevo después de las ${time}.`,
+      );
+    }
     const requested = new Map<string, number>();
     for (const item of items) {
       requested.set(item.productoId, (requested.get(item.productoId) ?? 0) + item.cantidad);
@@ -607,6 +625,8 @@ export class StoreService {
       return order;
     });
     if (created) {
+      // Fase 3: the team's open screens ring at once.
+      this.orderEvents?.changed(companyId, created.id, true);
       // OR-B4-037 / OR-B4-053: the paid order enters the customer's chat as its card.
       await this.orderNotices?.received(companyId, created);
       return { order: created, created: true };

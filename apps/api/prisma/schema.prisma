@@ -626,6 +626,8 @@ model Empresa {
   /// ADR-IDN-014: the internal Wapsell business (platform administration). Hidden from the
   /// public, the directory and the metrics; the database refuses to delete it or its accounts.
   interno                 Boolean                   @default(false)
+  /// Fase 3: the store takes no new orders until then (it paused them from Pedidos en vivo).
+  pedidosPausadosHasta    DateTime?
   AuditLog                AuditLog[]
   Autorizacion            Autorizacion[]
   Caja                    Caja?
@@ -1079,6 +1081,8 @@ model Pedido {
   costoEnvio          Decimal           @default(0) @db.Decimal(18, 2)
   /// OR-B4-055: a paid order not accepted by then is rejected and refunded (3 minutes).
   aceptarAntes        DateTime?
+  /// Fase 3: when the store said it would be ready (it accepted choosing 10, 20 or 30 minutes).
+  listoEstimado       DateTime?
   Entrega             Entrega?
   CheckoutPedido      CheckoutPedido?
   ReembolsoPedido     ReembolsoPedido[]

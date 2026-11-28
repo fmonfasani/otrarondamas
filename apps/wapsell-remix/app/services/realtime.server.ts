@@ -69,6 +69,15 @@ export function presenceSignal(payload: unknown, viewer: Viewer) {
   return { userId, customerId, online, lastSeenAt: seen && !Number.isNaN(Date.parse(seen)) ? seen : null };
 }
 
+/** Fase 3 — «pedido»: which order, and whether it just arrived. Staff only. */
+export function orderSignal(payload: unknown, viewer: Viewer) {
+  if (viewer !== 'equipo') return null;
+  const orderId = field(payload, 'orderId');
+  if (!orderId) return null;
+  const nuevo = payload && typeof payload === 'object' && (payload as Record<string, unknown>).nuevo === true;
+  return { orderId, nuevo };
+}
+
 /** The stream for one open screen. Closes the API connection when the screen goes away. */
 export function realtimeStream(request: Request, token: string, viewer: Viewer, connect: Connect = connectToApi): Response {
   const encoder = new TextEncoder();
@@ -124,6 +133,11 @@ export function realtimeStream(request: Request, token: string, viewer: Viewer, 
       socket.on('presence.changed', (payload) => {
         const signal = presenceSignal(payload, viewer);
         if (signal) send(sseMessage('presencia', signal));
+      });
+      // Fase 3: an order arrived or moved (the API sends it only to the team that sees orders).
+      socket.on('orders.changed', (payload) => {
+        const signal = orderSignal(payload, viewer);
+        if (signal) send(sseMessage('pedido', signal));
       });
     },
     cancel() {
